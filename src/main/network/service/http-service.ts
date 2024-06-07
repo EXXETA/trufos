@@ -1,0 +1,99 @@
+import undici, { Dispatcher } from 'undici';
+import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
+import { FileSystemService } from 'main/filesystem/filesystem-service';
+import { pipeline } from 'node:stream/promises';
+import fs from 'fs';
+import { Request, Response } from 'shim/http';
+import { Request as BackendRequest } from 'main/persistence/entity/request';
+import path from 'path';
+import { Readable } from 'stream';
+import { EnvironmentService } from 'main/environment/service/environment-service';
+
+const fileSystemService = FileSystemService.instance;
+const environmentService = EnvironmentService.instance;
+
+/**
+ * Singleton service for making HTTP requests
+ */
+export class HttpService {
+
+  private static readonly _instance: HttpService = new HttpService();
+
+  private readonly _dispatcher?: Dispatcher;
+
+  constructor(dispatcher?: Dispatcher) {
+    this._dispatcher = dispatcher;
+  }
+
+  public static get instance() {
+    return this._instance;
+  }
+
+  /**
+   * Fetch a resource asynchronously. The response body is written to a temporary file.
+   * @param request request object
+   * @returns response object
+   */
+  public async fetchAsync(request: Request): Promise<Response> {
+    console.info('Sending request: ', request);
+
+    const now = getSteadyTimestamp();
+    const body = await this.readBody(request);
+
+    const responseData = await undici.request(
+      request.url,
+      {
+        dispatcher: this._dispatcher,
+        method: request.method,
+        headers: request.headers,
+        body
+      }
+    );
+
+    const duration = getDurationFromNow(now);
+    console.info(`Received response in ${duration} milliseconds:`, responseData);
+
+    // write the response body to a temporary file
+    const bodyFile = fileSystemService.temporaryFile();
+    if (responseData.body != null) {
+      console.debug('Writing response body to temporary file: ', bodyFile.name);
+      await pipeline(responseData.body, fs.createWriteStream('', { fd: bodyFile.fd }));
+      console.debug('Successfully written response body');
+    }
+
+    // return a new Response instance
+    const response: Response = {
+      status: responseData.statusCode,
+      headers: Object.freeze(responseData.headers),
+      duration: duration,
+      bodyFilePath: responseData.body != null ? bodyFile.name : null
+    };
+
+    console.debug('Returning response: ', response);
+    return response;
+  }
+
+  /**
+   * Read the request body from the file system
+   * @param request request object
+   * @returns request body as stream or null if there is no body
+   */
+  private async readBody(request: Request): Promise<Readable | null> {
+    if (request.body == null) {
+      return Promise.resolve(null);
+    }
+
+    switch (request.body.type) {
+      case 'text':
+        return environmentService.setVariablesInStream(
+          await fileSystemService.readFile(path.join(request.dirPath, BackendRequest.TEXT_BODY_FILE_NAME))
+        );
+      case 'file':
+        return fileSystemService.readFile(request.body.filePath);
+      default:
+        throw new Error('Unknown body type');
+    }
+  }
+
+}
+
