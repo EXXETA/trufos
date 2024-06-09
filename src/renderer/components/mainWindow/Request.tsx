@@ -12,9 +12,12 @@ import {
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { ArrowRightIcon, BookmarkIcon } from '@radix-ui/react-icons';
-import { Request, RequestMethod, Response } from 'shim/http';
+import { HttpHeaders, Request, RequestBody, RequestMethod, Response } from 'shim/http';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/state/store';
+import { editor } from 'monaco-editor';
 
 export type RequestProps = {
   onResponse: (response: Response) => void;
@@ -38,6 +41,7 @@ export function Request(props: RequestProps) {
   const { onResponse } = props;
   const urlInputRef = React.useRef<HTMLInputElement>(null);
   const httpMethodSelectRef = React.useRef<HTMLSpanElement>(null);
+  const requestEditor = useSelector<RootState>(state => state.view.requestEditor) as editor.ICodeEditor | undefined;
 
   /**
    * Sends a request to the server with the current URL and HTTP method.
@@ -48,19 +52,29 @@ export function Request(props: RequestProps) {
       if (url === undefined || httpMethod === undefined) {
         throw new Error('Missing React reference to URL input or HTTP method select element');
       }
+      let body: RequestBody = null;
+      const headers: HttpHeaders = {};
+      if (requestEditor !== undefined) {
+        body = {
+          type: 'text',
+          text: requestEditor.getValue(),
+          mimeType: 'text/plain'
+        };
+        headers['Content-Type'] = 'text/plain';
+      }
 
       const request: Request = {
         url: url,
         method: httpMethod as RequestMethod,
-        headers: {}, // TODO: set the headers of the request
-        body: null, // TODO: set the body of the request
+        headers: headers, // TODO: set the headers of the request
+        body: body,
         dirPath: '???' // TODO: set the directory of the request. If it's unsaved, it has to be some temporary directory
       };
 
       // Send the request and pass the response to the onResponse callback
       onResponse(await httpService.sendRequest(request));
     }),
-    [urlInputRef, httpMethodSelectRef, onResponse]
+    [urlInputRef, httpMethodSelectRef, requestEditor, onResponse]
   );
 
   /**

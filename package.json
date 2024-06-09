@@ -56,10 +56,10 @@
   },
   "keywords": [],
   "author": {
-    "name": "Wilke, Louis",
+    "name": "The Rufus Authors",
     "email": "louis.wilke@exxeta.com"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
     "@radix-ui/react-dialog": "^1.0.5",
