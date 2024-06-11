@@ -56,8 +56,7 @@
   },
   "keywords": [],
   "author": {
-    "name": "The Rufus Authors",
-    "email": "louis.wilke@exxeta.com"
+    "name": "The Rufus Authors"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
