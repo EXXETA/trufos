@@ -1,8 +1,12 @@
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '../../ui/tabs';
-import {Editor} from "@monaco-editor/react";
-import {DEFAULT_MONACO_OPTIONS} from "@/components/shared/settings/monaco-settings";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Editor } from '@monaco-editor/react';
+import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
+import { useDispatch } from 'react-redux';
+import { setRequestEditor } from '@/state/view';
 
 export function InputTabs() {
+  const dispatch = useDispatch();
+
   return (
     <Tabs defaultValue="body">
       <TabsList>
@@ -15,6 +19,7 @@ export function InputTabs() {
         <Editor
           theme="vs-dark" /* TODO: apply theme from settings */
           options={DEFAULT_MONACO_OPTIONS}
+          onMount={editor => dispatch(setRequestEditor(editor))}
         />
       </TabsContent>
       <TabsContent value="queryParams">Change your queryParams here.</TabsContent>
