@@ -46,7 +46,7 @@ export class HttpService {
         dispatcher: this._dispatcher,
         method: request.method,
         headers: request.headers,
-        body
+        body: body
       }
     );
 
@@ -85,9 +85,10 @@ export class HttpService {
 
     switch (request.body.type) {
       case 'text':
-        return environmentService.setVariablesInStream(
+        const requestBodyStream = request.body.text === null ?
           await fileSystemService.readFile(path.join(request.dirPath, BackendRequest.TEXT_BODY_FILE_NAME))
-        );
+          : Readable.from([request.body.text]);
+        return environmentService.setVariablesInStream(requestBodyStream);
       case 'file':
         return fileSystemService.readFile(request.body.filePath);
       default:
