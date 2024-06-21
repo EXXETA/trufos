@@ -35,7 +35,7 @@
     "@vercel/webpack-asset-relocator-loader": "^1.7.3",
     "autoprefixer": "^10.4.19",
     "css-loader": "^7.1.2",
-    "electron": "31.0.1",
+    "electron": "31.0.2",
     "electron-devtools-installer": "^3.2.0",
     "eslint": "^8.57.0",
     "eslint-import-resolver-typescript": "^3.6.1",
