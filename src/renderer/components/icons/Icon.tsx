@@ -1,5 +1,3 @@
-// src/components/icons/Icon.tsx
-
 import React from 'react';
 
 interface IconProps extends React.SVGProps<SVGSVGElement> {
