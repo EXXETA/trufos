@@ -19,7 +19,6 @@
     "jsx": "react-jsx"
   },
   "include": [
-    "src/**/*",
-    "src/components"
+    "src/**/*"
   ]
 }
