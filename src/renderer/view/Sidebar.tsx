@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { PlusIcon } from '@radix-ui/react-icons';
 import { Button } from '@/components/ui/button';
 import { Divider } from '@/components/shared/Divider';
 import { SidebarSearch } from '@/components/sidebar/SidebarSearch';
 import { FooterBar } from '@/components/sidebar/FooterBar';
+import { AddIcon } from '@/components/icons';
 
 export const Sidebar = () => {
   const [ isExpanded, setIsExpanded ] = useState(false);
@@ -29,14 +29,15 @@ export const Sidebar = () => {
             }}
           >
 
-            <PlusIcon className={cn('min-w-[22px] min-h-[22px] m-2')} />
+            <div className={cn('m-2')}>
+              <AddIcon size={24} color={'black'} />
+            </div>
+
             <span className='overflow-hidden'>Create New Request</span>
           </Button>
         </div>
 
         <Divider />
-
-
 
       </div>
       <FooterBar/>
