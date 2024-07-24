@@ -1,7 +1,18 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDispatch } from 'react-redux';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { Separator } from '@radix-ui/react-select';
+import { RequestBodyType } from 'shim/http';
 import { Editor } from '@monaco-editor/react';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import { useDispatch } from 'react-redux';
 import { setRequestEditor } from '@/state/view';
 
 export function InputTabs() {
@@ -16,6 +27,17 @@ export function InputTabs() {
         <TabsTrigger value="authorization">Auth</TabsTrigger>
       </TabsList>
       <TabsContent value="body">
+        <Select>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Source</SelectLabel>
+              <SelectItem value={RequestBodyType.TEXT}>Text</SelectItem>
+              <SelectItem value={RequestBodyType.FILE}>File</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Separator />
         <Editor
           theme="vs-dark" /* TODO: apply theme from settings */
           options={DEFAULT_MONACO_OPTIONS}
