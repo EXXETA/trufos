@@ -26,7 +26,7 @@ export function InputTabs() {
         <TabsTrigger value="header">Header</TabsTrigger>
         <TabsTrigger value="authorization">Auth</TabsTrigger>
       </TabsList>
-      <TabsContent value="body">
+      <TabsContent value="body" style={{ flexDirection: 'column', display: 'flex' }}>
         <Select>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -38,11 +38,13 @@ export function InputTabs() {
           </SelectContent>
         </Select>
         <Separator />
-        <Editor
-          theme="vs-dark" /* TODO: apply theme from settings */
-          options={DEFAULT_MONACO_OPTIONS}
-          onMount={editor => dispatch(setRequestEditor(editor))}
-        />
+        <div style={{ flex: 1 }}>
+          <Editor
+            theme="vs-dark" /* TODO: apply theme from settings */
+            options={DEFAULT_MONACO_OPTIONS}
+            onMount={editor => dispatch(setRequestEditor(editor))}
+          />
+        </div>
       </TabsContent>
       <TabsContent value="queryParams">Change your queryParams here.</TabsContent>
       <TabsContent value="header">Change your header here.</TabsContent>
