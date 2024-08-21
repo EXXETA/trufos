@@ -1,6 +1,6 @@
 import {Button} from '../ui/button';
 import {FileIcon, PlusIcon} from '@radix-ui/react-icons';
-import {HttpHeaders} from "shim/http";
+import {HttpHeaders} from "../../../shim/headers";
 
 export type HeaderProps = {
   headers?: HttpHeaders;

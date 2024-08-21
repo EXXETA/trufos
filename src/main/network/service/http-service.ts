@@ -3,11 +3,10 @@ import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { pipeline } from 'node:stream/promises';
 import fs from 'fs';
-import { Request, Response } from 'shim/http';
-import { Request as BackendRequest } from 'main/persistence/entity/request';
-import path from 'path';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
+import {RufusRequest} from "shim/request";
+import {RufusResponse} from "shim/response";
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -34,7 +33,7 @@ export class HttpService {
    * @param request request object
    * @returns response object
    */
-  public async fetchAsync(request: Request): Promise<Response> {
+  public async fetchAsync(request: RufusRequest): Promise<RufusResponse> {
     console.info('Sending request: ', request);
 
     const now = getSteadyTimestamp();
@@ -62,7 +61,7 @@ export class HttpService {
     }
 
     // return a new Response instance
-    const response: Response = {
+    const response: RufusResponse = {
       status: responseData.statusCode,
       headers: Object.freeze(responseData.headers),
       duration: duration,
@@ -78,16 +77,14 @@ export class HttpService {
    * @param request request object
    * @returns request body as stream or null if there is no body
    */
-  private async readBody(request: Request): Promise<Readable | null> {
+  private async readBody(request: RufusRequest): Promise<Readable | null> {
     if (request.body == null) {
       return Promise.resolve(null);
     }
 
     switch (request.body.type) {
       case 'text':
-        const requestBodyStream = request.body.text === null ?
-          await fileSystemService.readFile(path.join(request.dirPath, BackendRequest.TEXT_BODY_FILE_NAME))
-          : Readable.from([request.body.text]);
+        const requestBodyStream = Readable.from([request.body.text]);
         return environmentService.setVariablesInStream(requestBodyStream);
       case 'file':
         return fileSystemService.readFile(request.body.filePath);

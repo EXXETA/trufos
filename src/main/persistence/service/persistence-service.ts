@@ -1,172 +1,233 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Collection, CollectionObject } from '../entity/collection';
-import { Folder, FolderObject } from '../entity/folder';
-import {
-  DirectoryWithInfo,
-  DirectoryWithInfoObject,
-  DirectoryWithInfoType
-} from '../entity/directory-with-info';
-import { Request, RequestObject } from '../entity/request';
-import { InternalError, InternalErrorType } from 'main/error/internal-error';
-import { exists, USER_DATA_DIR } from 'main/util/fs-util';
+import fs from "node:fs/promises";
+import {exists, USER_DATA_DIR} from "../../util/fs-util";
+import {RufusObject} from "../../../shim/object";
+import {RufusRequest} from "../../../shim/request";
+import {Folder} from "../../../shim/folder";
+import {Collection} from "../../../shim/collection";
+import {CollectionInfoFile, FolderInfoFile, RequestInfoFile, toInfoFile} from "./info-files";
+import { v4 as uuidv4 } from 'uuid';
+import { generateDefaultCollection } from './default-collection';
 
 /**
- * A service to persist collections, directories and requests to the file system
+ * This service is responsible for persisting and loading collections, folders, and requests
+ * to and from the file system.
  */
 export class PersistenceService {
-
-  private static readonly DIRECTORY_INFO_FILE_NAME = 'info.json';
-  private static readonly DEFAULT_COLLECTION_DIR = path.join(USER_DATA_DIR, 'default-collection');
+  private static readonly DEFAULT_COLLECTION_DIR = path.join(
+    USER_DATA_DIR,
+    "default-collection"
+  );
 
   public static readonly instance = new PersistenceService();
 
+  private idToPathMap: Map<string, string> = new Map();
+
   /**
-   * Loads or creates the default collection in the user data directory
+   * Loads the default collection into memory.
+   * @returns the default collection
    */
   public async loadDefaultCollection() {
     const dirPath = PersistenceService.DEFAULT_COLLECTION_DIR;
     if (await exists(dirPath)) {
-      return this.loadCollection(dirPath);
+      return await this.loadCollection(dirPath);
     }
 
-    // create a new default collection
-    console.info('Creating default collection at', dirPath);
-    const collection = new Collection({
-        version: 'v1',
-        type: DirectoryWithInfoType.COLLECTION,
-        variables: {},
-        title: 'Default'
-      },
-      path.basename(PersistenceService.DEFAULT_COLLECTION_DIR),
-      path.dirname(PersistenceService.DEFAULT_COLLECTION_DIR)
-    );
-
-    // store and return the default collection
-    await this.storeCollection(collection);
+    console.info("Creating default collection at", dirPath);
+    const collection = generateDefaultCollection(dirPath);
+    await this.save(collection);
     return collection;
   }
 
+  /**
+   * Moves a child object from one parent to another on the file system.
+   * @param child the child object that gets moved
+   * @param oldParent the parent object the child is currently in
+   * @param newParent the parent object the child gets moved to
+   */
+  public async moveChild(
+    child: Folder | RufusRequest,
+    oldParent: Folder | Collection,
+    newParent: Folder | Collection
+  ) {
+    const childDirName = this.getDirName(child);
+    const oldChildDirPath = this.getDirPath(child);
+    const newParentDirPath = this.getDirPath(newParent);
+    const newChildDirPath = path.join(newParentDirPath, childDirName);
+
+    oldParent.children = oldParent.children.filter(
+      (c) => c.id !== child.id
+    );
+    newParent.children.push(child);
+    await fs.rename(oldChildDirPath, newChildDirPath);
+
+    this.updatePathMapRecursively(child, newParentDirPath);
+  }
 
   /**
-   * Loads a collection and all of its directories and requests from the file system
-   * @param dirPath The absolute path to the directory which represents the collection
+   * Renames a rufus object on the file system.
+   * @param object rufus object to be renamed
+   * @param newTitle new title of the object
    */
-  public async loadCollection(dirPath: string) {
-    try {
-      const collectionInfo = await this.loadDirectoryInfo<CollectionObject>(dirPath);
-      if (collectionInfo.type !== DirectoryWithInfoType.COLLECTION) {
-        throw new InternalError(InternalErrorType.COLLECTION_LOAD_ERROR, 'The given directory is not a collection');
+  public async rename(object: RufusObject, newTitle: string) {
+    const oldDirPath = this.getDirPath(object);
+    const parentDirPath = path.dirname(oldDirPath);
+    const newDirName = this.getDirName(object);
+    const newDirPath = path.join(parentDirPath, newDirName);
+
+    await fs.rename(oldDirPath, newDirPath);
+
+    object.title = newTitle;
+    this.idToPathMap.set(object.id, newDirPath);
+
+    if (object.type === "collection" || object.type === "folder") {
+      for (const child of object.children) {
+        this.updatePathMapRecursively(child, newDirPath);
       }
-      const collection = new Collection(collectionInfo, path.basename(dirPath), dirPath);
-      await this.loadChildren(dirPath, collection);
-      return collection;
-    } catch (e) {
-      if (e instanceof InternalError) {
-        throw e;
-      } else {
-        console.error('Error while loading collection', e);
-        throw new InternalError(InternalErrorType.COLLECTION_LOAD_ERROR, 'Error while loading collection', e);
-      }
     }
   }
 
-  private async loadChildren(dirPath: string, parent: DirectoryWithInfo) {
-    for (const fileNode of await fs.readdir(dirPath, { withFileTypes: true })) {
-      if (fileNode.isDirectory()) {
-        const childDirPath = path.join(dirPath, fileNode.name);
-        const directoryInfo = await this.loadDirectoryInfo(childDirPath);
-        let child: DirectoryWithInfo;
-        switch (directoryInfo.type) {
-          case DirectoryWithInfoType.COLLECTION:
-            throw new InternalError(InternalErrorType.COLLECTION_LOAD_ERROR, 'A collection cannot be a child of another collection');
-          case DirectoryWithInfoType.FOLDER:
-            child = await this.loadDirectory(directoryInfo, childDirPath, parent);
-            break;
-          case DirectoryWithInfoType.REQUEST:
-            child = await this.loadRequest(directoryInfo, childDirPath, parent);
-            break;
-          default:
-            console.warn(`Unknown directory type: ${(directoryInfo as { type: any }).type}`);
-            continue;
-        }
-        parent.addChild(child);
+  /**
+   * Creates or updates a rufus object on the file system.
+   * @param object rufus object to be saved
+   */
+  public async save(object: RufusObject) {
+    const dirPath = this.getDirPath(object);
+    const infoFileContents = toInfoFile(object);
+    const infoFilePath = path.join(dirPath, `${object.type}.json`);
+
+    if (!(await exists(dirPath))) {
+      await fs.mkdir(dirPath);
+    }
+
+    await fs.writeFile(infoFilePath, JSON.stringify(infoFileContents, null, 2));
+    this.idToPathMap.set(object.id, dirPath);
+
+    if (object.type === 'folder' || object.type === 'collection') {
+      for (const child of object.children) {
+        await this.save(child);
       }
     }
   }
 
   /**
-   * Loads a directory and all of its children from the file system
-   * @param directoryInfo The info object of the directory
-   * @param dirPath The absolute path to the directory which represents the request
-   * @param parent The parent directory of the request
+   * Loads a collection and all of its children from the file system.
+   * @param dirPath the directory path where the collection is located
+   * @returns the loaded collection
    */
-  private async loadDirectory(directoryInfo: FolderObject, dirPath: string, parent: DirectoryWithInfo) {
-    const directory = new Folder(directoryInfo, path.basename(dirPath), parent);
-    await this.loadChildren(dirPath, directory);
-    return directory;
+  public async loadCollection(dirPath: string): Promise<Collection> {
+    const infoFilePath = path.join(dirPath, "collection.json");
+    const infoFileContents = JSON.parse(
+      await fs.readFile(infoFilePath, "utf8")
+    ) as CollectionInfoFile;
+    delete infoFileContents.version;
+    const id = uuidv4();
+    this.idToPathMap.set(id, dirPath);
+    const children = await this.loadChildren(id, dirPath);
+    return Object.assign(infoFileContents, {
+      id,
+      type: "collection" as const,
+      dirPath,
+      children,
+    });
   }
 
-  /**
-   * Loads a request from the file system
-   * @param requestInfo The info object of the request
-   * @param dirPath The absolute path to the directory which represents the request
-   * @param parent The parent directory of the request
-   */
-  private async loadRequest(requestInfo: RequestObject, dirPath: string, parent: DirectoryWithInfo) {
-    return new Request(requestInfo, path.basename(dirPath), parent);
+  private async loadRequest(parentId: string, dirPath: string): Promise<RufusRequest> {
+    const infoFilePath = path.join(dirPath, "request.json");
+    const infoFileContents = JSON.parse(
+      await fs.readFile(infoFilePath, "utf8")
+    ) as RequestInfoFile;
+    delete infoFileContents.version;
+    const id = uuidv4();
+    this.idToPathMap.set(id, dirPath);
+    return Object.assign(infoFileContents, {
+      id,
+      parentId,
+      type: "request" as const
+    });
   }
 
-  /**
-   * Stores a collection and all of its directories and requests to the file system
-   * @param collection The collection to store
-   */
-  public async storeCollection(collection: Collection) {
-    try {
-      await this.storeDirectory(collection);
-      return collection;
-    } catch (e) {
-      console.error(`Error while storing collection: ${e}`);
-      throw new InternalError(InternalErrorType.COLLECTION_SAVE_ERROR, 'Error while storing collection', e);
+  private async loadFolder(parentId: string, dirPath: string): Promise<Folder> {
+    const infoFilePath = path.join(dirPath, "folder.json");
+    const infoFileContents = JSON.parse(
+      await fs.readFile(infoFilePath, "utf8")
+    ) as FolderInfoFile;
+    delete infoFileContents.version;
+    const id = uuidv4();
+    this.idToPathMap.set(id, dirPath);
+    const children = await this.loadChildren(id, dirPath);
+    return Object.assign(infoFileContents, {
+      id,
+      parentId,
+      type: "folder" as const,
+      children,
+    });
+  }
+
+  private async loadChildren(
+    parentId: string,
+    parentDirPath: string
+  ): Promise<(Folder | RufusRequest)[]> {
+    const children: (Folder | RufusRequest)[] = [];
+
+    for (const node of await fs.readdir(parentDirPath, {
+      withFileTypes: true,
+    })) {
+      if (!node.isDirectory()) {
+        continue;
+      }
+
+      const childDirPath = path.join(parentDirPath, node.name);
+      const requestInfoFilePath = path.join(childDirPath, "request.json");
+      const folderInfoFilePath = path.join(childDirPath, "folder.json");
+
+      if (await exists(requestInfoFilePath)) {
+        children.push(await this.loadRequest(parentId, childDirPath));
+      } else if (await exists(folderInfoFilePath)) {
+        children.push(await this.loadFolder(parentId, childDirPath));
+      }
+    }
+
+    return children;
+  }
+
+  private updatePathMapRecursively(
+    child: Folder | RufusRequest,
+    newParentDirPath: string
+  ) {
+    const oldDirPath = this.idToPathMap.get(child.id);
+    const dirName = path.basename(oldDirPath);
+    const newDirPath = path.join(newParentDirPath, dirName);
+    this.idToPathMap.set(child.id, newDirPath);
+    if (child.type === "folder") {
+      for (const grandChild of child.children) {
+        this.updatePathMapRecursively(grandChild, newDirPath);
+      }
     }
   }
 
-  /**
-   * Recursively stores a directory and all of its children to the file system
-   * @param directory The directory to store
-   */
-  private async storeDirectory(directory: DirectoryWithInfo) {
-    await fs.mkdir(directory.dirPath, { recursive: true });
-    const infoFilePath = path.join(directory.dirPath, PersistenceService.DIRECTORY_INFO_FILE_NAME);
-    await fs.writeFile(infoFilePath, JSON.stringify(directory.toObject(), null, 2), 'utf8');
-    if (directory instanceof Request) await this.storeRequestBody(directory);
-    for (const child of directory.children) {
-      await this.storeDirectory(child);
+  private getDirPath(object: RufusObject) {
+    if (object.type === "collection") {
+      return object.dirPath;
+    }
+    else if (this.idToPathMap.has(object.id)) {
+      return this.idToPathMap.get(object.id);
+    }
+    else {
+      // must derive the path from parent
+      const parentDirPath = this.idToPathMap.get(object.parentId);
+      return path.join(parentDirPath, this.getDirName(object));
     }
   }
 
-  /**
-   * Stores the request body of the given request to the file system (if applicable)
-   * @param request The request to store the body of
-   */
-  private async storeRequestBody(request: Request) {
-    const requestBody = request.body;
-    if (requestBody.type === 'text' && requestBody.text !== undefined) {
-      const bodyFilePath = path.join(request.dirPath, Request.TEXT_BODY_FILE_NAME);
-      await fs.writeFile(bodyFilePath, requestBody.text, 'utf8');
-    }
+  private getDirName(object: RufusObject): string {
+    return this.sanitizeTitle(object.title);
   }
 
-  /**
-   * Loads the info file of a directory
-   * @param dirPath The absolute path to the directory
-   */
-  private async loadDirectoryInfo<T extends DirectoryWithInfoObject = CollectionObject | FolderObject | RequestObject>(dirPath: string) {
-    const filePath = path.join(dirPath, PersistenceService.DIRECTORY_INFO_FILE_NAME);
-    if (!await exists(filePath)) {
-      throw new InternalError(InternalErrorType.COLLECTION_LOAD_ERROR, `The info file of the directory ${dirPath} does not exist`);
-    }
-    return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
+  private sanitizeTitle(title: string): string {
+    return title
+      .toLowerCase()
+      .replace(/\s/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
   }
-
 }

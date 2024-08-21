@@ -1,6 +1,6 @@
-import { Collection } from 'main/persistence/entity/collection';
 import { InternalError, InternalErrorType } from 'main/error/internal-error';
-import { PersistenceService } from 'main/persistence/service/persistence-service';
+import {Collection} from "../../../shim/collection";
+import {PersistenceService} from "../../persistence/service/persistence-service";
 import { PostmanImporter } from './postman-importer';
 
 export type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
@@ -34,7 +34,8 @@ export class ImportService {
     console.info(`Importing collection from "${srcFilePath}" to "${targetDirPath}" using strategy "${strategy}"`);
     const collection = await importer.importCollection(srcFilePath, targetDirPath);
     console.info('Successfully imported collection:', collection);
-    return await persistenceService.storeCollection(collection);
+    await persistenceService.save(collection);
+    return collection;
   }
 
 }

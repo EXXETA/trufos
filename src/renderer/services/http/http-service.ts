@@ -1,6 +1,6 @@
-import {Request} from "shim/http";
 import {RendererEventService} from "@/services/event/renderer-event-service";
 import {DisplayableError} from "@/error/DisplayableError";
+import {RufusRequest} from "../../../shim/request";
 
 const eventService = RendererEventService.instance;
 
@@ -14,7 +14,7 @@ export class HttpService {
    * @returns The response.
    * @throws {DisplayableError} If anything fails.
    */
-  public async sendRequest(request: Request) {
+  public async sendRequest(request: RufusRequest) {
     try {
       console.info("Sending request:", request);
       const response = await eventService.sendRequest(request);

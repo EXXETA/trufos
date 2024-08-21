@@ -1,5 +1,6 @@
-import {Request, Response} from './http';
 import {FileInfo} from "./fs";
+import {RufusRequest} from "./request";
+import {RufusResponse} from "./response";
 
 export interface IEventService {
 
@@ -7,7 +8,7 @@ export interface IEventService {
    * Send an HTTP request.
    * @param request The request to send.
    */
-  sendRequest(request: Request): Promise<Response>;
+  sendRequest(request: RufusRequest): Promise<RufusResponse>;
 
   /**
    * Get information about a file or directory.

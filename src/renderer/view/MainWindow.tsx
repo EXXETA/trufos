@@ -2,8 +2,9 @@
 import {RequestBody} from '@/components/mainWindow/RequestBody';
 import {Request} from '@/components/mainWindow/Request';
 import {useState} from "react";
-import {HttpHeaders, Response} from "shim/http";
 import {RendererEventService} from "@/services/event/renderer-event-service";
+import {HttpHeaders} from "../../shim/headers";
+import {RufusResponse} from "../../shim/response";
 
 const eventService = RendererEventService.instance;
 const textDecoder = new TextDecoder();
@@ -13,7 +14,7 @@ export function MainWindow() {
   const [body, setBody] = useState<string>();
   const [headers, setHeaders] = useState<HttpHeaders>();
 
-  async function handleResponse(response: Response) {
+  async function handleResponse(response: RufusResponse) {
     setHeaders(response.headers);
     if (response.bodyFilePath) {
       const buffer = await eventService.readFile(response.bodyFilePath);

@@ -16,7 +16,7 @@ As of right now, Rufus is still in early development and is not yet ready for pr
 If you would like to contribute to this project, please check out our
 [Contributing Guidelines](./CONTRIBUTING.md)
 
-## Requirements
+## Requirements 
 
 As Rufus is an electron application, it can be run on Windows, macOS and Linux without any issues.
 If you want to develop or build this software yourself, you will need Node.js version 14 or higher

@@ -1,12 +1,11 @@
 import {IEventService} from 'shim/event-service';
 import {HttpService} from "main/network/service/http-service";
-import {Request as BackendRequest} from "main/persistence/entity/request";
 import {ipcMain} from "electron";
-import {Request} from 'shim/http';
 import fs from "fs/promises";
 import {FileInfo} from "shim/fs";
 import {FileHandle} from "node:fs/promises";
 import path from "path";
+import {RufusRequest} from "../../shim/request";
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -64,7 +63,7 @@ export class MainEventService implements IEventService {
     console.debug("Registered event channels on backend");
   }
 
-  async sendRequest(request: Request) {
+  async sendRequest(request: RufusRequest) {
     return await HttpService.instance.fetchAsync(request);
   }
 
@@ -108,7 +107,7 @@ export class MainEventService implements IEventService {
 
   async saveTextBodyOfRequest(directory: string, body: string, mimeType: string) {
     await fs.writeFile(
-        path.join(directory, BackendRequest.TEXT_BODY_FILE_NAME),
+        path.join(directory, 'request-body.txt'),
         body,
         "utf8" // TODO: map charset to BufferEncoding
     );

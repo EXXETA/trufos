@@ -1,7 +1,7 @@
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '../../ui/tabs';
-import {HttpHeaders} from "shim/http";
 import {Editor} from "@monaco-editor/react";
 import {DEFAULT_MONACO_OPTIONS} from "@/components/shared/settings/monaco-settings";
+import {HttpHeaders} from "../../../../shim/headers";
 
 export type OutputTabsProps = {
   headers?: HttpHeaders;

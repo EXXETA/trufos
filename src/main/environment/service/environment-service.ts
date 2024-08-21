@@ -1,10 +1,10 @@
 import { Readable } from 'node:stream';
 import crypto from 'node:crypto';
 import { TemplateReplaceStream } from 'template-replace-stream';
-import { Collection } from 'main/persistence/entity/collection';
-import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { Initializable } from 'main/shared/initializable';
-import { VariableObject } from '../entity/variable';
+import {PersistenceService} from "../../persistence/service/persistence-service";
+import {Collection} from 'shim/collection';
+import {VariableObject} from "shim/variables";
 
 const persistenceService = PersistenceService.instance;
 
