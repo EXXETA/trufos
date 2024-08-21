@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Select,
   SelectContent,
@@ -10,13 +10,49 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Separator } from '@radix-ui/react-select';
-import { RequestBodyType } from 'shim/http';
-import { Editor } from '@monaco-editor/react';
+import { RequestBody, RequestBodyType } from 'shim/http';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import { setRequestEditor } from '@/state/view';
+import { setRequestBody, setRequestEditor } from '@/state/view';
+import { Editor } from '@monaco-editor/react';
+import { Input } from '@/components/ui/input';
+import { RootState } from '@/state/store';
 
 export function InputTabs() {
   const dispatch = useDispatch();
+  const requestBody = useSelector<RootState>(state => state.view.requestBody) as RequestBody | undefined;
+
+  const renderEditor = () => {
+    return (
+      <Editor
+        theme="vs-dark" /* TODO: apply theme from settings */
+        options={DEFAULT_MONACO_OPTIONS}
+        onMount={editor => dispatch(setRequestEditor(editor))}
+      />
+    );
+  };
+
+  const renderFileInput = () => {
+    return (
+      <Input
+        onChange={(v) => dispatch(setRequestBody({
+          type: RequestBodyType.FILE,
+          filePath: v.target.files[0]?.path
+        }))}
+        placeholder="Select a file" type="file"
+      />
+    );
+  };
+
+  const changeBodyType = (type: RequestBodyType) => {
+    switch (type) {
+      case RequestBodyType.TEXT:
+        dispatch(setRequestBody({ type, mimeType: 'text/plain' }));
+        break;
+      case RequestBodyType.FILE:
+        dispatch(setRequestBody({ type }));
+        break;
+    }
+  };
 
   return (
     <Tabs defaultValue="body">
@@ -27,7 +63,7 @@ export function InputTabs() {
         <TabsTrigger value="authorization">Auth</TabsTrigger>
       </TabsList>
       <TabsContent value="body" style={{ flexDirection: 'column', display: 'flex' }}>
-        <Select>
+        <Select onValueChange={bodyType => changeBodyType(bodyType as RequestBodyType)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectGroup>
@@ -38,12 +74,8 @@ export function InputTabs() {
           </SelectContent>
         </Select>
         <Separator />
-        <div style={{ flex: 1 }}>
-          <Editor
-            theme="vs-dark" /* TODO: apply theme from settings */
-            options={DEFAULT_MONACO_OPTIONS}
-            onMount={editor => dispatch(setRequestEditor(editor))}
-          />
+        <div className="flex-1">
+          {requestBody?.type === RequestBodyType.FILE ? renderFileInput() : renderEditor()}
         </div>
       </TabsContent>
       <TabsContent value="queryParams">Change your queryParams here.</TabsContent>

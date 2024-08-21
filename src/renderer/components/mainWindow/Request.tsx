@@ -15,7 +15,7 @@ import { ArrowRightIcon, BookmarkIcon } from '@radix-ui/react-icons';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
 import { useSelector } from 'react-redux';
-import { RootState } from '@/state/store';
+import { RootState, store } from '@/state/store';
 import { editor } from 'monaco-editor';
 import {RequestBody, RequestMethod, RufusRequest} from "shim/objects/request";
 import {HttpHeaders} from "../../../shim/headers";
@@ -50,6 +50,8 @@ export function Request(props: RequestProps) {
    * Sends a request to the server with the current URL and HTTP method.
    */
   const sendRequest = React.useCallback(useErrorHandler(async () => {
+      const { view: { requestBody, requestEditor } } = store.getState() as RootState;
+
       const httpMethod = httpMethodSelectRef.current?.innerText;
       const url = urlInputRef.current?.value;
       if (url === undefined || httpMethod === undefined) {
@@ -57,7 +59,7 @@ export function Request(props: RequestProps) {
       }
       let body: RequestBody = null;
       const headers: HttpHeaders = {};
-      if (requestEditor !== undefined) {
+      if (requestEditor !== undefined && requestBody.type === 'text') {
         body = {
           type: 'text',
           text: requestEditor.getValue(),

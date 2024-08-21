@@ -4,7 +4,8 @@ import { editor } from 'monaco-editor';
 
 export interface ViewState {
   requestEditor?: editor.ICodeEditor;
-  response?: Response;
+  requestBody?: RequestBody;
+  response?: RufusResponse;
 }
 
 const initialState: ViewState = {};
@@ -15,9 +16,12 @@ export const viewSlice = createSlice({
   reducers: {
     setRequestEditor: (state, action: PayloadAction<editor.ICodeEditor>) => {
       state.requestEditor = action.payload;
+    },
+    setRequestBody: (state, action: PayloadAction<RequestBody>) => {
+      state.requestBody = action.payload;
     }
   }
 });
 
 // Action creators are generated for each case reducer function
-export const { setRequestEditor } = viewSlice.actions;
+export const { setRequestEditor, setRequestBody } = viewSlice.actions;
