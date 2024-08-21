@@ -33,7 +33,7 @@ export type TextBody = {
 
 export type FileBody = {
   type: RequestBodyType.FILE;
-  filePath: string;
+  filePath?: string;
 }
 
 export function sanitizeTitle(title: string): string {

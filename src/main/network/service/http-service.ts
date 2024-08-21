@@ -87,6 +87,7 @@ export class HttpService {
         const requestBodyStream = Readable.from([request.body.text]);
         return environmentService.setVariablesInStream(requestBodyStream);
       case 'file':
+        if (request.body.filePath == null) return null;
         return fileSystemService.readFile(request.body.filePath);
       default:
         throw new Error('Unknown body type');
