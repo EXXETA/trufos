@@ -2,7 +2,8 @@ import undici, { Dispatcher } from 'undici';
 import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { pipeline } from 'node:stream/promises';
-import fs from 'fs';
+import fs from 'node:fs';
+import path from 'node:path';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { RufusRequest } from 'shim/objects/request';
@@ -44,7 +45,7 @@ export class HttpService {
       {
         dispatcher: this._dispatcher,
         method: request.method,
-        headers: request.headers,
+        headers: { ['content-type']: this.getContentType(request), ...request.headers },
         body: body,
       },
     );
@@ -94,5 +95,19 @@ export class HttpService {
     }
   }
 
+  /**
+   * Get the content type of the request body
+   * @param request request object
+   */
+  private getContentType(request: Request) {
+    if (request.body != null) {
+      switch (request.body.type) {
+        case RequestBodyType.TEXT:
+          return request.body.mimeType ?? 'text/plain';
+        case RequestBodyType.FILE:
+          return request.body.mimeType ?? 'application/octet-stream';
+      }
+    }
+  }
 }
 

@@ -34,6 +34,8 @@ export type TextBody = {
 export type FileBody = {
   type: RequestBodyType.FILE;
   filePath?: string;
+  /** The mime type of the file content, e.g. "application/json". May include an encoding */
+  mimeType?: string;
 }
 
 export function sanitizeTitle(title: string): string {

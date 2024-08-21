@@ -16,10 +16,31 @@ import { setRequestBody, setRequestEditor } from '@/state/view';
 import { Editor } from '@monaco-editor/react';
 import { Input } from '@/components/ui/input';
 import { RootState } from '@/state/store';
+import { useCallback } from 'react';
 
 export function InputTabs() {
   const dispatch = useDispatch();
   const requestBody = useSelector<RootState>(state => state.view.requestBody) as RequestBody | undefined;
+
+  const changeBodyType = useCallback((type: RequestBodyType) => {
+    switch (type) {
+      case RequestBodyType.TEXT:
+        dispatch(setRequestBody({ type, mimeType: 'text/plain' }));
+        break;
+      case RequestBodyType.FILE:
+        dispatch(setRequestBody({ type }));
+        break;
+    }
+  }, [dispatch]);
+
+  const setRequestBodyFile = useCallback((file?: File) => {
+    if (file == null) return;
+    dispatch(setRequestBody({
+      type: RequestBodyType.FILE,
+      filePath: file.path,
+      mimeType: file.type === '' ? undefined : file.type
+    }));
+  }, [dispatch]);
 
   const renderEditor = () => {
     return (
@@ -34,24 +55,10 @@ export function InputTabs() {
   const renderFileInput = () => {
     return (
       <Input
-        onChange={(v) => dispatch(setRequestBody({
-          type: RequestBodyType.FILE,
-          filePath: v.target.files[0]?.path
-        }))}
+        onChange={(v) => setRequestBodyFile(v.target.files[0])}
         placeholder="Select a file" type="file"
       />
     );
-  };
-
-  const changeBodyType = (type: RequestBodyType) => {
-    switch (type) {
-      case RequestBodyType.TEXT:
-        dispatch(setRequestBody({ type, mimeType: 'text/plain' }));
-        break;
-      case RequestBodyType.FILE:
-        dispatch(setRequestBody({ type }));
-        break;
-    }
   };
 
   return (
