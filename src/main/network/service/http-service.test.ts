@@ -3,6 +3,7 @@ import { MockAgent } from 'undici';
 import fs from 'node:fs';
 import { RufusRequest } from 'shim/objects/request';
 import { v4 as uuidv4 } from 'uuid';
+import {RequestMethod} from "shim/requestMethod";
 
 jest.mock('electron', () => {
   return {
@@ -29,7 +30,7 @@ describe('HttpService', () => {
       type: 'request',
       title: 'Test Request',
       url: url.toString(),
-      method: 'GET',
+      method: RequestMethod.get,
       headers: {},
       body: null,
     };
