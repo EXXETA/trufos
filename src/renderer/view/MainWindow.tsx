@@ -2,6 +2,7 @@
 import {RequestBody} from '@/components/mainWindow/RequestBody';
 import {Request} from '@/components/mainWindow/Request';
 import {useState} from "react";
+import {HttpHeaders} from "shim/headers";
 import {RendererEventService} from "@/services/event/renderer-event-service";
 import {HttpHeaders} from "../../shim/headers";
 import {RufusResponse} from "shim/objects/response";
@@ -25,10 +26,9 @@ export function MainWindow() {
 
   return (
     <div className={'flex flex-col flex-auto p-6'}>
-      {/* <Header /> */}
-
-      <Request onResponse={handleResponse}/>
-      <RequestBody body={body} headers={headers}/>
+       {/*<Header />*/}
+      <MainTopBar onResponse={handleResponse}/>
+      <MainBody body={body} headers={headers}/>
     </div>
   );
 }
