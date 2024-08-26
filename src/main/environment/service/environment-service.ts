@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { Collection } from 'shim/collection';
+import { Collection } from 'shim/objects/collection';
 import { VariableObject } from 'shim/variables';
 
 const persistenceService = PersistenceService.instance;

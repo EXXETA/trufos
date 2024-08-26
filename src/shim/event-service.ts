@@ -1,6 +1,6 @@
 import { FileInfo } from './fs';
-import { RufusRequest } from './request';
-import { RufusResponse } from './response';
+import { RufusRequest } from 'shim/objects/request';
+import { RufusResponse } from 'shim/objects/response';
 
 export interface IEventService {
 

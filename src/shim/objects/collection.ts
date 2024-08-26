@@ -1,6 +1,6 @@
-import { Folder } from './folder';
-import { RufusRequest } from './request';
-import { VariableObject } from './variables';
+import { Folder } from 'shim/objects/folder';
+import { RufusRequest } from 'shim/objects/request';
+import { VariableObject } from 'shim/variables';
 
 export type Collection = {
   id: string;

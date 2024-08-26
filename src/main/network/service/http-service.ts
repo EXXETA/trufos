@@ -5,8 +5,8 @@ import { pipeline } from 'node:stream/promises';
 import fs from 'fs';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { RufusRequest } from 'shim/request';
-import { RufusResponse } from 'shim/response';
+import { RufusRequest } from 'shim/objects/request';
+import { RufusResponse } from 'shim/objects/response';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;

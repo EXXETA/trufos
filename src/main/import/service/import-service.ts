@@ -1,5 +1,5 @@
 import { InternalError, InternalErrorType } from 'main/error/internal-error';
-import { Collection } from 'shim/collection';
+import { Collection } from 'shim/objects/collection';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { PostmanImporter } from './postman-importer';
 

@@ -1,4 +1,4 @@
-import { HttpHeaders } from './headers';
+import { HttpHeaders } from 'shim/headers';
 
 export const TEXT_BODY_FLE_NAME = 'request-body.txt';
 

@@ -5,7 +5,7 @@ import fs from 'fs/promises';
 import { FileInfo } from 'shim/fs';
 import { FileHandle } from 'node:fs/promises';
 import path from 'path';
-import { RufusRequest, TEXT_BODY_FLE_NAME } from 'shim/request';
+import { RufusRequest, TEXT_BODY_FLE_NAME } from 'shim/objects/request';
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 

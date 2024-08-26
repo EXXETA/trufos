@@ -4,7 +4,7 @@ import {Request} from '@/components/mainWindow/Request';
 import {useState} from "react";
 import {RendererEventService} from "@/services/event/renderer-event-service";
 import {HttpHeaders} from "../../shim/headers";
-import {RufusResponse} from "../../shim/response";
+import {RufusResponse} from "shim/objects/response";
 
 const eventService = RendererEventService.instance;
 const textDecoder = new TextDecoder();

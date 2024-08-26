@@ -5,9 +5,9 @@ import {
   Item,
   ItemGroup,
 } from 'postman-collection';
-import { Collection as RufusCollection } from 'shim/collection';
-import { Folder as RufusFolder } from 'shim/folder';
-import { RequestBody, RequestMethod, RufusRequest } from 'shim/request';
+import { Collection as RufusCollection } from 'shim/objects/collection';
+import { Folder as RufusFolder } from 'shim/objects/folder';
+import { RequestBody, RequestMethod, RufusRequest } from 'shim/objects/request';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { exists } from 'main/util/fs-util';

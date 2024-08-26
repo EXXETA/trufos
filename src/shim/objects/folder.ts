@@ -1,4 +1,4 @@
-import { RufusRequest } from './request';
+import { RufusRequest } from 'shim/objects/request';
 
 export type Folder = {
   id: string;

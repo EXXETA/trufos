@@ -7,11 +7,11 @@ import {
   RequestInfoFile,
   toInfoFile,
 } from './info-files';
-import { Collection } from 'shim/collection';
-import { Folder } from 'shim/folder';
-import { RufusRequest } from 'shim/request';
+import { Collection } from 'shim/objects/collection';
+import { Folder } from 'shim/objects/folder';
+import { RufusRequest } from 'shim/objects/request';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
-import { RufusObject } from 'shim/object';
+import { RufusObject } from 'shim/objects/object';
 import { generateDefaultCollection } from './default-collection';
 
 /**

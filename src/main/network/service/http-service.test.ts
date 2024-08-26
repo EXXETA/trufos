@@ -1,7 +1,7 @@
 import { HttpService } from './http-service';
 import { MockAgent } from 'undici';
 import fs from 'node:fs';
-import { RufusRequest } from 'shim/request';
+import { RufusRequest } from 'shim/objects/request';
 import { randomUUID } from 'node:crypto';
 
 jest.mock('electron', () => {

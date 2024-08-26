@@ -1,6 +1,6 @@
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { DisplayableError } from '@/error/DisplayableError';
-import { RufusRequest } from 'shim/request';
+import { RufusRequest } from 'shim/objects/request';
 
 const eventService = RendererEventService.instance;
 

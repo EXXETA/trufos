@@ -17,10 +17,10 @@ import { HttpService } from '@/services/http/http-service';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/state/store';
 import { editor } from 'monaco-editor';
-import {RequestBody, RequestMethod, RufusRequest} from "../../../shim/request";
+import {RequestBody, RequestMethod, RufusRequest} from "shim/objects/request";
 import {HttpHeaders} from "../../../shim/headers";
 import {randomUUID} from 'node:crypto';
-import {RufusResponse} from "../../../shim/response";
+import {RufusResponse} from "shim/objects/response";
 
 export type RequestProps = {
   onResponse: (response: RufusResponse) => void;
