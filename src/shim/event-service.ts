@@ -1,6 +1,6 @@
-import {FileInfo} from "./fs";
-import {RufusRequest} from "./request";
-import {RufusResponse} from "./response";
+import { FileInfo } from './fs';
+import { RufusRequest } from './request';
+import { RufusResponse } from './response';
 
 export interface IEventService {
 
@@ -14,7 +14,7 @@ export interface IEventService {
    * Get information about a file or directory.
    * @param filePath The path to the file or directory.
    */
-  getFileInfo(filePath: string): Promise<FileInfo>
+  getFileInfo(filePath: string): Promise<FileInfo>;
 
   /**
    * Read a file from the file system.

@@ -13,8 +13,8 @@ jest.mock('node:fs/promises');
 
 jest.mock('electron', () => ({
   app: {
-    getPath: jest.fn().mockReturnValue('')
-  }
+    getPath: jest.fn().mockReturnValue(''),
+  },
 }));
 
 describe('ImportService', () => {
@@ -25,7 +25,7 @@ describe('ImportService', () => {
     const importService = ImportService.instance;
     (fs.readFile as jest.Mock).mockResolvedValue(POSTMAN_COLLECTION);
     (PersistenceService.instance.save as jest.Mock).mockImplementation(async () => null);
-    when(fs.readFile).calledWith(POSTMAN_COLLECTION_FILE_PATH, "utf8").mockResolvedValue(POSTMAN_COLLECTION);
+    when(fs.readFile).calledWith(POSTMAN_COLLECTION_FILE_PATH, 'utf8').mockResolvedValue(POSTMAN_COLLECTION);
     //when(PersistenceService.instance.storeCollection).defaultImplementation(async (collection: Collection) => collection);
 
     // Assert
@@ -51,7 +51,7 @@ describe('ImportService', () => {
     expect(firstChild.body).toEqual(null);
 
     const secondChild = childrenLevel1[1] as RufusRequest;
-    expect(secondChild.type).toBe("request");
+    expect(secondChild.type).toBe('request');
     expect(secondChild.title).toBe('200 ok');
     expect(secondChild.url).toBe('http://echo.getpostman.com/post');
     expect(secondChild.method).toBe('POST');
@@ -66,13 +66,13 @@ describe('ImportService', () => {
     expect(childrenLevel2.length).toBe(4);
 
     const firstChildLevel2 = childrenLevel2[0] as RufusRequest;
-    expect(firstChildLevel2.type).toBe("request");
+    expect(firstChildLevel2.type).toBe('request');
     expect(firstChildLevel2.title).toBe('201');
     expect(firstChildLevel2.url).toBe('http://echo.getpostman.com/status/201');
     expect(firstChildLevel2.method).toBe('PUT');
     expect(firstChildLevel2.headers).toEqual({
       'Authorization': 'Hawk id="dh37fgj492je", ts="1448549987", nonce="eOJZCd", mac="O2TFlvAlMvKVSKOzc6XkfU6+5285k5p3m5dAjxumo2k="',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     });
     expect(firstChildLevel2.body).toEqual(null);
 
@@ -85,7 +85,7 @@ describe('ImportService', () => {
     expect(secondChildLevel2.body).toEqual({
       'mimeType': 'text/plain',
       'text': 'blahblah',
-      'type': 'text'
+      'type': 'text',
     });
   });
 });

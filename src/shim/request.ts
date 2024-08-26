@@ -1,12 +1,12 @@
-import {HttpHeaders} from "./headers";
+import { HttpHeaders } from './headers';
 
 export type RequestMethod =
-    'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD' | 'CONNECT' | 'TRACE';
+  'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD' | 'CONNECT' | 'TRACE';
 
 export type RufusRequest = {
   id: string;
   parentId: string;
-  type: "request";
+  type: 'request';
   title: string;
   url: string;
   method: RequestMethod;
@@ -30,8 +30,8 @@ export type FileBody = {
 }
 
 export function sanitizeTitle(title: string): string {
-    return title
-      .toLowerCase()
-      .replace(/\s/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
+  return title
+  .toLowerCase()
+  .replace(/\s/g, '-')
+  .replace(/[^a-z0-9-]/g, '');
 }

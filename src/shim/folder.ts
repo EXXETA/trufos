@@ -1,9 +1,9 @@
-import {RufusRequest} from "./request";
+import { RufusRequest } from './request';
 
 export type Folder = {
   id: string;
   parentId: string;
-  type: "folder";
+  type: 'folder';
   title: string;
   children: (Folder | RufusRequest)[];
 }

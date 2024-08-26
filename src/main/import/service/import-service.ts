@@ -1,6 +1,6 @@
 import { InternalError, InternalErrorType } from 'main/error/internal-error';
-import {Collection} from "../../../shim/collection";
-import {PersistenceService} from "../../persistence/service/persistence-service";
+import { Collection } from 'shim/collection';
+import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { PostmanImporter } from './postman-importer';
 
 export type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';

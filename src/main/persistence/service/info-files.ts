@@ -1,7 +1,7 @@
-import {RufusObject} from "../../../shim/object";
-import {RequestBody, RequestMethod} from "../../../shim/request";
-import {HttpHeaders} from "../../../shim/headers";
-import {VariableObject} from "../../../shim/variables";
+import { RufusObject } from 'shim/object';
+import { RequestBody, RequestMethod } from 'shim/request';
+import { HttpHeaders } from 'shim/headers';
+import { VariableObject } from 'shim/variables';
 
 export type RequestInfoFile = {
   version: string;
@@ -26,7 +26,7 @@ export type CollectionInfoFile = {
 export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 
 export function toInfoFile(object: RufusObject): InfoFile {
-  const infoFile = Object.assign({version: '1.0.0'}, object);
+  const infoFile = Object.assign({ version: '1.0.0' }, object);
 
   if (infoFile.type !== 'request') {
     delete infoFile.children;

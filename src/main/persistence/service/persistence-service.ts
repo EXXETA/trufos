@@ -1,7 +1,12 @@
 import path from 'node:path';
-import fs from "node:fs/promises";
-import {randomUUID} from "node:crypto";
-import {CollectionInfoFile, FolderInfoFile, RequestInfoFile, toInfoFile} from "./info-files";
+import fs from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import {
+  CollectionInfoFile,
+  FolderInfoFile,
+  RequestInfoFile,
+  toInfoFile,
+} from './info-files';
 import { Collection } from 'shim/collection';
 import { Folder } from 'shim/folder';
 import { RufusRequest } from 'shim/request';
@@ -16,7 +21,7 @@ import { generateDefaultCollection } from './default-collection';
 export class PersistenceService {
   private static readonly DEFAULT_COLLECTION_DIR = path.join(
     USER_DATA_DIR,
-    "default-collection"
+    'default-collection',
   );
 
   public static readonly instance = new PersistenceService();
@@ -33,7 +38,7 @@ export class PersistenceService {
       return await this.loadCollection(dirPath);
     }
 
-    console.info("Creating default collection at", dirPath);
+    console.info('Creating default collection at', dirPath);
     const collection = generateDefaultCollection(dirPath);
     await this.save(collection);
     return collection;
@@ -48,16 +53,14 @@ export class PersistenceService {
   public async moveChild(
     child: Folder | RufusRequest,
     oldParent: Folder | Collection,
-    newParent: Folder | Collection
+    newParent: Folder | Collection,
   ) {
     const childDirName = this.getDirName(child);
     const oldChildDirPath = this.getDirPath(child);
     const newParentDirPath = this.getDirPath(newParent);
     const newChildDirPath = path.join(newParentDirPath, childDirName);
 
-    oldParent.children = oldParent.children.filter(
-      (c) => c.id !== child.id
-    );
+    oldParent.children = oldParent.children.filter((c) => c.id !== child.id);
     newParent.children.push(child);
     await fs.rename(oldChildDirPath, newChildDirPath);
 
@@ -80,7 +83,7 @@ export class PersistenceService {
     object.title = newTitle;
     this.idToPathMap.set(object.id, newDirPath);
 
-    if (object.type === "collection" || object.type === "folder") {
+    if (object.type === 'collection' || object.type === 'folder') {
       for (const child of object.children) {
         this.updatePathMapRecursively(child, newDirPath);
       }
@@ -116,9 +119,9 @@ export class PersistenceService {
    * @returns the loaded collection
    */
   public async loadCollection(dirPath: string): Promise<Collection> {
-    const infoFilePath = path.join(dirPath, "collection.json");
+    const infoFilePath = path.join(dirPath, 'collection.json');
     const infoFileContents = JSON.parse(
-      await fs.readFile(infoFilePath, "utf8")
+      await fs.readFile(infoFilePath, 'utf8'),
     ) as CollectionInfoFile;
     delete infoFileContents.version;
     const id = randomUUID();
@@ -126,16 +129,19 @@ export class PersistenceService {
     const children = await this.loadChildren(id, dirPath);
     return Object.assign(infoFileContents, {
       id,
-      type: "collection" as const,
+      type: 'collection' as const,
       dirPath,
       children,
     });
   }
 
-  private async loadRequest(parentId: string, dirPath: string): Promise<RufusRequest> {
-    const infoFilePath = path.join(dirPath, "request.json");
+  private async loadRequest(
+    parentId: string,
+    dirPath: string,
+  ): Promise<RufusRequest> {
+    const infoFilePath = path.join(dirPath, 'request.json');
     const infoFileContents = JSON.parse(
-      await fs.readFile(infoFilePath, "utf8")
+      await fs.readFile(infoFilePath, 'utf8'),
     ) as RequestInfoFile;
     delete infoFileContents.version;
     const id = randomUUID();
@@ -143,14 +149,14 @@ export class PersistenceService {
     return Object.assign(infoFileContents, {
       id,
       parentId,
-      type: "request" as const
+      type: 'request' as const,
     });
   }
 
   private async loadFolder(parentId: string, dirPath: string): Promise<Folder> {
-    const infoFilePath = path.join(dirPath, "folder.json");
+    const infoFilePath = path.join(dirPath, 'folder.json');
     const infoFileContents = JSON.parse(
-      await fs.readFile(infoFilePath, "utf8")
+      await fs.readFile(infoFilePath, 'utf8'),
     ) as FolderInfoFile;
     delete infoFileContents.version;
     const id = randomUUID();
@@ -159,14 +165,14 @@ export class PersistenceService {
     return Object.assign(infoFileContents, {
       id,
       parentId,
-      type: "folder" as const,
+      type: 'folder' as const,
       children,
     });
   }
 
   private async loadChildren(
     parentId: string,
-    parentDirPath: string
+    parentDirPath: string,
   ): Promise<(Folder | RufusRequest)[]> {
     const children: (Folder | RufusRequest)[] = [];
 
@@ -178,8 +184,8 @@ export class PersistenceService {
       }
 
       const childDirPath = path.join(parentDirPath, node.name);
-      const requestInfoFilePath = path.join(childDirPath, "request.json");
-      const folderInfoFilePath = path.join(childDirPath, "folder.json");
+      const requestInfoFilePath = path.join(childDirPath, 'request.json');
+      const folderInfoFilePath = path.join(childDirPath, 'folder.json');
 
       if (await exists(requestInfoFilePath)) {
         children.push(await this.loadRequest(parentId, childDirPath));
@@ -193,13 +199,13 @@ export class PersistenceService {
 
   private updatePathMapRecursively(
     child: Folder | RufusRequest,
-    newParentDirPath: string
+    newParentDirPath: string,
   ) {
     const oldDirPath = this.idToPathMap.get(child.id);
     const dirName = path.basename(oldDirPath);
     const newDirPath = path.join(newParentDirPath, dirName);
     this.idToPathMap.set(child.id, newDirPath);
-    if (child.type === "folder") {
+    if (child.type === 'folder') {
       for (const grandChild of child.children) {
         this.updatePathMapRecursively(grandChild, newDirPath);
       }
@@ -207,13 +213,11 @@ export class PersistenceService {
   }
 
   private getDirPath(object: RufusObject) {
-    if (object.type === "collection") {
+    if (object.type === 'collection') {
       return object.dirPath;
-    }
-    else if (this.idToPathMap.has(object.id)) {
+    } else if (this.idToPathMap.has(object.id)) {
       return this.idToPathMap.get(object.id);
-    }
-    else {
+    } else {
       // must derive the path from parent
       const parentDirPath = this.idToPathMap.get(object.parentId);
       return path.join(parentDirPath, this.getDirName(object));
@@ -226,8 +230,8 @@ export class PersistenceService {
 
   private sanitizeTitle(title: string): string {
     return title
-      .toLowerCase()
-      .replace(/\s/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
+    .toLowerCase()
+    .replace(/\s/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
   }
 }

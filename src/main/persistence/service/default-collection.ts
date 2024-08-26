@@ -1,5 +1,5 @@
-import { Collection } from "shim/collection";
-import {randomUUID} from 'node:crypto';
+import { Collection } from 'shim/collection';
+import { randomUUID } from 'node:crypto';
 
 export function generateDefaultCollection(dirPath: string): Collection {
   const collectionId = randomUUID();

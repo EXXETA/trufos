@@ -1,14 +1,14 @@
 import { HttpService } from './http-service';
 import { MockAgent } from 'undici';
 import fs from 'node:fs';
-import {RufusRequest} from "../../../shim/request";
-import {randomUUID} from "node:crypto";
+import { RufusRequest } from 'shim/request';
+import { randomUUID } from 'node:crypto';
 
 jest.mock('electron', () => {
   return {
     app: {
-      getPath: jest.fn().mockReturnValue('')
-    }
+      getPath: jest.fn().mockReturnValue(''),
+    },
   };
 });
 

@@ -1,7 +1,7 @@
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '../../ui/tabs';
-import {Editor} from "@monaco-editor/react";
-import {DEFAULT_MONACO_OPTIONS} from "@/components/shared/settings/monaco-settings";
-import {HttpHeaders} from "../../../../shim/headers";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
+import { Editor } from '@monaco-editor/react';
+import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
+import { HttpHeaders } from 'shim/headers';
 
 export type OutputTabsProps = {
   headers?: HttpHeaders;
@@ -10,7 +10,7 @@ export type OutputTabsProps = {
 
 const monacoOptions = {
   ...DEFAULT_MONACO_OPTIONS,
-  readOnly: true
+  readOnly: true,
 };
 
 /**
@@ -19,7 +19,7 @@ const monacoOptions = {
  */
 function getMimeType(contentType?: string) {
   if (contentType !== undefined) {
-    const index = contentType.indexOf(";");
+    const index = contentType.indexOf(';');
     return (index === -1 ? contentType : contentType.substring(0, index)).trim();
   }
 }
@@ -29,16 +29,16 @@ function getMimeType(contentType?: string) {
  * @param headers The headers to get the content type from.
  */
 function getContentType(headers?: HttpHeaders) {
-  const value = headers?.["content-type"];
+  const value = headers?.['content-type'];
   if (value !== undefined) {
     return Array.isArray(value) ? value[0] : value;
   }
 }
 
 export function OutputTabs(props: OutputTabsProps) {
-  const {body, headers} = props;
+  const { body, headers } = props;
   const mimeType = getMimeType(getContentType(headers));
-  console.debug("Using syntax highlighting for mime type", mimeType);
+  console.debug('Using syntax highlighting for mime type', mimeType);
 
   return (
     <Tabs defaultValue="body">

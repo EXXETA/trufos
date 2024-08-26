@@ -1,6 +1,6 @@
-import {RendererEventService} from "@/services/event/renderer-event-service";
-import {DisplayableError} from "@/error/DisplayableError";
-import {RufusRequest} from "../../../shim/request";
+import { RendererEventService } from '@/services/event/renderer-event-service';
+import { DisplayableError } from '@/error/DisplayableError';
+import { RufusRequest } from 'shim/request';
 
 const eventService = RendererEventService.instance;
 
@@ -16,23 +16,23 @@ export class HttpService {
    */
   public async sendRequest(request: RufusRequest) {
     try {
-      console.info("Sending request:", request);
+      console.info('Sending request:', request);
       const response = await eventService.sendRequest(request);
-      console.info("Received response:", response);
+      console.info('Received response:', response);
       return response;
     } catch (error) {
-      console.error("Error during request:", error);
-      let description = "An error occurred while sending the request";
+      console.error('Error during request:', error);
+      let description = 'An error occurred while sending the request';
       if (error instanceof DisplayableError) {
         throw error;
       } else if (error instanceof Error) {
-        if (error.message === "invalid url") {
-          description = "The URL you entered is invalid.";
-        } else if (error.message.startsWith("getaddrinfo ENOTFOUND")) {
+        if (error.message === 'invalid url') {
+          description = 'The URL you entered is invalid.';
+        } else if (error.message.startsWith('getaddrinfo ENOTFOUND')) {
           description = `The domain "${error.message.substring(22)}" could not be resolved`;
         }
       }
-      throw new DisplayableError(description, "Could not send Request", error);
+      throw new DisplayableError(description, 'Could not send Request', error);
     }
   }
 

@@ -1,6 +1,6 @@
-import {Folder} from "./folder";
-import {RufusRequest} from "./request";
-import {VariableObject} from "./variables";
+import { Folder } from './folder';
+import { RufusRequest } from './request';
+import { VariableObject } from './variables';
 
 export type Collection = {
   id: string;

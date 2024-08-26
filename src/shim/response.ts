@@ -1,4 +1,4 @@
-import {HttpHeaders} from "./headers";
+import { HttpHeaders } from './headers';
 
 export type RufusResponse = {
   status: number;

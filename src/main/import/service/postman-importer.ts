@@ -1,18 +1,18 @@
-import {CollectionImporter} from './import-service';
+import { CollectionImporter } from './import-service';
 import {
   Collection as PostmanCollection,
   CollectionDefinition,
   Item,
-  ItemGroup
+  ItemGroup,
 } from 'postman-collection';
-import { Collection as RufusCollection } from 'shim/collection'
-import { Folder as RufusFolder } from 'shim/folder'
-import {RequestBody, RequestMethod, RufusRequest} from 'shim/request'
+import { Collection as RufusCollection } from 'shim/collection';
+import { Folder as RufusFolder } from 'shim/folder';
+import { RequestBody, RequestMethod, RufusRequest } from 'shim/request';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import {exists} from 'main/util/fs-util';
-import {InternalError, InternalErrorType} from 'main/error/internal-error';
-import {VARIABLE_NAME_REGEX, VariableObject} from 'shim/variables';
+import { exists } from 'main/util/fs-util';
+import { InternalError, InternalErrorType } from 'main/error/internal-error';
+import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/variables';
 
 /**
  * An importer for Postman collections. It will import the collection and all of its variables,
@@ -26,17 +26,17 @@ export class PostmanImporter implements CollectionImporter {
     const json = JSON.parse(await fs.readFile(srcFilePath, 'utf8')) as CollectionDefinition;
     const postmanCollection = new PostmanCollection(json);
     const variables =
-        postmanCollection.variables
-        .all()
-        .filter(variable => variable.id !== undefined && VARIABLE_NAME_REGEX.test(variable.id))
-        .map(variable =>
-            [
-              variable.id,
-              {
-                value: variable.toString(),
-                enabled: !variable.disabled
-              }
-            ] as [string, VariableObject]);
+      postmanCollection.variables
+      .all()
+      .filter(variable => variable.id !== undefined && VARIABLE_NAME_REGEX.test(variable.id))
+      .map(variable =>
+        [
+          variable.id,
+          {
+            value: variable.toString(),
+            enabled: !variable.disabled,
+          },
+        ] as [string, VariableObject]);
     console.info('Loaded', variables.length, 'collection variables');
 
     // create collection directory
@@ -57,7 +57,7 @@ export class PostmanImporter implements CollectionImporter {
       title: postmanCollection.name,
       dirPath: dirPath,
       children: [],
-      variables: variablesMap
+      variables: variablesMap,
     };
 
     // import children
@@ -89,7 +89,7 @@ export class PostmanImporter implements CollectionImporter {
   }
 
   private async importRequest(parent: RufusCollection | RufusFolder, item: Item) {
-    const {request} = item;
+    const { request } = item;
 
     let bodyInfo: RequestBody | null = null;
     if (request.body !== undefined) {
@@ -97,14 +97,14 @@ export class PostmanImporter implements CollectionImporter {
         case 'file':
           bodyInfo = {
             type: 'file',
-            filePath: request.body.file.src
+            filePath: request.body.file.src,
           };
           break;
         case 'raw':
           bodyInfo = {
             type: 'text',
             text: request.body.raw,
-            mimeType: request.headers.get('Content-Type') ?? 'text/plain'
+            mimeType: request.headers.get('Content-Type') ?? 'text/plain',
           };
           break;
       }
@@ -118,7 +118,7 @@ export class PostmanImporter implements CollectionImporter {
       url: request.url.toString(),
       method: request.method as RequestMethod,
       headers: Object.fromEntries(request.headers.all().map(header => [header.key, header.value])),
-      body: bodyInfo
+      body: bodyInfo,
     };
 
     parent.children.push(rufusRequest);
