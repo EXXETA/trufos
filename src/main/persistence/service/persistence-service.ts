@@ -1,12 +1,12 @@
 import path from 'node:path';
 import fs from "node:fs/promises";
-import {exists, USER_DATA_DIR} from "../../util/fs-util";
-import {RufusObject} from "../../../shim/object";
-import {RufusRequest} from "../../../shim/request";
-import {Folder} from "../../../shim/folder";
-import {Collection} from "../../../shim/collection";
+import {randomUUID} from "node:crypto";
 import {CollectionInfoFile, FolderInfoFile, RequestInfoFile, toInfoFile} from "./info-files";
-import { v4 as uuidv4 } from 'uuid';
+import { Collection } from 'shim/collection';
+import { Folder } from 'shim/folder';
+import { RufusRequest } from 'shim/request';
+import { exists, USER_DATA_DIR } from 'main/util/fs-util';
+import { RufusObject } from 'shim/object';
 import { generateDefaultCollection } from './default-collection';
 
 /**
@@ -121,7 +121,7 @@ export class PersistenceService {
       await fs.readFile(infoFilePath, "utf8")
     ) as CollectionInfoFile;
     delete infoFileContents.version;
-    const id = uuidv4();
+    const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
     const children = await this.loadChildren(id, dirPath);
     return Object.assign(infoFileContents, {
@@ -138,7 +138,7 @@ export class PersistenceService {
       await fs.readFile(infoFilePath, "utf8")
     ) as RequestInfoFile;
     delete infoFileContents.version;
-    const id = uuidv4();
+    const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
     return Object.assign(infoFileContents, {
       id,
@@ -153,7 +153,7 @@ export class PersistenceService {
       await fs.readFile(infoFilePath, "utf8")
     ) as FolderInfoFile;
     delete infoFileContents.version;
-    const id = uuidv4();
+    const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
     const children = await this.loadChildren(id, dirPath);
     return Object.assign(infoFileContents, {

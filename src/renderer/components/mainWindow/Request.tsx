@@ -19,7 +19,7 @@ import { RootState } from '@/state/store';
 import { editor } from 'monaco-editor';
 import {RequestBody, RequestMethod, RufusRequest} from "../../../shim/request";
 import {HttpHeaders} from "../../../shim/headers";
-import { v4 as uuidv4 } from 'uuid';
+import {randomUUID} from 'node:crypto';
 import {RufusResponse} from "../../../shim/response";
 
 export type RequestProps = {
@@ -67,8 +67,8 @@ export function Request(props: RequestProps) {
       }
 
       const request: RufusRequest = {
-        id: uuidv4(),
-        parentId: uuidv4(),
+        id: randomUUID(),
+        parentId: randomUUID(),
         type: 'request',
         title: 'Test Request',
         url: url,
