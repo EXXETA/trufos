@@ -33,7 +33,7 @@ export class HttpService {
    * @param request request object
    * @returns response object
    */
-  public async fetchAsync(request: RufusRequest): Promise<RufusResponse> {
+  public async fetchAsync(request: RufusRequest) {
     console.info('Sending request: ', request);
 
     const now = getSteadyTimestamp();
