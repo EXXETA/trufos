@@ -20,7 +20,7 @@ export type FolderInfoFile = {
 export type CollectionInfoFile = {
   version: string;
   title: string;
-  variables: Map<string, VariableObject>;
+  variables: Record<string, VariableObject>;
 }
 
 export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;

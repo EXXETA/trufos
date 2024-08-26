@@ -12,7 +12,16 @@ export function generateDefaultCollection(dirPath: string): Collection {
     type: 'collection',
     title: 'Default Collection',
     dirPath,
-    variables: new Map(),
+    variables: {
+      'variable-1': {
+        enabled: true,
+        value: 'value-1',
+      },
+      'variable-2': {
+        enabled: true,
+        value: 'value-2',
+      },
+    },
     children: [
       {
         id: exampleRequestId,

@@ -7,6 +7,6 @@ export type Collection = {
   type: 'collection';
   title: string;
   dirPath: string;
-  variables: Map<string, VariableObject>;
+  variables: Record<string, VariableObject>;
   children: (Folder | RufusRequest)[];
 }

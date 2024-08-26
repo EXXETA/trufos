@@ -25,7 +25,7 @@ export class PostmanImporter implements CollectionImporter {
     // read Postman collection
     const json = JSON.parse(await fs.readFile(srcFilePath, 'utf8')) as CollectionDefinition;
     const postmanCollection = new PostmanCollection(json);
-    const variables =
+    const variablesArray =
       postmanCollection.variables
       .all()
       .filter(variable => variable.id !== undefined && VARIABLE_NAME_REGEX.test(variable.id))
@@ -37,7 +37,7 @@ export class PostmanImporter implements CollectionImporter {
             enabled: !variable.disabled,
           },
         ] as [string, VariableObject]);
-    console.info('Loaded', variables.length, 'collection variables');
+    console.info('Loaded', variablesArray.length, 'collection variables');
 
     // create collection directory
     const dirName = path.basename(targetDirPath);
@@ -48,8 +48,8 @@ export class PostmanImporter implements CollectionImporter {
       await fs.mkdir(dirPath);
     }
 
-    const variablesMap = new Map<string, VariableObject>();
-    variables.forEach(([key, val]) => variablesMap.set(key, val));
+    const variables: Record<string, VariableObject> = {};
+    variablesArray.forEach(([key, val]) => variables[key] = val);
 
     const collection: RufusCollection = {
       id: postmanCollection.id,
@@ -57,7 +57,7 @@ export class PostmanImporter implements CollectionImporter {
       title: postmanCollection.name,
       dirPath: dirPath,
       children: [],
-      variables: variablesMap,
+      variables: variables,
     };
 
     // import children

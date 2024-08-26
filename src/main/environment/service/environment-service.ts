@@ -46,11 +46,11 @@ export class EnvironmentService implements Initializable {
    * @param value The new value of the variable.
    */
   public setCollectionVariable(key: string, value: string) {
-    const variable = this.currentCollection.variables.get(key);
+    const variable = this.currentCollection.variables[key];
     if (variable !== undefined) {
       variable.value = value;
     } else {
-      this.currentCollection.variables.set(key, { value, enabled: true });
+      this.currentCollection.variables[key] = { value, enabled: true };
     }
   }
 
@@ -61,7 +61,7 @@ export class EnvironmentService implements Initializable {
    * @param enabled Whether the variable should be enabled or disabled.
    */
   public setCollectionVariableEnabled(key: string, enabled: boolean) {
-    const variable = this.currentCollection.variables.get(key);
+    const variable = this.currentCollection.variables[key];
     if (variable !== undefined) variable.enabled = enabled;
   }
 
@@ -70,7 +70,7 @@ export class EnvironmentService implements Initializable {
    *
    * @param variables The new variables to set.
    */
-  public setCollectionVariables(variables: Map<string, VariableObject>) {
+  public setCollectionVariables(variables: Record<string, VariableObject>) {
     this.currentCollection.variables = variables;
   }
 
@@ -95,7 +95,7 @@ export class EnvironmentService implements Initializable {
    */
   private getVariableValue(key: string) {
     return (
-      this.currentCollection.variables.get(key)?.value ??
+      this.currentCollection.variables[key]?.value ??
       this.getSystemVariableValue(key)
     );
   }
