@@ -2,7 +2,7 @@ import { Readable } from 'node:stream';
 import crypto from 'node:crypto';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
-import { PersistenceService } from '../../persistence/service/persistence-service';
+import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { Collection } from 'shim/collection';
 import { VariableObject } from 'shim/variables';
 

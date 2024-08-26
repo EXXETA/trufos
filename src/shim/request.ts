@@ -1,5 +1,7 @@
 import { HttpHeaders } from './headers';
 
+export const TEXT_BODY_FLE_NAME = 'request-body.txt';
+
 export type RequestMethod =
   'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD' | 'CONNECT' | 'TRACE';
 
