@@ -2,7 +2,7 @@ import { HttpService } from './http-service';
 import { MockAgent } from 'undici';
 import fs from 'node:fs';
 import { RufusRequest } from 'shim/objects/request';
-import { randomUUID } from 'node:crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 jest.mock('electron', () => {
   return {
@@ -24,8 +24,8 @@ describe('HttpService', () => {
 
     const httpService = new HttpService(mockAgent);
     const request: RufusRequest = {
-      id: randomUUID(),
-      parentId: randomUUID(),
+      id: uuidv4(),
+      parentId: uuidv4(),
       type: 'request',
       title: 'Test Request',
       url: url.toString(),

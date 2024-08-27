@@ -1,11 +1,11 @@
 import { Collection } from 'shim/objects/collection';
-import { randomUUID } from 'node:crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 export function generateDefaultCollection(dirPath: string): Collection {
-  const collectionId = randomUUID();
-  const folderId = randomUUID();
-  const exampleRequestId = randomUUID();
-  const anotherRequestId = randomUUID();
+  const collectionId = uuidv4();
+  const folderId = uuidv4();
+  const exampleRequestId = uuidv4();
+  const anotherRequestId = uuidv4();
 
   return {
     id: collectionId,
