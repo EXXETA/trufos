@@ -1,12 +1,12 @@
-import {Request} from "shim/request";
 import {useDispatch, useSelector} from "react-redux";
 import {AppDispatch, RootState} from "@/state/store";
-import {setSelectedRequest} from "@/state/requestsSlice";
+import {setSelectedRequest, deleteRequest} from "@/state/requestsSlice";
 import {httpMethodColor} from "@/services/StyleHelper";
-
+import {RufusRequest} from "shim/objects/request";
+import {FaTimes} from 'react-icons/fa'; // Importing cross icon
 
 interface SidebarRequestListProps {
-  requests: Request[];
+  requests: RufusRequest[];
 }
 
 export const SidebarRequestList = ({ requests = []}: SidebarRequestListProps) => {
@@ -18,6 +18,10 @@ export const SidebarRequestList = ({ requests = []}: SidebarRequestListProps) =>
     setSelectedRequest(index);
   };
 
+  const handleDeleteClick = (event: React.MouseEvent, index: number) => {
+    dispatch(deleteRequest(index));
+    console.log(`Request ${index} deleted`);
+  };
 
   return (
       <table className="w-full table-auto">
@@ -30,6 +34,9 @@ export const SidebarRequestList = ({ requests = []}: SidebarRequestListProps) =>
             >
               <td className={'p-2 font-bold ' + httpMethodColor(request.method)}>{request.method}</td>
               <td className="p-2">{request.url}</td>
+              <td className="p-2 text-right">
+                <FaTimes onClick={(event) => handleDeleteClick(event, index)} className="cursor-pointer ml-2" />
+              </td>
             </tr>
         ))}
         </tbody>

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RequestMethod } from 'shim/requestMethod';
+import { RequestMethod } from '../../../../shim/objects/requestMethod';
 import {httpMethodColor} from "@/services/StyleHelper";
 
 interface HttpMethodSelectProps {

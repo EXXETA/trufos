@@ -1,7 +1,8 @@
 import { RufusObject } from 'shim/objects/object';
-import { RequestBody, RequestMethod } from 'shim/objects/request';
+import { RequestBody } from 'shim/objects/request';
 import { HttpHeaders } from 'shim/headers';
 import { VariableObject } from 'shim/variables';
+import {RequestMethod} from "shim/objects/requestMethod";
 
 export type RequestInfoFile = {
   version: string;

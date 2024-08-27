@@ -1,0 +1,7 @@
+.hidden-menu {
+  display: none;
+}
+
+.show-menu-on-hover:hover .hidden-menu {
+  display: inline;
+}
