@@ -37,7 +37,7 @@ describe('ImportService', () => {
     // Assert
     expect(result.type).toBe('collection');
     expect(result.title).toBe('HTTP Status Messages');
-    expect(result.variables.size).toBe(5);
+    expect(Object.keys(result.variables).length).toBe(5);
 
     const childrenLevel1 = result.children;
     expect(childrenLevel1.length).toBe(3);
