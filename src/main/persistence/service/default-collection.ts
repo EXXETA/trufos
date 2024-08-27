@@ -1,5 +1,6 @@
 import { Collection } from 'shim/objects/collection';
 import { v4 as uuidv4 } from 'uuid';
+import { RequestBodyType } from '../../../shim/objects/request';
 
 export function generateDefaultCollection(dirPath: string): Collection {
   const collectionId = uuidv4();
@@ -15,12 +16,12 @@ export function generateDefaultCollection(dirPath: string): Collection {
     variables: {
       'variable-1': {
         enabled: true,
-        value: 'value-1',
+        value: 'value-1'
       },
       'variable-2': {
         enabled: true,
-        value: 'value-2',
-      },
+        value: 'value-2'
+      }
     },
     children: [
       {
@@ -31,7 +32,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
         url: 'https://github.com/EXXETA/rufus/raw/main/README.md',
         method: 'GET',
         headers: {},
-        body: null,
+        body: null
       },
       {
         id: folderId,
@@ -48,13 +49,13 @@ export function generateDefaultCollection(dirPath: string): Collection {
             method: 'GET',
             headers: {},
             body: {
-              type: 'text',
+              type: RequestBodyType.TEXT,
               mimeType: 'application/json',
-              text: '{"key": "value"}',
-            },
-          },
-        ],
-      },
-    ],
+              text: '{"key": "value"}'
+            }
+          }
+        ]
+      }
+    ]
   };
 }

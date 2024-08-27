@@ -17,10 +17,10 @@ import { HttpService } from '@/services/http/http-service';
 import { useSelector } from 'react-redux';
 import { RootState, store } from '@/state/store';
 import { editor } from 'monaco-editor';
-import {RequestBody, RequestMethod, RufusRequest} from "shim/objects/request";
-import {HttpHeaders} from "../../../shim/headers";
+import { RequestBodyType, RequestMethod, RufusRequest } from 'shim/objects/request';
+import { HttpHeaders } from '../../../shim/headers';
 import { v4 as uuidv4 } from 'uuid';
-import {RufusResponse} from "shim/objects/response";
+import { RufusResponse } from 'shim/objects/response';
 
 export type RequestProps = {
   onResponse: (response: RufusResponse) => void;
@@ -57,11 +57,11 @@ export function Request(props: RequestProps) {
       if (url === undefined || httpMethod === undefined) {
         throw new Error('Missing React reference to URL input or HTTP method select element');
       }
-      let body: RequestBody = null;
+      let body = requestBody;
       const headers: HttpHeaders = {};
       if (requestEditor !== undefined && requestBody.type === 'text') {
         body = {
-          type: 'text',
+          type: RequestBodyType.TEXT,
           text: requestEditor.getValue(),
           mimeType: 'text/plain'
         };
@@ -76,7 +76,7 @@ export function Request(props: RequestProps) {
         url: url,
         method: httpMethod as RequestMethod,
         headers: headers, // TODO: set the headers of the request
-        body: body,
+        body: body
       };
 
       // Send the request and pass the response to the onResponse callback

@@ -3,11 +3,11 @@ import {
   Collection as PostmanCollection,
   CollectionDefinition,
   Item,
-  ItemGroup,
+  ItemGroup
 } from 'postman-collection';
 import { Collection as RufusCollection } from 'shim/objects/collection';
 import { Folder as RufusFolder } from 'shim/objects/folder';
-import { RequestBody, RequestMethod, RufusRequest } from 'shim/objects/request';
+import { RequestBody, RequestBodyType, RequestMethod, RufusRequest } from 'shim/objects/request';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { exists } from 'main/util/fs-util';
@@ -34,8 +34,8 @@ export class PostmanImporter implements CollectionImporter {
           variable.id,
           {
             value: variable.toString(),
-            enabled: !variable.disabled,
-          },
+            enabled: !variable.disabled
+          }
         ] as [string, VariableObject]);
     console.info('Loaded', variablesArray.length, 'collection variables');
 
@@ -57,7 +57,7 @@ export class PostmanImporter implements CollectionImporter {
       title: postmanCollection.name,
       dirPath: dirPath,
       children: [],
-      variables: variables,
+      variables: variables
     };
 
     // import children
@@ -81,7 +81,7 @@ export class PostmanImporter implements CollectionImporter {
       parentId: parent.id,
       type: 'folder',
       title: postmanFolder.name,
-      children: [],
+      children: []
     };
 
     await this.importItems(folder, postmanFolder.items.all());
@@ -96,15 +96,15 @@ export class PostmanImporter implements CollectionImporter {
       switch (request.body.mode) {
         case 'file':
           bodyInfo = {
-            type: 'file',
-            filePath: request.body.file.src,
+            type: RequestBodyType.FILE,
+            filePath: request.body.file.src
           };
           break;
         case 'raw':
           bodyInfo = {
-            type: 'text',
+            type: RequestBodyType.TEXT,
             text: request.body.raw,
-            mimeType: request.headers.get('Content-Type') ?? 'text/plain',
+            mimeType: request.headers.get('Content-Type') ?? 'text/plain'
           };
           break;
       }
@@ -118,7 +118,7 @@ export class PostmanImporter implements CollectionImporter {
       url: request.url.toString(),
       method: request.method as RequestMethod,
       headers: Object.fromEntries(request.headers.all().map(header => [header.key, header.value])),
-      body: bodyInfo,
+      body: bodyInfo
     };
 
     parent.children.push(rufusRequest);

@@ -10,7 +10,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Separator } from '@radix-ui/react-select';
-import { RequestBody, RequestBodyType } from 'shim/http';
+import { RequestBody, RequestBodyType } from 'shim/objects/request';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { setRequestBody, setRequestEditor } from '@/state/view';
 import { Editor } from '@monaco-editor/react';
