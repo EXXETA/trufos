@@ -12,15 +12,18 @@ import {
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { ArrowRightIcon, BookmarkIcon } from '@radix-ui/react-icons';
-import { HttpHeaders, Request, RequestBody, RequestMethod, Response } from 'shim/http';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/state/store';
 import { editor } from 'monaco-editor';
+import {RequestBody, RequestMethod, RufusRequest} from "shim/objects/request";
+import {HttpHeaders} from "../../../shim/headers";
+import { v4 as uuidv4 } from 'uuid';
+import {RufusResponse} from "shim/objects/response";
 
 export type RequestProps = {
-  onResponse: (response: Response) => void;
+  onResponse: (response: RufusResponse) => void;
 }
 
 const httpService = HttpService.instance;
@@ -63,12 +66,15 @@ export function Request(props: RequestProps) {
         headers['Content-Type'] = 'text/plain';
       }
 
-      const request: Request = {
+      const request: RufusRequest = {
+        id: uuidv4(),
+        parentId: uuidv4(),
+        type: 'request',
+        title: 'Test Request',
         url: url,
         method: httpMethod as RequestMethod,
         headers: headers, // TODO: set the headers of the request
         body: body,
-        dirPath: '???' // TODO: set the directory of the request. If it's unsaved, it has to be some temporary directory
       };
 
       // Send the request and pass the response to the onResponse callback

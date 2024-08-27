@@ -1,12 +1,11 @@
-import {IEventService} from 'shim/event-service';
-import {HttpService} from "main/network/service/http-service";
-import {Request as BackendRequest} from "main/persistence/entity/request";
-import {ipcMain} from "electron";
-import {Request} from 'shim/http';
-import fs from "fs/promises";
-import {FileInfo} from "shim/fs";
-import {FileHandle} from "node:fs/promises";
-import path from "path";
+import { IEventService } from 'shim/event-service';
+import { HttpService } from 'main/network/service/http-service';
+import { ipcMain } from 'electron';
+import fs from 'fs/promises';
+import { FileInfo } from 'shim/fs';
+import { FileHandle } from 'node:fs/promises';
+import path from 'path';
+import { RufusRequest, TEXT_BODY_FLE_NAME } from 'shim/objects/request';
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -16,9 +15,9 @@ declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
  * @param fn The function to wrap.
  */
 function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
-  return async function (...args: Parameters<F>) {
+  return async function(...args: Parameters<F>) {
     try {
-      return await fn(...args) as R;
+      return (await fn(...args)) as R;
     } catch (error) {
       return toError(error);
     }
@@ -31,14 +30,14 @@ function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
  * @param functionName The name of the function to register.
  */
 function registerEvent<T>(instance: T, functionName: keyof T) {
-  if (typeof functionName !== "string" || functionName === "constructor") return;
+  if (typeof functionName !== 'string' || functionName === 'constructor')
+    return;
 
   const method = instance[functionName];
-  if (typeof method === "function") {
+  if (typeof method === 'function') {
     console.debug(`Registering event function "${functionName}()" on backend`);
-    ipcMain.handle(
-      functionName as string,
-      (_event, ...args) => wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args)
+    ipcMain.handle(functionName as string, (_event, ...args) =>
+      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args),
     );
   }
 }
@@ -54,17 +53,16 @@ function toError(error: any) {
  * Service for handling events on the main process coming from the renderer process.
  */
 export class MainEventService implements IEventService {
-
   public static readonly instance = new MainEventService();
 
   constructor() {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
       registerEvent(this, propertyName as keyof MainEventService);
     }
-    console.debug("Registered event channels on backend");
+    console.debug('Registered event channels on backend');
   }
 
-  async sendRequest(request: Request) {
+  async sendRequest(request: RufusRequest) {
     return await HttpService.instance.fetchAsync(request);
   }
 
@@ -82,14 +80,21 @@ export class MainEventService implements IEventService {
   }
 
   async readFile(filePath: string, offset = 0, length?: number) {
-    console.debug("Reading file at", filePath, "with offset", offset, "and length limited to", length ?? "unlimited", "bytes");
+    console.debug(
+      'Reading file at',
+      filePath,
+      'with offset',
+      offset,
+      'and length limited to',
+      length ?? 'unlimited',
+      'bytes',
+    );
     if (offset === 0 && length === undefined) {
       return (await fs.readFile(filePath)).buffer;
     }
 
     let file: FileHandle | null = null;
     try {
-
       // get file size if length is not provided
       if (length === undefined) {
         const stats = await fs.stat(filePath);
@@ -99,19 +104,22 @@ export class MainEventService implements IEventService {
       const buffer = Buffer.alloc(length);
       file = await fs.open(filePath);
       const read = await file.read(buffer, 0, length, offset);
-      console.debug("Read", read.bytesRead, "bytes from file");
+      console.debug('Read', read.bytesRead, 'bytes from file');
       return buffer.subarray(0, read.bytesRead).buffer;
     } finally {
       if (file !== null) await file.close();
     }
   }
 
-  async saveTextBodyOfRequest(directory: string, body: string, mimeType: string) {
+  async saveTextBodyOfRequest(
+    directory: string,
+    body: string,
+    mimeType: string,
+  ) {
     await fs.writeFile(
-        path.join(directory, BackendRequest.TEXT_BODY_FILE_NAME),
-        body,
-        "utf8" // TODO: map charset to BufferEncoding
+      path.join(directory, TEXT_BODY_FLE_NAME),
+      body,
+      'utf8', // TODO: map charset to BufferEncoding
     );
   }
-
 }

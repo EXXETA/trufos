@@ -1,20 +1,19 @@
-export type HttpHeaders = Record<string, string | string[] | undefined>;
+import { HttpHeaders } from 'shim/headers';
+
+export const TEXT_BODY_FLE_NAME = 'request-body.txt';
+
 export type RequestMethod =
   'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD' | 'CONNECT' | 'TRACE';
 
-export type Request = {
+export type RufusRequest = {
+  id: string;
+  parentId: string;
+  type: 'request';
+  title: string;
   url: string;
   method: RequestMethod;
   headers: HttpHeaders;
   body: RequestBody | null;
-  dirPath: string;
-}
-
-export type Response = {
-  status: number;
-  headers: HttpHeaders;
-  duration: number;
-  bodyFilePath: string | null;
 }
 
 export type RequestBody = TextBody | FileBody;
@@ -30,4 +29,11 @@ export type TextBody = {
 export type FileBody = {
   type: 'file';
   filePath: string;
+}
+
+export function sanitizeTitle(title: string): string {
+  return title
+  .toLowerCase()
+  .replace(/\s/g, '-')
+  .replace(/[^a-z0-9-]/g, '');
 }

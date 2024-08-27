@@ -1,13 +1,14 @@
 import { HttpService } from './http-service';
 import { MockAgent } from 'undici';
 import fs from 'node:fs';
-import { Request } from 'shim/http';
+import { RufusRequest } from 'shim/objects/request';
+import { v4 as uuidv4 } from 'uuid';
 
 jest.mock('electron', () => {
   return {
     app: {
-      getPath: jest.fn().mockReturnValue('')
-    }
+      getPath: jest.fn().mockReturnValue(''),
+    },
   };
 });
 
@@ -22,12 +23,15 @@ describe('HttpService', () => {
     mockClient.intercept({ path: url.pathname }).reply(200, text);
 
     const httpService = new HttpService(mockAgent);
-    const request: Request = {
+    const request: RufusRequest = {
+      id: uuidv4(),
+      parentId: uuidv4(),
+      type: 'request',
+      title: 'Test Request',
       url: url.toString(),
       method: 'GET',
       headers: {},
       body: null,
-      dirPath: ''
     };
 
     // Act

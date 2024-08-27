@@ -1,10 +1,10 @@
 import { Readable } from 'node:stream';
 import crypto from 'node:crypto';
 import { TemplateReplaceStream } from 'template-replace-stream';
-import { Collection } from 'main/persistence/entity/collection';
-import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { Initializable } from 'main/shared/initializable';
-import { VariableObject } from '../entity/variable';
+import { PersistenceService } from 'main/persistence/service/persistence-service';
+import { Collection } from 'shim/objects/collection';
+import { VariableObject } from 'shim/variables';
 
 const persistenceService = PersistenceService.instance;
 
@@ -14,8 +14,8 @@ const persistenceService = PersistenceService.instance;
  * request body, headers, etc.).
  */
 export class EnvironmentService implements Initializable {
-
-  public static readonly instance: EnvironmentService = new EnvironmentService();
+  public static readonly instance: EnvironmentService =
+    new EnvironmentService();
 
   public currentCollection: Collection;
 
@@ -34,7 +34,9 @@ export class EnvironmentService implements Initializable {
    * @returns The stream with the variables replaced.
    */
   public setVariablesInStream(stream: Readable) {
-    return stream.pipe(new TemplateReplaceStream(this.getVariableValue.bind(this)));
+    return stream.pipe(
+      new TemplateReplaceStream(this.getVariableValue.bind(this)),
+    );
   }
 
   /**
@@ -44,11 +46,11 @@ export class EnvironmentService implements Initializable {
    * @param value The new value of the variable.
    */
   public setCollectionVariable(key: string, value: string) {
-    const variable = this.currentCollection.variables.get(key);
+    const variable = this.currentCollection.variables[key];
     if (variable !== undefined) {
       variable.value = value;
     } else {
-      this.currentCollection.variables.set(key, { value, enabled: true });
+      this.currentCollection.variables[key] = { value, enabled: true };
     }
   }
 
@@ -59,7 +61,7 @@ export class EnvironmentService implements Initializable {
    * @param enabled Whether the variable should be enabled or disabled.
    */
   public setCollectionVariableEnabled(key: string, enabled: boolean) {
-    const variable = this.currentCollection.variables.get(key);
+    const variable = this.currentCollection.variables[key];
     if (variable !== undefined) variable.enabled = enabled;
   }
 
@@ -68,7 +70,7 @@ export class EnvironmentService implements Initializable {
    *
    * @param variables The new variables to set.
    */
-  public setCollectionVariables(variables: Map<string, VariableObject>) {
+  public setCollectionVariables(variables: Record<string, VariableObject>) {
     this.currentCollection.variables = variables;
   }
 
@@ -78,7 +80,9 @@ export class EnvironmentService implements Initializable {
    * @param path The path of the collection to load and set as the current collection.
    */
   public async changeCollection(path: string) {
-    return this.currentCollection = await persistenceService.loadCollection(path);
+    return (this.currentCollection = await persistenceService.loadCollection(
+      path,
+    ));
   }
 
   /**
@@ -90,7 +94,10 @@ export class EnvironmentService implements Initializable {
    * @returns The value of the variable if it exists and  is enabled, otherwise undefined.
    */
   private getVariableValue(key: string) {
-    return this.currentCollection.variables.get(key)?.value ?? this.getSystemVariableValue(key);
+    return (
+      this.currentCollection.variables[key]?.value ??
+      this.getSystemVariableValue(key)
+    );
   }
 
   /**
@@ -115,5 +122,4 @@ export class EnvironmentService implements Initializable {
         return crypto.randomUUID();
     }
   }
-
 }

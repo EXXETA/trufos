@@ -1,6 +1,5 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { Response } from 'shim/http';
 import { editor } from 'monaco-editor';
 
 export interface ViewState {
