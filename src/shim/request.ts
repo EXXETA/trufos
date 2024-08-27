@@ -8,4 +8,5 @@ export interface Request {
   headers?: HttpHeaders;
   body?: RequestBody | null;
   dirPath?: string;
+  changed: boolean;
 }

@@ -9,10 +9,10 @@ interface RequestsState {
 
 const initialState: RequestsState = {
   requests: [
-    {method: RequestMethod.get, url: 'https://api.example.com/data'},
-    {method: RequestMethod.post, url: 'https://api.example.com/data'},
-    {method: RequestMethod.put, url: 'https://api.example.com/data/1'},
-    {method: RequestMethod.delete, url: 'https://api.example.com/data/1'},
+    {method: RequestMethod.get, url: 'https://api.example.com/data', changed: false},
+    {method: RequestMethod.post, url: 'https://api.example.com/data', changed: false},
+    {method: RequestMethod.put, url: 'https://api.example.com/data/1', changed: false},
+    {method: RequestMethod.delete, url: 'https://api.example.com/data/1', changed: false},
   ],
   selectedRequest: 0,
 };
@@ -29,7 +29,7 @@ export const requestsSlice = createSlice({
     },
     updateRequest(state, action: PayloadAction<{ index: number; request: Request }>) {
       const { index, request } = action.payload;
-      state.requests[index] = request;
+      state.requests[index] = {...request, changed: true};
     },
     setSelectedRequest: (state, action: PayloadAction<number>) => {
       state.selectedRequest = action.payload;
