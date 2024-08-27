@@ -1,4 +1,3 @@
-// src/renderer/components/mainWindow/MainTopBar.tsx
 import * as React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/state/store';
@@ -16,7 +15,7 @@ import { cn } from '@/lib/utils';
 import {HttpHeaders, RequestBody} from "shim/http";
 
 export type RequestProps = {
-  onResponse: (response: Response) => void;
+  onResponse: (response: Response) => Promise<void>;
 }
 
 const httpService = HttpService.instance;
@@ -80,7 +79,7 @@ const sendRequest = React.useCallback(useErrorHandler(async () => {
       <HttpMethodSelect selectedHttpMethod={selectedHttpMethod} onHttpMethodChange={handleHttpMethodChange} />
       <UrlInput url={url} onUrlChange={handleUrlChange} />
       <SendButton onClick={sendRequest} />
-      <SaveButton />
+      <SaveButton change={requestList[selectedRequest].changed}/>
     </div>
   );
 }
