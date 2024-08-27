@@ -1,10 +1,7 @@
 import { HttpHeaders } from 'shim/headers';
+import {RequestMethod} from "./requestMethod";
 
 export const TEXT_BODY_FLE_NAME = 'request-body.txt';
-
-export type RequestMethod =
-  'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD' | 'CONNECT' | 'TRACE';
-
 export type RufusRequest = {
   id: string;
   parentId: string;
@@ -14,6 +11,7 @@ export type RufusRequest = {
   method: RequestMethod;
   headers: HttpHeaders;
   body: RequestBody | null;
+  changed?: boolean;
 }
 
 export type RequestBody = TextBody | FileBody;

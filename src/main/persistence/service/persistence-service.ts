@@ -29,7 +29,7 @@ export class PersistenceService {
    */
   public async loadDefaultCollection() {
     const dirPath = PersistenceService.DEFAULT_COLLECTION_DIR;
-    if (await exists(dirPath)) {
+    if (await exists(path.join(dirPath, 'collection.json'))) {
       return await this.loadCollection(dirPath);
     }
 

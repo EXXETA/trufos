@@ -1,4 +1,4 @@
-import {RequestMethod} from "shim/requestMethod";
+import {RequestMethod} from "shim/objects/requestMethod";
 
 export const httpMethodColor = (request: RequestMethod) => {
   switch (request) {

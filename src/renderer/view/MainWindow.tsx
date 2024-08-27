@@ -1,11 +1,10 @@
 // import { Header } from '@/components/Header';
-import {RequestBody} from '@/components/mainWindow/RequestBody';
-import {Request} from '@/components/mainWindow/Request';
 import {useState} from "react";
-import {HttpHeaders} from "shim/headers";
 import {RendererEventService} from "@/services/event/renderer-event-service";
-import {HttpHeaders} from "../../shim/headers";
 import {RufusResponse} from "shim/objects/response";
+import {MainTopBar} from "@/components/mainWindow/MainTopBar";
+import {MainBody} from "@/components/mainWindow/MainBody";
+import {HttpHeaders} from "../../shim/headers";
 
 const eventService = RendererEventService.instance;
 const textDecoder = new TextDecoder();

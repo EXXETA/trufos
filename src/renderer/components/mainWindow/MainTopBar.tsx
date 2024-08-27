@@ -2,9 +2,9 @@ import * as React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/state/store';
 import { editor } from 'monaco-editor';
-import { RequestMethod } from 'shim/requestMethod';
-import { Request } from 'shim/request';
-import { updateRequest } from '@/state/requestsSlice';
+import { RequestMethod } from '../../../shim/objects/requestMethod';
+import {RequestBody, RufusRequest} from 'shim/objects/request';
+import {setSelectedRequest, updateRequest} from '@/state/requestsSlice';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
 import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
@@ -12,10 +12,11 @@ import { UrlInput } from './mainTopBar/UrlInput';
 import { SendButton } from './mainTopBar/SendButton';
 import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
-import {HttpHeaders, RequestBody} from "shim/http";
+import {HttpHeaders} from "../../../shim/headers";
+import {RufusResponse} from "../../../shim/objects/response";
 
 export type RequestProps = {
-  onResponse: (response: Response) => Promise<void>;
+  onResponse: (response: RufusResponse) => Promise<void>;
 }
 
 const httpService = HttpService.instance;
@@ -26,14 +27,18 @@ export function MainTopBar({ onResponse }: RequestProps) {
   const [selectedHttpMethod, setSelectedHttpMethod] = React.useState<RequestMethod>(RequestMethod.get);
   const requestEditor = useSelector<RootState>(state => state.view.requestEditor) as editor.ICodeEditor | undefined;
   const selectedRequest = useSelector<RootState, number>(state => state.requests.selectedRequest);
-  const requestList = useSelector<RootState, Request[]>(state => state.requests.requests);
+  const requestList = useSelector<RootState, RufusRequest[]>(state => state.requests.requests);
 
   React.useEffect(() => {
     if (selectedRequest < requestList.length) {
       setSelectedHttpMethod(requestList[selectedRequest].method);
       setUrl(requestList[selectedRequest].url);
+    } else {
+      setSelectedHttpMethod(requestList[0].method);
+      setUrl(requestList[0].url);
+      dispatch(setSelectedRequest(0));
     }
-  }, [selectedRequest]);
+  }, [selectedRequest, requestList.length]);
 
   const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = event.target.value;
@@ -62,16 +67,15 @@ const sendRequest = React.useCallback(useErrorHandler(async () => {
     headers['Content-Type'] = 'text/plain';
   }
 
-  const request: Request = {
+  const request: RufusRequest = {
     ...requestList[selectedRequest],
     headers: headers, // TODO: set the headers of the request
     body: body,
-    dirPath: '???' // TODO: set the directory of the request. If it's unsaved, it has to be some temporary directory
   };
 
   // Send the request and pass the response to the onResponse callback
   const response = await httpService.sendRequest(request); // TODO fix it
-  onResponse(response as unknown as Response);
+  onResponse(response as unknown as RufusResponse);
 }), [requestList, selectedRequest, requestEditor, onResponse]);
 
   return (
@@ -79,7 +83,7 @@ const sendRequest = React.useCallback(useErrorHandler(async () => {
       <HttpMethodSelect selectedHttpMethod={selectedHttpMethod} onHttpMethodChange={handleHttpMethodChange} />
       <UrlInput url={url} onUrlChange={handleUrlChange} />
       <SendButton onClick={sendRequest} />
-      <SaveButton change={requestList[selectedRequest].changed}/>
+      <SaveButton change={requestList[selectedRequest]?.changed}/>
     </div>
   );
 }

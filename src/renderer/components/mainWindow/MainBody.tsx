@@ -1,13 +1,13 @@
-import {InputTabs} from '@/components/mainWindow/tabs/InputTabs';
-import {OutputTabs} from '@/components/mainWindow/tabs/OutputTabs';
-import {HttpHeaders} from 'shim/headers';
+import {InputTabs} from '@/components/mainWindow/bodyTabs/InputTabs';
+import {OutputTabs} from '@/components/mainWindow/bodyTabs/OutputTabs';
+import {HttpHeaders} from "../../../shim/headers";
 
 export type RequestBodyProps = {
   headers?: HttpHeaders;
   body?: string;
 }
 
-export function RequestBody(props: RequestBodyProps) {
+export function MainBody(props: RequestBodyProps) {
   const {body, headers} = props;
 
   return (

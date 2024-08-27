@@ -1,6 +1,7 @@
 import { Collection } from 'shim/objects/collection';
 import { v4 as uuidv4 } from 'uuid';
-import { RequestBodyType } from '../../../shim/objects/request';
+import { RequestBodyType } from 'shim/objects/request';
+import {RequestMethod} from "shim/objects/requestMethod";
 
 export function generateDefaultCollection(dirPath: string): Collection {
   const collectionId = uuidv4();
@@ -30,7 +31,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
         type: 'request',
         title: 'Example Request',
         url: 'https://github.com/EXXETA/rufus/raw/main/README.md',
-        method: 'GET',
+        method: RequestMethod.get,
         headers: {},
         body: null
       },
