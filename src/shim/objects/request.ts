@@ -18,8 +18,13 @@ export type RufusRequest = {
 
 export type RequestBody = TextBody | FileBody;
 
+export enum RequestBodyType {
+  TEXT = 'text',
+  FILE = 'file'
+}
+
 export type TextBody = {
-  type: 'text';
+  type: RequestBodyType.TEXT;
   /** The body content as a string. Used for importing from third party collections. Usually, this is only stored on the file system */
   text?: string;
   /** The mime type of the file content, e.g. "application/json". May include an encoding */
@@ -27,8 +32,10 @@ export type TextBody = {
 }
 
 export type FileBody = {
-  type: 'file';
-  filePath: string;
+  type: RequestBodyType.FILE;
+  filePath?: string;
+  /** The mime type of the file content, e.g. "application/json". May include an encoding */
+  mimeType?: string;
 }
 
 export function sanitizeTitle(title: string): string {

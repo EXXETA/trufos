@@ -37,7 +37,7 @@ const config: ForgeConfig = {
       },
       devServer: {
         client: {
-          overlay: { runtimeErrors: error => error.message !== 'ResizeObserver loop limit exceeded' }
+          overlay: { runtimeErrors: error => !error.message.startsWith('ResizeObserver loop') }
         }
       }
     }),
