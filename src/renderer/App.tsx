@@ -1,6 +1,5 @@
 import "@/styles/tailwind.css";
 import "@/styles/global.css";
-import "@/styles/sidebar.css";
 import {Sidebar} from '@/view/Sidebar';
 import {MainWindow} from "@/view/MainWindow";
 import {Toaster} from "@/components/ui/toaster";

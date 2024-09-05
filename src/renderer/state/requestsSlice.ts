@@ -1,6 +1,6 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
-import {RequestMethod} from '../../shim/objects/requestMethod';
-import {RufusRequest} from "../../shim/objects/request";
+import {RequestMethod} from 'shim/objects/requestMethod';
+import {RequestBodyType, RufusRequest} from "shim/objects/request";
 
 interface RequestsState {
   requests: RufusRequest[];
@@ -17,7 +17,7 @@ const initialState: RequestsState = {
       title: '',
       headers: undefined,
       body: {
-        type: 'text',
+        type: RequestBodyType.TEXT,
         text: '',
         mimeType: ''
       }
@@ -30,7 +30,7 @@ const initialState: RequestsState = {
       title: '',
       headers: undefined,
       body: {
-        type: 'text',
+        type: RequestBodyType.TEXT,
         text: '',
         mimeType: ''
       }
@@ -43,7 +43,7 @@ const initialState: RequestsState = {
       title: '',
       headers: undefined,
       body: {
-        type: 'text',
+        type: RequestBodyType.TEXT,
         text: '',
         mimeType: ''
       }
@@ -56,7 +56,7 @@ const initialState: RequestsState = {
       title: '',
       headers: undefined,
       body: {
-        type: 'text',
+        type: RequestBodyType.TEXT,
         text: '',
         mimeType: ''
       }

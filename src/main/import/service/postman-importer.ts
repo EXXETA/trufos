@@ -7,7 +7,7 @@ import {
 } from 'postman-collection';
 import { Collection as RufusCollection } from 'shim/objects/collection';
 import { Folder as RufusFolder } from 'shim/objects/folder';
-import { RequestBody, RufusRequest } from 'shim/objects/request';
+import {RequestBody, RequestBodyType, RufusRequest} from 'shim/objects/request';
 import {RequestMethod} from "shim/objects/requestMethod";
 import path from 'node:path';
 import fs from 'node:fs/promises';

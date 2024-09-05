@@ -47,7 +47,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
             type: 'request',
             title: 'Another Request',
             url: 'https://exxeta.com/',
-            method: 'GET',
+            method: RequestMethod.get,
             headers: {},
             body: {
               type: RequestBodyType.TEXT,
