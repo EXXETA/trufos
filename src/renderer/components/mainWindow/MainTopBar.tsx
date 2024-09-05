@@ -1,19 +1,19 @@
 import * as React from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '@/state/store';
-import { editor } from 'monaco-editor';
-import { RequestMethod } from '../../../shim/objects/requestMethod';
-import {RequestBody, RufusRequest} from 'shim/objects/request';
+import {useDispatch, useSelector} from 'react-redux';
+import {RootState} from '@/state/store';
+import {editor} from 'monaco-editor';
+import {RequestMethod} from 'shim/objects/requestMethod';
+import {RequestBody, RequestBodyType, RufusRequest} from 'shim/objects/request';
 import {setSelectedRequest, updateRequest} from '@/state/requestsSlice';
-import { useErrorHandler } from '@/components/ui/use-toast';
-import { HttpService } from '@/services/http/http-service';
-import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
-import { UrlInput } from './mainTopBar/UrlInput';
-import { SendButton } from './mainTopBar/SendButton';
-import { SaveButton } from './mainTopBar/SaveButton';
-import { cn } from '@/lib/utils';
-import {HttpHeaders} from "../../../shim/headers";
-import {RufusResponse} from "../../../shim/objects/response";
+import {useErrorHandler} from '@/components/ui/use-toast';
+import {HttpService} from '@/services/http/http-service';
+import {HttpMethodSelect} from './mainTopBar/HttpMethodSelect';
+import {UrlInput} from './mainTopBar/UrlInput';
+import {SendButton} from './mainTopBar/SendButton';
+import {SaveButton} from './mainTopBar/SaveButton';
+import {cn} from '@/lib/utils';
+import {HttpHeaders} from "shim/headers";
+import {RufusResponse} from "shim/objects/response";
 
 export type RequestProps = {
   onResponse: (response: RufusResponse) => Promise<void>;
@@ -60,7 +60,7 @@ const sendRequest = React.useCallback(useErrorHandler(async () => {
   const headers: HttpHeaders = {};
   if (requestEditor !== undefined) {
     body = {
-      type: 'text',
+      type: RequestBodyType.TEXT,
       text: requestEditor.getValue(),
       mimeType: 'text/plain'
     };

@@ -1,6 +1,5 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { RufusRequest } from 'shim/request';
 import { editor } from 'monaco-editor';
 import { RequestBody } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
