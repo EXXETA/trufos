@@ -1,11 +1,12 @@
 import { IEventService } from 'shim/event-service';
 import { HttpService } from 'main/network/service/http-service';
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import fs from 'fs/promises';
 import { FileInfo } from 'shim/fs';
 import { FileHandle } from 'node:fs/promises';
-import path from 'path';
 import { RufusRequest, TEXT_BODY_FLE_NAME } from 'shim/objects/request';
+import { Buffer } from 'node:buffer';
+import path from 'node:path';
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -37,7 +38,7 @@ function registerEvent<T>(instance: T, functionName: keyof T) {
   if (typeof method === 'function') {
     console.debug(`Registering event function "${functionName}()" on backend`);
     ipcMain.handle(functionName as string, (_event, ...args) =>
-      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args),
+      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args)
     );
   }
 }
@@ -75,7 +76,7 @@ export class MainEventService implements IEventService {
       atime: stats.atime,
       mtime: stats.mtime,
       ctime: stats.ctime,
-      birthtime: stats.birthtime,
+      birthtime: stats.birthtime
     } as FileInfo;
   }
 
@@ -87,7 +88,7 @@ export class MainEventService implements IEventService {
       offset,
       'and length limited to',
       length ?? 'unlimited',
-      'bytes',
+      'bytes'
     );
     if (offset === 0 && length === undefined) {
       return (await fs.readFile(filePath)).buffer;
@@ -114,12 +115,16 @@ export class MainEventService implements IEventService {
   async saveTextBodyOfRequest(
     directory: string,
     body: string,
-    mimeType: string,
+    mimeType: string
   ) {
     await fs.writeFile(
       path.join(directory, TEXT_BODY_FLE_NAME),
       body,
-      'utf8', // TODO: map charset to BufferEncoding
+      'utf8' // TODO: map charset to BufferEncoding
     );
+  }
+
+  async getAppVersion() {
+    return app.getVersion();
   }
 }

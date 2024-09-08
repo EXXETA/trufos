@@ -31,4 +31,9 @@ export interface IEventService {
    * @param mimeType The mime type of the text body.
    */
   saveTextBodyOfRequest(directory: string, body: string, mimeType: string): Promise<void>;
+
+  /**
+   * @returns The version of the app
+   */
+  getAppVersion(): Promise<string>;
 }

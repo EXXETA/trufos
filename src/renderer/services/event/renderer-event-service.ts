@@ -1,7 +1,7 @@
-import {IEventService} from "shim/event-service";
-import {MainProcessError} from "@/error/MainProcessError";
+import { IEventService } from 'shim/event-service';
+import { MainProcessError } from '@/error/MainProcessError';
 
-const METHOD_NAMES = new Set<keyof IEventService>(["saveTextBodyOfRequest", "readFile", "getFileInfo", "sendRequest"]);
+const METHOD_NAMES = new Set<keyof IEventService>(['saveTextBodyOfRequest', 'readFile', 'getFileInfo', 'sendRequest', 'getAppVersion']);
 
 const INSTANCE = {} as IEventService;
 for (const methodName of METHOD_NAMES) {
@@ -19,7 +19,7 @@ for (const methodName of METHOD_NAMES) {
  * @param methodName The name of the event method to call in the main process.
  */
 function createEventMethod(methodName: keyof IEventService) {
-  return async function (...args: any[]) {
+  return async function(...args: any[]) {
     const result = await window.electron.ipcRenderer.invoke(methodName, ...args);
     if (result instanceof Error) {
       throw new MainProcessError(result.message);
