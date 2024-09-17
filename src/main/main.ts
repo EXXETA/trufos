@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import 'main/event/main-event-service';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import installExtension, { REDUX_DEVTOOLS } from 'electron-devtools-installer';
@@ -28,6 +28,12 @@ const createWindow = async () => {
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY
     }
+  });
+
+  // Open links in default browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
   });
 
   // and load the index.html of the app.
