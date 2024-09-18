@@ -54,7 +54,32 @@ export function OutputTabs(props: OutputTabsProps) {
           options={monacoOptions}
         />
       </TabsContent>
-      <TabsContent value="header">Change your header here.</TabsContent>
+      <TabsContent value="header">
+        <table className="w-full min-w-max table-fixed text-left">
+          <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+          </tr>
+          </thead>
+          <tbody>
+          {headers && Object.keys(headers).map((key) => {
+            const value = headers[key];
+            const valueToDisplay = value !== undefined ? (Array.isArray(value) ? value : [value]) : '';
+            return (
+                <tr key={key}>
+                  <td>
+                    {key}
+                  </td>
+                  <td>
+                    {(valueToDisplay as string[]).join(', ')}
+                  </td>
+                </tr>
+            );
+          })}
+          </tbody>
+        </table>
+      </TabsContent>
     </Tabs>
 
   );
