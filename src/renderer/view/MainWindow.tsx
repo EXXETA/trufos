@@ -23,8 +23,6 @@ export function MainWindow() {
     }
   }
 
-  console.log('body', body); // delete me
-  console.log('headers', headers); // delete me
   return (
     <div className={'flex flex-col flex-auto p-6'}>
        {/*<Header />*/}

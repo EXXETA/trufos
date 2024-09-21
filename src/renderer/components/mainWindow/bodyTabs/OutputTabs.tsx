@@ -3,9 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from '
 import { Editor } from '@monaco-editor/react';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { HttpHeaders } from 'shim/headers';
-import { cn } from '@/lib/utils';
 import { useRef } from 'react';
-import { Button } from '@/components/ui/button';
 
 export type OutputTabsProps = {
   headers?: HttpHeaders; body?: string;
@@ -47,7 +45,6 @@ export function OutputTabs(props: OutputTabsProps) {
   console.debug('Using syntax highlighting for mime type', mimeType);
 
   const tabsRef = useRef(null)
-  console.log('tabsRef', tabsRef.current?.offsetHeight); // delete me
 
   return (
       <Tabs defaultValue="body" ref={tabsRef}>
