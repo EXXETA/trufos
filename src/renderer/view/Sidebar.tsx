@@ -14,7 +14,7 @@ export const Sidebar = () => {
       <SidebarSearch />
       <Divider className="w-full" />
       <SidebarRequestList requests={requests} />
-      <FooterBar className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm" />
+      <FooterBar />
     </div>
   );
 };

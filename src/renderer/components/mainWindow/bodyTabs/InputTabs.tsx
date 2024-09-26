@@ -9,18 +9,20 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { Separator } from '@radix-ui/react-select';
 import { RequestBody, RequestBodyType } from 'shim/objects/request';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { setRequestBody, setRequestEditor } from '@/state/viewSlice';
 import { Editor } from '@monaco-editor/react';
 import { Input } from '@/components/ui/input';
 import { RootState } from '@/state/store';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { Divider } from '@/components/shared/Divider';
 
 export function InputTabs() {
   const dispatch = useDispatch();
   const requestBody = useSelector<RootState>(state => state.view.requestBody) as RequestBody | undefined;
+
+  const [isOpen, setIsOpen] = useState(false);
 
   const changeBodyType = useCallback((type: RequestBodyType) => {
     switch (type) {
@@ -69,22 +71,35 @@ export function InputTabs() {
         <TabsTrigger value="header">Header</TabsTrigger>
         <TabsTrigger value="authorization">Auth</TabsTrigger>
       </TabsList>
-      <TabsContent value="body" style={{ flexDirection: 'column', display: 'flex' }}>
-        <Select onValueChange={bodyType => changeBodyType(bodyType as RequestBodyType)}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Source</SelectLabel>
-              <SelectItem value={RequestBodyType.TEXT}>Text</SelectItem>
-              <SelectItem value={RequestBodyType.FILE}>File</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        <Separator />
-        <div className="flex-1">
-          {requestBody?.type === RequestBodyType.FILE ? renderFileInput() : renderEditor()}
+
+      <TabsContent value="body">
+        <div className={'p-4 h-full relative'}>
+          <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
+            <div className={'flex justify-end'}>
+              <Select onValueChange={bodyType => changeBodyType(bodyType as RequestBodyType)} onOpenChange={(open) => setIsOpen(open)} defaultValue={'text'}>
+                <SelectTrigger className={'w-[fit-content] h-[fit-content] p-0 '} isOpen={isOpen}>
+                  <SelectValue placeholder="Source"/>
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value={RequestBodyType.TEXT}>Text</SelectItem>
+
+                    <SelectItem value={RequestBodyType.FILE}>File</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Divider className={'mt-2'}/>
+          </div>
+
+          <div className="absolute top-[68px] left-[16px] bottom-[16px] right-[16px]">
+            {requestBody?.type === RequestBodyType.FILE ? renderFileInput() : renderEditor()}
+          </div>
         </div>
       </TabsContent>
+
       <TabsContent value="queryParams">Change your queryParams here.</TabsContent>
       <TabsContent value="header">Change your header here.</TabsContent>
       <TabsContent value="authorization">Change your authorization here.</TabsContent>
