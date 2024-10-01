@@ -12,7 +12,7 @@ import {
 import { Separator } from '@radix-ui/react-select';
 import { RequestBody, RequestBodyType } from 'shim/objects/request';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import { setRequestBody, setRequestEditor } from '@/state/view';
+import { setRequestBody, setRequestEditor } from '@/state/viewSlice';
 import { Editor } from '@monaco-editor/react';
 import { Input } from '@/components/ui/input';
 import { RootState } from '@/state/store';

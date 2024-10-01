@@ -1,4 +1,4 @@
-import {Button} from '../ui/button';
+import {Button} from '@/components/ui/button';
 import {FileIcon, PlusIcon} from '@radix-ui/react-icons';
 import {HttpHeaders} from 'shim/headers';
 

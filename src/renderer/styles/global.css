@@ -1,0 +1,21 @@
+/* Add the following to your global CSS file */
+
+.http-method-color-get {
+  color: #97E87F;
+}
+
+.http-method-color-put {
+  color: #6AC8E7;
+}
+
+.http-method-color-post {
+  color: #8CA5FF;
+}
+
+.http-method-color-delete {
+  color: #E36873;
+}
+
+.http-method-color-patch {
+  color: #EBBA6B;
+}
