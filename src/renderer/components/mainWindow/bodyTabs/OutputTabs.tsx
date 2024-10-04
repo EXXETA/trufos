@@ -44,64 +44,61 @@ export function OutputTabs(props: OutputTabsProps) {
   const mimeType = getMimeType(getContentType(headers));
   console.debug('Using syntax highlighting for mime type', mimeType);
 
-  const tabsRef = useRef(null)
+  const tabsRef = useRef(null);
 
-  return (
-      <Tabs defaultValue="body" ref={tabsRef}>
-        <TabsList>
-          <TabsTrigger value="body">Response Body</TabsTrigger>
-          <TabsTrigger value="header">Headers</TabsTrigger>
-        </TabsList>
+  return (<Tabs defaultValue="body" ref={tabsRef}>
+    <TabsList>
+      <TabsTrigger className={'tabs-trigger'} value="body">Response Body</TabsTrigger>
+      <TabsTrigger className={'tabs-trigger'} value="header">Headers</TabsTrigger>
+    </TabsList>
 
-        <TabsContent value="body">
-          <div className={'p-4 h-full'}>
-            <Editor
-                value={body}
-                language={mimeType}
-                theme="vs-dark" /* TODO: apply theme from settings */
-                options={monacoOptions}
-            />
-          </div>
-        </TabsContent>
+    <TabsContent value="body">
+      <div className={'p-4 h-full'}>
+        <Editor
+            value={body}
+            language={mimeType}
+            theme="vs-dark"
+            options={monacoOptions}
+        />
+      </div>
+    </TabsContent>
 
-        <TabsContent value="header" className={`max-h-[${tabsRef.current?.offsetHeight - 88}px] p-4`}>
-          {!headers
-              ? (
-                <div className={"flex items-center justify-center w-full h-full text-center"}>
-                  <span>
-                    Please enter URL address and click Send to get a response
-                  </span>
-                </div>
-              )
-              : (
-                <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Key</TableHead>
-                    <TableHead>Value</TableHead>
-                  </TableRow>
-                </TableHeader>
+    <TabsContent
+        value="header"
+        className={`max-h-[${tabsRef.current?.offsetHeight - 88}px] p-4`}
+    >
+      {!headers
+          ? (
+            <div className={'flex items-center justify-center w-full h-full text-center'}>
+              <span>
+                Please enter URL address and click Send to get a response
+              </span>
+            </div>
+          )
+          : (
+            <Table className="table-auto w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-auto">Key</TableHead>
+                  <TableHead className="w-full">Value</TableHead>
+                </TableRow>
+              </TableHeader>
 
-                <TableBody>
-                  {headers && Object.keys(headers).map((key) => {
-                    const value = headers[key];
-                    const valueToDisplay = value !== undefined ? (Array.isArray(value) ? value : [ value ]) : '';
-                    return (
-                        <TableRow key={key}>
-                          <TableCell>
-                            {key}
-                          </TableCell>
-                          <TableCell>
-                            {(valueToDisplay as string[]).join(', ')}
-                          </TableCell>
-                        </TableRow>
+              <TableBody>
+                {headers &&
+                    Object.keys(headers).map((key) => {
+                      const value = headers[key];
+                      const valueToDisplay = value !== undefined ? (Array.isArray(value) ? value : [value]) : '';
+                      return (
+                          <TableRow key={key}>
+                            <TableCell className="w-1/3">{key}</TableCell>
+                            <TableCell >{(valueToDisplay as string[]).join(', ')}</TableCell> {/* Full width */}
+                          </TableRow>
                       );
                     })}
-                </TableBody>
-              </Table>
-              )}
-        </TabsContent>
-      </Tabs>
-
-  );
+              </TableBody>
+            </Table>
+          )}
+    </TabsContent>
+  </Tabs>);
 }

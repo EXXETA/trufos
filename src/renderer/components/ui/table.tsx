@@ -87,11 +87,14 @@ const TableCell = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <td
         ref={ref}
-        className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0 [&:not(:last-child)]:border-r border-border", className)}
+        className={cn(
+            "p-4 align-middle break-all overflow-wrap break-word [&:has([role=checkbox])]:pr-0 [&:not(:last-child)]:border-r border-border",
+            className
+        )}
         {...props}
     />
-))
-TableCell.displayName = "TableCell"
+));
+TableCell.displayName = "TableCell";
 
 const TableCaption = React.forwardRef<
     HTMLTableCaptionElement,
