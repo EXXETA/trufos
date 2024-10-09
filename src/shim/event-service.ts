@@ -25,12 +25,13 @@ export interface IEventService {
   readFile(filePath: string, offset?: number, length?: number): Promise<ArrayBufferLike>;
 
   /**
-   * Saves the text body of a request to the file system at the given directory.
-   * @param directory The directory of the request.
-   * @param body The text body of the request.
-   * @param mimeType The mime type of the text body.
+   * Saves the request to the file system. The draft flag is respected. If a
+   * body is provided, it is saved as well.
+   *
+   * @param request The request to save.
+   * @param textBody OPTIONAL: The text body of the request.
    */
-  saveTextBodyOfRequest(directory: string, body: string, mimeType: string): Promise<void>;
+  saveRequest(request: RufusRequest, textBody?: string): Promise<void>;
 
   /**
    * @returns The version of the app

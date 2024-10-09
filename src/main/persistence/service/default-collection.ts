@@ -1,7 +1,7 @@
 import { Collection } from 'shim/objects/collection';
 import { v4 as uuidv4 } from 'uuid';
 import { RequestBodyType } from 'shim/objects/request';
-import {RequestMethod} from "shim/objects/requestMethod";
+import { RequestMethod } from 'shim/objects/requestMethod';
 
 export function generateDefaultCollection(dirPath: string): Collection {
   const collectionId = uuidv4();

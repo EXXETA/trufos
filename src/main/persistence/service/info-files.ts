@@ -2,7 +2,7 @@ import { RufusObject } from 'shim/objects/object';
 import { RequestBody } from 'shim/objects/request';
 import { HttpHeaders } from 'shim/headers';
 import { VariableObject } from 'shim/variables';
-import {RequestMethod} from "shim/objects/requestMethod";
+import { RequestMethod } from 'shim/objects/requestMethod';
 
 export type RequestInfoFile = {
   version: string;
@@ -32,11 +32,10 @@ export function toInfoFile(object: RufusObject): InfoFile {
   if (infoFile.type !== 'request') {
     delete infoFile.children;
   }
-
   if (infoFile.type !== 'collection') {
     delete infoFile.parentId;
   }
-
+  delete infoFile.draft;
   delete infoFile.id;
 
   return infoFile;

@@ -9,4 +9,5 @@ export type Collection = {
   dirPath: string;
   variables: Record<string, VariableObject>;
   children: (Folder | RufusRequest)[];
+  draft?: boolean;
 }
