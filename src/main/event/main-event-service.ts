@@ -4,9 +4,11 @@ import { app, ipcMain } from 'electron';
 import fs from 'fs/promises';
 import { FileInfo } from 'shim/fs';
 import { FileHandle } from 'node:fs/promises';
-import { RufusRequest, TEXT_BODY_FLE_NAME } from 'shim/objects/request';
+import { RufusRequest } from 'shim/objects/request';
 import { Buffer } from 'node:buffer';
-import path from 'node:path';
+import { PersistenceService } from '../persistence/service/persistence-service';
+
+const persistanceService = PersistenceService.instance;
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -112,16 +114,11 @@ export class MainEventService implements IEventService {
     }
   }
 
-  async saveTextBodyOfRequest(
-    directory: string,
-    body: string,
-    mimeType: string
+  async saveRequest(
+    request: RufusRequest,
+    textBody?: string
   ) {
-    await fs.writeFile(
-      path.join(directory, TEXT_BODY_FLE_NAME),
-      body,
-      'utf8' // TODO: map charset to BufferEncoding
-    );
+    await persistanceService.save(request, textBody);
   }
 
   async getAppVersion() {

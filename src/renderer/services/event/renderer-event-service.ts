@@ -1,7 +1,7 @@
 import { IEventService } from 'shim/event-service';
 import { MainProcessError } from '@/error/MainProcessError';
 
-const METHOD_NAMES = new Set<keyof IEventService>(['saveTextBodyOfRequest', 'readFile', 'getFileInfo', 'sendRequest', 'getAppVersion']);
+const METHOD_NAMES = new Set<keyof IEventService>(['saveRequest', 'readFile', 'getFileInfo', 'sendRequest', 'getAppVersion']);
 
 const INSTANCE = {} as IEventService;
 for (const methodName of METHOD_NAMES) {

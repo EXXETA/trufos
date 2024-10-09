@@ -1,7 +1,8 @@
 import { HttpHeaders } from 'shim/headers';
-import {RequestMethod} from "./requestMethod";
+import { RequestMethod } from './requestMethod';
 
-export const TEXT_BODY_FLE_NAME = 'request-body.txt';
+export const TEXT_BODY_FILE_NAME = 'request-body.txt';
+export const DRAFT_TEXT_BODY_FILE_NAME = '~' + TEXT_BODY_FILE_NAME;
 export type RufusRequest = {
   id: string;
   parentId: string;
@@ -11,7 +12,7 @@ export type RufusRequest = {
   method: RequestMethod;
   headers: HttpHeaders;
   body: RequestBody | null;
-  changed?: boolean;
+  draft?: boolean;
 }
 
 export type RequestBody = TextBody | FileBody;

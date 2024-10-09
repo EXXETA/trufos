@@ -7,9 +7,11 @@ import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
+import { PersistenceService } from '../../persistence/service/persistence-service';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
+const persistanceService = PersistenceService.instance;
 
 /**
  * Singleton service for making HTTP requests
@@ -77,15 +79,15 @@ export class HttpService {
    * @param request request object
    * @returns request body as stream or null if there is no body
    */
-  private async readBody(request: RufusRequest): Promise<Readable | null> {
+  private async readBody(request: RufusRequest) {
     if (request.body == null) {
-      return Promise.resolve(null);
+      return null;
     }
 
     switch (request.body.type) {
       case 'text': {
-        const requestBodyStream = Readable.from([request.body.text]);
-        return environmentService.setVariablesInStream(requestBodyStream);
+        const requestBodyStream = await persistanceService.loadTextBodyOfRequest(request);
+        return environmentService.setVariablesInStream(requestBodyStream) as Readable;
       }
       case 'file':
         if (request.body.filePath == null) return null;

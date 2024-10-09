@@ -1,6 +1,6 @@
-import {createSlice, PayloadAction} from '@reduxjs/toolkit';
-import {RequestMethod} from 'shim/objects/requestMethod';
-import {RequestBodyType, RufusRequest} from "shim/objects/request";
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { RequestMethod } from 'shim/objects/requestMethod';
+import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 
 interface RequestsState {
   requests: RufusRequest[];
@@ -10,7 +10,7 @@ interface RequestsState {
 const initialState: RequestsState = {
   requests: [
     {
-      method: RequestMethod.get, url: 'https://api.example.com/data', changed: false,
+      method: RequestMethod.get, url: 'https://api.example.com/data', draft: false,
       id: '',
       parentId: '',
       type: 'request',
@@ -23,7 +23,7 @@ const initialState: RequestsState = {
       }
     },
     {
-      method: RequestMethod.post, url: 'https://api.example.com/data', changed: false,
+      method: RequestMethod.post, url: 'https://api.example.com/data', draft: false,
       id: '',
       parentId: '',
       type: 'request',
@@ -36,7 +36,7 @@ const initialState: RequestsState = {
       }
     },
     {
-      method: RequestMethod.put, url: 'https://api.example.com/data/1', changed: false,
+      method: RequestMethod.put, url: 'https://api.example.com/data/1', draft: false,
       id: '',
       parentId: '',
       type: 'request',
@@ -49,7 +49,7 @@ const initialState: RequestsState = {
       }
     },
     {
-      method: RequestMethod.delete, url: 'https://api.example.com/data/1', changed: false,
+      method: RequestMethod.delete, url: 'https://api.example.com/data/1', draft: false,
       id: '',
       parentId: '',
       type: 'request',
@@ -60,9 +60,9 @@ const initialState: RequestsState = {
         text: '',
         mimeType: ''
       }
-    },
+    }
   ],
-  selectedRequest: 0,
+  selectedRequest: 0
 };
 
 export const requestsSlice = createSlice({
@@ -76,7 +76,7 @@ export const requestsSlice = createSlice({
       state.requests.unshift({
         url: 'New Request',
         method: RequestMethod.get,
-        changed: true,
+        draft: true,
         id: '',
         parentId: '',
         type: 'request',
@@ -87,8 +87,8 @@ export const requestsSlice = createSlice({
       state.selectedRequest = 0;
     },
     updateRequest(state, action: PayloadAction<{ index: number; request: RufusRequest }>) {
-      const {index, request} = action.payload;
-      state.requests[index] = {...request, changed: true};
+      const { index, request } = action.payload;
+      state.requests[index] = { ...request, draft: true };
     },
     setSelectedRequest: (state, action: PayloadAction<number>) => {
       state.selectedRequest = action.payload;
@@ -98,8 +98,8 @@ export const requestsSlice = createSlice({
       if (state.selectedRequest >= state.requests.length) {
         state.selectedRequest = state.requests.length - 1;
       }
-    },
-  },
+    }
+  }
 });
 
 export const {

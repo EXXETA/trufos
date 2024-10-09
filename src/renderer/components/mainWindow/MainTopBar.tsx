@@ -14,7 +14,7 @@ import {SaveButton} from './mainTopBar/SaveButton';
 import {cn} from '@/lib/utils';
 import {HttpHeaders} from "shim/headers";
 import {RufusResponse} from "shim/objects/response";
-import { RufusHeader } from '../../../shim/objects/headers';
+import { RufusHeader } from 'shim/objects/headers';
 
 export type RequestProps = {
   onResponse: (response: RufusResponse) => Promise<void>;
@@ -45,12 +45,18 @@ export function MainTopBar({ onResponse }: RequestProps) {
   const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = event.target.value;
     setUrl(newUrl);
-    dispatch(updateRequest({ index: selectedRequest, request: { ...requestList[selectedRequest], url: newUrl } }));
+    dispatch(updateRequest({
+      index: selectedRequest,
+      request: { ...requestList[selectedRequest], url: newUrl }
+    }));
   };
 
   const handleHttpMethodChange = (method: RequestMethod) => {
     setSelectedHttpMethod(method);
-    dispatch(updateRequest({ index: selectedRequest, request: { ...requestList[selectedRequest], method } }));
+    dispatch(updateRequest({
+      index: selectedRequest,
+      request: { ...requestList[selectedRequest], method }
+    }));
   };
 
   const sendRequest = React.useCallback(useErrorHandler(async () => {
@@ -82,16 +88,18 @@ export function MainTopBar({ onResponse }: RequestProps) {
       body: body,
     };
 
+    // Send the request and pass the response to the onResponse callback
     const response = await httpService.sendRequest(request); // TODO fix it
-    await onResponse(response as unknown as RufusResponse);
+    onResponse(response as unknown as RufusResponse);
   }), [requestList, selectedRequest, requestEditor, onResponse]);
 
   return (
     <div className={cn('flex mb-[24px]')}>
-      <HttpMethodSelect selectedHttpMethod={selectedHttpMethod} onHttpMethodChange={handleHttpMethodChange} />
+      <HttpMethodSelect selectedHttpMethod={selectedHttpMethod}
+                        onHttpMethodChange={handleHttpMethodChange} />
       <UrlInput url={url} onUrlChange={handleUrlChange} />
       <SendButton onClick={sendRequest} />
-      <SaveButton change={requestList[selectedRequest]?.changed}/>
+      <SaveButton change={requestList[selectedRequest]?.draft} />
     </div>
   );
 }
