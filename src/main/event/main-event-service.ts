@@ -65,6 +65,10 @@ export class MainEventService implements IEventService {
     console.debug('Registered event channels on backend');
   }
 
+  async loadCollection() {
+    return await persistanceService.loadDefaultCollection();
+  }
+
   async sendRequest(request: RufusRequest) {
     return await HttpService.instance.fetchAsync(request);
   }

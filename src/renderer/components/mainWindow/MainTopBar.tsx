@@ -14,12 +14,14 @@ import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
 import { HttpHeaders } from 'shim/headers';
 import { RufusResponse } from 'shim/objects/response';
+import { RendererEventService } from '@/services/event/renderer-event-service';
 
 export type RequestProps = {
   onResponse: (response: RufusResponse) => Promise<void>;
 }
 
 const httpService = HttpService.instance;
+const eventService = RendererEventService.instance;
 
 export function MainTopBar({ onResponse }: RequestProps) {
   const dispatch = useDispatch();
@@ -67,7 +69,6 @@ export function MainTopBar({ onResponse }: RequestProps) {
     if (requestEditor !== undefined) {
       body = {
         type: RequestBodyType.TEXT,
-        text: requestEditor.getValue(),
         mimeType: 'text/plain'
       };
       headers['Content-Type'] = 'text/plain';
@@ -76,12 +77,15 @@ export function MainTopBar({ onResponse }: RequestProps) {
     const request: RufusRequest = {
       ...requestList[selectedRequest],
       headers: headers, // TODO: set the headers of the request
-      body: body
+      body: body,
+      draft: true
     };
 
+    console.log('Saving request:', request);
+    await eventService.saveRequest(request, requestEditor?.getValue());
+
     // Send the request and pass the response to the onResponse callback
-    const response = await httpService.sendRequest(request); // TODO fix it
-    onResponse(response as unknown as RufusResponse);
+    onResponse(await httpService.sendRequest(request));
   }), [requestList, selectedRequest, requestEditor, onResponse]);
 
   return (

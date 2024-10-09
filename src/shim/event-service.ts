@@ -1,8 +1,14 @@
 import { FileInfo } from './fs';
 import { RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
+import { Collection } from './objects/collection';
 
 export interface IEventService {
+
+  /**
+   * Load the default collection.
+   */
+  loadCollection(): Promise<Collection>;
 
   /**
    * Send an HTTP request.
