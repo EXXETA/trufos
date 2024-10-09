@@ -1,19 +1,20 @@
 import * as React from 'react';
-import {useDispatch, useSelector} from 'react-redux';
-import {RootState} from '@/state/store';
-import {editor} from 'monaco-editor';
-import {RequestMethod} from 'shim/objects/requestMethod';
-import {RequestBody, RequestBodyType, RufusRequest} from 'shim/objects/request';
-import {setSelectedRequest, updateRequest} from '@/state/requestsSlice';
-import {useErrorHandler} from '@/components/ui/use-toast';
-import {HttpService} from '@/services/http/http-service';
-import {HttpMethodSelect} from './mainTopBar/HttpMethodSelect';
-import {UrlInput} from './mainTopBar/UrlInput';
-import {SendButton} from './mainTopBar/SendButton';
-import {SaveButton} from './mainTopBar/SaveButton';
-import {cn} from '@/lib/utils';
-import {HttpHeaders} from "shim/headers";
-import {RufusResponse} from "shim/objects/response";
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '@/state/store';
+import { editor } from 'monaco-editor';
+import { RequestMethod } from 'shim/objects/requestMethod';
+import { RequestBody, RequestBodyType, RufusRequest } from 'shim/objects/request';
+import { setSelectedRequest, updateRequest } from '@/state/requestsSlice';
+import { useErrorHandler } from '@/components/ui/use-toast';
+import { HttpService } from '@/services/http/http-service';
+import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
+import { UrlInput } from './mainTopBar/UrlInput';
+import { SendButton } from './mainTopBar/SendButton';
+import { SaveButton } from './mainTopBar/SaveButton';
+import { cn } from '@/lib/utils';
+import { HttpHeaders } from 'shim/headers';
+import { RufusResponse } from 'shim/objects/response';
+import { RendererEventService } from '@/services/event/renderer-event-service';
 import { RufusHeader } from 'shim/objects/headers';
 
 export type RequestProps = {
@@ -21,6 +22,7 @@ export type RequestProps = {
 }
 
 const httpService = HttpService.instance;
+const eventService = RendererEventService.instance;
 
 export function MainTopBar({ onResponse }: RequestProps) {
   const dispatch = useDispatch();
@@ -76,21 +78,23 @@ export function MainTopBar({ onResponse }: RequestProps) {
     if (requestEditor !== undefined) {
       body = {
         type: RequestBodyType.TEXT,
-        text: requestEditor.getValue(),
-        mimeType: 'text/plain',
+        mimeType: 'text/plain'
       };
       headers['Content-Type'] = 'text/plain';
     }
 
     const request: RufusRequest = {
       ...requestList[selectedRequest],
-      headers: headers,
+      headers: headers, // TODO: set the headers of the request
       body: body,
+      draft: true
     };
 
+    console.log('Saving request:', request);
+    await eventService.saveRequest(request, requestEditor?.getValue());
+
     // Send the request and pass the response to the onResponse callback
-    const response = await httpService.sendRequest(request); // TODO fix it
-    onResponse(response as unknown as RufusResponse);
+    onResponse(await httpService.sendRequest(request));
   }), [requestList, selectedRequest, requestEditor, onResponse]);
 
   return (

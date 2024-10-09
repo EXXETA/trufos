@@ -1,73 +1,13 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RequestMethod } from 'shim/objects/requestMethod';
-import { RequestBodyType, RufusRequest } from 'shim/objects/request';
-
-interface RequestsState {
-  requests: RufusRequest[];
-  selectedRequest: number;
-}
-
-const initialState: RequestsState = {
-  requests: [
-    {
-      method: RequestMethod.get, url: 'https://api.example.com/data', draft: false,
-      id: '',
-      parentId: '',
-      type: 'request',
-      title: '',
-      headers: undefined,
-      body: {
-        type: RequestBodyType.TEXT,
-        text: '',
-        mimeType: ''
-      }
-    },
-    {
-      method: RequestMethod.post, url: 'https://api.example.com/data', draft: false,
-      id: '',
-      parentId: '',
-      type: 'request',
-      title: '',
-      headers: undefined,
-      body: {
-        type: RequestBodyType.TEXT,
-        text: '',
-        mimeType: ''
-      }
-    },
-    {
-      method: RequestMethod.put, url: 'https://api.example.com/data/1', draft: false,
-      id: '',
-      parentId: '',
-      type: 'request',
-      title: '',
-      headers: undefined,
-      body: {
-        type: RequestBodyType.TEXT,
-        text: '',
-        mimeType: ''
-      }
-    },
-    {
-      method: RequestMethod.delete, url: 'https://api.example.com/data/1', draft: false,
-      id: '',
-      parentId: '',
-      type: 'request',
-      title: '',
-      headers: undefined,
-      body: {
-        type: RequestBodyType.TEXT,
-        text: '',
-        mimeType: ''
-      }
-    }
-  ],
-  selectedRequest: 0
-};
+import { RufusRequest } from 'shim/objects/request';
 
 export const requestsSlice = createSlice({
   name: 'requests',
-  initialState,
+  initialState: {
+    requests: [],
+    selectedRequest: 0
+  },
   reducers: {
     setRequests(state, action: PayloadAction<RufusRequest[]>) {
       state.requests = action.payload;
@@ -106,5 +46,6 @@ export const {
   updateRequest,
   addNewRequest,
   setSelectedRequest,
-  deleteRequest
+  deleteRequest,
+  setRequests
 } = requestsSlice.actions;
