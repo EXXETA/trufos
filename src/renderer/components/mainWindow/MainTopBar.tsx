@@ -49,15 +49,16 @@ export function MainTopBar({ onResponse }: RequestProps) {
     setUrl(newUrl);
     dispatch(updateRequest({
       index: selectedRequest,
-      request: { ...requestList[selectedRequest], url: newUrl }
+      request: { ...requestList[selectedRequest], url: newUrl, draft: true }
     }));
   };
 
   const handleHttpMethodChange = (method: RequestMethod) => {
+    console.info(`Changing HTTP method from ${requestList[selectedRequest].method} to ${method}`);
     setSelectedHttpMethod(method);
     dispatch(updateRequest({
       index: selectedRequest,
-      request: { ...requestList[selectedRequest], method }
+      request: { ...requestList[selectedRequest], method, draft: true }
     }));
   };
 
@@ -90,12 +91,27 @@ export function MainTopBar({ onResponse }: RequestProps) {
       draft: true
     };
 
-    console.log('Saving request:', request);
     await eventService.saveRequest(request, requestEditor?.getValue());
 
     // Send the request and pass the response to the onResponse callback
-    onResponse(await httpService.sendRequest(request));
+    await onResponse(await httpService.sendRequest(request));
   }), [requestList, selectedRequest, requestEditor, onResponse]);
+
+  const saveRequest = React.useCallback(useErrorHandler(async () => {
+    let request = requestList[selectedRequest];
+    if (request == null) {
+      return;
+    }
+
+    // save request draft with the current editor content
+    console.info('Saving request:', request);
+    await eventService.saveRequest(request, requestEditor?.getValue());
+
+    // override existing request with the saved draft
+    request = await eventService.saveChanges(request);
+    console.info('Request saved:', request);
+    dispatch(updateRequest({ index: selectedRequest, request }));
+  }), [requestList, selectedRequest, requestEditor]);
 
   return (
     <div className={cn('flex mb-[24px]')}>
@@ -103,7 +119,7 @@ export function MainTopBar({ onResponse }: RequestProps) {
                         onHttpMethodChange={handleHttpMethodChange} />
       <UrlInput url={url} onUrlChange={handleUrlChange} />
       <SendButton onClick={sendRequest} />
-      <SaveButton change={requestList[selectedRequest]?.draft} />
+      <SaveButton change={requestList[selectedRequest]?.draft} onClick={saveRequest} />
     </div>
   );
 }
