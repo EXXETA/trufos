@@ -2,6 +2,7 @@ import { FileInfo } from './fs';
 import { RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
 import { Collection } from './objects/collection';
+import { RufusObject } from './objects/object';
 
 export interface IEventService {
 
@@ -38,6 +39,20 @@ export interface IEventService {
    * @param textBody OPTIONAL: The text body of the request.
    */
   saveRequest(request: RufusRequest, textBody?: string): Promise<void>;
+
+  /**
+   * Save changes of the given rufus object to the file system.
+   * @param object The object to save.
+   * @returns The saved object.
+   */
+  saveChanges(object: RufusObject): Promise<void>;
+
+  /**
+   * Discard changes of the given rufus object.
+   * @param object The object to discard changes of.
+   * @returns The object with discarded changes, i.e. the persisted non-draft version.
+   */
+  discardChanges<T extends RufusObject>(object: T): Promise<T>;
 
   /**
    * @returns The version of the app
