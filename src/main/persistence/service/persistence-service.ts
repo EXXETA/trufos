@@ -13,7 +13,7 @@ import {
   TextBody
 } from 'shim/objects/request';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
-import { RufusObject } from 'shim/objects/object';
+import { isCollection, isFolder, isRequest, RufusObject } from 'shim/objects/object';
 import { generateDefaultCollection } from './default-collection';
 import { Readable } from 'stream';
 
@@ -86,7 +86,7 @@ export class PersistenceService {
     object.title = newTitle;
     this.idToPathMap.set(object.id, newDirPath);
 
-    if (object.type === 'collection' || object.type === 'folder') {
+    if (!isRequest(object)) {
       for (const child of object.children) {
         this.updatePathMapRecursively(child, newDirPath);
       }
@@ -119,7 +119,7 @@ export class PersistenceService {
     this.idToPathMap.set(object.id, dirPath);
 
     // save text body if it exists
-    if (object.type === 'request' && textBody != null) {
+    if (isRequest(object) && textBody != null) {
       const body = object.body as TextBody;
       body.type = RequestBodyType.TEXT; // enforce type
       delete body.text; // remove text body from request body
@@ -132,6 +132,63 @@ export class PersistenceService {
         await this.save(child);
       }
     }
+  }
+
+  /**
+   * Checks if a draft exists for the given object and returns the draft information.
+   * Also sets the draft flag of the object to false.
+   * @param object the object to mark as not a draft
+   */
+  private async undraft(object: RufusObject) {
+    object.draft = false;
+    const infoFileName = object.type + '.json';
+    const dirPath = this.getDirPath(object);
+    if (!await exists(path.join(dirPath) + '~' + infoFileName)) {
+      return { draft: false };
+    }
+
+    return { draft: true, dirPath, infoFileName };
+  }
+
+  /**
+   * Overrides all information with the draft information.
+   * @param object the object to save the draft of
+   */
+  public async saveChanges(object: RufusObject) {
+    const { draft, dirPath, infoFileName } = await this.undraft(object);
+    if (!draft) {
+      return;
+    }
+
+    await fs.rename(path.join(dirPath, '~' + infoFileName), path.join(dirPath, infoFileName));
+    if (isRequest(object)) {
+      const draftBodyFilePath = path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME);
+      const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
+      if (await exists(draftBodyFilePath)) {
+        await fs.rename(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME), path.join(dirPath, TEXT_BODY_FILE_NAME));
+      } else if (await exists(bodyFilePath)) {
+        await fs.unlink(bodyFilePath);
+      }
+    }
+  }
+
+  /**
+   * Discards all draft information.
+   * @param object the object to discard the draft of
+   */
+  public async discardChanges<T extends RufusObject>(object: T) {
+    const { draft, dirPath, infoFileName } = await this.undraft(object);
+    if (!draft) {
+      return object;
+    }
+
+    // delete draft files
+    await fs.unlink(path.join(dirPath, '~' + infoFileName));
+    if (isRequest(object) && await exists(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME))) {
+      await fs.unlink(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME));
+    }
+
+    return await this.reload(object);
   }
 
   /**
@@ -231,18 +288,28 @@ export class PersistenceService {
         continue;
       }
 
-      const childDirPath = path.join(parentDirPath, node.name);
-      const requestInfoFilePath = path.join(childDirPath, 'request.json');
-      const folderInfoFilePath = path.join(childDirPath, 'folder.json');
-
-      if (await exists(requestInfoFilePath)) {
-        children.push(await this.loadRequest(parentId, childDirPath));
-      } else if (await exists(folderInfoFilePath)) {
-        children.push(await this.loadFolder(parentId, childDirPath));
-      }
+      children.push(await this.load(parentId, path.join(parentDirPath, node.name)));
     }
 
     return children;
+  }
+
+  private async reload<T extends RufusObject>(object: T) {
+    if (isCollection(object)) {
+      return await this.loadCollection(object.dirPath) as T;
+    } else {
+      return await this.load(object.parentId, this.getDirPath(object), object.type) as T;
+    }
+  }
+
+  private async load<T extends RufusRequest | Folder>(parentId: string, dirPath: string, type?: T['type']): Promise<T> {
+    if (type === 'folder' || await exists(path.join(dirPath, 'folder.json'))) {
+      return await this.loadFolder(parentId, dirPath) as T;
+    } else if (type === 'request' || await exists(path.join(dirPath, 'request.json'))) {
+      return await this.loadRequest(parentId, dirPath) as T;
+    }
+
+    throw new Error(`Could not determine type of object at "${dirPath}"`);
   }
 
   private updatePathMapRecursively(
@@ -253,7 +320,7 @@ export class PersistenceService {
     const dirName = path.basename(oldDirPath);
     const newDirPath = path.join(newParentDirPath, dirName);
     this.idToPathMap.set(child.id, newDirPath);
-    if (child.type === 'folder') {
+    if (isFolder(child)) {
       for (const grandChild of child.children) {
         this.updatePathMapRecursively(grandChild, newDirPath);
       }
@@ -261,7 +328,7 @@ export class PersistenceService {
   }
 
   private getDirPath(object: RufusObject) {
-    if (object.type === 'collection') {
+    if (isCollection(object)) {
       return object.dirPath;
     } else if (this.idToPathMap.has(object.id)) {
       return this.idToPathMap.get(object.id);

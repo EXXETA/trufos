@@ -7,6 +7,7 @@ import { FileHandle } from 'node:fs/promises';
 import { RufusRequest } from 'shim/objects/request';
 import { Buffer } from 'node:buffer';
 import { PersistenceService } from '../persistence/service/persistence-service';
+import { RufusObject } from 'shim/objects/object';
 
 const persistanceService = PersistenceService.instance;
 
@@ -123,6 +124,14 @@ export class MainEventService implements IEventService {
     textBody?: string
   ) {
     await persistanceService.save(request, textBody);
+  }
+  
+  async saveChanges(object: RufusObject) {
+    await persistanceService.saveChanges(object);
+  }
+
+  async discardChanges<T extends RufusObject>(object: T) {
+    return await persistanceService.discardChanges(object);
   }
 
   async getAppVersion() {
