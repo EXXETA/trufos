@@ -1,15 +1,18 @@
-import {useDispatch, useSelector} from "react-redux";
-import {AppDispatch, RootState} from "@/state/store";
-import {setSelectedRequest, deleteRequest} from "@/state/requestsSlice";
-import {httpMethodColor} from "@/services/StyleHelper";
-import {RufusRequest} from "shim/objects/request";
-import {FaTimes} from 'react-icons/fa'; // Importing cross icon
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '@/state/store';
+import { deleteRequest, setSelectedRequest } from '@/state/requestsSlice';
+import { httpMethodColor } from '@/services/StyleHelper';
+import { RufusRequest } from 'shim/objects/request';
+import { FaTimes } from 'react-icons/fa'; // Importing cross icon
+import { RendererEventService } from '@/services/event/renderer-event-service';
 
 interface SidebarRequestListProps {
   requests: RufusRequest[];
 }
 
-export const SidebarRequestList = ({ requests = []}: SidebarRequestListProps) => {
+const eventService = RendererEventService.instance;
+
+export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const selectedRequest = useSelector((state: RootState) => state.requests.selectedRequest);
 
@@ -18,9 +21,17 @@ export const SidebarRequestList = ({ requests = []}: SidebarRequestListProps) =>
     setSelectedRequest(index);
   };
 
-  const handleDeleteClick = (event: React.MouseEvent, index: number) => {
+  const handleDeleteClick = async (event: React.MouseEvent, index: number) => {
+    const request = requests[index];
+    if (request == null) {
+      return;
+    }
+
     dispatch(deleteRequest(index));
-    console.log(`Request ${index} deleted`);
+    if (request.id != null) {
+      await eventService.deleteObject(request);
+    }
+    console.info('Request deleted', request);
   };
 
   return (

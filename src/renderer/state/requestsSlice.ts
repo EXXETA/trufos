@@ -6,11 +6,13 @@ export const requestsSlice = createSlice({
   name: 'requests',
   initialState: {
     requests: [] as RufusRequest[],
-    selectedRequest: 0
+    selectedRequest: 0,
+    collectionId: ''
   },
   reducers: {
-    setRequests(state, action: PayloadAction<RufusRequest[]>) {
-      state.requests = action.payload;
+    initialize(state, action: PayloadAction<{ requests: RufusRequest[], collectionId: string }>) {
+      state.requests = action.payload.requests;
+      state.collectionId = action.payload.collectionId;
     },
     addNewRequest(state) {
       state.requests.unshift({
@@ -18,9 +20,9 @@ export const requestsSlice = createSlice({
         method: RequestMethod.get,
         draft: true,
         id: null,
-        parentId: '',
+        parentId: state.collectionId,
         type: 'request',
-        title: '',
+        title: (Math.random() + 1).toString(36).substring(7), // TODO: Let user set title
         headers: {},
         body: {
           type: RequestBodyType.TEXT,
@@ -51,5 +53,5 @@ export const {
   addNewRequest,
   setSelectedRequest,
   deleteRequest,
-  setRequests
+  initialize
 } = requestsSlice.actions;

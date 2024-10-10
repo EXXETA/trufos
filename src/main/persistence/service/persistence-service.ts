@@ -118,6 +118,9 @@ export class PersistenceService {
     if (!(await exists(dirPath))) {
       await fs.mkdir(dirPath);
     }
+    if (!isCollection(object) && object.parentId == null) {
+      throw new Error('Object must have a parent');
+    }
 
     await fs.writeFile(infoFilePath, JSON.stringify(infoFileContents, null, 2));
     this.idToPathMap.set(object.id, dirPath);
