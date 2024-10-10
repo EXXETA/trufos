@@ -1,15 +1,16 @@
 import { IEventService } from 'shim/event-service';
 import { HttpService } from 'main/network/service/http-service';
 import { app, ipcMain } from 'electron';
-import fs from 'fs/promises';
-import { FileInfo } from 'shim/fs';
+import * as fs from 'node:fs/promises';
 import { FileHandle } from 'node:fs/promises';
+import { FileInfo } from 'shim/fs';
 import { RufusRequest } from 'shim/objects/request';
 import { Buffer } from 'node:buffer';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { RufusObject } from 'shim/objects/object';
+import * as console from 'node:console';
 
-const persistanceService = PersistenceService.instance;
+const persistenceService = PersistenceService.instance;
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -67,7 +68,7 @@ export class MainEventService implements IEventService {
   }
 
   async loadCollection() {
-    return await persistanceService.loadDefaultCollection();
+    return await persistenceService.loadDefaultCollection();
   }
 
   async sendRequest(request: RufusRequest) {
@@ -123,18 +124,22 @@ export class MainEventService implements IEventService {
     request: RufusRequest,
     textBody?: string
   ) {
-    await persistanceService.save(request, textBody);
+    await persistenceService.save(request, textBody);
   }
-  
+
   async saveChanges(object: RufusObject) {
-    await persistanceService.saveChanges(object);
+    await persistenceService.saveChanges(object);
   }
 
   async discardChanges<T extends RufusObject>(object: T) {
-    return await persistanceService.discardChanges(object);
+    return await persistenceService.discardChanges(object);
   }
 
   async getAppVersion() {
     return app.getVersion();
+  }
+
+  async deleteObject(object: RufusObject) {
+    await persistenceService.delete(object);
   }
 }

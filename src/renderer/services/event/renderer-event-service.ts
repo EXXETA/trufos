@@ -9,7 +9,8 @@ const METHOD_NAMES = new Set<keyof IEventService>([
   'getAppVersion',
   'loadCollection',
   'saveChanges',
-  'discardChanges'
+  'discardChanges',
+  'deleteObject'
 ]);
 
 const INSTANCE = {} as IEventService;

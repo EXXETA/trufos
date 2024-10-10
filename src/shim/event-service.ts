@@ -55,6 +55,12 @@ export interface IEventService {
   discardChanges<T extends RufusObject>(object: T): Promise<T>;
 
   /**
+   * Delete the given rufus object and its children.
+   * @param object The object to delete.
+   */
+  deleteObject(object: RufusObject): Promise<void>;
+
+  /**
    * @returns The version of the app
    */
   getAppVersion(): Promise<string>;
