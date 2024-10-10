@@ -1,11 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RequestMethod } from 'shim/objects/requestMethod';
-import { RufusRequest } from 'shim/objects/request';
+import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 
 export const requestsSlice = createSlice({
   name: 'requests',
   initialState: {
-    requests: [],
+    requests: [] as RufusRequest[],
     selectedRequest: 0
   },
   reducers: {
@@ -21,14 +21,17 @@ export const requestsSlice = createSlice({
         parentId: '',
         type: 'request',
         title: '',
-        headers: undefined,
-        body: undefined
+        headers: {},
+        body: {
+          type: RequestBodyType.TEXT,
+          mimeType: 'text/plain'
+        }
       });
       state.selectedRequest = 0;
     },
     updateRequest(state, action: PayloadAction<{ index: number; request: RufusRequest }>) {
       const { index, request } = action.payload;
-      state.requests[index] = { ...request, draft: true };
+      state.requests[index] = request;
     },
     setSelectedRequest: (state, action: PayloadAction<number>) => {
       state.selectedRequest = action.payload;

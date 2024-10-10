@@ -111,6 +111,10 @@ export class PersistenceService {
     const infoFileContents = toInfoFile(object);
     const infoFilePath = path.join(dirPath, `${object.draft ? '~' : ''}${object.type}.json`);
 
+    // check if object is new
+    if (object.id == null) {
+      object.id = uuidv4();
+    }
     if (!(await exists(dirPath))) {
       await fs.mkdir(dirPath);
     }
@@ -127,7 +131,7 @@ export class PersistenceService {
       await fs.writeFile(path.join(dirPath, fileName), textBody);
     }
 
-    if (object.type === 'folder' || object.type === 'collection') {
+    if (!isRequest(object)) {
       for (const child of object.children) {
         await this.save(child);
       }
@@ -189,6 +193,26 @@ export class PersistenceService {
     }
 
     return await this.reload(object);
+  }
+
+  /**
+   * Deletes an object and all of its children from the file system. Also removes
+   * the object(s) from the path map.
+   * @param object the object to delete
+   */
+  public async delete(object: RufusObject) {
+    const dirPath = this.getDirPath(object);
+
+    // delete children first
+    if (!isRequest(object)) {
+      for (const child of object.children) {
+        await this.delete(child);
+      }
+    }
+
+    // delete object
+    this.idToPathMap.delete(object.id);
+    await fs.rm(dirPath, { recursive: true });
   }
 
   /**
