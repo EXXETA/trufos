@@ -123,12 +123,16 @@ export class PersistenceService {
     this.idToPathMap.set(object.id, dirPath);
 
     // save text body if it exists
-    if (isRequest(object) && textBody != null) {
-      const body = object.body as TextBody;
-      body.type = RequestBodyType.TEXT; // enforce type
-      delete body.text; // remove text body from request body
-      const fileName = object.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
-      await fs.writeFile(path.join(dirPath, fileName), textBody);
+    if (isRequest(object)) {
+      if (textBody != null) {
+        const body = object.body as TextBody;
+        body.type = RequestBodyType.TEXT; // enforce type
+        delete body.text; // remove text body from request body
+        const fileName = object.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
+        await fs.writeFile(path.join(dirPath, fileName), textBody);
+      } else if (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME))) {
+        await fs.unlink(path.join(dirPath, TEXT_BODY_FILE_NAME));
+      }
     }
 
     if (!isRequest(object)) {
@@ -147,33 +151,39 @@ export class PersistenceService {
     object.draft = false;
     const infoFileName = object.type + '.json';
     const dirPath = this.getDirPath(object);
-    if (!await exists(path.join(dirPath) + '~' + infoFileName)) {
+    if (!await exists(path.join(dirPath, '~' + infoFileName))) {
+      console.debug('Object at', dirPath, 'is not a draft');
       return { draft: false };
     }
 
+    console.debug('Object at', dirPath, 'is a draft');
     return { draft: true, dirPath, infoFileName };
   }
 
   /**
-   * Overrides all information with the draft information.
+   * Overrides all information with the draft information. This does not write
+   * any information to the file system. This only overrides the information
+   * file with the draft information file.
+   *
    * @param object the object to save the draft of
    */
-  public async saveChanges(object: RufusObject) {
+  public async saveChanges<T extends RufusObject>(object: T) {
     const { draft, dirPath, infoFileName } = await this.undraft(object);
-    if (!draft) {
-      return;
-    }
-
-    await fs.rename(path.join(dirPath, '~' + infoFileName), path.join(dirPath, infoFileName));
-    if (isRequest(object)) {
-      const draftBodyFilePath = path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME);
-      const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
-      if (await exists(draftBodyFilePath)) {
-        await fs.rename(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME), path.join(dirPath, TEXT_BODY_FILE_NAME));
-      } else if (await exists(bodyFilePath)) {
-        await fs.unlink(bodyFilePath);
+    if (draft) {
+      console.info('Saving changes of object at', dirPath);
+      await fs.rename(path.join(dirPath, '~' + infoFileName), path.join(dirPath, infoFileName));
+      if (isRequest(object)) {
+        const draftBodyFilePath = path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME);
+        const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
+        if (await exists(draftBodyFilePath)) {
+          await fs.rename(draftBodyFilePath, bodyFilePath);
+        } else if (await exists(bodyFilePath)) {
+          await fs.unlink(bodyFilePath);
+        }
       }
     }
+
+    return object;
   }
 
   /**
@@ -185,6 +195,7 @@ export class PersistenceService {
     if (!draft) {
       return object;
     }
+    console.info('Discarding changes of object at', dirPath);
 
     // delete draft files
     await fs.unlink(path.join(dirPath, '~' + infoFileName));
@@ -202,6 +213,7 @@ export class PersistenceService {
    */
   public async delete(object: RufusObject) {
     const dirPath = this.getDirPath(object);
+    console.log('Deleting object at', dirPath);
 
     // delete children first
     if (!isRequest(object)) {
@@ -221,6 +233,7 @@ export class PersistenceService {
    * @returns the text body of the request if it exists
    */
   public async loadTextBodyOfRequest(request: RufusRequest) {
+    console.log('Loading text body of request', request.id);
     if (request.body.type === RequestBodyType.TEXT) {
       if (request.body.text != null) {
         return Readable.from([request.body.text]);
@@ -244,7 +257,6 @@ export class PersistenceService {
     if (draft) infoFileName = '~' + infoFileName;
     return [JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')), draft];
   }
-
 
   /**
    * Loads a collection and all of its children from the file system.

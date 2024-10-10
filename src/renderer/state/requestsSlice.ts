@@ -17,7 +17,7 @@ export const requestsSlice = createSlice({
         url: 'New Request',
         method: RequestMethod.get,
         draft: true,
-        id: '',
+        id: null,
         parentId: '',
         type: 'request',
         title: '',
@@ -32,6 +32,7 @@ export const requestsSlice = createSlice({
     updateRequest(state, action: PayloadAction<{ index: number; request: RufusRequest }>) {
       const { index, request } = action.payload;
       state.requests[index] = request;
+      state.requests = [...state.requests];
     },
     setSelectedRequest: (state, action: PayloadAction<number>) => {
       state.selectedRequest = action.payload;

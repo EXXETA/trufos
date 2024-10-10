@@ -35,6 +35,9 @@ export interface IEventService {
    * Saves the request to the file system. The draft flag is respected. If a
    * body is provided, it is saved as well.
    *
+   * This does not override the actual rufus object if the given object is a draft.
+   * Use {@link saveChanges} to save changes to the actual object.
+   *
    * @param request The request to save.
    * @param textBody OPTIONAL: The text body of the request.
    */
@@ -45,7 +48,7 @@ export interface IEventService {
    * @param object The object to save.
    * @returns The saved object.
    */
-  saveChanges(object: RufusObject): Promise<void>;
+  saveChanges<T extends RufusObject>(object: T): Promise<T>;
 
   /**
    * Discard changes of the given rufus object.
