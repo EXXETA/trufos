@@ -2,7 +2,7 @@ name: Validate Pull Request
 run-name: Pull Request Validator
 
 on:
-  pull_request_target:
+  pull_request:
 
 jobs:
   cpr:
