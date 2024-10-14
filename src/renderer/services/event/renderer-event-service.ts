@@ -10,7 +10,8 @@ const METHOD_NAMES = new Set<keyof IEventService>([
   'loadCollection',
   'saveChanges',
   'discardChanges',
-  'deleteObject'
+  'deleteObject',
+  'loadTextRequestBody'
 ]);
 
 const INSTANCE = {} as IEventService;

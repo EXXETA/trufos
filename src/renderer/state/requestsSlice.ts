@@ -1,13 +1,16 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RequestMethod } from 'shim/objects/requestMethod';
-import { RequestBodyType, RufusRequest } from 'shim/objects/request';
+import { RequestBody, RequestBodyType, RufusRequest } from 'shim/objects/request';
+import { editor } from 'monaco-editor';
 
 export const requestsSlice = createSlice({
   name: 'requests',
   initialState: {
     requests: [] as RufusRequest[],
     selectedRequest: 0,
-    collectionId: ''
+    collectionId: '',
+    requestEditor: undefined as (undefined | editor.ICodeEditor),
+    requestBody: undefined as (undefined | RequestBody)
   },
   reducers: {
     initialize(state, action: PayloadAction<{ requests: RufusRequest[], collectionId: string }>) {
@@ -34,7 +37,15 @@ export const requestsSlice = createSlice({
     updateRequest(state, action: PayloadAction<{ index: number; request: RufusRequest }>) {
       const { index, request } = action.payload;
       state.requests[index] = request;
-      state.requests = [...state.requests];
+    },
+    setRequestBody(state, action: PayloadAction<RequestBody>) {
+      const request = state.requests[state.selectedRequest];
+      if (request != null) {
+        request.body = action.payload;
+      }
+    },
+    setRequestEditor: (state, action: PayloadAction<editor.ICodeEditor>) => {
+      state.requestEditor = action.payload;
     },
     setSelectedRequest: (state, action: PayloadAction<number>) => {
       state.selectedRequest = action.payload;
@@ -53,5 +64,7 @@ export const {
   addNewRequest,
   setSelectedRequest,
   deleteRequest,
-  initialize
+  initialize,
+  setRequestBody,
+  setRequestEditor
 } = requestsSlice.actions;

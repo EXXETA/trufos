@@ -107,6 +107,8 @@ export class PersistenceService {
   public save(object: RufusObject): Promise<void>;
 
   public async save(object: RufusObject, textBody?: string) {
+    console.info('Saving object', object.id);
+
     const dirPath = this.getDirPath(object);
     const infoFileContents = toInfoFile(object);
     const infoFilePath = path.join(dirPath, `${object.draft ? '~' : ''}${object.type}.json`);

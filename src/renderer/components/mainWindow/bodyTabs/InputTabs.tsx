@@ -10,19 +10,21 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Separator } from '@radix-ui/react-select';
-import { RequestBody, RequestBodyType } from 'shim/objects/request';
+import { RequestBodyType } from 'shim/objects/request';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import { setRequestBody, setRequestEditor } from '@/state/viewSlice';
 import { Editor } from '@monaco-editor/react';
 import { Input } from '@/components/ui/input';
 import { RootState } from '@/state/store';
 import { useCallback } from 'react';
+import { setRequestBody, setRequestEditor } from '@/state/requestsSlice';
+import { editor } from 'monaco-editor';
 
 export function InputTabs() {
   const dispatch = useDispatch();
-  const requestBody = useSelector<RootState>(state => state.view.requestBody) as RequestBody | undefined;
+  const requestBody = useSelector(({ requests }: RootState) => requests.requests[requests.selectedRequest]?.body);
 
   const changeBodyType = useCallback((type: RequestBodyType) => {
+    console.info('Changing body type to', type);
     switch (type) {
       case RequestBodyType.TEXT:
         dispatch(setRequestBody({ type, mimeType: 'text/plain' }));
@@ -42,24 +44,36 @@ export function InputTabs() {
     }));
   }, [dispatch]);
 
-  const renderEditor = () => {
+  const onEditorMount = useCallback((editor: editor.ICodeEditor) => {
+    dispatch(setRequestEditor(editor));
+    /*editor.onDidChangeModelContent(() => {
+      if (request != null && !request.draft) {
+        dispatch(updateRequest({
+          index: selectedRequestIndex,
+          request: { ...request, draft: true }
+        }));
+      }
+    });*/
+  }, [dispatch]);
+
+  const renderEditor = useCallback(() => {
     return (
       <Editor
         theme="vs-dark" /* TODO: apply theme from settings */
         options={DEFAULT_MONACO_OPTIONS}
-        onMount={editor => dispatch(setRequestEditor(editor))}
+        onMount={onEditorMount}
       />
     );
-  };
+  }, [onEditorMount]);
 
-  const renderFileInput = () => {
+  const renderFileInput = useCallback(() => {
     return (
       <Input
         onChange={(v) => setRequestBodyFile(v.target.files[0])}
         placeholder="Select a file" type="file"
       />
     );
-  };
+  }, [setRequestBodyFile]);
 
   return (
     <Tabs defaultValue="body">
@@ -70,7 +84,8 @@ export function InputTabs() {
         <TabsTrigger value="authorization">Auth</TabsTrigger>
       </TabsList>
       <TabsContent value="body" style={{ flexDirection: 'column', display: 'flex' }}>
-        <Select onValueChange={bodyType => changeBodyType(bodyType as RequestBodyType)}>
+        <Select value={requestBody?.type ?? RequestBodyType.TEXT}
+                onValueChange={bodyType => changeBodyType(bodyType as RequestBodyType)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectGroup>
