@@ -8,14 +8,16 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { RequestBody, RequestBodyType } from 'shim/objects/request';
+import { Separator } from '@radix-ui/react-select';
+import { RequestBodyType } from 'shim/objects/request';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import { setRequestBody, setRequestEditor } from '@/state/viewSlice';
 import { Editor } from '@monaco-editor/react';
 import { Input } from '@/components/ui/input';
 import { RootState } from '@/state/store';
 import { addHeader, updateHeader, deleteHeader, clearHeaders, selectHeaders } from '@/state/headersSlice';
 import { useCallback, useState } from 'react';
+import { setRequestBody, setRequestEditor } from '@/state/requestsSlice';
+import { editor } from 'monaco-editor';
 import { Divider } from '@/components/shared/Divider';
 import { Button } from '@/components/ui/button';
 import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
@@ -24,7 +26,7 @@ import { cn } from '@/lib/utils';
 
 export function InputTabs() {
   const dispatch = useDispatch();
-  const requestBody = useSelector<RootState>(state => state.view.requestBody) as RequestBody | undefined;
+  const requestBody = useSelector(({ requests }: RootState) => requests.requests[requests.selectedRequest]?.body);
   const headers = useSelector(selectHeaders);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -49,24 +51,36 @@ export function InputTabs() {
     }));
   }, [dispatch]);
 
-  const renderEditor = () => {
+  const onEditorMount = useCallback((editor: editor.ICodeEditor) => {
+    dispatch(setRequestEditor(editor));
+    /*editor.onDidChangeModelContent(() => {
+      if (request != null && !request.draft) {
+        dispatch(updateRequest({
+          index: selectedRequestIndex,
+          request: { ...request, draft: true }
+        }));
+      }
+    });*/
+  }, [dispatch]);
+
+  const renderEditor = useCallback(() => {
     return (
       <Editor
         theme="vs-dark" /* TODO: apply theme from settings */
         options={DEFAULT_MONACO_OPTIONS}
-        onMount={editor => dispatch(setRequestEditor(editor))}
+        onMount={onEditorMount}
       />
     );
-  };
+  }, [onEditorMount]);
 
-  const renderFileInput = () => {
+  const renderFileInput = useCallback(() => {
     return (
       <Input
         onChange={(v) => setRequestBodyFile(v.target.files[0])}
         placeholder="Select a file" type="file"
       />
     );
-  };
+  }, [setRequestBodyFile]);
 
   const handleAddHeader = () => {
     dispatch(addHeader())
@@ -104,7 +118,7 @@ export function InputTabs() {
         <div className={'p-4 h-full relative'}>
           <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
             <div className={'flex justify-end'}>
-              <Select onValueChange={bodyType => changeBodyType(bodyType as RequestBodyType)} onOpenChange={(open) => setIsOpen(open)} defaultValue={'text'}>
+              <Select value={requestBody?.type ?? RequestBodyType.TEXT} onValueChange={bodyType => changeBodyType(bodyType as RequestBodyType)} onOpenChange={(open) => setIsOpen(open)} defaultValue={'text'}>
                 <SelectTrigger className={'w-[fit-content] h-[fit-content] p-0 '} isOpen={isOpen}>
                   <SelectValue placeholder="Source"/>
                 </SelectTrigger>

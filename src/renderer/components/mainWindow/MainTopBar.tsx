@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import { ChangeEvent, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/state/store';
 import { editor } from 'monaco-editor';
@@ -25,29 +25,20 @@ const eventService = RendererEventService.instance;
 
 export function MainTopBar({ onResponse }: RequestProps) {
   const dispatch = useDispatch();
-  const [url, setUrl] = useState('');
-  const [selectedHttpMethod, setSelectedHttpMethod] = useState<RequestMethod>(RequestMethod.get);
-  const requestEditor = useSelector<RootState>(state => state.view.requestEditor) as editor.ICodeEditor | undefined;
+  const requestEditor = useSelector<RootState>(state => state.requests.requestEditor) as editor.ICodeEditor | undefined;
   const headersState = useSelector<RootState, RufusHeader[]>(state => state.headers.headers);
   const requestIndex = useSelector<RootState, number>(state => state.requests.selectedRequest);
   const requests = useSelector<RootState, RufusRequest[]>(state => state.requests.requests);
-  const request: RufusRequest | undefined = requests[requestIndex];
-
-  useEffect(() => {
-    if (request == null) return;
-
-    setSelectedHttpMethod(request.method);
-    setUrl(request.url);
-  }, [request]);
+  const request = requests[requestIndex];
+  const selectedHttpMethod = request?.method;
+  const url = request?.url;
 
   const handleUrlChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     if (request == null) return;
 
-    const url = event.target.value;
-    setUrl(url);
     dispatch(updateRequest({
       index: requestIndex,
-      request: { ...request, url, draft: true }
+      request: { ...request, url: event.target.value, draft: true }
     }));
   }, [request]);
 
@@ -55,7 +46,6 @@ export function MainTopBar({ onResponse }: RequestProps) {
     if (request == null) return;
 
     console.info(`Changing HTTP method from ${request.method} to ${method}`);
-    setSelectedHttpMethod(method);
     dispatch(updateRequest({
       index: requestIndex,
       request: { ...request, method, draft: true }

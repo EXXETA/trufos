@@ -67,4 +67,10 @@ export interface IEventService {
    * @returns The version of the app
    */
   getAppVersion(): Promise<string>;
+
+  /**
+   * Load the text body of the request. The body type must be "text".
+   * @param request The request to load the text body of.
+   */
+  loadTextRequestBody(request: RufusRequest): Promise<string>;
 }
