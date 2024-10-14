@@ -16,7 +16,7 @@ export const requestsSlice = createSlice({
     },
     addNewRequest(state) {
       state.requests.unshift({
-        url: 'New Request',
+        url: 'http://',
         method: RequestMethod.get,
         draft: true,
         id: null,
@@ -41,7 +41,7 @@ export const requestsSlice = createSlice({
     },
     deleteRequest(state, action: PayloadAction<number>) {
       state.requests.splice(action.payload, 1);
-      if (state.selectedRequest >= state.requests.length) {
+      if (state.selectedRequest >= state.requests.length && state.requests.length > 0) {
         state.selectedRequest = state.requests.length - 1;
       }
     }
