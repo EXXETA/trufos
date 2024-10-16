@@ -27,14 +27,15 @@ const headersSlice = createSlice({
     },
     deleteHeader: (state, action: PayloadAction<number>) => {
       if (state.headers.length === 1) {
-        addHeader()
+        state.headers = [];
+        headersSlice.caseReducers.addHeader(state)
       } else {
         state.headers = state.headers.filter(header => header.id !== action.payload);
       }
     },
     clearHeaders: (state) => {
       state.headers = [];
-      addHeader()
+      headersSlice.caseReducers.addHeader(state)
     },
   },
 });

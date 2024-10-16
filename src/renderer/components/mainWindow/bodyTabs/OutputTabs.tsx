@@ -57,7 +57,7 @@ export function OutputTabs(props: OutputTabsProps) {
         <Editor
             value={body}
             language={mimeType}
-            theme="vs-dark"
+            theme="vs-dark" /* TODO: apply theme from settings */
             options={monacoOptions}
         />
       </div>

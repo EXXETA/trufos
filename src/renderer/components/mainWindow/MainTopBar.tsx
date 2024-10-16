@@ -35,7 +35,7 @@ export function MainTopBar({ onResponse }: RequestProps) {
     if (selectedRequest < requestList.length) {
       setSelectedHttpMethod(requestList[selectedRequest].method);
       setUrl(requestList[selectedRequest].url);
-    } else {
+    } else if (requestList.length > 0) {
       setSelectedHttpMethod(requestList[0].method);
       setUrl(requestList[0].url);
       dispatch(setSelectedRequest(0));

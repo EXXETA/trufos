@@ -29,7 +29,6 @@ export function InputTabs() {
   const headers = useSelector(selectHeaders);
 
   const [isOpen, setIsOpen] = useState(false);
-  // const [headers, setHeaders] = useState([{id: 0, key: '', value: '', isActive: true }]);
 
   const changeBodyType = useCallback((type: RequestBodyType) => {
     switch (type) {
