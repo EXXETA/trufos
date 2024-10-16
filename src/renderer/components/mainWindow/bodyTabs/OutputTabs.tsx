@@ -1,11 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from '../../ui/table';
 import { Editor } from '@monaco-editor/react';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { HttpHeaders } from 'shim/headers';
+import { useRef } from 'react';
 
 export type OutputTabsProps = {
-  headers?: HttpHeaders;
-  body?: string;
+  headers?: HttpHeaders; body?: string;
 }
 
 const monacoOptions = {
@@ -36,26 +37,68 @@ function getContentType(headers?: HttpHeaders) {
 }
 
 export function OutputTabs(props: OutputTabsProps) {
-  const { body, headers } = props;
+  const {
+    body,
+    headers
+  } = props;
   const mimeType = getMimeType(getContentType(headers));
   console.debug('Using syntax highlighting for mime type', mimeType);
 
-  return (
-    <Tabs defaultValue="body">
-      <TabsList>
-        <TabsTrigger value="body">Body</TabsTrigger>
-        <TabsTrigger value="header">Header</TabsTrigger>
-      </TabsList>
-      <TabsContent value="body">
-        <Editor
-          value={body}
-          language={mimeType}
-          theme="vs-dark" /* TODO: apply theme from settings */
-          options={monacoOptions}
-        />
-      </TabsContent>
-      <TabsContent value="header">Change your header here.</TabsContent>
-    </Tabs>
+  const tabsRef = useRef(null);
 
-  );
+  return (<Tabs defaultValue="body" ref={tabsRef}>
+    <TabsList>
+      <TabsTrigger className={'tabs-trigger'} value="body">Response Body</TabsTrigger>
+      <TabsTrigger className={'tabs-trigger'} value="header">Headers</TabsTrigger>
+    </TabsList>
+
+    <TabsContent value="body">
+      <div className={'p-4 h-full'}>
+        <Editor
+            value={body}
+            language={mimeType}
+            theme="vs-dark" /* TODO: apply theme from settings */
+            options={monacoOptions}
+        />
+      </div>
+    </TabsContent>
+
+    <TabsContent
+        value="header"
+        className={`max-h-[${tabsRef.current?.offsetHeight - 88}px] p-4`}
+    >
+      {!headers
+          ? (
+            <div className={'flex items-center justify-center w-full h-full text-center'}>
+              <span>
+                Please enter URL address and click Send to get a response
+              </span>
+            </div>
+          )
+          : (
+            <Table className="table-auto w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-auto">Key</TableHead>
+                  <TableHead className="w-full">Value</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {headers &&
+                    Object.keys(headers).map((key) => {
+                      const value = headers[key];
+                      const valueToDisplay = value !== undefined ? (Array.isArray(value) ? value : [value]) : '';
+                      return (
+                          <TableRow key={key}>
+                            <TableCell className="w-1/3">{key}</TableCell>
+                            <TableCell >{(valueToDisplay as string[]).join(', ')}</TableCell> {/* Full width */}
+                          </TableRow>
+                      );
+                    })}
+              </TableBody>
+            </Table>
+          )}
+    </TabsContent>
+  </Tabs>);
 }

@@ -14,6 +14,7 @@ import {SaveButton} from './mainTopBar/SaveButton';
 import {cn} from '@/lib/utils';
 import {HttpHeaders} from "shim/headers";
 import {RufusResponse} from "shim/objects/response";
+import { RufusHeader } from '../../../shim/objects/headers';
 
 export type RequestProps = {
   onResponse: (response: RufusResponse) => Promise<void>;
@@ -28,6 +29,7 @@ export function MainTopBar({ onResponse }: RequestProps) {
   const requestEditor = useSelector<RootState>(state => state.view.requestEditor) as editor.ICodeEditor | undefined;
   const selectedRequest = useSelector<RootState, number>(state => state.requests.selectedRequest);
   const requestList = useSelector<RootState, RufusRequest[]>(state => state.requests.requests);
+  const headersState = useSelector<RootState, RufusHeader[]>(state => state.headers.headers);
 
   React.useEffect(() => {
     if (selectedRequest < requestList.length) {
@@ -51,32 +53,38 @@ export function MainTopBar({ onResponse }: RequestProps) {
     dispatch(updateRequest({ index: selectedRequest, request: { ...requestList[selectedRequest], method } }));
   };
 
+  const sendRequest = React.useCallback(useErrorHandler(async () => {
+    if (!requestList[selectedRequest].url || !requestList[selectedRequest].method) {
+      throw new Error('Missing URL or HTTP method');
+    }
 
-const sendRequest = React.useCallback(useErrorHandler(async () => {
-  if (! requestList[selectedRequest].url || ! requestList[selectedRequest].method) {
-    throw new Error('Missing URL or HTTP method');
-  }
-  let body: RequestBody = null;
-  const headers: HttpHeaders = {};
-  if (requestEditor !== undefined) {
-    body = {
-      type: RequestBodyType.TEXT,
-      text: requestEditor.getValue(),
-      mimeType: 'text/plain'
+    let body: RequestBody = null;
+    const headers: HttpHeaders = {};
+
+    for (const header of headersState) {
+      if (header.isActive) {
+        headers[header.key] = header.value;
+      }
+    }
+
+    if (requestEditor !== undefined) {
+      body = {
+        type: RequestBodyType.TEXT,
+        text: requestEditor.getValue(),
+        mimeType: 'text/plain',
+      };
+      headers['Content-Type'] = 'text/plain';
+    }
+
+    const request: RufusRequest = {
+      ...requestList[selectedRequest],
+      headers: headers,
+      body: body,
     };
-    headers['Content-Type'] = 'text/plain';
-  }
 
-  const request: RufusRequest = {
-    ...requestList[selectedRequest],
-    headers: headers, // TODO: set the headers of the request
-    body: body,
-  };
-
-  // Send the request and pass the response to the onResponse callback
-  const response = await httpService.sendRequest(request); // TODO fix it
-  onResponse(response as unknown as RufusResponse);
-}), [requestList, selectedRequest, requestEditor, onResponse]);
+    const response = await httpService.sendRequest(request); // TODO fix it
+    await onResponse(response as unknown as RufusResponse);
+  }), [requestList, selectedRequest, requestEditor, onResponse]);
 
   return (
     <div className={cn('flex mb-[24px]')}>

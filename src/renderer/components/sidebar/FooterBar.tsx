@@ -12,7 +12,7 @@ export function FooterBar() {
   }, []);
 
   return (
-    <div className="fixed bottom-0 p-2 w-80">
+    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm p-2">
       <Divider />
       <div className="flex mt-2 justify-between items-center">
         {/* Version text on the left */}
