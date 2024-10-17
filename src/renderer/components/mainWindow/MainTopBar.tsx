@@ -81,7 +81,7 @@ export function MainTopBar({ onResponse }: RequestProps) {
                         onHttpMethodChange={handleHttpMethodChange} />
       <UrlInput url={url} onUrlChange={handleUrlChange} />
       <SendButton onClick={sendRequest} />
-      <SaveButton change={request?.draft} onClick={saveRequest} />
+      <SaveButton disabled={!request?.draft} onClick={saveRequest} />
     </div>
   );
 }
