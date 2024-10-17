@@ -1,5 +1,5 @@
-import { HttpHeaders } from 'shim/headers';
 import { RequestMethod } from './requestMethod';
+import { RufusHeader } from './headers';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 export const DRAFT_TEXT_BODY_FILE_NAME = '~' + TEXT_BODY_FILE_NAME;
@@ -10,8 +10,8 @@ export type RufusRequest = {
   title: string;
   url: string;
   method: RequestMethod;
-  headers: HttpHeaders;
-  body: RequestBody | null;
+  headers: RufusHeader[];
+  body: RequestBody;
   draft?: boolean;
 }
 

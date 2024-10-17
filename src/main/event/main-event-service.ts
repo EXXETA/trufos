@@ -23,6 +23,7 @@ function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
     try {
       return (await fn(...args)) as R;
     } catch (error) {
+      console.error(error);
       return toError(error);
     }
   };
@@ -41,7 +42,7 @@ function registerEvent<T>(instance: T, functionName: keyof T) {
   if (typeof method === 'function') {
     console.debug(`Registering event function "${functionName}()" on backend`);
     ipcMain.handle(functionName as string, (_event, ...args) =>
-      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args)
+      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args),
     );
   }
 }
@@ -83,7 +84,7 @@ export class MainEventService implements IEventService {
       atime: stats.atime,
       mtime: stats.mtime,
       ctime: stats.ctime,
-      birthtime: stats.birthtime
+      birthtime: stats.birthtime,
     } as FileInfo;
   }
 
@@ -95,7 +96,7 @@ export class MainEventService implements IEventService {
       offset,
       'and length limited to',
       length ?? 'unlimited',
-      'bytes'
+      'bytes',
     );
     if (offset === 0 && length === undefined) {
       return (await readFile(filePath)).buffer;
@@ -121,7 +122,7 @@ export class MainEventService implements IEventService {
 
   async saveRequest(
     request: RufusRequest,
-    textBody?: string
+    textBody?: string,
   ) {
     await persistenceService.save(request, textBody);
   }

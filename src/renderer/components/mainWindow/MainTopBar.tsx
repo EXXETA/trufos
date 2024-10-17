@@ -14,7 +14,6 @@ import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
 import { RufusResponse } from 'shim/objects/response';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { RufusHeader } from 'shim/objects/headers';
 
 export type RequestProps = {
   onResponse: (response: RufusResponse) => Promise<void>;
@@ -26,7 +25,6 @@ const eventService = RendererEventService.instance;
 export function MainTopBar({ onResponse }: RequestProps) {
   const dispatch = useDispatch();
   const requestEditor = useSelector<RootState>(state => state.requests.requestEditor) as editor.ICodeEditor | undefined;
-  const headersState = useSelector<RootState, RufusHeader[]>(state => state.headers.headers);
   const requestIndex = useSelector<RootState, number>(state => state.requests.selectedRequest);
   const requests = useSelector<RootState, RufusRequest[]>(state => state.requests.requests);
   const request = requests[requestIndex];
@@ -38,7 +36,7 @@ export function MainTopBar({ onResponse }: RequestProps) {
 
     dispatch(updateRequest({
       index: requestIndex,
-      request: { ...request, url: event.target.value, draft: true }
+      request: { ...request, url: event.target.value, draft: true },
     }));
   }, [request]);
 
@@ -48,7 +46,7 @@ export function MainTopBar({ onResponse }: RequestProps) {
     console.info(`Changing HTTP method from ${request.method} to ${method}`);
     dispatch(updateRequest({
       index: requestIndex,
-      request: { ...request, method, draft: true }
+      request: { ...request, method, draft: true },
     }));
   }, [request]);
 
@@ -56,13 +54,6 @@ export function MainTopBar({ onResponse }: RequestProps) {
     if (request == null) return;
     if (!request.url || !request.method) {
       throw new Error('Missing URL or HTTP method');
-    }
-
-    request.headers = {};
-    for (const header of headersState) {
-      if (header.isActive) {
-        request.headers[header.key] = header.value;
-      }
     }
 
     await eventService.saveRequest(request, requestEditor?.getValue());
@@ -81,7 +72,7 @@ export function MainTopBar({ onResponse }: RequestProps) {
     // override existing request with the saved draft
     dispatch(updateRequest({
       index: requestIndex,
-      request: await eventService.saveChanges(request)
+      request: await eventService.saveChanges(request),
     }));
   }), [request, requestEditor]);
 

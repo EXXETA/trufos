@@ -10,7 +10,7 @@ import {
   RequestBodyType,
   RufusRequest,
   TEXT_BODY_FILE_NAME,
-  TextBody
+  TextBody,
 } from 'shim/objects/request';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { isCollection, isFolder, isRequest, RufusObject } from 'shim/objects/object';
@@ -24,7 +24,7 @@ import { Readable } from 'stream';
 export class PersistenceService {
   private static readonly DEFAULT_COLLECTION_DIR = path.join(
     USER_DATA_DIR,
-    'default-collection'
+    'default-collection',
   );
 
   public static readonly instance = new PersistenceService();
@@ -56,7 +56,7 @@ export class PersistenceService {
   public async moveChild(
     child: Folder | RufusRequest,
     oldParent: Folder | Collection,
-    newParent: Folder | Collection
+    newParent: Folder | Collection,
   ) {
     const childDirName = this.getDirName(child);
     const oldChildDirPath = this.getDirPath(child);
@@ -124,9 +124,6 @@ export class PersistenceService {
       throw new Error('Object must have a parent');
     }
 
-    await fs.writeFile(infoFilePath, JSON.stringify(infoFileContents, null, 2));
-    this.idToPathMap.set(object.id, dirPath);
-
     // save text body if it exists
     if (isRequest(object)) {
       if (textBody != null) {
@@ -139,6 +136,9 @@ export class PersistenceService {
         await fs.unlink(path.join(dirPath, TEXT_BODY_FILE_NAME));
       }
     }
+
+    await fs.writeFile(infoFilePath, JSON.stringify(infoFileContents, null, 2));
+    this.idToPathMap.set(object.id, dirPath);
 
     if (!isRequest(object)) {
       for (const child of object.children) {
@@ -279,13 +279,13 @@ export class PersistenceService {
       id,
       type,
       dirPath,
-      children
+      children,
     });
   }
 
   private async loadRequest(
     parentId: string,
-    dirPath: string
+    dirPath: string,
   ): Promise<RufusRequest> {
     const type = 'request' as const;
     const [infoFileContents, draft] = await this.loadInfoFile(dirPath, type);
@@ -297,7 +297,7 @@ export class PersistenceService {
       id,
       parentId,
       type,
-      draft
+      draft,
     });
   }
 
@@ -312,18 +312,18 @@ export class PersistenceService {
       id,
       parentId,
       type,
-      children
+      children,
     });
   }
 
   private async loadChildren(
     parentId: string,
-    parentDirPath: string
+    parentDirPath: string,
   ): Promise<(Folder | RufusRequest)[]> {
     const children: (Folder | RufusRequest)[] = [];
 
     for (const node of await fs.readdir(parentDirPath, {
-      withFileTypes: true
+      withFileTypes: true,
     })) {
       if (!node.isDirectory()) {
         continue;
@@ -343,10 +343,11 @@ export class PersistenceService {
     }
   }
 
+  // TODO: simplify type detection
   private async load<T extends RufusRequest | Folder>(parentId: string, dirPath: string, type?: T['type']): Promise<T> {
-    if (type === 'folder' || await exists(path.join(dirPath, 'folder.json'))) {
+    if (type === 'folder' || await exists(path.join(dirPath, 'folder.json')) || await exists(path.join(dirPath, '~folder.json'))) {
       return await this.loadFolder(parentId, dirPath) as T;
-    } else if (type === 'request' || await exists(path.join(dirPath, 'request.json'))) {
+    } else if (type === 'request' || await exists(path.join(dirPath, 'request.json')) || await exists(path.join(dirPath, '~request.json'))) {
       return await this.loadRequest(parentId, dirPath) as T;
     }
 
@@ -355,7 +356,7 @@ export class PersistenceService {
 
   private updatePathMapRecursively(
     child: Folder | RufusRequest,
-    newParentDirPath: string
+    newParentDirPath: string,
   ) {
     const oldDirPath = this.idToPathMap.get(child.id);
     const dirName = path.basename(oldDirPath);

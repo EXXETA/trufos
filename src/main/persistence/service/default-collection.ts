@@ -17,12 +17,12 @@ export function generateDefaultCollection(dirPath: string): Collection {
     variables: {
       'variable-1': {
         enabled: true,
-        value: 'value-1'
+        value: 'value-1',
       },
       'variable-2': {
         enabled: true,
-        value: 'value-2'
-      }
+        value: 'value-2',
+      },
     },
     children: [
       {
@@ -32,8 +32,12 @@ export function generateDefaultCollection(dirPath: string): Collection {
         title: 'Example Request',
         url: 'https://github.com/EXXETA/rufus/raw/main/README.md',
         method: RequestMethod.get,
-        headers: {},
-        body: null
+        headers: [],
+        body: {
+          type: RequestBodyType.TEXT,
+          mimeType: 'text/plain',
+          text: '',
+        },
       },
       {
         id: folderId,
@@ -48,15 +52,14 @@ export function generateDefaultCollection(dirPath: string): Collection {
             title: 'Another Request',
             url: 'https://exxeta.com/',
             method: RequestMethod.get,
-            headers: {},
+            headers: [],
             body: {
               type: RequestBodyType.TEXT,
               mimeType: 'application/json',
-              text: '{"key": "value"}'
-            }
-          }
-        ]
-      }
-    ]
+            },
+          },
+        ],
+      },
+    ],
   };
 }

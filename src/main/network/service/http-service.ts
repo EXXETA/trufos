@@ -8,6 +8,7 @@ import { EnvironmentService } from 'main/environment/service/environment-service
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
 import { PersistenceService } from '../../persistence/service/persistence-service';
+import { RufusHeader } from '../../../shim/objects/headers';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -46,9 +47,9 @@ export class HttpService {
       {
         dispatcher: this._dispatcher,
         method: request.method,
-        headers: { ['content-type']: this.getContentType(request), ...request.headers },
-        body: body
-      }
+        headers: { ['content-type']: this.getContentType(request), ...this.rufusHeadersToUndiciHeaders(request.headers) },
+        body: body,
+      },
     );
 
     const duration = getDurationFromNow(now);
@@ -67,7 +68,7 @@ export class HttpService {
       status: responseData.statusCode,
       headers: Object.freeze(responseData.headers),
       duration: duration,
-      bodyFilePath: responseData.body != null ? bodyFile.name : null
+      bodyFilePath: responseData.body != null ? bodyFile.name : null,
     };
 
     console.debug('Returning response: ', response);
@@ -110,6 +111,17 @@ export class HttpService {
           return request.body.mimeType ?? 'application/octet-stream';
       }
     }
+  }
+
+  private rufusHeadersToUndiciHeaders(rufusHeaders: RufusHeader[]) {
+    const headers: Record<string, string[]> = {};
+    for (const header of rufusHeaders) {
+      if (header.isActive && header.value != null) {
+        if (!Reflect.has(headers, header.key)) headers[header.key] = [];
+        headers[header.key].push(header.value);
+      }
+    }
+    return headers;
   }
 }
 

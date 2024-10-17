@@ -1,15 +1,15 @@
 import { RufusObject } from 'shim/objects/object';
 import { RequestBody } from 'shim/objects/request';
-import { HttpHeaders } from 'shim/headers';
 import { VariableObject } from 'shim/variables';
 import { RequestMethod } from 'shim/objects/requestMethod';
+import { RufusHeader } from 'shim/objects/headers';
 
 export type RequestInfoFile = {
   version: string;
   title: string;
   url: string;
   method: RequestMethod;
-  headers: HttpHeaders;
+  headers: RufusHeader[];
   body: RequestBody;
 }
 
