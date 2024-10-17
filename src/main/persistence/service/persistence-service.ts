@@ -43,7 +43,7 @@ export class PersistenceService {
 
     console.info('Creating default collection at', dirPath);
     const collection = generateDefaultCollection(dirPath);
-    await this.save(collection);
+    await this.saveRecursive(collection);
     return collection;
   }
 
@@ -98,55 +98,74 @@ export class PersistenceService {
    * @param request the request to be saved
    * @param textBody OPTIONAL: the text body of the request
    */
-  public save(request: RufusRequest, textBody?: string): Promise<void>;
-
-  /**
-   * Creates or updates a rufus object on the file system.
-   * @param object rufus object to be saved
-   */
-  public save(object: RufusObject): Promise<void>;
-
-  public async save(object: RufusObject, textBody?: string) {
-    console.info('Saving object', object.id);
-
-    const dirPath = this.getDirPath(object);
-    const infoFileContents = toInfoFile(object);
-    let infoFileName = object.type + '.json';
-    if (isRequest(object) && object.draft) {
-      infoFileName = '~' + infoFileName;
-    }
-    const infoFilePath = path.join(dirPath, infoFileName);
-
-    // check if object is new
-    if (object.id == null) {
-      object.id = uuidv4();
-    }
-    if (!(await exists(dirPath))) {
-      await fs.mkdir(dirPath);
-    }
-    if (!isCollection(object) && object.parentId == null) {
-      throw new Error('Object must have a parent');
-    }
+  public async saveRequest(request: RufusRequest, textBody?: string) {
+    const dirPath = this.getDirPath(request);
+    const infoFileName = `${request.draft ? '~' : ''}${request.type}.json`;
+    await this.saveInfoFile(request, dirPath, infoFileName);
 
     // save text body if provided
-    if (isRequest(object)) {
-      if (textBody != null) {
-        const body = object.body as TextBody;
-        body.type = RequestBodyType.TEXT; // enforce type
-        delete body.text; // remove text body from request body
-        const fileName = object.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
-        await fs.writeFile(path.join(dirPath, fileName), textBody);
-      } else if (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME))) {
-        await fs.unlink(path.join(dirPath, TEXT_BODY_FILE_NAME));
-      }
+    if (textBody != null) {
+      const body = request.body as TextBody;
+      body.type = RequestBodyType.TEXT; // enforce type
+      delete body.text; // remove text body from request body
+      const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
+      await fs.writeFile(path.join(dirPath, fileName), textBody);
+    } else if (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME))) {
+      await fs.unlink(path.join(dirPath, TEXT_BODY_FILE_NAME));
+    }
+  }
+
+  /**
+   * Saves the given collection to the file system. This is not recursive.
+   * @param collection the collection to save
+   */
+  public async saveCollection(collection: Collection) {
+    await this.saveInfoFile(collection, this.getDirPath(collection), collection.type + '.json');
+  }
+
+  /**
+   * Saves the given folder to the file system.
+   * @param folder the folder to save
+   */
+  public async saveFolder(folder: Folder) {
+    await this.saveInfoFile(folder, this.getDirPath(folder), folder.type + '.json');
+  }
+
+  /**
+   * Saves the information of a rufus object to the file system.
+   * @param object the object to save
+   * @param dirPath the directory path to save the object to
+   * @param fileName the name of the information file
+   */
+  private async saveInfoFile(object: RufusObject, dirPath: string, fileName: string) {
+    console.info('Saving object', object.id ??= uuidv4());
+    if (!isCollection(object) && object.parentId == null) {
+      throw new Error('Object must have a parent');
+    } else if (!(await exists(dirPath))) {
+      await fs.mkdir(dirPath);
     }
 
+    const infoFileContents = toInfoFile(object);
+    const infoFilePath = path.join(dirPath, fileName);
     await fs.writeFile(infoFilePath, JSON.stringify(infoFileContents, null, 2));
     this.idToPathMap.set(object.id, dirPath);
+  }
 
-    if (!isRequest(object)) {
-      for (const child of object.children) {
-        await this.save(child);
+  /**
+   * Recursively saves a collection or folder and all of its children to the file system.
+   * @param object the collection or folder to save
+   */
+  public async saveRecursive(object: Folder | Collection) {
+    if (isCollection(object)) {
+      await this.saveCollection(object);
+    }
+
+    for (const child of object.children) {
+      if (isRequest(child)) {
+        await this.saveRequest(child);
+      } else {
+        await this.saveFolder(child);
+        await this.saveRecursive(child);
       }
     }
   }

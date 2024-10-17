@@ -124,7 +124,7 @@ export class MainEventService implements IEventService {
     request: RufusRequest,
     textBody?: string,
   ) {
-    await persistenceService.save(request, textBody);
+    await persistenceService.saveRequest(request, textBody);
   }
 
   async saveChanges(request: RufusRequest) {
@@ -148,7 +148,9 @@ export class MainEventService implements IEventService {
 
     // TODO: Do not load the entire body into memory. Use ITextSnapshot instead
     if (request.body?.type === RequestBodyType.TEXT) {
-      for await (const chunk of await persistenceService.loadTextBodyOfRequest(request)) {
+      const stream = await persistenceService.loadTextBodyOfRequest(request);
+      if (stream == null) return '';
+      for await (const chunk of stream) {
         text += chunk;
       }
     }
