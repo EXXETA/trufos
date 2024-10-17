@@ -6,5 +6,4 @@ export type Folder = {
   type: 'folder';
   title: string;
   children: (Folder | RufusRequest)[];
-  draft?: boolean;
 }

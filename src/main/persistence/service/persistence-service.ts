@@ -111,7 +111,11 @@ export class PersistenceService {
 
     const dirPath = this.getDirPath(object);
     const infoFileContents = toInfoFile(object);
-    const infoFilePath = path.join(dirPath, `${object.draft ? '~' : ''}${object.type}.json`);
+    let infoFileName = object.type + '.json';
+    if (isRequest(object) && object.draft) {
+      infoFileName = '~' + infoFileName;
+    }
+    const infoFilePath = path.join(dirPath, infoFileName);
 
     // check if object is new
     if (object.id == null) {
@@ -124,7 +128,7 @@ export class PersistenceService {
       throw new Error('Object must have a parent');
     }
 
-    // save text body if it exists
+    // save text body if provided
     if (isRequest(object)) {
       if (textBody != null) {
         const body = object.body as TextBody;
@@ -152,16 +156,14 @@ export class PersistenceService {
    * Also sets the draft flag of the object to false.
    * @param object the object to mark as not a draft
    */
-  private async undraft(object: RufusObject) {
+  private async undraft(object: RufusRequest) {
     object.draft = false;
     const infoFileName = object.type + '.json';
     const dirPath = this.getDirPath(object);
     if (!await exists(path.join(dirPath, '~' + infoFileName))) {
-      console.debug('Object at', dirPath, 'is not a draft');
       return { draft: false };
     }
 
-    console.debug('Object at', dirPath, 'is a draft');
     return { draft: true, dirPath, infoFileName };
   }
 
@@ -170,14 +172,14 @@ export class PersistenceService {
    * any information to the file system. This only overrides the information
    * file with the draft information file.
    *
-   * @param object the object to save the draft of
+   * @param request the request to save the draft of
    */
-  public async saveChanges<T extends RufusObject>(object: T) {
-    const { draft, dirPath, infoFileName } = await this.undraft(object);
+  public async saveChanges(request: RufusRequest) {
+    const { draft, dirPath, infoFileName } = await this.undraft(request);
     if (draft) {
-      console.info('Saving changes of object at', dirPath);
+      console.info('Saving changes of request at', dirPath);
       await fs.rename(path.join(dirPath, '~' + infoFileName), path.join(dirPath, infoFileName));
-      if (isRequest(object)) {
+      if (isRequest(request)) {
         const draftBodyFilePath = path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME);
         const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
         if (await exists(draftBodyFilePath)) {
@@ -188,27 +190,27 @@ export class PersistenceService {
       }
     }
 
-    return object;
+    return request;
   }
 
   /**
    * Discards all draft information.
-   * @param object the object to discard the draft of
+   * @param request the request to discard the draft of
    */
-  public async discardChanges<T extends RufusObject>(object: T) {
-    const { draft, dirPath, infoFileName } = await this.undraft(object);
+  public async discardChanges(request: RufusRequest) {
+    const { draft, dirPath, infoFileName } = await this.undraft(request);
     if (!draft) {
-      return object;
+      return request;
     }
-    console.info('Discarding changes of object at', dirPath);
+    console.info('Discarding changes of request at', dirPath);
 
     // delete draft files
     await fs.unlink(path.join(dirPath, '~' + infoFileName));
-    if (isRequest(object) && await exists(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME))) {
+    if (isRequest(request) && await exists(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME))) {
       await fs.unlink(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME));
     }
 
-    return await this.reload(object);
+    return await this.reload(request);
   }
 
   /**

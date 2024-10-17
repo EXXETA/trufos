@@ -127,12 +127,12 @@ export class MainEventService implements IEventService {
     await persistenceService.save(request, textBody);
   }
 
-  async saveChanges<T extends RufusObject>(object: T) {
-    return await persistenceService.saveChanges(object);
+  async saveChanges(request: RufusRequest) {
+    return await persistenceService.saveChanges(request);
   }
 
-  async discardChanges<T extends RufusObject>(object: T) {
-    return await persistenceService.discardChanges(object);
+  async discardChanges(request: RufusRequest) {
+    return await persistenceService.discardChanges(request);
   }
 
   async getAppVersion() {

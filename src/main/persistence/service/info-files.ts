@@ -28,14 +28,14 @@ export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 
 export function toInfoFile(object: RufusObject): InfoFile {
   const infoFile = Object.assign({ version: '1.0.0' }, object);
-
-  if (infoFile.type !== 'request') {
+  if (infoFile.type === 'request') {
+    delete infoFile.draft;
+  } else {
     delete infoFile.children;
   }
   if (infoFile.type !== 'collection') {
     delete infoFile.parentId;
   }
-  delete infoFile.draft;
   delete infoFile.id;
 
   return infoFile;

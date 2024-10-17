@@ -44,18 +44,18 @@ export interface IEventService {
   saveRequest(request: RufusRequest, textBody?: string): Promise<void>;
 
   /**
-   * Save changes of the given rufus object to the file system.
-   * @param object The object to save.
-   * @returns The saved object.
+   * Save changes of the given rufus request to the file system.
+   * @param request The request to save.
+   * @returns The saved request.
    */
-  saveChanges<T extends RufusObject>(object: T): Promise<T>;
+  saveChanges(request: RufusRequest): Promise<RufusRequest>;
 
   /**
-   * Discard changes of the given rufus object.
-   * @param object The object to discard changes of.
-   * @returns The object with discarded changes, i.e. the persisted non-draft version.
+   * Discard changes of the given rufus request.
+   * @param request The request to discard changes of.
+   * @returns The request with discarded changes, i.e. the persisted non-draft version.
    */
-  discardChanges<T extends RufusObject>(object: T): Promise<T>;
+  discardChanges(request: RufusRequest): Promise<RufusRequest>;
 
   /**
    * Delete the given rufus object and its children.
