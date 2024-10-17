@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES6",
+    "target": "ES2023",
     "allowJs": true,
     "module": "commonjs",
     "skipLibCheck": true,
@@ -16,7 +16,11 @@
         "renderer/*"
       ]
     },
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "lib": [
+      "ES2023",
+      "dom"
+    ]
   },
   "include": [
     "src/**/*"
