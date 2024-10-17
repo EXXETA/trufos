@@ -2,7 +2,7 @@ import { FileInfo } from './fs';
 import { RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
 import { Collection } from './objects/collection';
-import { RufusObject } from './objects/object';
+import { RufusObject } from './objects';
 
 export interface IEventService {
 

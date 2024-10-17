@@ -6,7 +6,7 @@ import { FileInfo } from 'shim/fs';
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { Buffer } from 'node:buffer';
 import { PersistenceService } from '../persistence/service/persistence-service';
-import { RufusObject } from 'shim/objects/object';
+import { RufusObject } from 'shim/objects';
 import * as console from 'node:console';
 
 const persistenceService = PersistenceService.instance;

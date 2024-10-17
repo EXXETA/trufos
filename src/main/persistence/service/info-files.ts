@@ -1,4 +1,4 @@
-import { RufusObject } from 'shim/objects/object';
+import { RufusObject } from 'shim/objects';
 import { RequestBody } from 'shim/objects/request';
 import { VariableObject } from 'shim/variables';
 import { RequestMethod } from 'shim/objects/requestMethod';

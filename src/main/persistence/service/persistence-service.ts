@@ -13,7 +13,7 @@ import {
   TextBody,
 } from 'shim/objects/request';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
-import { isCollection, isFolder, isRequest, RufusObject } from 'shim/objects/object';
+import { isCollection, isFolder, isRequest, RufusObject } from 'shim/objects';
 import { generateDefaultCollection } from './default-collection';
 import { Readable } from 'stream';
 
