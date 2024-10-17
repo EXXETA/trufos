@@ -24,7 +24,7 @@ export const SidebarRequestList = ({ requests = []}: SidebarRequestListProps) =>
   };
 
   return (
-      <table className="w-full table-auto">
+      <table className="w-full table-fixed">
         <tbody>
         {requests.map((request, index) => (
             <tr
@@ -32,10 +32,13 @@ export const SidebarRequestList = ({ requests = []}: SidebarRequestListProps) =>
                 className={`cursor-pointer hover:bg-gray-600 ${selectedRequest == index ? 'bg-gray-500' : ''}`}
                 onClick={() => handleRowClick(index)}
             >
-              <td className={'p-2 font-bold ' + httpMethodColor(request.method)}>{request.method}</td>
-              <td className="p-2">{request.url}</td>
-              <td className="p-2 text-right">
-                <FaTimes onClick={(event) => handleDeleteClick(event, index)} className="cursor-pointer ml-2" />
+              <td className={'p-2 font-bold w-20 ' + httpMethodColor(request.method)}>{request.method}</td>
+              <td className="p-2 truncate tooltip">
+                {request.url}
+                <div className="tooltip-text">{request.url}</div>
+              </td>
+              <td className="p-2 items-end w-8">
+              <FaTimes onClick={(event) => handleDeleteClick(event, index)} className="cursor-pointer" />
               </td>
             </tr>
         ))}

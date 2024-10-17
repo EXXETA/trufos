@@ -56,3 +56,22 @@
   border: 2px solid #12B1E7;
   color: #12B1E7;
 }
+
+/* Tooltip */
+.tooltip .tooltip-text{
+  font-size: small;
+  visibility: hidden;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+
+  /* Position the tooltip */
+  position: fixed;
+  z-index: 1;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+}
