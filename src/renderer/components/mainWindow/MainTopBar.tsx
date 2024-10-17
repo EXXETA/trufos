@@ -43,7 +43,6 @@ export function MainTopBar({ onResponse }: RequestProps) {
   const handleHttpMethodChange = useCallback((method: RequestMethod) => {
     if (request == null) return;
 
-    console.info(`Changing HTTP method from ${request.method} to ${method}`);
     dispatch(updateRequest({
       index: requestIndex,
       request: { ...request, method, draft: true },
