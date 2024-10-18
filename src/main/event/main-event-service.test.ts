@@ -1,7 +1,7 @@
-import fs from 'node:fs/promises';
 import { MainEventService } from './main-event-service';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
+import { fs } from 'memfs';
 
 jest.mock(
   'electron',
@@ -21,8 +21,8 @@ const TEST_STRING = 'Hello, World!';
 const TEST_FILE_PATH = path.join(tmpdir(), 'test.txt');
 
 describe('MainEventService', () => {
-  beforeAll(async () => {
-    await fs.writeFile(TEST_FILE_PATH, TEST_STRING);
+  beforeAll(() => {
+    fs.writeFileSync(TEST_FILE_PATH, TEST_STRING);
   });
 
   it('should register event functions on the backend', async () => {

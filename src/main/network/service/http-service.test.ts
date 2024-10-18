@@ -6,14 +6,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { RequestMethod } from 'shim/objects/requestMethod';
 import { IncomingHttpHeaders } from 'undici/types/header';
 
-jest.mock('electron', () => {
-  return {
-    app: {
-      getPath: jest.fn().mockReturnValue(''),
-    },
-  };
-});
-
 describe('HttpService', () => {
   it('fetchAsync should make an HTTP call and return the body on read', async () => {
 

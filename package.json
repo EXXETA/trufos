@@ -44,6 +44,7 @@
     "fork-ts-checker-webpack-plugin": "^9.0.2",
     "jest-environment-jsdom": "^29.7.0",
     "jest-when": "^3.6.0",
+    "memfs": "^4.14.0",
     "monaco-editor-webpack-plugin": "^7.1.0",
     "node-loader": "^2.0.0",
     "postcss": "^8.4.38",

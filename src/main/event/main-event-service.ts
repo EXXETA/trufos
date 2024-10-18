@@ -1,7 +1,7 @@
 import { IEventService } from 'shim/event-service';
 import { HttpService } from 'main/network/service/http-service';
 import { app, ipcMain } from 'electron';
-import { FileHandle, open, readFile, stat } from 'node:fs/promises';
+import { FileHandle, open, stat } from 'node:fs/promises';
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { Buffer } from 'node:buffer';
 import { PersistenceService } from '../persistence/service/persistence-service';
@@ -48,11 +48,11 @@ function registerEvent<T>(instance: T, functionName: keyof T) {
   }
 }
 
-function toError(error: any) {
+function toError(error: unknown) {
   if (error instanceof Error) {
     return error;
   }
-  return new Error(error);
+  return new Error(error?.toString());
 }
 
 /**
@@ -86,9 +86,6 @@ export class MainEventService implements IEventService {
       length ?? 'unlimited',
       'bytes',
     );
-    if (offset === 0 && length === undefined) {
-      return (await readFile(filePath)).buffer;
-    }
 
     let file: FileHandle | null = null;
     try {
