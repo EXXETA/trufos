@@ -24,7 +24,7 @@ describe('ImportService', () => {
     const targetDirPath = '/path/to/target-dir';
     const importService = ImportService.instance;
     (fs.readFile as jest.Mock).mockResolvedValue(POSTMAN_COLLECTION);
-    (PersistenceService.instance.save as jest.Mock).mockImplementation(async () => null);
+    (PersistenceService.instance.saveCollectionRecursive as jest.Mock).mockImplementation(async () => null);
     when(fs.readFile).calledWith(POSTMAN_COLLECTION_FILE_PATH, 'utf8').mockResolvedValue(POSTMAN_COLLECTION);
     //when(PersistenceService.instance.storeCollection).defaultImplementation(async (collection: Collection) => collection);
 
@@ -47,7 +47,7 @@ describe('ImportService', () => {
     expect(firstChild.title).toBe('200 ok');
     expect(firstChild.url).toBe('http://echo.getpostman.com/status/200');
     expect(firstChild.method).toBe('GET');
-    expect(firstChild.headers).toEqual({});
+    expect(firstChild.headers).toEqual([]);
     expect(firstChild.body).toEqual(null);
 
     const secondChild = childrenLevel1[1] as RufusRequest;
@@ -55,7 +55,11 @@ describe('ImportService', () => {
     expect(secondChild.title).toBe('200 ok');
     expect(secondChild.url).toBe('http://echo.getpostman.com/post');
     expect(secondChild.method).toBe('POST');
-    expect(secondChild.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(secondChild.headers).toEqual([{
+      'isActive': true,
+      'key': 'Content-Type',
+      'value': 'application/json',
+    }]);
     expect(secondChild.body).toEqual(null);
 
     const thirdChild = childrenLevel1[2] as Folder;
@@ -70,10 +74,15 @@ describe('ImportService', () => {
     expect(firstChildLevel2.title).toBe('201');
     expect(firstChildLevel2.url).toBe('http://echo.getpostman.com/status/201');
     expect(firstChildLevel2.method).toBe('PUT');
-    expect(firstChildLevel2.headers).toEqual({
-      'Authorization': 'Hawk id="dh37fgj492je", ts="1448549987", nonce="eOJZCd", mac="O2TFlvAlMvKVSKOzc6XkfU6+5285k5p3m5dAjxumo2k="',
-      'Content-Type': 'application/json',
-    });
+    expect(firstChildLevel2.headers).toEqual([{
+      'isActive': true,
+      'key': 'Content-Type',
+      'value': 'application/json',
+    }, {
+      'isActive': true,
+      'key': 'Authorization',
+      'value': 'Hawk id="dh37fgj492je", ts="1448549987", nonce="eOJZCd", mac="O2TFlvAlMvKVSKOzc6XkfU6+5285k5p3m5dAjxumo2k="',
+    }]);
     expect(firstChildLevel2.body).toEqual(null);
 
     const secondChildLevel2 = childrenLevel2[1] as RufusRequest;
@@ -81,7 +90,7 @@ describe('ImportService', () => {
     expect(secondChildLevel2.title).toBe('201');
     expect(secondChildLevel2.url).toBe('http://echo.getpostman.com/post');
     expect(secondChildLevel2.method).toBe('GET');
-    expect(secondChildLevel2.headers).toEqual({});
+    expect(secondChildLevel2.headers).toEqual([]);
     expect(secondChildLevel2.body).toEqual({
       'mimeType': 'text/plain',
       'text': 'blahblah',

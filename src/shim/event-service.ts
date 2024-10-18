@@ -1,8 +1,15 @@
 import { FileInfo } from './fs';
 import { RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
+import { Collection } from './objects/collection';
+import { RufusObject } from './objects';
 
 export interface IEventService {
+
+  /**
+   * Load the default collection.
+   */
+  loadCollection(): Promise<Collection>;
 
   /**
    * Send an HTTP request.
@@ -25,15 +32,45 @@ export interface IEventService {
   readFile(filePath: string, offset?: number, length?: number): Promise<ArrayBufferLike>;
 
   /**
-   * Saves the text body of a request to the file system at the given directory.
-   * @param directory The directory of the request.
-   * @param body The text body of the request.
-   * @param mimeType The mime type of the text body.
+   * Saves the request to the file system. The draft flag is respected. If a
+   * body is provided, it is saved as well.
+   *
+   * This does not override the actual rufus object if the given object is a draft.
+   * Use {@link saveChanges} to save changes to the actual object.
+   *
+   * @param request The request to save.
+   * @param textBody OPTIONAL: The text body of the request.
    */
-  saveTextBodyOfRequest(directory: string, body: string, mimeType: string): Promise<void>;
+  saveRequest(request: RufusRequest, textBody?: string): Promise<void>;
+
+  /**
+   * Save changes of the given rufus request to the file system.
+   * @param request The request to save.
+   * @returns The saved request.
+   */
+  saveChanges(request: RufusRequest): Promise<RufusRequest>;
+
+  /**
+   * Discard changes of the given rufus request.
+   * @param request The request to discard changes of.
+   * @returns The request with discarded changes, i.e. the persisted non-draft version.
+   */
+  discardChanges(request: RufusRequest): Promise<RufusRequest>;
+
+  /**
+   * Delete the given rufus object and its children.
+   * @param object The object to delete.
+   */
+  deleteObject(object: RufusObject): Promise<void>;
 
   /**
    * @returns The version of the app
    */
   getAppVersion(): Promise<string>;
+
+  /**
+   * Load the text body of the request. The body type must be "text".
+   * @param request The request to load the text body of.
+   */
+  loadTextRequestBody(request: RufusRequest): Promise<string>;
 }

@@ -1,12 +1,17 @@
 import { IEventService } from 'shim/event-service';
 import { HttpService } from 'main/network/service/http-service';
 import { app, ipcMain } from 'electron';
-import fs from 'fs/promises';
+import { FileHandle, open, readFile, stat } from 'node:fs/promises';
 import { FileInfo } from 'shim/fs';
-import { FileHandle } from 'node:fs/promises';
-import { RufusRequest, TEXT_BODY_FLE_NAME } from 'shim/objects/request';
+import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { Buffer } from 'node:buffer';
-import path from 'node:path';
+import { PersistenceService } from '../persistence/service/persistence-service';
+import { RufusObject } from 'shim/objects';
+import * as console from 'node:console';
+import { EnvironmentService } from 'main/environment/service/environment-service';
+
+const persistenceService = PersistenceService.instance;
+const environmentService = EnvironmentService.instance;
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -20,6 +25,7 @@ function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
     try {
       return (await fn(...args)) as R;
     } catch (error) {
+      console.error(error);
       return toError(error);
     }
   };
@@ -38,7 +44,7 @@ function registerEvent<T>(instance: T, functionName: keyof T) {
   if (typeof method === 'function') {
     console.debug(`Registering event function "${functionName}()" on backend`);
     ipcMain.handle(functionName as string, (_event, ...args) =>
-      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args)
+      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args),
     );
   }
 }
@@ -63,12 +69,16 @@ export class MainEventService implements IEventService {
     console.debug('Registered event channels on backend');
   }
 
+  async loadCollection() {
+    return environmentService.currentCollection;
+  }
+
   async sendRequest(request: RufusRequest) {
     return await HttpService.instance.fetchAsync(request);
   }
 
   async getFileInfo(filePath: string) {
-    const stats = await fs.stat(filePath);
+    const stats = await stat(filePath);
     return {
       isFile: stats.isFile(),
       isDirectory: stats.isDirectory(),
@@ -76,7 +86,7 @@ export class MainEventService implements IEventService {
       atime: stats.atime,
       mtime: stats.mtime,
       ctime: stats.ctime,
-      birthtime: stats.birthtime
+      birthtime: stats.birthtime,
     } as FileInfo;
   }
 
@@ -88,22 +98,22 @@ export class MainEventService implements IEventService {
       offset,
       'and length limited to',
       length ?? 'unlimited',
-      'bytes'
+      'bytes',
     );
     if (offset === 0 && length === undefined) {
-      return (await fs.readFile(filePath)).buffer;
+      return (await readFile(filePath)).buffer;
     }
 
     let file: FileHandle | null = null;
     try {
       // get file size if length is not provided
       if (length === undefined) {
-        const stats = await fs.stat(filePath);
+        const stats = await stat(filePath);
         length = Math.max(stats.size - offset, 0);
       }
 
       const buffer = Buffer.alloc(length);
-      file = await fs.open(filePath);
+      file = await open(filePath);
       const read = await file.read(buffer, 0, length, offset);
       console.debug('Read', read.bytesRead, 'bytes from file');
       return buffer.subarray(0, read.bytesRead).buffer;
@@ -112,19 +122,41 @@ export class MainEventService implements IEventService {
     }
   }
 
-  async saveTextBodyOfRequest(
-    directory: string,
-    body: string,
-    mimeType: string
+  async saveRequest(
+    request: RufusRequest,
+    textBody?: string,
   ) {
-    await fs.writeFile(
-      path.join(directory, TEXT_BODY_FLE_NAME),
-      body,
-      'utf8' // TODO: map charset to BufferEncoding
-    );
+    await persistenceService.saveRequest(request, textBody);
+  }
+
+  async saveChanges(request: RufusRequest) {
+    return await persistenceService.saveChanges(request);
+  }
+
+  async discardChanges(request: RufusRequest) {
+    return await persistenceService.discardChanges(request);
   }
 
   async getAppVersion() {
     return app.getVersion();
+  }
+
+  async deleteObject(object: RufusObject) {
+    await persistenceService.delete(object);
+  }
+
+  async loadTextRequestBody(request: RufusRequest) {
+    let text = '';
+
+    // TODO: Do not load the entire body into memory. Use ITextSnapshot instead
+    if (request.body?.type === RequestBodyType.TEXT) {
+      const stream = await persistenceService.loadTextBodyOfRequest(request);
+      if (stream == null) return '';
+      for await (const chunk of stream) {
+        text += chunk;
+      }
+    }
+
+    return text;
   }
 }

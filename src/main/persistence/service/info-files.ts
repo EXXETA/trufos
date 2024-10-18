@@ -1,15 +1,15 @@
-import { RufusObject } from 'shim/objects/object';
+import { RufusObject } from 'shim/objects';
 import { RequestBody } from 'shim/objects/request';
-import { HttpHeaders } from 'shim/headers';
 import { VariableObject } from 'shim/variables';
-import {RequestMethod} from "shim/objects/requestMethod";
+import { RequestMethod } from 'shim/objects/requestMethod';
+import { RufusHeader } from 'shim/objects/headers';
 
 export type RequestInfoFile = {
   version: string;
   title: string;
   url: string;
   method: RequestMethod;
-  headers: HttpHeaders;
+  headers: RufusHeader[];
   body: RequestBody;
 }
 
@@ -28,15 +28,14 @@ export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 
 export function toInfoFile(object: RufusObject): InfoFile {
   const infoFile = Object.assign({ version: '1.0.0' }, object);
-
-  if (infoFile.type !== 'request') {
+  if (infoFile.type === 'request') {
+    delete infoFile.draft;
+  } else {
     delete infoFile.children;
   }
-
   if (infoFile.type !== 'collection') {
     delete infoFile.parentId;
   }
-
   delete infoFile.id;
 
   return infoFile;

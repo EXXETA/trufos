@@ -7,9 +7,12 @@ import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
+import { PersistenceService } from '../../persistence/service/persistence-service';
+import { RufusHeader } from '../../../shim/objects/headers';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
+const persistanceService = PersistenceService.instance;
 
 /**
  * Singleton service for making HTTP requests
@@ -44,9 +47,9 @@ export class HttpService {
       {
         dispatcher: this._dispatcher,
         method: request.method,
-        headers: { ['content-type']: this.getContentType(request), ...request.headers },
-        body: body
-      }
+        headers: { ['content-type']: this.getContentType(request), ...this.rufusHeadersToUndiciHeaders(request.headers) },
+        body: body,
+      },
     );
 
     const duration = getDurationFromNow(now);
@@ -65,7 +68,7 @@ export class HttpService {
       status: responseData.statusCode,
       headers: Object.freeze(responseData.headers),
       duration: duration,
-      bodyFilePath: responseData.body != null ? bodyFile.name : null
+      bodyFilePath: responseData.body != null ? bodyFile.name : null,
     };
 
     console.debug('Returning response: ', response);
@@ -77,15 +80,15 @@ export class HttpService {
    * @param request request object
    * @returns request body as stream or null if there is no body
    */
-  private async readBody(request: RufusRequest): Promise<Readable | null> {
+  private async readBody(request: RufusRequest) {
     if (request.body == null) {
-      return Promise.resolve(null);
+      return null;
     }
 
     switch (request.body.type) {
       case 'text': {
-        const requestBodyStream = Readable.from([request.body.text]);
-        return environmentService.setVariablesInStream(requestBodyStream);
+        const requestBodyStream = await persistanceService.loadTextBodyOfRequest(request);
+        return environmentService.setVariablesInStream(requestBodyStream) as Readable;
       }
       case 'file':
         if (request.body.filePath == null) return null;
@@ -108,6 +111,17 @@ export class HttpService {
           return request.body.mimeType ?? 'application/octet-stream';
       }
     }
+  }
+
+  private rufusHeadersToUndiciHeaders(rufusHeaders: RufusHeader[]) {
+    const headers: Record<string, string[]> = {};
+    for (const header of rufusHeaders) {
+      if (header.isActive && header.value != null) {
+        if (!Reflect.has(headers, header.key)) headers[header.key] = [];
+        headers[header.key].push(header.value);
+      }
+    }
+    return headers;
   }
 }
 

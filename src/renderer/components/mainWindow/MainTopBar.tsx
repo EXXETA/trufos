@@ -1,97 +1,87 @@
-import * as React from 'react';
-import {useDispatch, useSelector} from 'react-redux';
-import {RootState} from '@/state/store';
-import {editor} from 'monaco-editor';
-import {RequestMethod} from 'shim/objects/requestMethod';
-import {RequestBody, RequestBodyType, RufusRequest} from 'shim/objects/request';
-import {setSelectedRequest, updateRequest} from '@/state/requestsSlice';
-import {useErrorHandler} from '@/components/ui/use-toast';
-import {HttpService} from '@/services/http/http-service';
-import {HttpMethodSelect} from './mainTopBar/HttpMethodSelect';
-import {UrlInput} from './mainTopBar/UrlInput';
-import {SendButton} from './mainTopBar/SendButton';
-import {SaveButton} from './mainTopBar/SaveButton';
-import {cn} from '@/lib/utils';
-import {HttpHeaders} from "shim/headers";
-import {RufusResponse} from "shim/objects/response";
-import { RufusHeader } from '../../../shim/objects/headers';
+import { ChangeEvent, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '@/state/store';
+import { editor } from 'monaco-editor';
+import { RequestMethod } from 'shim/objects/requestMethod';
+import { RufusRequest } from 'shim/objects/request';
+import { updateRequest } from '@/state/requestsSlice';
+import { useErrorHandler } from '@/components/ui/use-toast';
+import { HttpService } from '@/services/http/http-service';
+import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
+import { UrlInput } from './mainTopBar/UrlInput';
+import { SendButton } from './mainTopBar/SendButton';
+import { SaveButton } from './mainTopBar/SaveButton';
+import { cn } from '@/lib/utils';
+import { RufusResponse } from 'shim/objects/response';
+import { RendererEventService } from '@/services/event/renderer-event-service';
 
 export type RequestProps = {
   onResponse: (response: RufusResponse) => Promise<void>;
 }
 
 const httpService = HttpService.instance;
+const eventService = RendererEventService.instance;
 
 export function MainTopBar({ onResponse }: RequestProps) {
   const dispatch = useDispatch();
-  const [url, setUrl] = React.useState('');
-  const [selectedHttpMethod, setSelectedHttpMethod] = React.useState<RequestMethod>(RequestMethod.get);
-  const requestEditor = useSelector<RootState>(state => state.view.requestEditor) as editor.ICodeEditor | undefined;
-  const selectedRequest = useSelector<RootState, number>(state => state.requests.selectedRequest);
-  const requestList = useSelector<RootState, RufusRequest[]>(state => state.requests.requests);
-  const headersState = useSelector<RootState, RufusHeader[]>(state => state.headers.headers);
+  const requestEditor = useSelector<RootState>(state => state.requests.requestEditor) as editor.ICodeEditor | undefined;
+  const requestIndex = useSelector<RootState, number>(state => state.requests.selectedRequest);
+  const requests = useSelector<RootState, RufusRequest[]>(state => state.requests.requests);
+  const request = requests[requestIndex];
+  const selectedHttpMethod = request?.method;
+  const url = request?.url;
 
-  React.useEffect(() => {
-    if (selectedRequest < requestList.length) {
-      setSelectedHttpMethod(requestList[selectedRequest].method);
-      setUrl(requestList[selectedRequest].url);
-    } else if (requestList.length > 0) {
-      setSelectedHttpMethod(requestList[0].method);
-      setUrl(requestList[0].url);
-      dispatch(setSelectedRequest(0));
-    }
-  }, [selectedRequest, requestList.length]);
+  const handleUrlChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    if (request == null) return;
 
-  const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = event.target.value;
-    setUrl(newUrl);
-    dispatch(updateRequest({ index: selectedRequest, request: { ...requestList[selectedRequest], url: newUrl } }));
-  };
+    dispatch(updateRequest({
+      index: requestIndex,
+      request: { ...request, url: event.target.value, draft: true },
+    }));
+  }, [request]);
 
-  const handleHttpMethodChange = (method: RequestMethod) => {
-    setSelectedHttpMethod(method);
-    dispatch(updateRequest({ index: selectedRequest, request: { ...requestList[selectedRequest], method } }));
-  };
+  const handleHttpMethodChange = useCallback((method: RequestMethod) => {
+    if (request == null) return;
 
-  const sendRequest = React.useCallback(useErrorHandler(async () => {
-    if (!requestList[selectedRequest].url || !requestList[selectedRequest].method) {
+    dispatch(updateRequest({
+      index: requestIndex,
+      request: { ...request, method, draft: true },
+    }));
+  }, [request]);
+
+  const sendRequest = useCallback(useErrorHandler(async () => {
+    if (request == null) return;
+    if (!request.url || !request.method) {
       throw new Error('Missing URL or HTTP method');
     }
 
-    let body: RequestBody = null;
-    const headers: HttpHeaders = {};
+    await eventService.saveRequest(request, requestEditor?.getValue());
 
-    for (const header of headersState) {
-      if (header.isActive) {
-        headers[header.key] = header.value;
-      }
-    }
+    // Send the request and pass the response to the onResponse callback
+    await onResponse(await httpService.sendRequest(request));
+  }), [request, requestEditor, onResponse]);
 
-    if (requestEditor !== undefined) {
-      body = {
-        type: RequestBodyType.TEXT,
-        text: requestEditor.getValue(),
-        mimeType: 'text/plain',
-      };
-      headers['Content-Type'] = 'text/plain';
-    }
+  const saveRequest = useCallback(useErrorHandler(async () => {
+    if (request == null) return;
 
-    const request: RufusRequest = {
-      ...requestList[selectedRequest],
-      headers: headers,
-      body: body,
-    };
+    // save request draft with the current editor content
+    console.info('Saving request:', request);
+    await eventService.saveRequest(request, requestEditor?.getValue());
 
-    const response = await httpService.sendRequest(request); // TODO fix it
-    await onResponse(response as unknown as RufusResponse);
-  }), [requestList, selectedRequest, requestEditor, onResponse]);
+    // override existing request with the saved draft
+    dispatch(updateRequest({
+      index: requestIndex,
+      request: await eventService.saveChanges(request),
+    }));
+  }), [request, requestEditor]);
 
   return (
     <div className={cn('flex mb-[24px]')}>
-      <HttpMethodSelect selectedHttpMethod={selectedHttpMethod} onHttpMethodChange={handleHttpMethodChange} />
+      <HttpMethodSelect selectedHttpMethod={selectedHttpMethod}
+                        onHttpMethodChange={handleHttpMethodChange} />
       <UrlInput url={url} onUrlChange={handleUrlChange} />
       <SendButton onClick={sendRequest} />
-      <SaveButton change={requestList[selectedRequest]?.changed}/>
+      <SaveButton disabled={!request?.draft} onClick={saveRequest} />
     </div>
   );
 }

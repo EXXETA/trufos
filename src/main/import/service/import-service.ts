@@ -34,7 +34,7 @@ export class ImportService {
     console.info(`Importing collection from "${srcFilePath}" to "${targetDirPath}" using strategy "${strategy}"`);
     const collection = await importer.importCollection(srcFilePath, targetDirPath);
     console.info('Successfully imported collection:', collection);
-    await persistenceService.save(collection);
+    await persistenceService.saveCollectionRecursive(collection);
     return collection;
   }
 
