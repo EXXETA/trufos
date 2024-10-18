@@ -6,12 +6,12 @@ jest.mock(
   'electron',
   () => ({
     ipcMain: {
-      handle: jest.fn()
+      handle: jest.fn(),
     },
     app: {
-      getPath: jest.fn().mockReturnValue('')
-    }
-  })
+      getPath: jest.fn().mockReturnValue(''),
+    },
+  }),
 );
 
 const eventService = MainEventService.instance;
@@ -24,8 +24,8 @@ describe('MainEventService', () => {
     await fs.writeFile(TEST_FILE_PATH, TEST_STRING);
   });
 
-  it('should register event functions on the backend', () => {
-    expect(require('electron').ipcMain.handle).toHaveBeenCalled();
+  it('should register event functions on the backend', async () => {
+    expect((await import('electron')).ipcMain.handle).toHaveBeenCalled();
   });
 
   it('should get the file info correctly', async () => {
