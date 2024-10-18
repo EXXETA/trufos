@@ -29,7 +29,7 @@ export class PersistenceService {
 
   public static readonly instance = new PersistenceService();
 
-  private idToPathMap: Map<string, string> = new Map();
+  private readonly idToPathMap: Map<string, string> = new Map();
 
   /**
    * Loads the default collection into memory.
@@ -77,15 +77,17 @@ export class PersistenceService {
    */
   public async rename(object: RufusObject, newTitle: string) {
     const oldDirPath = this.getDirPath(object);
-    const parentDirPath = path.dirname(oldDirPath);
-    const newDirName = this.getDirName(object);
-    const newDirPath = path.join(parentDirPath, newDirName);
+    object.title = newTitle;
+    const newDirPath = path.join(path.dirname(oldDirPath), this.getDirName(object));
 
+    console.info('Renaming object at', oldDirPath, 'to', newDirPath);
     await fs.rename(oldDirPath, newDirPath);
 
-    object.title = newTitle;
     this.idToPathMap.set(object.id, newDirPath);
 
+    if (isCollection(object)) {
+      object.dirPath = newDirPath;
+    }
     if (!isRequest(object)) {
       for (const child of object.children) {
         this.updatePathMapRecursively(child, newDirPath);
@@ -239,7 +241,7 @@ export class PersistenceService {
    */
   public async delete(object: RufusObject) {
     const dirPath = this.getDirPath(object);
-    console.log('Deleting object at', dirPath);
+    console.info('Deleting object at', dirPath);
 
     // delete children first
     if (!isRequest(object)) {

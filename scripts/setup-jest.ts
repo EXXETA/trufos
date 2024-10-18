@@ -38,7 +38,7 @@ jest.mock('tmp', () => ({
   },
 }));
 
-beforeAll(() => {
+beforeEach(() => {
   vol.reset();
   vol.mkdirSync(tmpdir(), { recursive: true });
   vol.mkdirSync(homedir(), { recursive: true });
