@@ -21,7 +21,7 @@ const TEST_STRING = 'Hello, World!';
 const TEST_FILE_PATH = path.join(tmpdir(), 'test.txt');
 
 describe('MainEventService', () => {
-  beforeAll(() => {
+  beforeEach(() => {
     fs.writeFileSync(TEST_FILE_PATH, TEST_STRING);
   });
 
