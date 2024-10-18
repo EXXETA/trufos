@@ -2,7 +2,6 @@ import { IEventService } from 'shim/event-service';
 import { HttpService } from 'main/network/service/http-service';
 import { app, ipcMain } from 'electron';
 import { FileHandle, open, readFile, stat } from 'node:fs/promises';
-import { FileInfo } from 'shim/fs';
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { Buffer } from 'node:buffer';
 import { PersistenceService } from '../persistence/service/persistence-service';
@@ -75,19 +74,6 @@ export class MainEventService implements IEventService {
 
   async sendRequest(request: RufusRequest) {
     return await HttpService.instance.fetchAsync(request);
-  }
-
-  async getFileInfo(filePath: string) {
-    const stats = await stat(filePath);
-    return {
-      isFile: stats.isFile(),
-      isDirectory: stats.isDirectory(),
-      size: stats.size,
-      atime: stats.atime,
-      mtime: stats.mtime,
-      ctime: stats.ctime,
-      birthtime: stats.birthtime,
-    } as FileInfo;
   }
 
   async readFile(filePath: string, offset = 0, length?: number) {

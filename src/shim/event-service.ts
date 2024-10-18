@@ -1,4 +1,3 @@
-import { FileInfo } from './fs';
 import { RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
 import { Collection } from './objects/collection';
@@ -16,12 +15,6 @@ export interface IEventService {
    * @param request The request to send.
    */
   sendRequest(request: RufusRequest): Promise<RufusResponse>;
-
-  /**
-   * Get information about a file or directory.
-   * @param filePath The path to the file or directory.
-   */
-  getFileInfo(filePath: string): Promise<FileInfo>;
 
   /**
    * Read a file from the file system.

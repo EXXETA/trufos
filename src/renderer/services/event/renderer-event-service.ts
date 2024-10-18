@@ -4,14 +4,13 @@ import { MainProcessError } from '@/error/MainProcessError';
 const METHOD_NAMES = new Set<keyof IEventService>([
   'saveRequest',
   'readFile',
-  'getFileInfo',
   'sendRequest',
   'getAppVersion',
   'loadCollection',
   'saveChanges',
   'discardChanges',
   'deleteObject',
-  'loadTextRequestBody'
+  'loadTextRequestBody',
 ]);
 
 const INSTANCE = {} as IEventService;
@@ -20,7 +19,7 @@ for (const methodName of METHOD_NAMES) {
     value: createEventMethod(methodName),
     writable: false,
     enumerable: true,
-    configurable: false
+    configurable: false,
   });
 }
 
@@ -42,5 +41,5 @@ function createEventMethod(methodName: keyof IEventService) {
 
 export const RendererEventService = {
   /** The singleton instance of the RendererEventService */
-  instance: INSTANCE
+  instance: INSTANCE,
 };
