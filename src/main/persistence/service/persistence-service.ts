@@ -171,14 +171,14 @@ export class PersistenceService {
   }
 
   /**
-   * Checks if a draft exists for the given object and returns the draft information.
-   * Also sets the draft flag of the object to false.
-   * @param object the object to mark as not a draft
+   * Checks if a draft exists for the given request and returns the draft information.
+   * Also sets the draft flag of the request to false.
+   * @param request the request to mark as not a draft
    */
-  private async undraft(object: RufusRequest) {
-    object.draft = false;
-    const infoFileName = object.type + '.json';
-    const dirPath = this.getDirPath(object);
+  private async undraft(request: RufusRequest) {
+    request.draft = false;
+    const infoFileName = request.type + '.json';
+    const dirPath = this.getDirPath(request);
     if (!await exists(path.join(dirPath, '~' + infoFileName))) {
       return { draft: false };
     }
@@ -229,7 +229,7 @@ export class PersistenceService {
       await fs.unlink(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME));
     }
 
-    return await this.reload(request);
+    return await this.loadRequest(request.parentId, dirPath);
   }
 
   /**
@@ -273,17 +273,6 @@ export class PersistenceService {
     }
   }
 
-  private loadInfoFile(dirPath: string, type: 'request'): Promise<[RequestInfoFile, boolean]>;
-  private loadInfoFile(dirPath: string, type: 'folder'): Promise<[FolderInfoFile, boolean]>;
-  private loadInfoFile(dirPath: string, type: 'collection'): Promise<[CollectionInfoFile, boolean]>;
-
-  private async loadInfoFile(dirPath: string, type: RufusObject['type']) {
-    let infoFileName = type + '.json';
-    const draft = await exists(path.join(dirPath, '~' + infoFileName));
-    if (draft) infoFileName = '~' + infoFileName;
-    return [JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')), draft];
-  }
-
   /**
    * Loads a collection and all of its children from the file system.
    * @param dirPath the directory path where the collection is located
@@ -291,7 +280,8 @@ export class PersistenceService {
    */
   public async loadCollection(dirPath: string): Promise<Collection> {
     const type = 'collection' as const;
-    const [infoFileContents, draft] = await this.loadInfoFile(dirPath, type);
+    const infoFileName = type + '.json';
+    const infoFileContents = await JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')) as CollectionInfoFile;
     delete infoFileContents.version;
     const id = uuidv4();
     this.idToPathMap.set(id, dirPath);
@@ -309,7 +299,13 @@ export class PersistenceService {
     dirPath: string,
   ): Promise<RufusRequest> {
     const type = 'request' as const;
-    const [infoFileContents, draft] = await this.loadInfoFile(dirPath, type);
+    let infoFileName = type + '.json';
+    let draft = false;
+    if (!await exists(path.join(dirPath, infoFileName))) {
+      infoFileName = '~' + infoFileName;
+      draft = true;
+    }
+    const infoFileContents = await JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')) as RequestInfoFile;
     delete infoFileContents.version;
     const id = uuidv4();
     this.idToPathMap.set(id, dirPath);
@@ -324,7 +320,8 @@ export class PersistenceService {
 
   private async loadFolder(parentId: string, dirPath: string): Promise<Folder> {
     const type = 'folder' as const;
-    const [infoFileContents, draft] = await this.loadInfoFile(dirPath, type);
+    const infoFileName = type + '.json';
+    const infoFileContents = await JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')) as FolderInfoFile;
     delete infoFileContents.version;
     const id = uuidv4();
     this.idToPathMap.set(id, dirPath);
@@ -355,18 +352,10 @@ export class PersistenceService {
 
     return children;
   }
-
-  private async reload<T extends RufusObject>(object: T) {
-    if (isCollection(object)) {
-      return await this.loadCollection(object.dirPath) as T;
-    } else {
-      return await this.load(object.parentId, this.getDirPath(object), object.type) as T;
-    }
-  }
-
+  
   // TODO: simplify type detection
   private async load<T extends RufusRequest | Folder>(parentId: string, dirPath: string, type?: T['type']): Promise<T> {
-    if (type === 'folder' || await exists(path.join(dirPath, 'folder.json')) || await exists(path.join(dirPath, '~folder.json'))) {
+    if (type === 'folder' || await exists(path.join(dirPath, 'folder.json'))) {
       return await this.loadFolder(parentId, dirPath) as T;
     } else if (type === 'request' || await exists(path.join(dirPath, 'request.json')) || await exists(path.join(dirPath, '~request.json'))) {
       return await this.loadRequest(parentId, dirPath) as T;
@@ -402,11 +391,11 @@ export class PersistenceService {
     }
   }
 
-  private getDirName(object: RufusObject): string {
+  private getDirName(object: RufusObject) {
     return this.sanitizeTitle(object.title);
   }
 
-  private sanitizeTitle(title: string): string {
+  private sanitizeTitle(title: string) {
     return title
     .toLowerCase()
     .replace(/\s/g, '-')
