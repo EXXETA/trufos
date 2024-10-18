@@ -24,7 +24,7 @@ describe('ImportService', () => {
     const targetDirPath = '/path/to/target-dir';
     const importService = ImportService.instance;
     (fs.readFile as jest.Mock).mockResolvedValue(POSTMAN_COLLECTION);
-    (PersistenceService.instance.saveRecursive as jest.Mock).mockImplementation(async () => null);
+    (PersistenceService.instance.saveCollectionRecursive as jest.Mock).mockImplementation(async () => null);
     when(fs.readFile).calledWith(POSTMAN_COLLECTION_FILE_PATH, 'utf8').mockResolvedValue(POSTMAN_COLLECTION);
     //when(PersistenceService.instance.storeCollection).defaultImplementation(async (collection: Collection) => collection);
 

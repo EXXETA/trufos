@@ -43,7 +43,7 @@ export class PersistenceService {
 
     console.info('Creating default collection at', dirPath);
     const collection = generateDefaultCollection(dirPath);
-    await this.saveRecursive(collection);
+    await this.saveCollectionRecursive(collection);
     return collection;
   }
 
@@ -152,20 +152,20 @@ export class PersistenceService {
   }
 
   /**
-   * Recursively saves a collection or folder and all of its children to the file system.
-   * @param object the collection or folder to save
+   * Recursively saves a collection and all of its children to the file system.
+   * @param collection the collection to save
    */
-  public async saveRecursive(object: Folder | Collection) {
-    if (isCollection(object)) {
-      await this.saveCollection(object);
-    }
+  public async saveCollectionRecursive(collection: Collection) {
+    await this.saveCollection(collection);
 
-    for (const child of object.children) {
+    const queue: RufusObject[] = [...collection.children];
+    while (queue.length > 0) {
+      const child = queue.shift();
       if (isRequest(child)) {
         await this.saveRequest(child);
-      } else {
+      } else if (isFolder(child)) {
         await this.saveFolder(child);
-        await this.saveRecursive(child);
+        queue.push(...child.children);
       }
     }
   }
