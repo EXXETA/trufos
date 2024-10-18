@@ -55,6 +55,40 @@ For this repository we have agreed on the following git workflow:
     - Preferably rebase your branch onto `main` before completing the PR
 - Once the `main` branch reaches a stable state, we can create a release by...
     - creating an annotated tag `vX.Y.Z` for the target commit on the `main` branch
-      - tag message should be: `Release vX.Y.Z`
+        - tag message should be: `Release vX.Y.Z`
     - creating a release on github that references the tag
     - attaching the release binaries to the github release
+
+## Code Formatting
+
+We use [Prettier](https://prettier.io/) for TypeScript code formatting.
+To ensure that the code formatting follows our configuration
+in [.prettierrc](https://github.com/EXXETA/rufus/blob/main/.prettierrc), the Prettier plugin should
+be installed in your IDE.
+The setup for Prettier is described in the following sections for IntelliJ and Visual Studio Code:
+
+### IntelliJ
+
+1. Navigate to **Settings** > **Plugins**.
+2. Install [Prettier](https://plugins.jetbrains.com/plugin/10456-prettier) from marketplace.
+3. Install [Save Actions X](https://plugins.jetbrains.com/plugin/22113-save-actions-x) from
+   marketplace.
+4. Activate options "Activate save actions on save (before saving each file, performs the configured
+   actions below)" and "Reformat file":
+   ![Code Formatting IntelliJ](images/contributing/code-formatting-intellij.png)
+
+### Visual Studio Code
+
+Install [Prettier - Code formatter](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+from Extensions. When installation is completed, Prettier will be used directly as the default
+formatter when saving a file, as it is already configured in `.vscode/settings.json`.
+
+---
+After following these instructions, the code should always be formatted automatically when saving a
+file.
+
+However, you can check all Typescript files for code style issues with this command:
+`npx prettier '**/*.{ts,tsx}' --check`
+
+If you want Prettier to fix code style issues, you can use the following command:
+`npx prettier '**/*.{ts,tsx}' --write`
