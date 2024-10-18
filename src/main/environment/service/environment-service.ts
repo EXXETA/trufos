@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import crypto from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
@@ -117,9 +117,9 @@ export class EnvironmentService implements Initializable {
       case '$date':
         return new Date().toDateString();
       case '$randomInt':
-        return crypto.randomInt(2 ** 48 - 1).toString();
+        return randomInt(2 ** 48 - 1).toString();
       case '$randomUuid':
-        return crypto.randomUUID();
+        return randomUUID();
     }
   }
 }

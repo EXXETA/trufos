@@ -2,7 +2,7 @@ import { HttpService } from './http-service';
 import { MockAgent } from 'undici';
 import fs from 'node:fs';
 import { RufusRequest } from 'shim/objects/request';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { RequestMethod } from 'shim/objects/requestMethod';
 import { IncomingHttpHeaders } from 'undici/types/header';
 
@@ -14,8 +14,8 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/api/data');
     const httpService = setupMockHttpService(url, RequestMethod.get, text);
     const request: RufusRequest = {
-      id: uuidv4(),
-      parentId: uuidv4(),
+      id: randomUUID(),
+      parentId: randomUUID(),
       type: 'request',
       title: 'Test Request',
       url: url.toString(),
