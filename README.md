@@ -1,3 +1,7 @@
+[![CI Pipeline](https://github.com/EXXETA/rufus/actions/workflows/ci.yml/badge.svg)](https://github.com/EXXETA/rufus/actions/workflows/ci.yml)
+![Codecov](https://img.shields.io/codecov/c/github/EXXETA/rufus)
+![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Frufus%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
+
 <h1 align="center">Rufus</h1>
 <p align="center">
   A rest client that is both easy to use, efficient and extendable
@@ -16,7 +20,7 @@ As of right now, Rufus is still in early development and is not yet ready for pr
 If you would like to contribute to this project, please check out our
 [Contributing Guidelines](./CONTRIBUTING.md)
 
-## Requirements 
+## Requirements
 
 As Rufus is an electron application, it can be run on Windows, macOS and Linux without any issues.
 If you want to develop or build this software yourself, you will need Node.js version 14 or higher
