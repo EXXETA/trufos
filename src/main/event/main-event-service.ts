@@ -8,8 +8,10 @@ import { Buffer } from 'node:buffer';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { RufusObject } from 'shim/objects';
 import * as console from 'node:console';
+import { EnvironmentService } from 'main/environment/service/environment-service';
 
 const persistenceService = PersistenceService.instance;
+const environmentService = EnvironmentService.instance;
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -68,7 +70,7 @@ export class MainEventService implements IEventService {
   }
 
   async loadCollection() {
-    return await persistenceService.loadDefaultCollection();
+    return environmentService.currentCollection;
   }
 
   async sendRequest(request: RufusRequest) {
