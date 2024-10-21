@@ -4,7 +4,7 @@ import { RootState } from '@/state/store';
 import { editor } from 'monaco-editor';
 import { RequestMethod } from 'shim/objects/requestMethod';
 import { RufusRequest } from 'shim/objects/request';
-import { updateRequest } from '@/state/requestsSlice';
+import { clearMetaInfo, setMetaInfo, updateRequest } from '@/state/requestsSlice';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
 import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
@@ -50,6 +50,9 @@ export function MainTopBar({ onResponse }: RequestProps) {
   }, [request]);
 
   const sendRequest = useCallback(useErrorHandler(async () => {
+    dispatch(
+      clearMetaInfo(),
+    );
     if (request == null) return;
     if (!request.url || !request.method) {
       throw new Error('Missing URL or HTTP method');
@@ -57,8 +60,14 @@ export function MainTopBar({ onResponse }: RequestProps) {
 
     await eventService.saveRequest(request, requestEditor?.getValue());
 
+    const response = await httpService.sendRequest(request);
+    dispatch(
+      setMetaInfo(response.metaInfo),
+    );
+
     // Send the request and pass the response to the onResponse callback
-    await onResponse(await httpService.sendRequest(request));
+    // ToDo: We should get rid of this callback and set response in shared state
+    await onResponse(response);
   }), [request, requestEditor, onResponse]);
 
   const saveRequest = useCallback(useErrorHandler(async () => {

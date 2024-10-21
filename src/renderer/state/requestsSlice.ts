@@ -4,11 +4,13 @@ import { RequestBody, RequestBodyType, RufusRequest } from 'shim/objects/request
 import { editor } from 'monaco-editor';
 import { RufusHeader } from '../../shim/objects/headers';
 import { RootState } from '@/state/store';
+import { MetaInfo } from '../../shim/objects/response';
 
 export const requestsSlice = createSlice({
   name: 'requests',
   initialState: {
     requests: [] as RufusRequest[],
+    metaInfo: null as MetaInfo | null,
     selectedRequest: 0,
     collectionId: '',
     requestEditor: undefined as (undefined | editor.ICodeEditor),
@@ -51,6 +53,7 @@ export const requestsSlice = createSlice({
     },
     setSelectedRequest: (state, action: PayloadAction<number>) => {
       state.selectedRequest = action.payload;
+      state.metaInfo = null;
     },
     deleteRequest(state, action: PayloadAction<number>) {
       state.requests.splice(action.payload, 1);
@@ -78,6 +81,12 @@ export const requestsSlice = createSlice({
       state.requests[state.selectedRequest].headers = [];
       requestsSlice.caseReducers.addHeader(state);
     },
+    setMetaInfo: (state, action: PayloadAction<MetaInfo>) => {
+      state.metaInfo = action.payload;
+    },
+    clearMetaInfo: (state) => {
+      state.metaInfo = null;
+    },
   },
 });
 
@@ -96,4 +105,6 @@ export const {
   updateHeader,
   deleteHeader,
   clearHeaders,
+  setMetaInfo,
+  clearMetaInfo,
 } = requestsSlice.actions;

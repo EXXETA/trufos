@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { RufusRequest } from 'shim/objects/request';
 import { v4 as uuidv4 } from 'uuid';
 import { RequestMethod } from 'shim/objects/requestMethod';
+import { IncomingHttpHeaders } from 'undici/types/header';
 
 jest.mock('electron', () => {
   return {
@@ -19,11 +20,7 @@ describe('HttpService', () => {
     // Arrange
     const text = 'Hello, world!';
     const url = new URL('https://example.com/api/data');
-    const mockAgent = new MockAgent({ connections: 1 });
-    const mockClient = mockAgent.get(url.origin);
-    mockClient.intercept({ path: url.pathname }).reply(200, text);
-
-    const httpService = new HttpService(mockAgent);
+    const httpService = setupMockHttpService(url, RequestMethod.get, text);
     const request: RufusRequest = {
       id: uuidv4(),
       parentId: uuidv4(),
@@ -39,10 +36,53 @@ describe('HttpService', () => {
     const result = await httpService.fetchAsync(request);
 
     // Assert
-    expect(result.status).toEqual(200);
-    expect(result.duration).toBeGreaterThanOrEqual(0);
+    expect(result.metaInfo.status).toEqual(200);
+    expect(result.metaInfo.duration).toBeGreaterThanOrEqual(0);
 
     const responseBody = fs.readFileSync(result.bodyFilePath, 'utf8').toString();
     expect(responseBody).toEqual(text);
   });
+
+  it('fetchAsync should calculate the request size', async () => {
+    // Arrange
+    const responseBodyMock = {
+      key1: 'value1',
+      key2: 'value2',
+      key3: 'value3',
+    }.toString();
+    const responseHeadersMock: IncomingHttpHeaders = {
+      'content-type': 'application/json',
+      'content-length': responseBodyMock.length.toString(),
+    };
+    const url = new URL('https://example.com/api/data');
+    const httpService = setupMockHttpService(url, RequestMethod.get, responseBodyMock, responseHeadersMock);
+    const request: RufusRequest = {
+      id: uuidv4(),
+      parentId: uuidv4(),
+      type: 'request',
+      title: 'Test Request',
+      url: url.toString(),
+      method: RequestMethod.get,
+      headers: [],
+      body: null,
+    };
+
+    // Act
+    const result = await httpService.fetchAsync(request);
+
+    // Assert
+    expect(result.metaInfo.size).toEqual({
+      bodySizeInBytes: 703,
+      headersSizeInBytes: 57,
+      totalSizeInBytes: 760,
+    });
+  });
+
 });
+
+function setupMockHttpService(url: URL, method: RequestMethod, body: string | null, headers?: IncomingHttpHeaders) {
+  const mockAgent = new MockAgent({ connections: 1 });
+  const mockClient = mockAgent.get(url.origin);
+  mockClient.intercept({ path: url.pathname }).reply(200, body, { headers: headers });
+  return new HttpService(mockAgent);
+}

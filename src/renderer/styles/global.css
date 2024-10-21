@@ -1,77 +1,89 @@
 /* Add the following to your global CSS file */
 
+/* Colors */
+.success {
+    color: #2BB361;
+}
+
+.error {
+    color: #CA464E;
+}
+
 .http-method-color-get {
-  color: #97E87F;
+    color: #97E87F;
 }
 
 .http-method-color-put {
-  color: #6AC8E7;
+    color: #6AC8E7;
 }
 
 .http-method-color-post {
-  color: #8CA5FF;
+    color: #8CA5FF;
 }
 
 .http-method-color-delete {
-  color: #E36873;
+    color: #E36873;
 }
 
 .http-method-color-patch {
-  color: #EBBA6B;
+    color: #EBBA6B;
 }
 
 /* Tabs scrollbar styles */
 .tabs-scrollbar::-webkit-scrollbar {
-  width: 8px; /* Width of the scrollbar */
+    width: 8px; /* Width of the scrollbar */
 }
 
 .tabs-scrollbar::-webkit-scrollbar-track {
-  background: transparent; /* Background of the scrollbar track */
+    background: transparent; /* Background of the scrollbar track */
 }
 
 .tabs-scrollbar::-webkit-scrollbar-thumb {
-  background: #333333; /* Color of the scrollbar thumb */
-  border-radius: 4px; /* Rounded corners for the thumb */
+    background: #333333; /* Color of the scrollbar thumb */
+    border-radius: 4px; /* Rounded corners for the thumb */
 }
 
 .tabs-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.5); /* Darker color on hover */
+    background: rgba(0, 0, 0, 0.5); /* Darker color on hover */
 }
 
 /* Styles for TabsTrigger */
 .tabs-trigger {
-  @apply flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-[24px] h-[36px] px-3 text-sm font-medium ring-offset-background transition-all;
+    @apply inline-flex items-center justify-center whitespace-nowrap rounded-[24px] h-[36px] px-3 text-sm font-medium ring-offset-background transition-all;
 }
 
 .tabs-trigger[data-state="active"] {
-  color: #75D9FB;
-  background-color: rgba(55, 204, 255, 0.2);
+    color: #75D9FB;
+    background-color: rgba(55, 204, 255, 0.2);
 }
 
 .tabs-trigger:hover {
-  border: 2px solid #75D9FB;
+    border: 2px solid #75D9FB;
 }
 
 .tabs-trigger:active {
-  border: 2px solid #12B1E7;
-  color: #12B1E7;
+    border: 2px solid #12B1E7;
+    color: #12B1E7;
+}
+
+.response-status {
 }
 
 /* Tooltip */
-.tooltip .tooltip-text{
-  font-size: small;
-  visibility: hidden;
-  background-color: black;
-  color: #fff;
-  text-align: center;
-  border-radius: 6px;
-  padding: 0.25rem 0.5rem;
+.tooltip .tooltip-text {
+    font-size: small;
+    visibility: hidden;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
 
-  /* Position the tooltip */
-  position: fixed;
-  z-index: 1;
+    /* Position the tooltip */
+    position: fixed;
+    z-index: 1;
 }
 
 .tooltip:hover .tooltip-text {
-  visibility: visible;
+    visibility: visible;
 }
