@@ -1,7 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
-import { v4 as uuidv4 } from 'uuid';
 import { CollectionInfoFile, FolderInfoFile, RequestInfoFile, toInfoFile } from './info-files';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -16,6 +15,7 @@ import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { isCollection, isFolder, isRequest, RufusObject } from 'shim/objects';
 import { generateDefaultCollection } from './default-collection';
 import { Readable } from 'stream';
+import { randomUUID } from 'node:crypto';
 
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
@@ -29,7 +29,7 @@ export class PersistenceService {
 
   public static readonly instance = new PersistenceService();
 
-  private idToPathMap: Map<string, string> = new Map();
+  private readonly idToPathMap: Map<string, string> = new Map();
 
   /**
    * Loads the default collection into memory.
@@ -77,15 +77,17 @@ export class PersistenceService {
    */
   public async rename(object: RufusObject, newTitle: string) {
     const oldDirPath = this.getDirPath(object);
-    const parentDirPath = path.dirname(oldDirPath);
-    const newDirName = this.getDirName(object);
-    const newDirPath = path.join(parentDirPath, newDirName);
+    object.title = newTitle;
+    const newDirPath = path.join(path.dirname(oldDirPath), this.getDirName(object));
 
+    console.info('Renaming object at', oldDirPath, 'to', newDirPath);
     await fs.rename(oldDirPath, newDirPath);
 
-    object.title = newTitle;
     this.idToPathMap.set(object.id, newDirPath);
 
+    if (isCollection(object)) {
+      object.dirPath = newDirPath;
+    }
     if (!isRequest(object)) {
       for (const child of object.children) {
         this.updatePathMapRecursively(child, newDirPath);
@@ -138,7 +140,7 @@ export class PersistenceService {
    * @param fileName the name of the information file
    */
   private async saveInfoFile(object: RufusObject, dirPath: string, fileName: string) {
-    console.info('Saving object', object.id ??= uuidv4());
+    console.info('Saving object', object.id ??= randomUUID());
     if (!isCollection(object) && object.parentId == null) {
       throw new Error('Object must have a parent');
     } else if (!(await exists(dirPath))) {
@@ -239,7 +241,7 @@ export class PersistenceService {
    */
   public async delete(object: RufusObject) {
     const dirPath = this.getDirPath(object);
-    console.log('Deleting object at', dirPath);
+    console.info('Deleting object at', dirPath);
 
     // delete children first
     if (!isRequest(object)) {
@@ -283,7 +285,7 @@ export class PersistenceService {
     const infoFileName = type + '.json';
     const infoFileContents = await JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')) as CollectionInfoFile;
     delete infoFileContents.version;
-    const id = uuidv4();
+    const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
     const children = await this.loadChildren(id, dirPath);
     return Object.assign(infoFileContents, {
@@ -307,7 +309,7 @@ export class PersistenceService {
     }
     const infoFileContents = await JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')) as RequestInfoFile;
     delete infoFileContents.version;
-    const id = uuidv4();
+    const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
 
     return Object.assign(infoFileContents, {
@@ -323,7 +325,7 @@ export class PersistenceService {
     const infoFileName = type + '.json';
     const infoFileContents = await JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')) as FolderInfoFile;
     delete infoFileContents.version;
-    const id = uuidv4();
+    const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
     const children = await this.loadChildren(id, dirPath);
     return Object.assign(infoFileContents, {
@@ -352,7 +354,7 @@ export class PersistenceService {
 
     return children;
   }
-  
+
   // TODO: simplify type detection
   private async load<T extends RufusRequest | Folder>(parentId: string, dirPath: string, type?: T['type']): Promise<T> {
     if (type === 'folder' || await exists(path.join(dirPath, 'folder.json'))) {

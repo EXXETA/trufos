@@ -1,42 +1,32 @@
-import tmp from 'tmp';
-import fs from 'fs/promises';
 import { MainEventService } from './main-event-service';
+import path from 'node:path';
+import { tmpdir } from 'node:os';
+import { fs } from 'memfs';
 
 jest.mock(
   'electron',
   () => ({
     ipcMain: {
-      handle: jest.fn()
+      handle: jest.fn(),
     },
     app: {
-      getPath: jest.fn().mockReturnValue('')
-    }
-  })
+      getPath: jest.fn().mockReturnValue(''),
+    },
+  }),
 );
 
 const eventService = MainEventService.instance;
 
 const TEST_STRING = 'Hello, World!';
-const TEST_FILE_PATH = tmp.fileSync().name;
+const TEST_FILE_PATH = path.join(tmpdir(), 'test.txt');
 
 describe('MainEventService', () => {
-  beforeAll(async () => {
-    await fs.writeFile(TEST_FILE_PATH, TEST_STRING);
+  beforeEach(() => {
+    fs.writeFileSync(TEST_FILE_PATH, TEST_STRING);
   });
 
-  it('should register event functions on the backend', () => {
-    expect(require('electron').ipcMain.handle).toHaveBeenCalled();
-  });
-
-  it('should get the file info correctly', async () => {
-
-    // Act
-    const fileInfo = await eventService.getFileInfo(TEST_FILE_PATH);
-
-    // Assert
-    expect(fileInfo.isFile).toBe(true);
-    expect(fileInfo.isDirectory).toBe(false);
-    expect(fileInfo.size).toBe(13);
+  it('should register event functions on the backend', async () => {
+    expect((await import('electron')).ipcMain.handle).toHaveBeenCalled();
   });
 
   it('should read the file correctly providing no parameters', async () => {

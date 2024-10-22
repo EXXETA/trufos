@@ -1,6 +1,6 @@
-import tmp from "tmp";
-import {app} from "electron";
-import fs from 'fs';
+import tmp from 'tmp';
+import { app } from 'electron';
+import fs from 'node:fs';
 
 /**
  * Singleton service for file system operations
@@ -8,7 +8,7 @@ import fs from 'fs';
 export class FileSystemService {
 
   private static readonly _instance: FileSystemService = new FileSystemService();
-  private static readonly _tempDir = app?.getPath('temp') ?? "";
+  private static readonly _tempDir = app?.getPath('temp') ?? '';
 
   constructor() {
 
@@ -24,7 +24,7 @@ export class FileSystemService {
    * @returns the temporary file object containing the file descriptor and the file name
    */
   public temporaryFile() {
-    return tmp.fileSync({dir: FileSystemService._tempDir});
+    return tmp.fileSync({ dir: FileSystemService._tempDir });
   }
 
   /**

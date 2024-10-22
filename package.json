@@ -44,6 +44,7 @@
     "fork-ts-checker-webpack-plugin": "^9.0.2",
     "jest-environment-jsdom": "^29.7.0",
     "jest-when": "^3.6.0",
+    "memfs": "^4.14.0",
     "monaco-editor-webpack-plugin": "^7.1.0",
     "node-loader": "^2.0.0",
     "postcss": "^8.4.38",
@@ -91,7 +92,6 @@
     "tailwindcss-animate": "^1.0.7",
     "template-replace-stream": "^2.1.2",
     "tmp": "^0.2.3",
-    "undici": "^6.19.2",
-    "uuid": "^10.0.0"
+    "undici": "^6.19.2"
   }
 }

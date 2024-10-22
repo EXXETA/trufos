@@ -6,23 +6,24 @@ const baseConfig = {
     'jsx',
     'ts',
     'tsx',
-    'json'
+    'json',
   ],
   moduleNameMapper: {
     '\\.(css|less|sass|scss)$': 'identity-obj-proxy',
     '^main/(.*)$': '<rootDir>/src/main/$1',
     '^@/(.*)$': '<rootDir>/src/renderer/$1',
-    '^shim/(.*)$': '<rootDir>/src/shim/$1'
+    '^shim/(.*)$': '<rootDir>/src/shim/$1',
   },
   setupFilesAfterEnv: [
-    './scripts/setup-jest.ts'
+    './scripts/setup-jest.ts',
   ],
   testEnvironmentOptions: {
-    url: 'http://localhost/'
+    url: 'http://localhost/',
   },
   transform: {
-    '\\.(ts|tsx|js|jsx)$': 'ts-jest'
-  }
+    '\\.(ts|tsx|js|jsx)$': 'ts-jest',
+  },
+  maxWorkers: 1,
 };
 
 module.exports = {
@@ -32,16 +33,16 @@ module.exports = {
       displayName: 'main',
       testEnvironment: 'node',
       testMatch: [
-        '<rootDir>/src/main/**/*.test.ts'
-      ]
+        '<rootDir>/src/main/**/*.test.ts',
+      ],
     },
     {
       ...baseConfig,
       displayName: 'renderer',
       testEnvironment: 'jsdom',
       testMatch: [
-        '<rootDir>/src/renderer/**/*.test.ts'
-      ]
-    }
-  ]
+        '<rootDir>/src/renderer/**/*.test.ts',
+      ],
+    },
+  ],
 };

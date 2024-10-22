@@ -13,23 +13,19 @@ import { calculateResponseSize } from 'main/util/size-calculation';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
-const persistanceService = PersistenceService.instance;
+const persistenceService = PersistenceService.instance;
 
 /**
  * Singleton service for making HTTP requests
  */
 export class HttpService {
 
-  private static readonly _instance: HttpService = new HttpService();
+  public static readonly instance = new HttpService();
 
   private readonly _dispatcher?: Dispatcher;
 
   constructor(dispatcher?: Dispatcher) {
     this._dispatcher = dispatcher;
-  }
-
-  public static get instance() {
-    return this._instance;
   }
 
   /**
@@ -91,7 +87,7 @@ export class HttpService {
 
     switch (request.body.type) {
       case 'text': {
-        const requestBodyStream = await persistanceService.loadTextBodyOfRequest(request);
+        const requestBodyStream = await persistenceService.loadTextBodyOfRequest(request);
         return environmentService.setVariablesInStream(requestBodyStream) as Readable;
       }
       case 'file':
