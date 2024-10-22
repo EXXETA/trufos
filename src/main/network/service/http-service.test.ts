@@ -49,8 +49,8 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/api/data');
     const httpService = setupMockHttpService(url, RequestMethod.get, responseBodyMock, responseHeadersMock);
     const request: RufusRequest = {
-      id: uuidv4(),
-      parentId: uuidv4(),
+      id: randomUUID(),
+      parentId: randomUUID(),
       type: 'request',
       title: 'Test Request',
       url: url.toString(),
