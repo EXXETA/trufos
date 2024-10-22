@@ -9,6 +9,7 @@ import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
 import { PersistenceService } from '../../persistence/service/persistence-service';
 import { RufusHeader } from '../../../shim/objects/headers';
+import { calculateResponseSize } from 'main/util/size-calculation';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -65,9 +66,12 @@ export class HttpService {
 
     // return a new Response instance
     const response: RufusResponse = {
-      status: responseData.statusCode,
+      metaInfo: {
+        status: responseData.statusCode,
+        duration: duration,
+        size: calculateResponseSize(responseData.headers, responseData.body != null ? bodyFile.name : null),
+      },
       headers: Object.freeze(responseData.headers),
-      duration: duration,
       bodyFilePath: responseData.body != null ? bodyFile.name : null,
     };
 
