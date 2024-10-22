@@ -1,9 +1,9 @@
-import { MetaInfo } from '../../../../shim/objects/response';
+import { MetaInfo } from 'shim/objects/response';
 import {
   getDurationTextInSec,
   getHttpStatusColorClass,
   getHttpStatusText,
-  getSizeTextInKb,
+  getSizeText,
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/state/store';
@@ -18,7 +18,7 @@ export function ResponseStatus() {
   const statusText = getHttpStatusText(metaInfo.status);
   const statusColorClass = getHttpStatusColorClass(metaInfo.status);
   const durationText = getDurationTextInSec(metaInfo.duration);
-  const sizeText = getSizeTextInKb(metaInfo.size.totalSizeInBytes);
+  const sizeText = getSizeText(metaInfo.size.totalSizeInBytes);
 
   return (
     <span className="response-status text-nowrap ml-auto truncate">
@@ -27,8 +27,8 @@ export function ResponseStatus() {
       </span>
       <span className="ml-2 text-sm tooltip">{sizeText}
         <div className="tooltip-text flex flex-col items-start">
-          <span>Headers: {getSizeTextInKb(metaInfo.size.headersSizeInBytes)}</span>
-          <span>Body: {getSizeTextInKb(metaInfo.size.bodySizeInBytes)}</span>
+          <span>Headers: {getSizeText(metaInfo.size.headersSizeInBytes)}</span>
+          <span>Body: {getSizeText(metaInfo.size.bodySizeInBytes)}</span>
         </div>
       </span>
     </span>

@@ -20,8 +20,18 @@ export function getHttpStatusText(statusCode: number) {
   return `${statusCode} ${HTTP_STATUS_NAME[statusKey]}`;
 }
 
-export function getSizeTextInKb(sizeInByte: number) {
-  return `${(sizeInByte / 1024).toFixed(2)} KB`;
+export function getSizeText(sizeInByte: number) {
+  const units = ['', 'K', 'M', 'G', 'T'];
+  let size = sizeInByte;
+
+  let i = 0;
+  for (; i < units.length && size >= 1e3; i++) {
+    size /= 1e3;
+  }
+
+  const sizeWithDigits = i == 0 ? size : size.toFixed(2);
+
+  return `${sizeWithDigits} ${units[i]}B`;
 }
 
 const HTTP_STATUS_NAME = {

@@ -49,10 +49,10 @@ describe('HttpService', () => {
       key1: 'value1',
       key2: 'value2',
       key3: 'value3',
-    }.toString();
+    };
     const responseHeadersMock: IncomingHttpHeaders = {
       'content-type': 'application/json',
-      'content-length': responseBodyMock.length.toString(),
+      'content-length': '5000',
     };
     const url = new URL('https://example.com/api/data');
     const httpService = setupMockHttpService(url, RequestMethod.get, responseBodyMock, responseHeadersMock);
@@ -72,17 +72,28 @@ describe('HttpService', () => {
 
     // Assert
     expect(result.metaInfo.size).toEqual({
-      bodySizeInBytes: 703,
-      headersSizeInBytes: 57,
-      totalSizeInBytes: 760,
+      bodySizeInBytes: 5000,
+      headersSizeInBytes: 54,
+      totalSizeInBytes: 5054,
     });
   });
 
 });
 
-function setupMockHttpService(url: URL, method: RequestMethod, body: string | null, headers?: IncomingHttpHeaders) {
+function setupMockHttpService(url: URL, method: RequestMethod, body: object | string | null, headers?: IncomingHttpHeaders) {
+  let bodyString;
+  switch (typeof body) {
+    case 'string':
+      bodyString = body;
+      break;
+    case 'object':
+      bodyString = JSON.stringify(body);
+      break;
+    default:
+      bodyString = null;
+  }
   const mockAgent = new MockAgent({ connections: 1 });
   const mockClient = mockAgent.get(url.origin);
-  mockClient.intercept({ path: url.pathname }).reply(200, body, { headers: headers });
+  mockClient.intercept({ path: url.pathname }).reply(200, bodyString, { headers: headers });
   return new HttpService(mockAgent);
 }

@@ -6,9 +6,10 @@ import fs from 'node:fs';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
-import { ResponseSize, RufusResponse } from 'shim/objects/response';
+import { RufusResponse } from 'shim/objects/response';
 import { PersistenceService } from '../../persistence/service/persistence-service';
 import { RufusHeader } from '../../../shim/objects/headers';
+import { calculateResponseSize } from 'main/util/size-calculation';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -68,7 +69,7 @@ export class HttpService {
       metaInfo: {
         status: responseData.statusCode,
         duration: duration,
-        size: this.calculateResponseSize(responseData),
+        size: calculateResponseSize(responseData.headers, responseData.body != null ? bodyFile.name : null),
       },
       headers: Object.freeze(responseData.headers),
       bodyFilePath: responseData.body != null ? bodyFile.name : null,
@@ -125,17 +126,6 @@ export class HttpService {
       }
     }
     return headers;
-  }
-
-  /**
-   * Calculate the size of the response
-   * @param responseData response data
-   */
-  private calculateResponseSize(responseData: Dispatcher.ResponseData): ResponseSize {
-    const headersSizeInBytes = Buffer.byteLength(JSON.stringify(responseData.headers));
-    const bodySizeInBytes = responseData.body != null ? Buffer.byteLength(JSON.stringify(responseData.body)) : 0;
-    const totalSizeInBytes = bodySizeInBytes + headersSizeInBytes;
-    return { totalSizeInBytes, headersSizeInBytes, bodySizeInBytes };
   }
 }
 
