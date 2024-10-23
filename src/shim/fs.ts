@@ -6,4 +6,4 @@ export type FileInfo = {
   birthtime: Date;
   isFile: boolean;
   isDirectory: boolean;
-}
+};

@@ -14,8 +14,7 @@ const persistenceService = PersistenceService.instance;
  * request body, headers, etc.).
  */
 export class EnvironmentService implements Initializable {
-  public static readonly instance: EnvironmentService =
-    new EnvironmentService();
+  public static readonly instance: EnvironmentService = new EnvironmentService();
 
   public currentCollection: Collection;
 
@@ -34,9 +33,7 @@ export class EnvironmentService implements Initializable {
    * @returns The stream with the variables replaced.
    */
   public setVariablesInStream(stream: Readable) {
-    return stream.pipe(
-      new TemplateReplaceStream(this.getVariableValue.bind(this)),
-    );
+    return stream.pipe(new TemplateReplaceStream(this.getVariableValue.bind(this)));
   }
 
   /**
@@ -80,9 +77,7 @@ export class EnvironmentService implements Initializable {
    * @param path The path of the collection to load and set as the current collection.
    */
   public async changeCollection(path: string) {
-    return (this.currentCollection = await persistenceService.loadCollection(
-      path,
-    ));
+    return (this.currentCollection = await persistenceService.loadCollection(path));
   }
 
   /**
@@ -94,10 +89,7 @@ export class EnvironmentService implements Initializable {
    * @returns The value of the variable if it exists and  is enabled, otherwise undefined.
    */
   private getVariableValue(key: string) {
-    return (
-      this.currentCollection.variables[key]?.value ??
-      this.getSystemVariableValue(key)
-    );
+    return this.currentCollection.variables[key]?.value ?? this.getSystemVariableValue(key);
   }
 
   /**

@@ -66,7 +66,6 @@ async function streamToString(stream: Readable) {
 }
 
 describe('PersistenceService', () => {
-
   let collection: Collection;
   beforeEach(async () => {
     collection = getExampleCollection();
@@ -76,7 +75,9 @@ describe('PersistenceService', () => {
   it('loadDefaultCollection() should return the existing default collection if it exists', async () => {
     // Arrange
     const defaultCollection = {} as Collection;
-    const loadCollectionSpy = jest.spyOn(persistenceService, 'loadCollection').mockResolvedValueOnce(defaultCollection);
+    const loadCollectionSpy = jest
+      .spyOn(persistenceService, 'loadCollection')
+      .mockResolvedValueOnce(defaultCollection);
     await mkdir(collectionDirPath);
     await writeFile(path.join(collectionDirPath, 'collection.json'), '');
 
@@ -92,7 +93,9 @@ describe('PersistenceService', () => {
     // Arrange
     const defaultCollection = {} as Collection;
     jest.mocked(generateDefaultCollection).mockReturnValueOnce(defaultCollection);
-    const saveCollectionRecursiveSpy = jest.spyOn(persistenceService, 'saveCollectionRecursive').mockResolvedValueOnce();
+    const saveCollectionRecursiveSpy = jest
+      .spyOn(persistenceService, 'saveCollectionRecursive')
+      .mockResolvedValueOnce();
 
     // Act
     const result = await persistenceService.loadDefaultCollection();
@@ -168,7 +171,9 @@ describe('PersistenceService', () => {
 
     await persistenceService.saveCollectionRecursive(collection);
 
-    const oldInfo = JSON.parse(await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')) as RequestInfoFile;
+    const oldInfo = JSON.parse(
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+    ) as RequestInfoFile;
     request.method = RequestMethod.put;
 
     // Assert
@@ -178,7 +183,9 @@ describe('PersistenceService', () => {
     await persistenceService.saveRequest(request);
 
     // Assert
-    const newInfo = JSON.parse(await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')) as RequestInfoFile;
+    const newInfo = JSON.parse(
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+    ) as RequestInfoFile;
     expect(newInfo.method).toBe(request.method);
     expect(newInfo).not.toEqual(oldInfo);
   });
@@ -223,7 +230,9 @@ describe('PersistenceService', () => {
     // Assert
     expect(await exists(path.join(collection.dirPath, 'collection.json'))).toBe(true);
     expect(await exists(path.join(collection.dirPath, folder.title, 'folder.json'))).toBe(true);
-    expect(await exists(path.join(collection.dirPath, folder.title, request.title, 'request.json'))).toBe(true);
+    expect(
+      await exists(path.join(collection.dirPath, folder.title, request.title, 'request.json'))
+    ).toBe(true);
   });
 
   it('saveChanges() should overwrite the request metadata with its draft metadata', async () => {
@@ -237,8 +246,12 @@ describe('PersistenceService', () => {
     request.method = RequestMethod.post;
 
     await persistenceService.saveRequest(request);
-    let originalInfo = JSON.parse(await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')) as RequestInfoFile;
-    const draftInfo = JSON.parse(await readFile(path.join(collection.dirPath, request.title, '~request.json'), 'utf-8')) as RequestInfoFile;
+    let originalInfo = JSON.parse(
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+    ) as RequestInfoFile;
+    const draftInfo = JSON.parse(
+      await readFile(path.join(collection.dirPath, request.title, '~request.json'), 'utf-8')
+    ) as RequestInfoFile;
 
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
@@ -251,7 +264,9 @@ describe('PersistenceService', () => {
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
     expect(await exists(path.join(collection.dirPath, request.title, '~request.json'))).toBe(false);
-    originalInfo = JSON.parse(await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')) as RequestInfoFile;
+    originalInfo = JSON.parse(
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+    ) as RequestInfoFile;
     expect(originalInfo).toEqual(draftInfo);
   });
 
@@ -266,7 +281,9 @@ describe('PersistenceService', () => {
     request.method = RequestMethod.post;
 
     await persistenceService.saveRequest(request);
-    const oldInfo = JSON.parse(await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')) as RequestInfoFile;
+    const oldInfo = JSON.parse(
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+    ) as RequestInfoFile;
 
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
@@ -278,7 +295,9 @@ describe('PersistenceService', () => {
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
     expect(await exists(path.join(collection.dirPath, request.title, '~request.json'))).toBe(false);
-    const newInfo = JSON.parse(await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')) as RequestInfoFile;
+    const newInfo = JSON.parse(
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+    ) as RequestInfoFile;
     expect(oldInfo).toEqual(newInfo);
   });
 
@@ -309,8 +328,12 @@ describe('PersistenceService', () => {
     await persistenceService.saveRequest(request, textBody);
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(true);
-    expect(await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME))).toBe(false);
+    expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(
+      true
+    );
+    expect(
+      await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME))
+    ).toBe(false);
 
     // Act
     const result = await persistenceService.loadTextBodyOfRequest(request);
@@ -330,8 +353,12 @@ describe('PersistenceService', () => {
     await persistenceService.saveRequest(request, textBody);
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(false);
-    expect(await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME))).toBe(true);
+    expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(
+      false
+    );
+    expect(
+      await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME))
+    ).toBe(true);
 
     // Act
     const result = await persistenceService.loadTextBodyOfRequest(request);

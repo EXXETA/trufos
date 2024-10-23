@@ -1,8 +1,8 @@
-import type {Configuration} from 'webpack';
+import type { Configuration } from 'webpack';
 
-import {rules} from './webpack.rules';
-import {plugins} from './webpack.plugins';
-import {TsconfigPathsPlugin} from "tsconfig-paths-webpack-plugin";
+import { rules } from './webpack.rules';
+import { plugins } from './webpack.plugins';
+import { TsconfigPathsPlugin } from 'tsconfig-paths-webpack-plugin';
 
 export const mainConfig: Configuration = {
   /**
@@ -17,6 +17,6 @@ export const mainConfig: Configuration = {
   plugins,
   resolve: {
     extensions: ['.js', '.ts', '.jsx', '.tsx', '.css', '.json'],
-    plugins: [new TsconfigPathsPlugin()]
+    plugins: [new TsconfigPathsPlugin()],
   },
 };

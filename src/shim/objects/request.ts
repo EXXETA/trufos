@@ -13,13 +13,13 @@ export type RufusRequest = {
   headers: RufusHeader[];
   body: RequestBody;
   draft?: boolean;
-}
+};
 
 export type RequestBody = TextBody | FileBody;
 
 export enum RequestBodyType {
   TEXT = 'text',
-  FILE = 'file'
+  FILE = 'file',
 }
 
 export type TextBody = {
@@ -28,18 +28,18 @@ export type TextBody = {
   text?: string;
   /** The mime type of the file content, e.g. "application/json". May include an encoding */
   mimeType: string;
-}
+};
 
 export type FileBody = {
   type: RequestBodyType.FILE;
   filePath?: string;
   /** The mime type of the file content, e.g. "application/json". May include an encoding */
   mimeType?: string;
-}
+};
 
 export function sanitizeTitle(title: string): string {
   return title
-  .toLowerCase()
-  .replace(/\s/g, '-')
-  .replace(/[^a-z0-9-]/g, '');
+    .toLowerCase()
+    .replace(/\s/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
 }

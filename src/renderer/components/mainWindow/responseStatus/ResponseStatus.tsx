@@ -9,7 +9,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@/state/store';
 
 export function ResponseStatus() {
-  const metaInfo = useSelector<RootState, MetaInfo | null>(state => state.requests.metaInfo);
+  const metaInfo = useSelector<RootState, MetaInfo | null>((state) => state.requests.metaInfo);
 
   if (metaInfo == null) {
     return <span></span>;
@@ -23,9 +23,9 @@ export function ResponseStatus() {
   return (
     <span className="response-status text-nowrap ml-auto truncate">
       <span className={'text-sm  ' + statusColorClass}>{statusText}</span>
-      <span className="ml-2 text-sm">{durationText}
-      </span>
-      <span className="ml-2 text-sm tooltip">{sizeText}
+      <span className="ml-2 text-sm">{durationText}</span>
+      <span className="ml-2 text-sm tooltip">
+        {sizeText}
         <div className="tooltip-text flex flex-col items-start">
           <span>Headers: {getSizeText(metaInfo.size.headersSizeInBytes)}</span>
           <span>Body: {getSizeText(metaInfo.size.bodySizeInBytes)}</span>

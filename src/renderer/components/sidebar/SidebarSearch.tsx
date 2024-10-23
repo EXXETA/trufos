@@ -28,6 +28,5 @@ export const SidebarSearch = () => {
         <span className="overflow-hidden">Create New Request</span>
       </Button>
     </div>
-
   );
 };

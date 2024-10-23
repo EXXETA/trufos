@@ -4,7 +4,6 @@ import { Collection } from './objects/collection';
 import { RufusObject } from './objects';
 
 export interface IEventService {
-
   /**
    * Load the default collection.
    */

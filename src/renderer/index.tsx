@@ -19,9 +19,12 @@ const root = createRoot(container);
 // load Monaco Editor
 loader.config({ monaco });
 
-RendererEventService.instance.loadCollection().then(collection => {
-  const requests = collection.children.filter(c => c.type === 'request') as RufusRequest[];
+RendererEventService.instance.loadCollection().then((collection) => {
+  const requests = collection.children.filter((c) => c.type === 'request') as RufusRequest[];
   store.dispatch(initialize({ requests, collectionId: collection.id }));
-  root.render(<Provider store={store}><App /></Provider>);
+  root.render(
+    <Provider store={store}>
+      <App />
+    </Provider>
+  );
 });
-

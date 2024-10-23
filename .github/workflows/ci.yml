@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prettier check
+        run: npx prettier '**/*.{ts,tsx}' --check
+
       - name: Run tests
         run: npm test
 

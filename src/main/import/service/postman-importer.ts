@@ -20,37 +20,39 @@ import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/variables';
  * folders and requests. It imports using the DFS algorithm.
  */
 export class PostmanImporter implements CollectionImporter {
-
   public async importCollection(srcFilePath: string, targetDirPath: string) {
-
     // read Postman collection
     const json = JSON.parse(await fs.readFile(srcFilePath, 'utf8')) as CollectionDefinition;
     const postmanCollection = new PostmanCollection(json);
-    const variablesArray =
-      postmanCollection.variables
+    const variablesArray = postmanCollection.variables
       .all()
-      .filter(variable => variable.id !== undefined && VARIABLE_NAME_REGEX.test(variable.id))
-      .map(variable =>
-        [
-          variable.id,
-          {
-            value: variable.toString(),
-            enabled: !variable.disabled,
-          },
-        ] as [string, VariableObject]);
+      .filter((variable) => variable.id !== undefined && VARIABLE_NAME_REGEX.test(variable.id))
+      .map(
+        (variable) =>
+          [
+            variable.id,
+            {
+              value: variable.toString(),
+              enabled: !variable.disabled,
+            },
+          ] as [string, VariableObject]
+      );
     console.info('Loaded', variablesArray.length, 'collection variables');
 
     // create collection directory
     const dirName = path.basename(targetDirPath);
     const dirPath = path.join(targetDirPath, dirName);
     if (await exists(dirPath)) {
-      throw new InternalError(InternalErrorType.COLLECTION_LOAD_ERROR, `Directory "${dirPath}" already exists`);
+      throw new InternalError(
+        InternalErrorType.COLLECTION_LOAD_ERROR,
+        `Directory "${dirPath}" already exists`
+      );
     } else {
       await fs.mkdir(dirPath);
     }
 
     const variables: Record<string, VariableObject> = {};
-    variablesArray.forEach(([key, val]) => variables[key] = val);
+    variablesArray.forEach(([key, val]) => (variables[key] = val));
 
     const collection: RufusCollection = {
       id: postmanCollection.id,
@@ -66,7 +68,10 @@ export class PostmanImporter implements CollectionImporter {
     return collection;
   }
 
-  private async importItems(parent: RufusCollection | RufusFolder, items: (Item | ItemGroup<Item>)[]) {
+  private async importItems(
+    parent: RufusCollection | RufusFolder,
+    items: (Item | ItemGroup<Item>)[]
+  ) {
     for (const item of items) {
       if (item instanceof ItemGroup) {
         await this.importFolder(parent, item);
@@ -76,7 +81,10 @@ export class PostmanImporter implements CollectionImporter {
     }
   }
 
-  private async importFolder(parent: RufusCollection | RufusFolder, postmanFolder: ItemGroup<Item>) {
+  private async importFolder(
+    parent: RufusCollection | RufusFolder,
+    postmanFolder: ItemGroup<Item>
+  ) {
     const folder: RufusFolder = {
       id: postmanFolder.id,
       parentId: parent.id,
@@ -118,7 +126,7 @@ export class PostmanImporter implements CollectionImporter {
       title: item.name,
       url: request.url.toString(),
       method: request.method as RequestMethod,
-      headers: request.headers.all().map(header => ({
+      headers: request.headers.all().map((header) => ({
         key: header.key,
         value: header.value,
         isActive: !header.disabled,

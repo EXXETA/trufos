@@ -6,7 +6,11 @@ export enum InternalErrorType {
 }
 
 export class InternalError extends Error {
-  constructor(public readonly type: InternalErrorType, message: string, public readonly cause?: Error) {
+  constructor(
+    public readonly type: InternalErrorType,
+    message: string,
+    public readonly cause?: Error
+  ) {
     super(message);
     this.name = 'InternalError';
   }

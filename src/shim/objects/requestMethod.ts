@@ -7,5 +7,5 @@ export enum RequestMethod {
   options = 'OPTIONS',
   head = 'HEAD',
   connect = 'CONNECT',
-  trace = 'TRACE'
+  trace = 'TRACE',
 }

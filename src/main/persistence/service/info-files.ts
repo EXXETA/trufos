@@ -11,18 +11,18 @@ export type RequestInfoFile = {
   method: RequestMethod;
   headers: RufusHeader[];
   body: RequestBody;
-}
+};
 
 export type FolderInfoFile = {
   version: string;
   title: string;
-}
+};
 
 export type CollectionInfoFile = {
   version: string;
   title: string;
   variables: Record<string, VariableObject>;
-}
+};
 
 export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 
