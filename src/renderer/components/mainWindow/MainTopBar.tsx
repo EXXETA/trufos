@@ -2,7 +2,7 @@ import { ChangeEvent, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/state/store';
 import { editor } from 'monaco-editor';
-import { RequestMethod } from 'shim/objects/requestMethod';
+import { RequestMethod } from 'shim/objects/request-method';
 import { RufusRequest } from 'shim/objects/request';
 import { clearMetaInfo, setMetaInfo, updateRequest } from '@/state/requestsSlice';
 import { useErrorHandler } from '@/components/ui/use-toast';
@@ -41,10 +41,10 @@ export function MainTopBar({ onResponse }: RequestProps) {
         updateRequest({
           index: requestIndex,
           request: { ...request, url: event.target.value, draft: true },
-        })
+        }),
       );
     },
-    [request]
+    [request],
   );
 
   const handleHttpMethodChange = useCallback(
@@ -55,10 +55,10 @@ export function MainTopBar({ onResponse }: RequestProps) {
         updateRequest({
           index: requestIndex,
           request: { ...request, method, draft: true },
-        })
+        }),
       );
     },
-    [request]
+    [request],
   );
 
   const sendRequest = useCallback(
@@ -78,7 +78,7 @@ export function MainTopBar({ onResponse }: RequestProps) {
       // ToDo: We should get rid of this callback and set response in shared state
       await onResponse(response);
     }),
-    [request, requestEditor, onResponse]
+    [request, requestEditor, onResponse],
   );
 
   const saveRequest = useCallback(
@@ -94,10 +94,10 @@ export function MainTopBar({ onResponse }: RequestProps) {
         updateRequest({
           index: requestIndex,
           request: await eventService.saveChanges(request),
-        })
+        }),
       );
     }),
-    [request, requestEditor]
+    [request, requestEditor],
   );
 
   return (

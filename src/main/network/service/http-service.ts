@@ -8,7 +8,7 @@ import { EnvironmentService } from 'main/environment/service/environment-service
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
 import { PersistenceService } from '../../persistence/service/persistence-service';
-import { RufusHeader } from '../../../shim/objects/headers';
+import { RufusHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 
 const fileSystemService = FileSystemService.instance;

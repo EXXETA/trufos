@@ -1,6 +1,6 @@
 import { InputTabs } from '@/components/mainWindow/bodyTabs/InputTabs';
 import { OutputTabs } from '@/components/mainWindow/bodyTabs/OutputTabs';
-import { HttpHeaders } from '../../../shim/headers';
+import { HttpHeaders } from 'shim/headers';
 
 export type RequestBodyProps = {
   headers?: HttpHeaders;

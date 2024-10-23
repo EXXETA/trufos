@@ -1,4 +1,4 @@
-import { RequestMethod } from './requestMethod';
+import { RequestMethod } from './request-method';
 import { RufusHeader } from './headers';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
@@ -39,7 +39,7 @@ export type FileBody = {
 
 export function sanitizeTitle(title: string): string {
   return title
-    .toLowerCase()
-    .replace(/\s/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
+  .toLowerCase()
+  .replace(/\s/g, '-')
+  .replace(/[^a-z0-9-]/g, '');
 }

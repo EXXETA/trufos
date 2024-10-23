@@ -8,7 +8,7 @@ import {
 import { Collection as RufusCollection } from 'shim/objects/collection';
 import { Folder as RufusFolder } from 'shim/objects/folder';
 import { RequestBody, RequestBodyType, RufusRequest } from 'shim/objects/request';
-import { RequestMethod } from 'shim/objects/requestMethod';
+import { RequestMethod } from 'shim/objects/request-method';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { exists } from 'main/util/fs-util';

@@ -3,7 +3,7 @@ import { MockAgent } from 'undici';
 import fs from 'node:fs';
 import { RufusRequest } from 'shim/objects/request';
 import { randomUUID } from 'node:crypto';
-import { RequestMethod } from 'shim/objects/requestMethod';
+import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
 
 describe('HttpService', () => {
@@ -11,14 +11,14 @@ describe('HttpService', () => {
     // Arrange
     const text = 'Hello, world!';
     const url = new URL('https://example.com/api/data');
-    const httpService = setupMockHttpService(url, RequestMethod.get, text);
+    const httpService = setupMockHttpService(url, RequestMethod.GET, text);
     const request: RufusRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
       type: 'request',
       title: 'Test Request',
       url: url.toString(),
-      method: RequestMethod.get,
+      method: RequestMethod.GET,
       headers: [],
       body: null,
     };
@@ -48,9 +48,9 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/api/data');
     const httpService = setupMockHttpService(
       url,
-      RequestMethod.get,
+      RequestMethod.GET,
       responseBodyMock,
-      responseHeadersMock
+      responseHeadersMock,
     );
     const request: RufusRequest = {
       id: randomUUID(),
@@ -58,7 +58,7 @@ describe('HttpService', () => {
       type: 'request',
       title: 'Test Request',
       url: url.toString(),
-      method: RequestMethod.get,
+      method: RequestMethod.GET,
       headers: [],
       body: null,
     };
@@ -79,7 +79,7 @@ function setupMockHttpService(
   url: URL,
   method: RequestMethod,
   body: object | string | null,
-  headers?: IncomingHttpHeaders
+  headers?: IncomingHttpHeaders,
 ) {
   let bodyString;
   switch (typeof body) {
