@@ -88,7 +88,7 @@ After following these instructions, the code should always be formatted automati
 file.
 
 However, you can check all Typescript files for code style issues with this command:
-`npx prettier '**/*.{ts,tsx}' --check`
+`npm run prettier-check`
 
 If you want Prettier to fix code style issues, you can use the following command:
-`npx prettier '**/*.{ts,tsx}' --write`
+`npm run prettier`

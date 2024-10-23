@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Prettier check
-        run: npx prettier '**/*.{ts,tsx}' --check
+        run: npm run prettier-check
 
       - name: Run tests
         run: npm test
