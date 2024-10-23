@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { requestsSlice } from '@/state/requestsSlice'; // Adjust the import path
+import { requestsSlice } from '@/state/requestsSlice';
+import { responsesSlice } from '@/state/responsesSlice'; // Adjust the import path
 
 export const store = configureStore({
   reducer: {
     [requestsSlice.name]: requestsSlice.reducer,
+    [responsesSlice.name]: responsesSlice.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
