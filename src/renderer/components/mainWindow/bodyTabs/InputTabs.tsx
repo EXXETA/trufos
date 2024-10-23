@@ -40,34 +40,45 @@ import { RufusHeader } from 'shim/objects/headers';
 
 export function InputTabs() {
   const dispatch = useDispatch();
-  const requestBody = useSelector(({ requests }: RootState) => requests.requests[requests.selectedRequest]?.body);
+  const requestBody = useSelector(
+    ({ requests }: RootState) => requests.requests[requests.selectedRequest]?.body
+  );
   const headers = useSelector(selectHeaders);
 
   const [isOpen, setIsOpen] = useState(false);
 
-  const changeBodyType = useCallback((type: RequestBodyType) => {
-    switch (type) {
-      case RequestBodyType.TEXT:
-        dispatch(setRequestBody({ type, mimeType: 'text/plain' }));
-        break;
-      case RequestBodyType.FILE:
-        dispatch(setRequestBody({ type }));
-        break;
-    }
-  }, [dispatch]);
+  const changeBodyType = useCallback(
+    (type: RequestBodyType) => {
+      switch (type) {
+        case RequestBodyType.TEXT:
+          dispatch(setRequestBody({ type, mimeType: 'text/plain' }));
+          break;
+        case RequestBodyType.FILE:
+          dispatch(setRequestBody({ type }));
+          break;
+      }
+    },
+    [dispatch]
+  );
 
-  const setRequestBodyFile = useCallback((file?: File) => {
-    if (file == null) return;
-    dispatch(setRequestBody({
-      type: RequestBodyType.FILE,
-      filePath: file.path,
-      mimeType: file.type === '' ? undefined : file.type,
-    }));
-  }, [dispatch]);
+  const setRequestBodyFile = useCallback(
+    (file?: File) => {
+      if (file == null) return;
+      dispatch(
+        setRequestBody({
+          type: RequestBodyType.FILE,
+          filePath: file.path,
+          mimeType: file.type === '' ? undefined : file.type,
+        })
+      );
+    },
+    [dispatch]
+  );
 
-  const onEditorMount = useCallback((editor: editor.ICodeEditor) => {
-    dispatch(setRequestEditor(editor));
-    /*editor.onDidChangeModelContent(() => {
+  const onEditorMount = useCallback(
+    (editor: editor.ICodeEditor) => {
+      dispatch(setRequestEditor(editor));
+      /*editor.onDidChangeModelContent(() => {
       if (request != null && !request.draft) {
         dispatch(updateRequest({
           index: selectedRequestIndex,
@@ -75,7 +86,9 @@ export function InputTabs() {
         }));
       }
     });*/
-  }, [dispatch]);
+    },
+    [dispatch]
+  );
 
   const renderEditor = useCallback(() => {
     return (
@@ -91,7 +104,8 @@ export function InputTabs() {
     return (
       <Input
         onChange={(v) => setRequestBodyFile(v.target.files[0])}
-        placeholder="Select a file" type="file"
+        placeholder="Select a file"
+        type="file"
       />
     );
   }, [setRequestBodyFile]);
@@ -100,41 +114,55 @@ export function InputTabs() {
     dispatch(addHeader());
   }, [dispatch]);
 
-  const handleDeleteHeader = useCallback((index: number) => {
-    dispatch(deleteHeader(index));
-  }, [dispatch]);
+  const handleDeleteHeader = useCallback(
+    (index: number) => {
+      dispatch(deleteHeader(index));
+    },
+    [dispatch]
+  );
 
   const deleteAllHeaders = useCallback(() => {
     dispatch(clearHeaders());
   }, [dispatch]);
 
-  const handleUpdateHeader = useCallback((index: number, updatedFields: Partial<RufusHeader>) => {
-    dispatch(updateHeader({ index, updatedHeader: updatedFields }));
-  }, [dispatch]);
+  const handleUpdateHeader = useCallback(
+    (index: number, updatedFields: Partial<RufusHeader>) => {
+      dispatch(updateHeader({ index, updatedHeader: updatedFields }));
+    },
+    [dispatch]
+  );
 
   const getActiveRowCount = useCallback(() => {
-    return headers.filter(header => header.isActive).length;
+    return headers.filter((header) => header.isActive).length;
   }, [headers]);
-
 
   return (
     <Tabs defaultValue="body">
       <TabsList>
-        <TabsTrigger className={'tabs-trigger'} value="body">Body</TabsTrigger>
-        <TabsTrigger className={'tabs-trigger'} value="queryParams">Query</TabsTrigger>
+        <TabsTrigger className={'tabs-trigger'} value="body">
+          Body
+        </TabsTrigger>
+        <TabsTrigger className={'tabs-trigger'} value="queryParams">
+          Query
+        </TabsTrigger>
         <TabsTrigger className={'tabs-trigger'} value="headers">
           {getActiveRowCount() === 0 ? 'Headers' : `Headers (${getActiveRowCount()})`}
         </TabsTrigger>
-        <TabsTrigger className={'tabs-trigger'} value="authorization">Auth</TabsTrigger>
+        <TabsTrigger className={'tabs-trigger'} value="authorization">
+          Auth
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="body">
         <div className={'p-4 h-full relative'}>
           <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
             <div className={'flex justify-end'}>
-              <Select value={requestBody?.type ?? RequestBodyType.TEXT}
-                      onValueChange={bodyType => changeBodyType(bodyType as RequestBodyType)}
-                      onOpenChange={(open) => setIsOpen(open)} defaultValue={'text'}>
+              <Select
+                value={requestBody?.type ?? RequestBodyType.TEXT}
+                onValueChange={(bodyType) => changeBodyType(bodyType as RequestBodyType)}
+                onOpenChange={(open) => setIsOpen(open)}
+                defaultValue={'text'}
+              >
                 <SelectTrigger className={'w-[fit-content] h-[fit-content] p-0 '} isOpen={isOpen}>
                   <SelectValue placeholder="Source" />
                 </SelectTrigger>
@@ -204,9 +232,7 @@ export function InputTabs() {
                       <input
                         type="text"
                         value={header.key}
-                        onChange={(e) =>
-                          handleUpdateHeader(index, { key: e.target.value })
-                        }
+                        onChange={(e) => handleUpdateHeader(index, { key: e.target.value })}
                         className="w-full bg-transparent outline-none"
                         placeholder="Enter header key"
                       />
@@ -216,9 +242,7 @@ export function InputTabs() {
                       <input
                         type="text"
                         value={header.value}
-                        onChange={(e) =>
-                          handleUpdateHeader(index, { value: e.target.value })
-                        }
+                        onChange={(e) => handleUpdateHeader(index, { value: e.target.value })}
                         className="w-full bg-transparent outline-none"
                         placeholder="Enter header value"
                       />
@@ -237,15 +261,21 @@ export function InputTabs() {
                               'form-checkbox h-4 w-4 appearance-none border rounded-[2px] ',
                               header.isActive
                                 ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
-                                : 'border-[rgba(238,238,238,1)] bg-transparent',
+                                : 'border-[rgba(238,238,238,1)] bg-transparent'
                             )}
                           />
 
                           {header.isActive && (
                             <div
-                              className={'absolute left-0 top-0 h-4 w-4 flex items-center justify-center pointer-events-none rotate-6'}>
-                              <CheckedIcon size={16} viewBox={'0 0 16 16'}
-                                           color={'rgba(107,194,224,1)'} />
+                              className={
+                                'absolute left-0 top-0 h-4 w-4 flex items-center justify-center pointer-events-none rotate-6'
+                              }
+                            >
+                              <CheckedIcon
+                                size={16}
+                                viewBox={'0 0 16 16'}
+                                color={'rgba(107,194,224,1)'}
+                              />
                             </div>
                           )}
                         </div>

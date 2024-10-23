@@ -7,18 +7,21 @@ import MonacoEditorWebpackPlugin from 'monaco-editor-webpack-plugin';
 
 rules.push({
   test: /\.css$/,
-  use: [{ loader: 'style-loader' }, { loader: 'css-loader' }, { loader: 'postcss-loader' }]
+  use: [{ loader: 'style-loader' }, { loader: 'css-loader' }, { loader: 'postcss-loader' }],
 });
 
 export const rendererConfig: Configuration = {
   module: {
-    rules
+    rules,
   },
-  plugins: [...plugins, new MonacoEditorWebpackPlugin({
-    languages: ['javascript', 'typescript', 'json', 'xml', 'html'] // TODO: also remove features that are not needed
-  })],
+  plugins: [
+    ...plugins,
+    new MonacoEditorWebpackPlugin({
+      languages: ['javascript', 'typescript', 'json', 'xml', 'html'], // TODO: also remove features that are not needed
+    }),
+  ],
   resolve: {
     extensions: ['.js', '.ts', '.jsx', '.tsx', '.css'],
-    plugins: [new TsconfigPathsPlugin()]
-  }
+    plugins: [new TsconfigPathsPlugin()],
+  },
 };

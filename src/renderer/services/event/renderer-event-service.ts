@@ -29,7 +29,7 @@ for (const methodName of METHOD_NAMES) {
  * @param methodName The name of the event method to call in the main process.
  */
 function createEventMethod(methodName: keyof IEventService) {
-  return async function(...args: any[]) {
+  return async function (...args: any[]) {
     const result = await window.electron.ipcRenderer.invoke(methodName, ...args);
     if (result instanceof Error) {
       throw new MainProcessError(result.message);

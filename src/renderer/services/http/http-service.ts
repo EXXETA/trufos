@@ -5,7 +5,6 @@ import { RufusRequest } from 'shim/objects/request';
 const eventService = RendererEventService.instance;
 
 export class HttpService {
-
   public static readonly instance: HttpService = new HttpService();
 
   /**
@@ -35,5 +34,4 @@ export class HttpService {
       throw new DisplayableError(description, 'Could not send Request', error);
     }
   }
-
 }

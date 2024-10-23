@@ -19,7 +19,6 @@ const persistenceService = PersistenceService.instance;
  * Singleton service for making HTTP requests
  */
 export class HttpService {
-
   public static readonly instance = new HttpService();
 
   private readonly _dispatcher?: Dispatcher;
@@ -39,15 +38,15 @@ export class HttpService {
     const now = getSteadyTimestamp();
     const body = await this.readBody(request);
 
-    const responseData = await undici.request(
-      request.url,
-      {
-        dispatcher: this._dispatcher,
-        method: request.method,
-        headers: { ['content-type']: this.getContentType(request), ...this.rufusHeadersToUndiciHeaders(request.headers) },
-        body: body,
+    const responseData = await undici.request(request.url, {
+      dispatcher: this._dispatcher,
+      method: request.method,
+      headers: {
+        ['content-type']: this.getContentType(request),
+        ...this.rufusHeadersToUndiciHeaders(request.headers),
       },
-    );
+      body: body,
+    });
 
     const duration = getDurationFromNow(now);
     console.info(`Received response in ${duration} milliseconds:`, responseData);
@@ -65,7 +64,10 @@ export class HttpService {
       metaInfo: {
         status: responseData.statusCode,
         duration: duration,
-        size: calculateResponseSize(responseData.headers, responseData.body != null ? bodyFile.name : null),
+        size: calculateResponseSize(
+          responseData.headers,
+          responseData.body != null ? bodyFile.name : null
+        ),
       },
       headers: Object.freeze(responseData.headers),
       bodyFilePath: responseData.body != null ? bodyFile.name : null,
@@ -124,4 +126,3 @@ export class HttpService {
     return headers;
   }
 }
-

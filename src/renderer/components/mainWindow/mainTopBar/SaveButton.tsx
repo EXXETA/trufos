@@ -16,7 +16,9 @@ export const SaveButton: React.FC<SaveButtonProps> = ({ disabled, onClick }) => 
 
   return (
     <Button className="gap-3 px-3 ml-2" variant="outline" disabled={isDisabled} onClick={onClick}>
-      <div><BookmarkIcon /></div>
+      <div>
+        <BookmarkIcon />
+      </div>
       <span className="leading-4">Save</span>
     </Button>
   );

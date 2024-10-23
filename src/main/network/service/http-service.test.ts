@@ -8,7 +8,6 @@ import { IncomingHttpHeaders } from 'undici/types/header';
 
 describe('HttpService', () => {
   it('fetchAsync should make an HTTP call and return the body on read', async () => {
-
     // Arrange
     const text = 'Hello, world!';
     const url = new URL('https://example.com/api/data');
@@ -47,7 +46,12 @@ describe('HttpService', () => {
       'content-length': '5000',
     };
     const url = new URL('https://example.com/api/data');
-    const httpService = setupMockHttpService(url, RequestMethod.get, responseBodyMock, responseHeadersMock);
+    const httpService = setupMockHttpService(
+      url,
+      RequestMethod.get,
+      responseBodyMock,
+      responseHeadersMock
+    );
     const request: RufusRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
@@ -69,10 +73,14 @@ describe('HttpService', () => {
       totalSizeInBytes: 5054,
     });
   });
-
 });
 
-function setupMockHttpService(url: URL, method: RequestMethod, body: object | string | null, headers?: IncomingHttpHeaders) {
+function setupMockHttpService(
+  url: URL,
+  method: RequestMethod,
+  body: object | string | null,
+  headers?: IncomingHttpHeaders
+) {
   let bodyString;
   switch (typeof body) {
     case 'string':

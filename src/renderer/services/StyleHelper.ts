@@ -1,4 +1,4 @@
-import {RequestMethod} from "shim/objects/requestMethod";
+import { RequestMethod } from 'shim/objects/requestMethod';
 
 export const httpMethodColor = (request: RequestMethod) => {
   switch (request) {
@@ -21,4 +21,4 @@ export const httpMethodColor = (request: RequestMethod) => {
     case RequestMethod.trace:
       return 'http-method-color-trace';
   }
-}
+};

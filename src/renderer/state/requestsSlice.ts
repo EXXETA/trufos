@@ -13,11 +13,11 @@ export const requestsSlice = createSlice({
     metaInfo: null as MetaInfo | null,
     selectedRequest: 0,
     collectionId: '',
-    requestEditor: undefined as (undefined | editor.ICodeEditor),
-    requestBody: undefined as (undefined | RequestBody),
+    requestEditor: undefined as undefined | editor.ICodeEditor,
+    requestBody: undefined as undefined | RequestBody,
   },
   reducers: {
-    initialize(state, action: PayloadAction<{ requests: RufusRequest[], collectionId: string }>) {
+    initialize(state, action: PayloadAction<{ requests: RufusRequest[]; collectionId: string }>) {
       state.requests = action.payload.requests;
       state.collectionId = action.payload.collectionId;
     },
@@ -64,15 +64,25 @@ export const requestsSlice = createSlice({
     addHeader: (state) => {
       state.requests[state.selectedRequest].headers.push({ key: '', value: '', isActive: false });
     },
-    updateHeader: (state, action: PayloadAction<{
-      index: number;
-      updatedHeader: Partial<RufusHeader>;
-    }>) => {
+    updateHeader: (
+      state,
+      action: PayloadAction<{
+        index: number;
+        updatedHeader: Partial<RufusHeader>;
+      }>
+    ) => {
       const { index, updatedHeader } = action.payload;
-      state.requests[state.selectedRequest].headers = state.requests[state.selectedRequest].headers.toSpliced(index, 1, { ...state.requests[state.selectedRequest].headers[index], ...updatedHeader });
+      state.requests[state.selectedRequest].headers = state.requests[
+        state.selectedRequest
+      ].headers.toSpliced(index, 1, {
+        ...state.requests[state.selectedRequest].headers[index],
+        ...updatedHeader,
+      });
     },
     deleteHeader: (state, action: PayloadAction<number>) => {
-      state.requests[state.selectedRequest].headers = state.requests[state.selectedRequest].headers.toSpliced(action.payload, 1);
+      state.requests[state.selectedRequest].headers = state.requests[
+        state.selectedRequest
+      ].headers.toSpliced(action.payload, 1);
       if (state.requests[state.selectedRequest].headers.length === 0) {
         requestsSlice.caseReducers.addHeader(state);
       }
@@ -90,7 +100,8 @@ export const requestsSlice = createSlice({
   },
 });
 
-export const selectRequest = (state: RootState) => state.requests.requests[state.requests.selectedRequest];
+export const selectRequest = (state: RootState) =>
+  state.requests.requests[state.requests.selectedRequest];
 export const selectHeaders = (state: RootState) => selectRequest(state).headers;
 
 export const {

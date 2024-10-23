@@ -6,13 +6,10 @@ import fs from 'node:fs';
  * Singleton service for file system operations
  */
 export class FileSystemService {
-
   private static readonly _instance: FileSystemService = new FileSystemService();
   private static readonly _tempDir = app?.getPath('temp') ?? '';
 
-  constructor() {
-
-  }
+  constructor() {}
 
   public static get instance() {
     return this._instance;
@@ -36,5 +33,4 @@ export class FileSystemService {
     // how does this even work...
     return fs.createReadStream(filePath);
   }
-
 }

@@ -12,7 +12,6 @@ export interface CollectionImporter {
 const persistenceService = PersistenceService.instance;
 
 export class ImportService {
-
   public static readonly instance = new ImportService();
 
   static {
@@ -25,17 +24,25 @@ export class ImportService {
     this.importers.set(strategy, importer);
   }
 
-  public async importCollection(srcFilePath: string, targetDirPath: string, strategy: ImportStrategy) {
+  public async importCollection(
+    srcFilePath: string,
+    targetDirPath: string,
+    strategy: ImportStrategy
+  ) {
     const importer = this.importers.get(strategy);
     if (importer === undefined) {
-      throw new InternalError(InternalErrorType.UNSUPPORTED_IMPORT_STRATEGY, `No importer registered for strategy "${strategy}"`);
+      throw new InternalError(
+        InternalErrorType.UNSUPPORTED_IMPORT_STRATEGY,
+        `No importer registered for strategy "${strategy}"`
+      );
     }
 
-    console.info(`Importing collection from "${srcFilePath}" to "${targetDirPath}" using strategy "${strategy}"`);
+    console.info(
+      `Importing collection from "${srcFilePath}" to "${targetDirPath}" using strategy "${strategy}"`
+    );
     const collection = await importer.importCollection(srcFilePath, targetDirPath);
     console.info('Successfully imported collection:', collection);
     await persistenceService.saveCollectionRecursive(collection);
     return collection;
   }
-
 }

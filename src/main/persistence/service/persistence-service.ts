@@ -22,10 +22,7 @@ import { randomUUID } from 'node:crypto';
  * to and from the file system.
  */
 export class PersistenceService {
-  private static readonly DEFAULT_COLLECTION_DIR = path.join(
-    USER_DATA_DIR,
-    'default-collection',
-  );
+  private static readonly DEFAULT_COLLECTION_DIR = path.join(USER_DATA_DIR, 'default-collection');
 
   public static readonly instance = new PersistenceService();
 
@@ -56,7 +53,7 @@ export class PersistenceService {
   public async moveChild(
     child: Folder | RufusRequest,
     oldParent: Folder | Collection,
-    newParent: Folder | Collection,
+    newParent: Folder | Collection
   ) {
     const childDirName = this.getDirName(child);
     const oldChildDirPath = this.getDirPath(child);
@@ -140,7 +137,7 @@ export class PersistenceService {
    * @param fileName the name of the information file
    */
   private async saveInfoFile(object: RufusObject, dirPath: string, fileName: string) {
-    console.info('Saving object', object.id ??= randomUUID());
+    console.info('Saving object', (object.id ??= randomUUID()));
     if (!isCollection(object) && object.parentId == null) {
       throw new Error('Object must have a parent');
     } else if (!(await exists(dirPath))) {
@@ -181,7 +178,7 @@ export class PersistenceService {
     request.draft = false;
     const infoFileName = request.type + '.json';
     const dirPath = this.getDirPath(request);
-    if (!await exists(path.join(dirPath, '~' + infoFileName))) {
+    if (!(await exists(path.join(dirPath, '~' + infoFileName)))) {
       return { draft: false };
     }
 
@@ -227,7 +224,7 @@ export class PersistenceService {
 
     // delete draft files
     await fs.unlink(path.join(dirPath, '~' + infoFileName));
-    if (isRequest(request) && await exists(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME))) {
+    if (isRequest(request) && (await exists(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME)))) {
       await fs.unlink(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME));
     }
 
@@ -283,7 +280,9 @@ export class PersistenceService {
   public async loadCollection(dirPath: string): Promise<Collection> {
     const type = 'collection' as const;
     const infoFileName = type + '.json';
-    const infoFileContents = await JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')) as CollectionInfoFile;
+    const infoFileContents = (await JSON.parse(
+      await fs.readFile(path.join(dirPath, infoFileName), 'utf8')
+    )) as CollectionInfoFile;
     delete infoFileContents.version;
     const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
@@ -296,18 +295,17 @@ export class PersistenceService {
     });
   }
 
-  private async loadRequest(
-    parentId: string,
-    dirPath: string,
-  ): Promise<RufusRequest> {
+  private async loadRequest(parentId: string, dirPath: string): Promise<RufusRequest> {
     const type = 'request' as const;
     let infoFileName = type + '.json';
     let draft = false;
-    if (!await exists(path.join(dirPath, infoFileName))) {
+    if (!(await exists(path.join(dirPath, infoFileName)))) {
       infoFileName = '~' + infoFileName;
       draft = true;
     }
-    const infoFileContents = await JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')) as RequestInfoFile;
+    const infoFileContents = (await JSON.parse(
+      await fs.readFile(path.join(dirPath, infoFileName), 'utf8')
+    )) as RequestInfoFile;
     delete infoFileContents.version;
     const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
@@ -323,7 +321,9 @@ export class PersistenceService {
   private async loadFolder(parentId: string, dirPath: string): Promise<Folder> {
     const type = 'folder' as const;
     const infoFileName = type + '.json';
-    const infoFileContents = await JSON.parse(await fs.readFile(path.join(dirPath, infoFileName), 'utf8')) as FolderInfoFile;
+    const infoFileContents = (await JSON.parse(
+      await fs.readFile(path.join(dirPath, infoFileName), 'utf8')
+    )) as FolderInfoFile;
     delete infoFileContents.version;
     const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
@@ -338,7 +338,7 @@ export class PersistenceService {
 
   private async loadChildren(
     parentId: string,
-    parentDirPath: string,
+    parentDirPath: string
   ): Promise<(Folder | RufusRequest)[]> {
     const children: (Folder | RufusRequest)[] = [];
 
@@ -356,20 +356,25 @@ export class PersistenceService {
   }
 
   // TODO: simplify type detection
-  private async load<T extends RufusRequest | Folder>(parentId: string, dirPath: string, type?: T['type']): Promise<T> {
-    if (type === 'folder' || await exists(path.join(dirPath, 'folder.json'))) {
-      return await this.loadFolder(parentId, dirPath) as T;
-    } else if (type === 'request' || await exists(path.join(dirPath, 'request.json')) || await exists(path.join(dirPath, '~request.json'))) {
-      return await this.loadRequest(parentId, dirPath) as T;
+  private async load<T extends RufusRequest | Folder>(
+    parentId: string,
+    dirPath: string,
+    type?: T['type']
+  ): Promise<T> {
+    if (type === 'folder' || (await exists(path.join(dirPath, 'folder.json')))) {
+      return (await this.loadFolder(parentId, dirPath)) as T;
+    } else if (
+      type === 'request' ||
+      (await exists(path.join(dirPath, 'request.json'))) ||
+      (await exists(path.join(dirPath, '~request.json')))
+    ) {
+      return (await this.loadRequest(parentId, dirPath)) as T;
     }
 
     throw new Error(`Could not determine type of object at "${dirPath}"`);
   }
 
-  private updatePathMapRecursively(
-    child: Folder | RufusRequest,
-    newParentDirPath: string,
-  ) {
+  private updatePathMapRecursively(child: Folder | RufusRequest, newParentDirPath: string) {
     const oldDirPath = this.idToPathMap.get(child.id);
     const dirName = path.basename(oldDirPath);
     const newDirPath = path.join(newParentDirPath, dirName);
@@ -399,8 +404,8 @@ export class PersistenceService {
 
   private sanitizeTitle(title: string) {
     return title
-    .toLowerCase()
-    .replace(/\s/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
+      .toLowerCase()
+      .replace(/\s/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
   }
 }

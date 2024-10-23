@@ -20,10 +20,8 @@ jest.mock('electron', () => ({
     getName: () => 'DiagClient',
   },
   safeStorage: {
-    encryptString: (plainText: string) =>
-      Buffer.from(plainText).toString('base64'),
-    decryptString: (encrypted: Buffer) =>
-      Buffer.from(encrypted.toString(), 'base64').toString(),
+    encryptString: (plainText: string) => Buffer.from(plainText).toString('base64'),
+    decryptString: (encrypted: Buffer) => Buffer.from(encrypted.toString(), 'base64').toString(),
   },
 }));
 jest.mock('node:fs', () => fs);

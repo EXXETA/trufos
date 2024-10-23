@@ -3,17 +3,14 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { fs } from 'memfs';
 
-jest.mock(
-  'electron',
-  () => ({
-    ipcMain: {
-      handle: jest.fn(),
-    },
-    app: {
-      getPath: jest.fn().mockReturnValue(''),
-    },
-  }),
-);
+jest.mock('electron', () => ({
+  ipcMain: {
+    handle: jest.fn(),
+  },
+  app: {
+    getPath: jest.fn().mockReturnValue(''),
+  },
+}));
 
 const eventService = MainEventService.instance;
 
@@ -30,7 +27,6 @@ describe('MainEventService', () => {
   });
 
   it('should read the file correctly providing no parameters', async () => {
-
     // Act
     const buffer = await eventService.readFile(TEST_FILE_PATH);
 
@@ -39,7 +35,6 @@ describe('MainEventService', () => {
   });
 
   it('should read the file correctly with offset', async () => {
-
     // Act
     const buffer = await eventService.readFile(TEST_FILE_PATH, 1);
 
@@ -48,12 +43,10 @@ describe('MainEventService', () => {
   });
 
   it('should read the file correctly with offset and length', async () => {
-
     // Act
     const buffer = await eventService.readFile(TEST_FILE_PATH, 1, 2);
 
     // Assert
     expect(Buffer.from(buffer).toString()).toBe(TEST_STRING.substring(1, 3));
   });
-
 });

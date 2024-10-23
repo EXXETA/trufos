@@ -32,46 +32,55 @@ export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) =
     }
   }, [request?.id, requestEditor?.getModel()]);
 
-  const handleRowClick = useCallback(async (index: number) => {
-    if (request != null) {
-      await eventService.saveRequest(request, requestEditor?.getValue());
-    }
-    dispatch(setSelectedRequest(index));
-  }, [dispatch, requestEditor, requests, request]);
+  const handleRowClick = useCallback(
+    async (index: number) => {
+      if (request != null) {
+        await eventService.saveRequest(request, requestEditor?.getValue());
+      }
+      dispatch(setSelectedRequest(index));
+    },
+    [dispatch, requestEditor, requests, request]
+  );
 
-  const handleDeleteClick = useCallback(async (event: MouseEvent, index: number) => {
-    const request = requests[index];
-    if (request == null) {
-      return;
-    }
+  const handleDeleteClick = useCallback(
+    async (event: MouseEvent, index: number) => {
+      const request = requests[index];
+      if (request == null) {
+        return;
+      }
 
-    dispatch(deleteRequest(index));
-    if (request.id != null) {
-      await eventService.deleteObject(request);
-    }
-  }, [dispatch, requests]);
+      dispatch(deleteRequest(index));
+      if (request.id != null) {
+        await eventService.deleteObject(request);
+      }
+    },
+    [dispatch, requests]
+  );
 
   return (
     <table className="w-full table-fixed">
       <tbody>
-      {requests.map((request, index) => (
-        <tr
-          key={index}
-          className={`cursor-pointer hover:bg-gray-600 ${selectedRequestIndex == index ? 'bg-gray-500' : ''}`}
-          onClick={() => handleRowClick(index)}
-        >
-          <td
-            className={'p-2 font-bold w-20 ' + httpMethodColor(request.method)}>{request.method}</td>
-          <td className="p-2 truncate tooltip">
-            {request.url}
-            <div className="tooltip-text">{request.url}</div>
-          </td>
-          <td className="p-2 items-end w-8">
-            <FaTimes onClick={(event) => handleDeleteClick(event, index)}
-                     className="cursor-pointer" />
-          </td>
-        </tr>
-      ))}
+        {requests.map((request, index) => (
+          <tr
+            key={index}
+            className={`cursor-pointer hover:bg-gray-600 ${selectedRequestIndex == index ? 'bg-gray-500' : ''}`}
+            onClick={() => handleRowClick(index)}
+          >
+            <td className={'p-2 font-bold w-20 ' + httpMethodColor(request.method)}>
+              {request.method}
+            </td>
+            <td className="p-2 truncate tooltip">
+              {request.url}
+              <div className="tooltip-text">{request.url}</div>
+            </td>
+            <td className="p-2 items-end w-8">
+              <FaTimes
+                onClick={(event) => handleDeleteClick(event, index)}
+                className="cursor-pointer"
+              />
+            </td>
+          </tr>
+        ))}
       </tbody>
     </table>
   );

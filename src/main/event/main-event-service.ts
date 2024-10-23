@@ -20,7 +20,7 @@ declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
  * @param fn The function to wrap.
  */
 function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
-  return async function(...args: Parameters<F>) {
+  return async function (...args: Parameters<F>) {
     try {
       return (await fn(...args)) as R;
     } catch (error) {
@@ -36,14 +36,13 @@ function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
  * @param functionName The name of the function to register.
  */
 function registerEvent<T>(instance: T, functionName: keyof T) {
-  if (typeof functionName !== 'string' || functionName === 'constructor')
-    return;
+  if (typeof functionName !== 'string' || functionName === 'constructor') return;
 
   const method = instance[functionName];
   if (typeof method === 'function') {
     console.debug(`Registering event function "${functionName}()" on backend`);
     ipcMain.handle(functionName as string, (_event, ...args) =>
-      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args),
+      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args)
     );
   }
 }
@@ -84,7 +83,7 @@ export class MainEventService implements IEventService {
       offset,
       'and length limited to',
       length ?? 'unlimited',
-      'bytes',
+      'bytes'
     );
 
     let file: FileHandle | null = null;
@@ -105,10 +104,7 @@ export class MainEventService implements IEventService {
     }
   }
 
-  async saveRequest(
-    request: RufusRequest,
-    textBody?: string,
-  ) {
+  async saveRequest(request: RufusRequest, textBody?: string) {
     await persistenceService.saveRequest(request, textBody);
   }
 
