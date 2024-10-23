@@ -39,7 +39,7 @@ export type FileBody = {
 
 export function sanitizeTitle(title: string): string {
   return title
-  .toLowerCase()
-  .replace(/\s/g, '-')
-  .replace(/[^a-z0-9-]/g, '');
+    .toLowerCase()
+    .replace(/\s/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
 }

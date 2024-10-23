@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RequestMethod } from '../shim/objects/request-method';
+import { RequestMethod } from 'shim/objects/request-method';
 import { httpMethodColor } from '@/services/StyleHelper';
 
 interface HttpMethodSelectProps {

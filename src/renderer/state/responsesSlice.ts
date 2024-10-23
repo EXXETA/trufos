@@ -29,8 +29,4 @@ export const selectResponse = (state: RootState) =>
   state.responses.responseInfoMap[selectRequest(state)?.id];
 export const selectResponseEditor = (state: RootState) => state.responses.editor;
 
-export const {
-  addResponse,
-  removeResponse,
-  setResponseEditor,
-} = responsesSlice.actions;
+export const { addResponse, removeResponse, setResponseEditor } = responsesSlice.actions;

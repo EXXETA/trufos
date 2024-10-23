@@ -4,7 +4,7 @@ import { RootState } from '@/state/store';
 import { editor } from 'monaco-editor';
 import { RequestMethod } from 'shim/objects/request-method';
 import { RufusRequest } from 'shim/objects/request';
-import { clearMetaInfo, setMetaInfo, updateRequest } from '@/state/requestsSlice';
+import { updateRequest } from '@/state/requestsSlice';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
 import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
@@ -12,17 +12,13 @@ import { UrlInput } from './mainTopBar/UrlInput';
 import { SendButton } from './mainTopBar/SendButton';
 import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
-import { RufusResponse } from 'shim/objects/response';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-
-export type RequestProps = {
-  onResponse: (response: RufusResponse) => Promise<void>;
-};
+import { addResponse } from '@/state/responsesSlice';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
-export function MainTopBar({ onResponse }: RequestProps) {
+export function MainTopBar() {
   const dispatch = useDispatch();
   const requestEditor = useSelector<RootState>((state) => state.requests.requestEditor) as
     | editor.ICodeEditor
@@ -41,10 +37,10 @@ export function MainTopBar({ onResponse }: RequestProps) {
         updateRequest({
           index: requestIndex,
           request: { ...request, url: event.target.value, draft: true },
-        }),
+        })
       );
     },
-    [request],
+    [request]
   );
 
   const handleHttpMethodChange = useCallback(
@@ -55,15 +51,14 @@ export function MainTopBar({ onResponse }: RequestProps) {
         updateRequest({
           index: requestIndex,
           request: { ...request, method, draft: true },
-        }),
+        })
       );
     },
-    [request],
+    [request]
   );
 
   const sendRequest = useCallback(
     useErrorHandler(async () => {
-      dispatch(clearMetaInfo());
       if (request == null) return;
       if (!request.url || !request.method) {
         throw new Error('Missing URL or HTTP method');
@@ -72,13 +67,9 @@ export function MainTopBar({ onResponse }: RequestProps) {
       await eventService.saveRequest(request, requestEditor?.getValue());
 
       const response = await httpService.sendRequest(request);
-      dispatch(setMetaInfo(response.metaInfo));
-
-      // Send the request and pass the response to the onResponse callback
-      // ToDo: We should get rid of this callback and set response in shared state
-      await onResponse(response);
+      dispatch(addResponse({ requestId: request.id, ...response }));
     }),
-    [request, requestEditor, onResponse],
+    [request, requestEditor]
   );
 
   const saveRequest = useCallback(
@@ -94,10 +85,10 @@ export function MainTopBar({ onResponse }: RequestProps) {
         updateRequest({
           index: requestIndex,
           request: await eventService.saveChanges(request),
-        }),
+        })
       );
     }),
-    [request, requestEditor],
+    [request, requestEditor]
   );
 
   return (

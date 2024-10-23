@@ -3,13 +3,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Editor } from '@monaco-editor/react';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { HttpHeaders } from 'shim/headers';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
+import { selectResponse, selectResponseEditor, setResponseEditor } from '@/state/responsesSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { RendererEventService } from '@/services/event/renderer-event-service';
 
-export type OutputTabsProps = {
-  headers?: HttpHeaders;
-  body?: string;
-};
+const eventService = RendererEventService.instance;
+const textDecoder = new TextDecoder();
 
 const monacoOptions = {
   ...DEFAULT_MONACO_OPTIONS,
@@ -38,12 +39,36 @@ function getContentType(headers?: HttpHeaders) {
   }
 }
 
-export function OutputTabs(props: OutputTabsProps) {
-  const { body, headers } = props;
+async function loadRequestBody(filePath: string) {
+  console.debug('Reading response body from', filePath);
+  const buffer = await eventService.readFile(filePath);
+  console.debug('Received response body of', buffer.byteLength, 'bytes');
+  return textDecoder.decode(buffer); // TODO: decode with encoding from response headers
+}
+
+export function OutputTabs() {
+  const dispatch = useDispatch();
+  const tabsRef = useRef(null);
+  const editor = useSelector(selectResponseEditor);
+  const response = useSelector(selectResponse);
+
+  useEffect(() => {
+    if (editor == null) {
+      return;
+    } else if (response?.bodyFilePath == null) {
+      editor.setValue('');
+    } else {
+      loadRequestBody(response.bodyFilePath).then((body) => editor.setValue(body));
+    }
+  }, [response?.bodyFilePath, editor]);
+
+  if (response == null) {
+    return null;
+  }
+
+  const { headers } = response;
   const mimeType = getMimeType(getContentType(headers));
   console.debug('Using syntax highlighting for mime type', mimeType);
-
-  const tabsRef = useRef(null);
 
   return (
     <Tabs defaultValue="body" ref={tabsRef}>
@@ -60,10 +85,10 @@ export function OutputTabs(props: OutputTabsProps) {
       <TabsContent value="body">
         <div className={'p-4 h-full'}>
           <Editor
-            value={body}
             language={mimeType}
             theme="vs-dark" /* TODO: apply theme from settings */
             options={monacoOptions}
+            onMount={(editor) => dispatch(setResponseEditor(editor))}
           />
         </div>
       </TabsContent>

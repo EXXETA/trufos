@@ -50,7 +50,7 @@ describe('HttpService', () => {
       url,
       RequestMethod.GET,
       responseBodyMock,
-      responseHeadersMock,
+      responseHeadersMock
     );
     const request: RufusRequest = {
       id: randomUUID(),
@@ -79,7 +79,7 @@ function setupMockHttpService(
   url: URL,
   method: RequestMethod,
   body: object | string | null,
-  headers?: IncomingHttpHeaders,
+  headers?: IncomingHttpHeaders
 ) {
   let bodyString;
   switch (typeof body) {
