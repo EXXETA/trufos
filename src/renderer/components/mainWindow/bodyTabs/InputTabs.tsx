@@ -38,7 +38,12 @@ import {
 import { cn } from '@/lib/utils';
 import { RufusHeader } from 'shim/objects/headers';
 
-export function InputTabs() {
+interface InputTabsProps {
+  className: string;
+}
+
+export function InputTabs(props: InputTabsProps) {
+  const { className } = props;
   const dispatch = useDispatch();
   const requestBody = useSelector(
     ({ requests }: RootState) => requests.requests[requests.selectedRequest]?.body
@@ -137,7 +142,7 @@ export function InputTabs() {
   }, [headers]);
 
   return (
-    <Tabs defaultValue="body">
+    <Tabs className={className} defaultValue="body">
       <TabsList>
         <TabsTrigger className={'tabs-trigger'} value="body">
           Body

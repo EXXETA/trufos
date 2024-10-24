@@ -10,7 +10,7 @@ export const Sidebar = () => {
   const requests = useSelector((state: RootState) => state.requests.requests);
 
   return (
-    <div className="flex flex-col gap-6 p-6 w-80 h-screen bg-card relative overflow-x-hidden ">
+    <div className="flex-none flex flex-col gap-6 p-6 w-80 h-screen bg-card relative overflow-x-hidden ">
       <SidebarSearch />
       <Divider className="w-full" />
       <SidebarRequestList requests={requests} />

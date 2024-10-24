@@ -46,7 +46,12 @@ async function loadRequestBody(filePath: string) {
   return textDecoder.decode(buffer); // TODO: decode with encoding from response headers
 }
 
-export function OutputTabs() {
+interface OutputTabsProps {
+  className: string;
+}
+
+export function OutputTabs(props: OutputTabsProps) {
+  const { className } = props;
   const dispatch = useDispatch();
   const tabsRef = useRef(null);
   const editor = useSelector(selectResponseEditor);
@@ -71,7 +76,7 @@ export function OutputTabs() {
   console.debug('Using syntax highlighting for mime type', mimeType);
 
   return (
-    <Tabs defaultValue="body" ref={tabsRef}>
+    <Tabs className={className} defaultValue="body" ref={tabsRef}>
       <TabsList className="flex flex-row items-center">
         <TabsTrigger className={'tabs-trigger'} value="body">
           Response Body
