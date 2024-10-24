@@ -373,6 +373,7 @@ describe('PersistenceService', () => {
     collection.children.push(folder);
 
     await persistenceService.saveCollectionRecursive(collection);
+    await mkdir(path.join(collection.dirPath, 'invalid-directory')); // create data garbage
 
     // Act
     const result = await persistenceService.loadCollection(collection.dirPath);
