@@ -13,7 +13,7 @@ import {
   TEXT_BODY_FILE_NAME,
 } from 'shim/objects/request';
 import { RequestInfoFile } from './info-files';
-import { RequestMethod } from 'shim/objects/requestMethod';
+import { RequestMethod } from 'shim/objects/request-method';
 import { Readable } from 'node:stream';
 
 jest.mock('./default-collection', () => ({
@@ -52,7 +52,7 @@ function getExampleRequest(parentId: string = randomUUID()): RufusRequest {
     title: 'request',
     draft: false,
     parentId,
-    method: RequestMethod.get,
+    method: RequestMethod.GET,
     body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
   } as RufusRequest;
 }
@@ -174,7 +174,7 @@ describe('PersistenceService', () => {
     const oldInfo = JSON.parse(
       await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
     ) as RequestInfoFile;
-    request.method = RequestMethod.put;
+    request.method = RequestMethod.PUT;
 
     // Assert
     expect(oldInfo.method).not.toBe(request.method);
@@ -243,7 +243,7 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollectionRecursive(collection);
 
     request.draft = true;
-    request.method = RequestMethod.post;
+    request.method = RequestMethod.POST;
 
     await persistenceService.saveRequest(request);
     let originalInfo = JSON.parse(
@@ -278,7 +278,7 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollectionRecursive(collection);
 
     request.draft = true;
-    request.method = RequestMethod.post;
+    request.method = RequestMethod.POST;
 
     await persistenceService.saveRequest(request);
     const oldInfo = JSON.parse(
@@ -373,6 +373,7 @@ describe('PersistenceService', () => {
     collection.children.push(folder);
 
     await persistenceService.saveCollectionRecursive(collection);
+    await mkdir(path.join(collection.dirPath, 'invalid-directory')); // create data garbage
 
     // Act
     const result = await persistenceService.loadCollection(collection.dirPath);

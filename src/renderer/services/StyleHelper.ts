@@ -1,24 +1,24 @@
-import { RequestMethod } from 'shim/objects/requestMethod';
+import { RequestMethod } from 'shim/objects/request-method';
 
 export const httpMethodColor = (request: RequestMethod) => {
   switch (request) {
-    case RequestMethod.get:
+    case RequestMethod.GET:
       return 'http-method-color-get';
-    case RequestMethod.post:
+    case RequestMethod.POST:
       return 'http-method-color-post';
-    case RequestMethod.put:
+    case RequestMethod.PUT:
       return 'http-method-color-put';
-    case RequestMethod.delete:
+    case RequestMethod.DELETE:
       return 'http-method-color-delete';
-    case RequestMethod.patch:
+    case RequestMethod.PATCH:
       return 'http-method-color-patch';
-    case RequestMethod.options:
+    case RequestMethod.OPTIONS:
       return 'http-method-color-get';
-    case RequestMethod.head:
+    case RequestMethod.HEAD:
       return 'http-method-color-head';
-    case RequestMethod.connect:
+    case RequestMethod.CONNECT:
       return 'http-method-color-connect';
-    case RequestMethod.trace:
+    case RequestMethod.TRACE:
       return 'http-method-color-trace';
   }
 };

@@ -10,6 +10,8 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
+    "prettier": "npx prettier --write '**/*.{ts,tsx}'",
+    "prettier-check": "npx prettier --check '**/*.{ts,tsx}'",
     "test": "jest"
   },
   "devDependencies": {

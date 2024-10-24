@@ -1,4 +1,4 @@
-import { RequestMethod } from './requestMethod';
+import { RequestMethod } from './request-method';
 import { RufusHeader } from './headers';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';

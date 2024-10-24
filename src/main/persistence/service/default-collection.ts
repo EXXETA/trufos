@@ -1,6 +1,6 @@
 import { Collection } from 'shim/objects/collection';
 import { RequestBodyType } from 'shim/objects/request';
-import { RequestMethod } from 'shim/objects/requestMethod';
+import { RequestMethod } from 'shim/objects/request-method';
 import { randomUUID } from 'node:crypto';
 
 export function generateDefaultCollection(dirPath: string): Collection {
@@ -31,7 +31,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
         type: 'request',
         title: 'Example Request',
         url: 'https://github.com/EXXETA/rufus/raw/main/README.md',
-        method: RequestMethod.get,
+        method: RequestMethod.GET,
         headers: [],
         body: {
           type: RequestBodyType.TEXT,
@@ -51,7 +51,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
             type: 'request',
             title: 'Another Request',
             url: 'https://exxeta.com/',
-            method: RequestMethod.get,
+            method: RequestMethod.GET,
             headers: [],
             body: {
               type: RequestBodyType.TEXT,

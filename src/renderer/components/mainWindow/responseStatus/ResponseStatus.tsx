@@ -1,4 +1,3 @@
-import { MetaInfo } from 'shim/objects/response';
 import {
   getDurationTextInSec,
   getHttpStatusColorClass,
@@ -6,14 +5,15 @@ import {
   getSizeText,
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
 import { useSelector } from 'react-redux';
-import { RootState } from '@/state/store';
+import { selectResponse } from '@/state/responsesSlice';
 
 export function ResponseStatus() {
-  const metaInfo = useSelector<RootState, MetaInfo | null>((state) => state.requests.metaInfo);
+  const response = useSelector(selectResponse);
 
-  if (metaInfo == null) {
+  if (response?.metaInfo == null) {
     return <span></span>;
   }
+  const { metaInfo } = response;
 
   const statusText = getHttpStatusText(metaInfo.status);
   const statusColorClass = getHttpStatusColorClass(metaInfo.status);

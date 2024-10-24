@@ -349,7 +349,10 @@ export class PersistenceService {
         continue;
       }
 
-      children.push(await this.load(parentId, path.join(parentDirPath, node.name)));
+      const child = await this.load(parentId, path.join(parentDirPath, node.name));
+      if (child != null) {
+        children.push(child);
+      }
     }
 
     return children;
@@ -370,8 +373,6 @@ export class PersistenceService {
     ) {
       return (await this.loadRequest(parentId, dirPath)) as T;
     }
-
-    throw new Error(`Could not determine type of object at "${dirPath}"`);
   }
 
   private updatePathMapRecursively(child: Folder | RufusRequest, newParentDirPath: string) {
