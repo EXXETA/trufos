@@ -1,13 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDispatch, useSelector } from 'react-redux';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RequestBodyType } from 'shim/objects/request';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { Editor } from '@monaco-editor/react';
@@ -27,21 +20,19 @@ import { editor } from 'monaco-editor';
 import { Divider } from '@/components/shared/Divider';
 import { Button } from '@/components/ui/button';
 import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { RufusHeader } from 'shim/objects/headers';
 
-export function InputTabs() {
+interface InputTabsProps {
+  className: string;
+}
+
+export function InputTabs(props: InputTabsProps) {
+  const { className } = props;
   const dispatch = useDispatch();
   const requestBody = useSelector(
-    ({ requests }: RootState) => requests.requests[requests.selectedRequest]?.body
+    ({ requests }: RootState) => requests.requests[requests.selectedRequest]?.body,
   );
   const headers = useSelector(selectHeaders);
 
@@ -58,7 +49,7 @@ export function InputTabs() {
           break;
       }
     },
-    [dispatch]
+    [dispatch],
   );
 
   const setRequestBodyFile = useCallback(
@@ -69,10 +60,10 @@ export function InputTabs() {
           type: RequestBodyType.FILE,
           filePath: file.path,
           mimeType: file.type === '' ? undefined : file.type,
-        })
+        }),
       );
     },
-    [dispatch]
+    [dispatch],
   );
 
   const onEditorMount = useCallback(
@@ -87,7 +78,7 @@ export function InputTabs() {
       }
     });*/
     },
-    [dispatch]
+    [dispatch],
   );
 
   const renderEditor = useCallback(() => {
@@ -118,7 +109,7 @@ export function InputTabs() {
     (index: number) => {
       dispatch(deleteHeader(index));
     },
-    [dispatch]
+    [dispatch],
   );
 
   const deleteAllHeaders = useCallback(() => {
@@ -129,7 +120,7 @@ export function InputTabs() {
     (index: number, updatedFields: Partial<RufusHeader>) => {
       dispatch(updateHeader({ index, updatedHeader: updatedFields }));
     },
-    [dispatch]
+    [dispatch],
   );
 
   const getActiveRowCount = useCallback(() => {
@@ -137,7 +128,7 @@ export function InputTabs() {
   }, [headers]);
 
   return (
-    <Tabs defaultValue="body">
+    <Tabs className={className} defaultValue="body">
       <TabsList>
         <TabsTrigger className={'tabs-trigger'} value="body">
           Body
@@ -261,7 +252,7 @@ export function InputTabs() {
                               'form-checkbox h-4 w-4 appearance-none border rounded-[2px] ',
                               header.isActive
                                 ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
-                                : 'border-[rgba(238,238,238,1)] bg-transparent'
+                                : 'border-[rgba(238,238,238,1)] bg-transparent',
                             )}
                           />
 
