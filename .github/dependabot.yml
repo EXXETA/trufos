@@ -6,5 +6,9 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "[Dependabot - npm]"
-    labels: ["dependencies"]
+    labels: [ "dependencies" ]
     milestone: 1
+    groups:
+      electron-forge:
+        patterns:
+          - "@electron-forge/*"
