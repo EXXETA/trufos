@@ -8,6 +8,7 @@ import { PersistenceService } from '../persistence/service/persistence-service';
 import { RufusObject } from 'shim/objects';
 import * as console from 'node:console';
 import { EnvironmentService } from 'main/environment/service/environment-service';
+import './stream-events';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -60,7 +61,7 @@ function toError(error: unknown) {
 export class MainEventService implements IEventService {
   public static readonly instance = new MainEventService();
 
-  constructor() {
+  private constructor() {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
       registerEvent(this, propertyName as keyof MainEventService);
     }

@@ -4,11 +4,14 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 const electronHandler = {
   ipcRenderer: {
-    send: ipcRenderer.send,
-    on: ipcRenderer.on,
-    once: ipcRenderer.once,
-    invoke: ipcRenderer.invoke,
-    removeListener: ipcRenderer.removeListener,
+    send: ipcRenderer.send.bind(ipcRenderer) as typeof ipcRenderer.send,
+    sendSync: ipcRenderer.sendSync.bind(ipcRenderer) as typeof ipcRenderer.sendSync,
+    on: ipcRenderer.on.bind(ipcRenderer) as typeof ipcRenderer.on,
+    once: ipcRenderer.once.bind(ipcRenderer) as typeof ipcRenderer.once,
+    invoke: ipcRenderer.invoke.bind(ipcRenderer) as typeof ipcRenderer.invoke,
+    removeListener: ipcRenderer.removeListener.bind(
+      ipcRenderer
+    ) as typeof ipcRenderer.removeListener,
   },
 };
 
