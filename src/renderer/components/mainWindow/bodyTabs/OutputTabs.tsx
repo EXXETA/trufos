@@ -54,12 +54,9 @@ export function OutputTabs(props: OutputTabsProps) {
       editor.setValue('');
     } else {
       editor.setValue('');
-      IpcPushStream.open(response.bodyFilePath).then((stream) => {
-        const data = [] as string[];
-        stream.on('data', (chunk) => data.push(chunk));
-        stream.on('end', () => editor?.setValue(data.join('')));
-        stream.on('error', (error) => console.error('Error reading response body:', error));
-      });
+      IpcPushStream.open(response.bodyFilePath)
+        .then((stream) => IpcPushStream.collect(stream))
+        .then((content) => editor.setValue(content));
     }
   }, [response?.bodyFilePath, editor]);
 
