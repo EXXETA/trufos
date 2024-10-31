@@ -7,7 +7,7 @@ import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
 import { RufusResponse } from 'shim/objects/response';
-import { PersistenceService } from '../../persistence/service/persistence-service';
+import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { RufusHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 
@@ -33,7 +33,7 @@ export class HttpService {
    * @returns response object
    */
   public async fetchAsync(request: RufusRequest) {
-    console.info('Sending request: ', request);
+    console.info('Sending request:', request);
 
     const now = getSteadyTimestamp();
     const body = await this.readBody(request);
@@ -49,12 +49,12 @@ export class HttpService {
     });
 
     const duration = getDurationFromNow(now);
-    console.info(`Received response in ${duration} milliseconds:`, responseData);
+    console.info(`Received response in ${duration} milliseconds`);
 
     // write the response body to a temporary file
     const bodyFile = fileSystemService.temporaryFile();
     if (responseData.body != null) {
-      console.debug('Writing response body to temporary file: ', bodyFile.name);
+      console.debug('Writing response body to temporary file:', bodyFile.name);
       await pipeline(responseData.body, fs.createWriteStream('', { fd: bodyFile.fd }));
       console.debug('Successfully written response body');
     }
@@ -73,7 +73,7 @@ export class HttpService {
       bodyFilePath: responseData.body != null ? bodyFile.name : null,
     };
 
-    console.debug('Returning response: ', response);
+    console.debug('Returning response:', response);
     return response;
   }
 

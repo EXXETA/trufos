@@ -1,12 +1,9 @@
 import { IEventService } from 'shim/event-service';
 import { HttpService } from 'main/network/service/http-service';
 import { app, ipcMain } from 'electron';
-import { FileHandle, open, stat } from 'node:fs/promises';
-import { RequestBodyType, RufusRequest } from 'shim/objects/request';
-import { Buffer } from 'node:buffer';
+import { RufusRequest } from 'shim/objects/request';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { RufusObject } from 'shim/objects';
-import * as console from 'node:console';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import './stream-events';
 
@@ -76,35 +73,6 @@ export class MainEventService implements IEventService {
     return await HttpService.instance.fetchAsync(request);
   }
 
-  async readFile(filePath: string, offset = 0, length?: number) {
-    console.debug(
-      'Reading file at',
-      filePath,
-      'with offset',
-      offset,
-      'and length limited to',
-      length ?? 'unlimited',
-      'bytes'
-    );
-
-    let file: FileHandle | null = null;
-    try {
-      // get file size if length is not provided
-      if (length === undefined) {
-        const stats = await stat(filePath);
-        length = Math.max(stats.size - offset, 0);
-      }
-
-      const buffer = Buffer.alloc(length);
-      file = await open(filePath);
-      const read = await file.read(buffer, 0, length, offset);
-      console.debug('Read', read.bytesRead, 'bytes from file');
-      return buffer.subarray(0, read.bytesRead).buffer;
-    } finally {
-      if (file !== null) await file.close();
-    }
-  }
-
   async saveRequest(request: RufusRequest, textBody?: string) {
     await persistenceService.saveRequest(request, textBody);
   }
@@ -123,20 +91,5 @@ export class MainEventService implements IEventService {
 
   async deleteObject(object: RufusObject) {
     await persistenceService.delete(object);
-  }
-
-  async loadTextRequestBody(request: RufusRequest) {
-    let text = '';
-
-    // TODO: Do not load the entire body into memory. Use ITextSnapshot instead
-    if (request.body?.type === RequestBodyType.TEXT) {
-      const stream = await persistenceService.loadTextBodyOfRequest(request);
-      if (stream == null) return '';
-      for await (const chunk of stream) {
-        text += chunk;
-      }
-    }
-
-    return text;
   }
 }
