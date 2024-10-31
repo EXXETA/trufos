@@ -22,6 +22,7 @@ describe('MainEventService', () => {
   });
 
   it('should register event functions on the backend', async () => {
+    await import('./main-event-service');
     expect((await import('electron')).ipcMain.handle).toHaveBeenCalled();
   });
 });
