@@ -14,7 +14,6 @@ import {
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { isCollection, isFolder, isRequest, RufusObject } from 'shim/objects';
 import { generateDefaultCollection } from './default-collection';
-import { Readable } from 'stream';
 import { randomUUID } from 'node:crypto';
 
 /**
@@ -255,20 +254,19 @@ export class PersistenceService {
   /**
    * Loads the text body of a request from the file system.
    * @param request the request to load the text body for
+   * @param encoding the encoding of the text body. Default is binary.
    * @returns the text body of the request if it exists
    */
-  public async loadTextBodyOfRequest(request: RufusRequest) {
-    console.log('Loading text body of request', request.id);
+  public async loadTextBodyOfRequest(request: RufusRequest, encoding?: BufferEncoding) {
+    console.info('Loading text body of request', request.id);
     if (request.body.type === RequestBodyType.TEXT) {
-      if (request.body.text != null) {
-        return Readable.from([request.body.text]);
-      }
-
       const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
       const filePath = path.join(this.getDirPath(request), fileName);
       if (await exists(filePath)) {
-        return createReadStream(filePath);
+        console.debug(`Opening text body file at ${filePath}`);
+        return createReadStream(filePath, encoding);
       }
+      console.warn('Text body file does not exist for request', request.id);
     }
   }
 

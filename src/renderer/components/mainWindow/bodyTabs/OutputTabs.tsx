@@ -7,10 +7,7 @@ import { useEffect, useRef } from 'react';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
 import { selectResponse, selectResponseEditor, setResponseEditor } from '@/state/responsesSlice';
 import { useDispatch, useSelector } from 'react-redux';
-import { RendererEventService } from '@/services/event/renderer-event-service';
-
-const eventService = RendererEventService.instance;
-const textDecoder = new TextDecoder();
+import { IpcPushStream } from '@/lib/ipc-stream';
 
 const monacoOptions = {
   ...DEFAULT_MONACO_OPTIONS,
@@ -39,13 +36,6 @@ function getContentType(headers?: HttpHeaders) {
   }
 }
 
-async function loadRequestBody(filePath: string) {
-  console.debug('Reading response body from', filePath);
-  const buffer = await eventService.readFile(filePath);
-  console.debug('Received response body of', buffer.byteLength, 'bytes');
-  return textDecoder.decode(buffer); // TODO: decode with encoding from response headers
-}
-
 interface OutputTabsProps {
   className: string;
 }
@@ -63,7 +53,10 @@ export function OutputTabs(props: OutputTabsProps) {
     } else if (response?.bodyFilePath == null) {
       editor.setValue('');
     } else {
-      loadRequestBody(response.bodyFilePath).then((body) => editor.setValue(body));
+      editor.setValue('');
+      IpcPushStream.open(response.bodyFilePath)
+        .then((stream) => IpcPushStream.collect(stream))
+        .then((content) => editor.setValue(content));
     }
   }, [response?.bodyFilePath, editor]);
 

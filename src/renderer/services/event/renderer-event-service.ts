@@ -3,14 +3,12 @@ import { MainProcessError } from '@/error/MainProcessError';
 
 const METHOD_NAMES = new Set<keyof IEventService>([
   'saveRequest',
-  'readFile',
   'sendRequest',
   'getAppVersion',
   'loadCollection',
   'saveChanges',
   'discardChanges',
   'deleteObject',
-  'loadTextRequestBody',
 ]);
 
 const INSTANCE = {} as IEventService;

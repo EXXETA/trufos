@@ -16,14 +16,6 @@ export interface IEventService {
   sendRequest(request: RufusRequest): Promise<RufusResponse>;
 
   /**
-   * Read a file from the file system.
-   * @param filePath The path to the file.
-   * @param offset The offset in the file to start reading from.
-   * @param length The number of bytes to read.
-   */
-  readFile(filePath: string, offset?: number, length?: number): Promise<ArrayBufferLike>;
-
-  /**
    * Saves the request to the file system. The draft flag is respected. If a
    * body is provided, it is saved as well.
    *
@@ -59,10 +51,4 @@ export interface IEventService {
    * @returns The version of the app
    */
   getAppVersion(): Promise<string>;
-
-  /**
-   * Load the text body of the request. The body type must be "text".
-   * @param request The request to load the text body of.
-   */
-  loadTextRequestBody(request: RufusRequest): Promise<string>;
 }

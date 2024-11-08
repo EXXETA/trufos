@@ -342,6 +342,24 @@ describe('PersistenceService', () => {
     expect(await streamToString(result)).toBe(textBody);
   });
 
+  it('loadTextBodyOfRequest() should load the text body of a request with utf8', async () => {
+    // Arrange
+    const textBody = 'text body';
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+
+    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveRequest(request, textBody);
+
+    // Act
+    const result = (
+      await Array.fromAsync(await persistenceService.loadTextBodyOfRequest(request, 'utf8'))
+    ).join('');
+
+    // Assert
+    expect(result).toBe(textBody);
+  });
+
   it('loadTextBodyOfRequest() should load the text body of a draft request', async () => {
     // Arrange
     const textBody = 'text body';

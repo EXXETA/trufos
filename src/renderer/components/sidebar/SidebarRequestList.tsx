@@ -3,9 +3,10 @@ import { AppDispatch, RootState } from '@/state/store';
 import { deleteRequest, setSelectedRequest } from '@/state/requestsSlice';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { RequestBodyType, RufusRequest } from 'shim/objects/request';
-import { FaTimes } from 'react-icons/fa'; // Importing cross icon
+import { FaTimes } from 'react-icons/fa';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { MouseEvent, useCallback, useEffect } from 'react';
+import { IpcPushStream } from '@/lib/ipc-stream';
 
 interface SidebarRequestListProps {
   requests: RufusRequest[];
@@ -20,17 +21,19 @@ export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) =
   const request: RufusRequest | undefined = requests[selectedRequestIndex];
 
   useEffect(() => {
-    const model = requestEditor?.getModel();
-    if (model == null) {
+    if (requestEditor == null) {
       return;
-    }
-
-    if (request?.body?.type === RequestBodyType.TEXT) {
-      eventService.loadTextRequestBody(request).then((content) => model.setValue(content));
+    } else if (request?.body?.type === RequestBodyType.TEXT) {
+      IpcPushStream.open(request)
+        .then((stream) => IpcPushStream.collect(stream))
+        .then((content) => {
+          console.log(content);
+          requestEditor.setValue(content);
+        });
     } else {
-      model.setValue('');
+      requestEditor.setValue('');
     }
-  }, [request?.id, requestEditor?.getModel()]);
+  }, [request?.id, requestEditor]);
 
   const handleRowClick = useCallback(
     async (index: number) => {
