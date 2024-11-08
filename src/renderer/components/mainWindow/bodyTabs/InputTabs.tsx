@@ -86,11 +86,7 @@ export function InputTabs(props: InputTabsProps) {
       dispatch(setRequestEditor(editor));
       editor.onDidChangeModelContent((e) => {
         if (e.isFlush) return;
-        if (e.isUndoing && !editor.getModel().canUndo()) {
-          dispatch(setDraftFlag(false));
-        } else {
-          dispatch(setDraftFlag(true));
-        }
+        dispatch(setDraftFlag());
       });
     },
     [dispatch]

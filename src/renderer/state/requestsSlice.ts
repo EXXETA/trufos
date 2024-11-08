@@ -88,8 +88,8 @@ export const requestsSlice = createSlice({
       state.requests[state.selectedRequest].headers = [];
       requestsSlice.caseReducers.addHeader(state);
     },
-    setDraftFlag: (state, action: PayloadAction<boolean>) => {
-      state.requests[state.selectedRequest].draft = action.payload ?? true;
+    setDraftFlag: (state) => {
+      state.requests[state.selectedRequest].draft = true;
     },
   },
 });
