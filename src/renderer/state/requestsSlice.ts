@@ -88,6 +88,9 @@ export const requestsSlice = createSlice({
       state.requests[state.selectedRequest].headers = [];
       requestsSlice.caseReducers.addHeader(state);
     },
+    setDraftFlag: (state) => {
+      state.requests[state.selectedRequest].draft = true;
+    },
   },
 });
 
@@ -107,4 +110,5 @@ export const {
   updateHeader,
   deleteHeader,
   clearHeaders,
+  setDraftFlag,
 } = requestsSlice.actions;

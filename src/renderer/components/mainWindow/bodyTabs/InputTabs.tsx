@@ -18,6 +18,7 @@ import {
   clearHeaders,
   deleteHeader,
   selectHeaders,
+  setDraftFlag,
   setRequestBody,
   setRequestEditor,
   updateHeader,
@@ -83,14 +84,10 @@ export function InputTabs(props: InputTabsProps) {
   const onEditorMount = useCallback(
     (editor: editor.ICodeEditor) => {
       dispatch(setRequestEditor(editor));
-      /*editor.onDidChangeModelContent(() => {
-      if (request != null && !request.draft) {
-        dispatch(updateRequest({
-          index: selectedRequestIndex,
-          request: { ...request, draft: true }
-        }));
-      }
-    });*/
+      editor.onDidChangeModelContent((e) => {
+        if (e.isFlush) return;
+        dispatch(setDraftFlag());
+      });
     },
     [dispatch]
   );
