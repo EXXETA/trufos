@@ -18,17 +18,20 @@ const SelectValue = SelectPrimitive.Value;
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   SelectTriggerProps
->(({ className, children, isOpen, ...props }, ref) => {
-  return (
-    <SelectPrimitive.Trigger
-      ref={ref}
-      className={cn(
-        'flex h-10 w-full items-center justify-between bg-card px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
-        className
-      )}
-      {...props}
-    >
-      {children}
+>(({ className, children, isOpen, ...props }, ref) => (
+  <SelectPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      'flex h-10 items-center ' +
+        'text-text-primary ' +
+        'text-sm placeholder:text-muted-foreground focus-visible:outline-none' +
+        ' disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
+      className
+    )}
+    {...props}
+  >
+    {children}
+    <div className={cn('mt-[11px] ml-[7.41px] mb-[7.41px] mr-[7.41px]')}>
       <SelectPrimitive.Icon
         asChild
         className={cn(
@@ -36,12 +39,11 @@ const SelectTrigger = React.forwardRef<
           isOpen ? 'rotate-180' : 'rotate-0'
         )}
       >
-        {/*<ChevronDown className="h-4 w-4 opacity-50" />*/}
         <SmallArrow />
       </SelectPrimitive.Icon>
-    </SelectPrimitive.Trigger>
-  );
-});
+    </div>
+  </SelectPrimitive.Trigger>
+));
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
 const SelectScrollUpButton = React.forwardRef<
@@ -80,9 +82,18 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        'relative z-50 max-h-96 w-[fit-content] overflow-hidden rounded-md border bg-card text-muted-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+        'relative z-50 max-h-96 min-w-[8rem] ' +
+          'overflow-hidden rounded-md ' +
+          'border-2 border-background-tertiary ' +
+          'bg-red text-muted-foreground shadow-md ' +
+          'data-[state=open]:animate-in ' +
+          'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0' +
+          ' data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95' +
+          ' data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2' +
+          ' data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
         position === 'popper' &&
-          'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
+          'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1' +
+            ' data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
         className
       )}
       position={position}
@@ -91,7 +102,7 @@ const SelectContent = React.forwardRef<
       <SelectScrollUpButton />
       <SelectPrimitive.Viewport
         className={cn(
-          '',
+          'bg-background-secondary',
           position === 'popper' &&
             'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]'
         )}
@@ -123,7 +134,10 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative cursor-default select-none items-center py-1.5 pl-4 pr-4 text-sm outline-none focus:bg-muted focus:text-accent-foreground [&:hover]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'relative flex w-full cursor-default select-none ' +
+        'hover:bg-background-primary hover:cursor-pointer' +
+        'data-[highlighted]:bg-divider ' +
+        'items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className
     )}
     {...props}

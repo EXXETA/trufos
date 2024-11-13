@@ -40,7 +40,30 @@
   }
 
   .dark {
-    --background: 0 0% 7%;
+    /* Accent */
+    --accent-primary: #75D9FB;
+    --accent-secondary: #12B1E7;
+    --accent-tertiary: #193641;
+
+    /* Background */
+    --background-primary: #111111;
+    --background-secondary: #1F1F1F;
+    --background-tertiary: transparent;
+
+    /* Text */
+    --text-primary: #EEEEEE;
+    --text-secondary: #BBBBBB;
+
+    /* Additional */
+    --http-get: #93F176;
+    --http-put: #37ABFF;
+    --http-post: #9F72FE;
+    --http-delete: #EE5C99;
+    --http-patch: #EFA349;
+    --disabled: #444444;
+
+    /* Old */
+    --background: 0 0% 6.67%;
     --foreground: 213 31% 91%;
 
     --muted: 0 0% 20%;
@@ -58,16 +81,21 @@
     --card: 0 0% 12%;
     --card-foreground: 213 31% 91%;
 
-    --primary: 0 0% 100%;
+    --primary: 195 94% 72%;
     --primary-foreground: 0 0% 13%;
 
-    --secondary: 0 0% 13%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 196.5 44.44% 17.65%;
+    --secondary-foreground: 195 94% 72%;
+
+    --tertiary: 195.21 85.54% 48.82%;
+    --tertiary-foreground: 0 0% 13%;
 
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
     --ring: 216 34% 17%;
+
+    --divider: 0 0% 20%;
 
     --radius: 0.5rem;
   }

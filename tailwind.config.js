@@ -18,8 +18,18 @@ module.exports = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
+        background: {
+          DEFAULT: "hsl(var(--background))",
+          primary: "var(--background-primary)",
+          secondary: "var(--background-secondary)",
+          tertiary: "var(--background-tertiary)",
+        },
+        text: {
+          primary: "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+        },
         foreground: "hsl(var(--foreground))",
+        divider: "hsl(var(--divider))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -37,6 +47,9 @@ module.exports = {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
+          primary: "var(--accent-primary)",
+          secondary: "var(--accent-secondary)",
+          tertiary: "var(--accent-tertiary)",
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },

@@ -47,25 +47,6 @@
     background: rgba(0, 0, 0, 0.5); /* Darker color on hover */
 }
 
-/* Styles for TabsTrigger */
-.tabs-trigger {
-    @apply inline-flex items-center justify-center whitespace-nowrap rounded-[24px] h-[36px] px-3 text-sm font-medium ring-offset-background transition-all;
-}
-
-.tabs-trigger[data-state="active"] {
-    color: #75D9FB;
-    background-color: rgba(55, 204, 255, 0.2);
-}
-
-.tabs-trigger:hover {
-    border: 2px solid #75D9FB;
-}
-
-.tabs-trigger:active {
-    border: 2px solid #12B1E7;
-    color: #12B1E7;
-}
-
 .response-status {
 }
 
