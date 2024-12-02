@@ -19,11 +19,7 @@ As many REST clients exist in the ecosystem, Trufos aims to provide an out-of-th
 - Support for various authentication methods, including JWT, OAuth, and basic authentication
 - Extendable plugin architecture for additional features and integrations
 
-**Current Development Status**: Trufos is still at an early stage of development. Be aware of this when using Trufos under production conditions. If you would like to contribute to this project, please check out our (./CONTRIBUTING.md).
-
-## Download
-
-[Prebuild releases for Linux, OSX and Windows can be found here.](https://github.com/EXXETA/rufus/releases/latest)
+**Current Development Status**: Trufos is still at an early stage of development. Be aware of this when using Trufos under production conditions. If you would like to contribute to this project, please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 
 ## Screenshot
 
@@ -31,10 +27,6 @@ As many REST clients exist in the ecosystem, Trufos aims to provide an out-of-th
 ## Requirements
 
 As Trufos is an Electron application, it can run on Windows, macOS, and Linux without any issues. If you want to develop or build this software yourself, you will need Node.js version 22 or higher and NPM version 10 or higher.
-
-## Installation
-
-You can either download one of the provided binaries or build the software yourself by cloning the repository and running `npm run make`, after which the binary can be found inside the `out/make/` directory.
 
 ## Usage
 
@@ -55,13 +47,14 @@ Here’s a simple example of how to add and utilize an endpoint:
 
 * Where can I find the saved Requests?
 * The saved requests are in this folder:
-  * Mac: ``~/Library/Application\ Support/Rufus/default-collection`` 
-  * Windows: ``C:\Users\USERNAME\AppData\Roaming\Rufus\default-collection``
+  * Mac: ``~/Library/Application\ Support/Trufos/default-collection`` 
+  * Windows: ``C:\Users\USERNAME\AppData\Roaming\Trufos\default-collection``
 
 
 ## Contributing
 
-If you would like to contribute to this project, please check out our [Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md) before you begin.
+If you would like to contribute to this project, please check out our
+[Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md) before you begin.
 
 We welcome feedback, suggestions, and pull requests!
 
