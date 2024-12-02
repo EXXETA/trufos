@@ -53,10 +53,16 @@ export const requestsSlice = createSlice({
       state.selectedRequest = action.payload;
     },
     deleteRequest(state, action: PayloadAction<number>) {
-      state.requests.splice(action.payload, 1);
-      if (state.selectedRequest >= state.requests.length && state.requests.length > 0) {
-        state.selectedRequest = state.requests.length - 1;
+      if (state.requests.length === 1) {
+        requestsSlice.caseReducers.addNewRequest(state);
+      } else if (
+        state.selectedRequest > 0 &&
+        state.selectedRequest === action.payload &&
+        state.selectedRequest === state.requests.length - 1
+      ) {
+        state.selectedRequest--;
       }
+      state.requests = state.requests.toSpliced(action.payload, 1);
     },
     addHeader: (state) => {
       state.requests[state.selectedRequest].headers.push({ key: '', value: '', isActive: false });
@@ -96,7 +102,7 @@ export const requestsSlice = createSlice({
 
 export const selectRequest = (state: RootState) =>
   state.requests.requests[state.requests.selectedRequest];
-export const selectHeaders = (state: RootState) => selectRequest(state).headers;
+export const selectHeaders = (state: RootState) => selectRequest(state)?.headers;
 
 export const {
   updateRequest,

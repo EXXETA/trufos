@@ -23,7 +23,7 @@ export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) =
   useEffect(() => {
     if (requestEditor == null) {
       return;
-    } else if (request?.body?.type === RequestBodyType.TEXT) {
+    } else if (request?.body?.type === RequestBodyType.TEXT && request?.id != null) {
       IpcPushStream.open(request)
         .then((stream) => IpcPushStream.collect(stream))
         .then((content) => {
@@ -47,11 +47,8 @@ export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) =
 
   const handleDeleteClick = useCallback(
     async (event: MouseEvent, index: number) => {
+      event.stopPropagation();
       const request = requests[index];
-      if (request == null) {
-        return;
-      }
-
       dispatch(deleteRequest(index));
       if (request.id != null) {
         await eventService.deleteObject(request);
