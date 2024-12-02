@@ -1,17 +1,17 @@
-import { RufusRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
 import { Folder } from 'shim/objects/folder';
 import { Collection } from 'shim/objects/collection';
 
-export type RufusObject = RufusRequest | Folder | Collection;
+export type TrufosObject = TrufosRequest | Folder | Collection;
 
-export function isRequest(object: RufusObject): object is RufusRequest {
+export function isRequest(object: TrufosObject): object is TrufosRequest {
   return object.type === 'request';
 }
 
-export function isFolder(object: RufusObject): object is Folder {
+export function isFolder(object: TrufosObject): object is Folder {
   return object.type === 'folder';
 }
 
-export function isCollection(object: RufusObject): object is Collection {
+export function isCollection(object: TrufosObject): object is Collection {
   return object.type === 'collection';
 }

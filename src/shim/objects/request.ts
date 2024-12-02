@@ -1,16 +1,16 @@
 import { RequestMethod } from './request-method';
-import { RufusHeader } from './headers';
+import { TrufosHeader } from './headers';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 export const DRAFT_TEXT_BODY_FILE_NAME = '~' + TEXT_BODY_FILE_NAME;
-export type RufusRequest = {
+export type TrufosRequest = {
   id: string;
   parentId: string;
   type: 'request';
   title: string;
   url: string;
   method: RequestMethod;
-  headers: RufusHeader[];
+  headers: TrufosHeader[];
   body: RequestBody;
   draft?: boolean;
 };

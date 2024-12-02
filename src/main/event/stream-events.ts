@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { createReadStream, ReadStream } from 'node:fs';
-import { RufusRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 
 let nextId = 0;
@@ -9,7 +9,7 @@ const streams = new Map<number, ReadStream>();
 
 const persistenceService = PersistenceService.instance;
 
-ipcMain.handle('stream-open', async (event, input: string | RufusRequest) => {
+ipcMain.handle('stream-open', async (event, input: string | TrufosRequest) => {
   const { sender } = event;
   const id = nextId++;
 

@@ -1,21 +1,21 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RequestMethod } from 'shim/objects/request-method';
-import { RequestBody, RequestBodyType, RufusRequest } from 'shim/objects/request';
+import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { editor } from 'monaco-editor';
-import { RufusHeader } from 'shim/objects/headers';
+import { TrufosHeader } from 'shim/objects/headers';
 import { RootState } from '@/state/store';
 
 export const requestsSlice = createSlice({
   name: 'requests',
   initialState: {
-    requests: [] as RufusRequest[],
+    requests: [] as TrufosRequest[],
     selectedRequest: 0,
     collectionId: '',
     requestEditor: undefined as undefined | editor.ICodeEditor,
     requestBody: undefined as undefined | RequestBody,
   },
   reducers: {
-    initialize(state, action: PayloadAction<{ requests: RufusRequest[]; collectionId: string }>) {
+    initialize(state, action: PayloadAction<{ requests: TrufosRequest[]; collectionId: string }>) {
       state.requests = action.payload.requests;
       state.collectionId = action.payload.collectionId;
     },
@@ -36,7 +36,7 @@ export const requestsSlice = createSlice({
       });
       state.selectedRequest = 0;
     },
-    updateRequest(state, action: PayloadAction<{ index: number; request: RufusRequest }>) {
+    updateRequest(state, action: PayloadAction<{ index: number; request: TrufosRequest }>) {
       const { index, request } = action.payload;
       state.requests[index] = request;
     },
@@ -65,7 +65,7 @@ export const requestsSlice = createSlice({
       state,
       action: PayloadAction<{
         index: number;
-        updatedHeader: Partial<RufusHeader>;
+        updatedHeader: Partial<TrufosHeader>;
       }>
     ) => {
       const { index, updatedHeader } = action.payload;

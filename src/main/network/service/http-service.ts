@@ -5,10 +5,10 @@ import { pipeline } from 'node:stream/promises';
 import fs from 'node:fs';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { RequestBodyType, RufusRequest } from 'shim/objects/request';
-import { RufusResponse } from 'shim/objects/response';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { RufusHeader } from 'shim/objects/headers';
+import { TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 
 const fileSystemService = FileSystemService.instance;
@@ -32,7 +32,7 @@ export class HttpService {
    * @param request request object
    * @returns response object
    */
-  public async fetchAsync(request: RufusRequest) {
+  public async fetchAsync(request: TrufosRequest) {
     console.info('Sending request:', request);
 
     const now = getSteadyTimestamp();
@@ -43,7 +43,7 @@ export class HttpService {
       method: request.method,
       headers: {
         ['content-type']: this.getContentType(request),
-        ...this.rufusHeadersToUndiciHeaders(request.headers),
+        ...this.trufosHeadersToUndiciHeaders(request.headers),
       },
       body: body,
     });
@@ -60,7 +60,7 @@ export class HttpService {
     }
 
     // return a new Response instance
-    const response: RufusResponse = {
+    const response: TrufosResponse = {
       metaInfo: {
         status: responseData.statusCode,
         duration: duration,
@@ -82,7 +82,7 @@ export class HttpService {
    * @param request request object
    * @returns request body as stream or null if there is no body
    */
-  private async readBody(request: RufusRequest) {
+  private async readBody(request: TrufosRequest) {
     if (request.body == null) {
       return null;
     }
@@ -104,7 +104,7 @@ export class HttpService {
    * Get the content type of the request body
    * @param request request object
    */
-  private getContentType(request: RufusRequest) {
+  private getContentType(request: TrufosRequest) {
     if (request.body != null) {
       switch (request.body.type) {
         case RequestBodyType.TEXT:
@@ -115,9 +115,9 @@ export class HttpService {
     }
   }
 
-  private rufusHeadersToUndiciHeaders(rufusHeaders: RufusHeader[]) {
+  private trufosHeadersToUndiciHeaders(trufosHeaders: TrufosHeader[]) {
     const headers: Record<string, string[]> = {};
-    for (const header of rufusHeaders) {
+    for (const header of trufosHeaders) {
       if (header.isActive && header.value != null) {
         if (!Reflect.has(headers, header.key)) headers[header.key] = [];
         headers[header.key].push(header.value);

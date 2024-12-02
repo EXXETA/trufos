@@ -1,10 +1,10 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '@/state/store';
-import { RufusResponse } from 'shim/objects/response';
+import { TrufosResponse } from 'shim/objects/response';
 import { selectRequest } from '@/state/requestsSlice';
 import { editor } from 'monaco-editor';
 
-declare type ResponseInfoMap = Record<string, RufusResponse>;
+declare type ResponseInfoMap = Record<string, TrufosResponse>;
 
 export const responsesSlice = createSlice({
   name: 'responses',
@@ -13,7 +13,7 @@ export const responsesSlice = createSlice({
     editor: undefined as undefined | editor.ICodeEditor,
   },
   reducers: {
-    addResponse(state, action: PayloadAction<RufusResponse & { requestId: string }>) {
+    addResponse(state, action: PayloadAction<TrufosResponse & { requestId: string }>) {
       state.responseInfoMap[action.payload.requestId] = action.payload;
     },
     removeResponse(state, action: PayloadAction<string>) {

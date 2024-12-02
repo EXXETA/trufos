@@ -1,7 +1,7 @@
-import { RufusRequest } from 'shim/objects/request';
-import { RufusResponse } from 'shim/objects/response';
+import { TrufosRequest } from 'shim/objects/request';
+import { TrufosResponse } from 'shim/objects/response';
 import { Collection } from './objects/collection';
-import { RufusObject } from './objects';
+import { TrufosObject } from './objects';
 
 export interface IEventService {
   /**
@@ -13,39 +13,39 @@ export interface IEventService {
    * Send an HTTP request.
    * @param request The request to send.
    */
-  sendRequest(request: RufusRequest): Promise<RufusResponse>;
+  sendRequest(request: TrufosRequest): Promise<TrufosResponse>;
 
   /**
    * Saves the request to the file system. The draft flag is respected. If a
    * body is provided, it is saved as well.
    *
-   * This does not override the actual rufus object if the given object is a draft.
+   * This does not override the actual trufos object if the given object is a draft.
    * Use {@link saveChanges} to save changes to the actual object.
    *
    * @param request The request to save.
    * @param textBody OPTIONAL: The text body of the request.
    */
-  saveRequest(request: RufusRequest, textBody?: string): Promise<void>;
+  saveRequest(request: TrufosRequest, textBody?: string): Promise<void>;
 
   /**
-   * Save changes of the given rufus request to the file system.
+   * Save changes of the given trufos request to the file system.
    * @param request The request to save.
    * @returns The saved request.
    */
-  saveChanges(request: RufusRequest): Promise<RufusRequest>;
+  saveChanges(request: TrufosRequest): Promise<TrufosRequest>;
 
   /**
-   * Discard changes of the given rufus request.
+   * Discard changes of the given trufos request.
    * @param request The request to discard changes of.
    * @returns The request with discarded changes, i.e. the persisted non-draft version.
    */
-  discardChanges(request: RufusRequest): Promise<RufusRequest>;
+  discardChanges(request: TrufosRequest): Promise<TrufosRequest>;
 
   /**
-   * Delete the given rufus object and its children.
+   * Delete the given trufos object and its children.
    * @param object The object to delete.
    */
-  deleteObject(object: RufusObject): Promise<void>;
+  deleteObject(object: TrufosObject): Promise<void>;
 
   /**
    * @returns The version of the app

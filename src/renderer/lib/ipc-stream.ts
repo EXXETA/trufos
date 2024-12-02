@@ -1,5 +1,5 @@
 import { EventEmitter } from '@/lib/event-emitter';
-import { RufusRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
 
 const { ipcRenderer } = window.electron;
 
@@ -39,9 +39,9 @@ export class IpcPushStream extends EventEmitter {
   }
 
   public static open(filePath: string): Promise<IpcPushStream>;
-  public static open(request: RufusRequest): Promise<IpcPushStream>;
+  public static open(request: TrufosRequest): Promise<IpcPushStream>;
 
-  public static async open(input: string | RufusRequest) {
+  public static async open(input: string | TrufosRequest) {
     return new IpcPushStream(await window.electron.ipcRenderer.invoke('stream-open', input));
   }
 

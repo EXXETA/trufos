@@ -2,14 +2,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/state/store';
 import { deleteRequest, setSelectedRequest } from '@/state/requestsSlice';
 import { httpMethodColor } from '@/services/StyleHelper';
-import { RequestBodyType, RufusRequest } from 'shim/objects/request';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { FaTimes } from 'react-icons/fa';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { MouseEvent, useCallback, useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
 
 interface SidebarRequestListProps {
-  requests: RufusRequest[];
+  requests: TrufosRequest[];
 }
 
 const eventService = RendererEventService.instance;
@@ -18,7 +18,7 @@ export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) =
   const dispatch = useDispatch<AppDispatch>();
   const selectedRequestIndex = useSelector((state: RootState) => state.requests.selectedRequest);
   const requestEditor = useSelector((state: RootState) => state.requests.requestEditor);
-  const request: RufusRequest | undefined = requests[selectedRequestIndex];
+  const request: TrufosRequest | undefined = requests[selectedRequestIndex];
 
   useEffect(() => {
     if (requestEditor == null) {

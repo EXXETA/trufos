@@ -2,7 +2,7 @@ import { Folder } from 'shim/objects/folder';
 import { ImportService } from './import-service';
 import fs from 'node:fs/promises';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { RufusRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -37,7 +37,7 @@ describe('ImportService', () => {
     const childrenLevel1 = result.children;
     expect(childrenLevel1.length).toBe(3);
 
-    const firstChild = childrenLevel1[0] as RufusRequest;
+    const firstChild = childrenLevel1[0] as TrufosRequest;
     expect(firstChild.type).toBe('request');
     expect(firstChild.title).toBe('200 ok');
     expect(firstChild.url).toBe('http://echo.getpostman.com/status/200');
@@ -45,7 +45,7 @@ describe('ImportService', () => {
     expect(firstChild.headers).toEqual([]);
     expect(firstChild.body).toEqual(null);
 
-    const secondChild = childrenLevel1[1] as RufusRequest;
+    const secondChild = childrenLevel1[1] as TrufosRequest;
     expect(secondChild.type).toBe('request');
     expect(secondChild.title).toBe('200 ok');
     expect(secondChild.url).toBe('http://echo.getpostman.com/post');
@@ -66,7 +66,7 @@ describe('ImportService', () => {
     const childrenLevel2 = thirdChild.children;
     expect(childrenLevel2.length).toBe(4);
 
-    const firstChildLevel2 = childrenLevel2[0] as RufusRequest;
+    const firstChildLevel2 = childrenLevel2[0] as TrufosRequest;
     expect(firstChildLevel2.type).toBe('request');
     expect(firstChildLevel2.title).toBe('201');
     expect(firstChildLevel2.url).toBe('http://echo.getpostman.com/status/201');
@@ -86,7 +86,7 @@ describe('ImportService', () => {
     ]);
     expect(firstChildLevel2.body).toEqual(null);
 
-    const secondChildLevel2 = childrenLevel2[1] as RufusRequest;
+    const secondChildLevel2 = childrenLevel2[1] as TrufosRequest;
     expect(secondChildLevel2.type).toBe('request');
     expect(secondChildLevel2.title).toBe('201');
     expect(secondChildLevel2.url).toBe('http://echo.getpostman.com/post');

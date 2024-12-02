@@ -1,15 +1,15 @@
-import { RufusObject } from 'shim/objects';
+import { TrufosObject } from 'shim/objects';
 import { RequestBody } from 'shim/objects/request';
 import { VariableObject } from 'shim/variables';
 import { RequestMethod } from 'shim/objects/request-method';
-import { RufusHeader } from 'shim/objects/headers';
+import { TrufosHeader } from 'shim/objects/headers';
 
 export type RequestInfoFile = {
   version: string;
   title: string;
   url: string;
   method: RequestMethod;
-  headers: RufusHeader[];
+  headers: TrufosHeader[];
   body: RequestBody;
 };
 
@@ -26,7 +26,7 @@ export type CollectionInfoFile = {
 
 export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 
-export function toInfoFile(object: RufusObject): InfoFile {
+export function toInfoFile(object: TrufosObject): InfoFile {
   const infoFile = Object.assign({ version: '1.0.0' }, object);
   if (infoFile.type === 'request') {
     delete infoFile.draft;

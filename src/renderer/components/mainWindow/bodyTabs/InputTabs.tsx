@@ -37,7 +37,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { RufusHeader } from 'shim/objects/headers';
+import { TrufosHeader } from 'shim/objects/headers';
 
 interface InputTabsProps {
   className: string;
@@ -128,7 +128,7 @@ export function InputTabs(props: InputTabsProps) {
   }, [dispatch]);
 
   const handleUpdateHeader = useCallback(
-    (index: number, updatedFields: Partial<RufusHeader>) => {
+    (index: number, updatedFields: Partial<TrufosHeader>) => {
       dispatch(updateHeader({ index, updatedHeader: updatedFields }));
     },
     [dispatch]

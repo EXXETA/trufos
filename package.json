@@ -1,8 +1,8 @@
 {
-  "name": "rufus",
-  "productName": "Rufus",
-  "version": "1.0.0",
-  "description": "Rufus - A cross-platform REST client",
+  "name": "trufos",
+  "productName": "Trufos",
+  "version": "0.0.1",
+  "description": "Trufos - A cross-platform REST client",
   "main": ".webpack/main",
   "scripts": {
     "start": "electron-forge start",
@@ -61,7 +61,7 @@
   },
   "keywords": [],
   "author": {
-    "name": "The Rufus Authors"
+    "name": "The Trufos Authors"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {

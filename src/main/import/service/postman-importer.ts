@@ -5,9 +5,9 @@ import {
   Item,
   ItemGroup,
 } from 'postman-collection';
-import { Collection as RufusCollection } from 'shim/objects/collection';
-import { Folder as RufusFolder } from 'shim/objects/folder';
-import { RequestBody, RequestBodyType, RufusRequest } from 'shim/objects/request';
+import { Collection as TrufosCollection } from 'shim/objects/collection';
+import { Folder as TrufosFolder } from 'shim/objects/folder';
+import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import path from 'node:path';
 import fs from 'node:fs/promises';
@@ -54,7 +54,7 @@ export class PostmanImporter implements CollectionImporter {
     const variables: Record<string, VariableObject> = {};
     variablesArray.forEach(([key, val]) => (variables[key] = val));
 
-    const collection: RufusCollection = {
+    const collection: TrufosCollection = {
       id: postmanCollection.id,
       type: 'collection',
       title: postmanCollection.name,
@@ -69,7 +69,7 @@ export class PostmanImporter implements CollectionImporter {
   }
 
   private async importItems(
-    parent: RufusCollection | RufusFolder,
+    parent: TrufosCollection | TrufosFolder,
     items: (Item | ItemGroup<Item>)[]
   ) {
     for (const item of items) {
@@ -82,10 +82,10 @@ export class PostmanImporter implements CollectionImporter {
   }
 
   private async importFolder(
-    parent: RufusCollection | RufusFolder,
+    parent: TrufosCollection | TrufosFolder,
     postmanFolder: ItemGroup<Item>
   ) {
-    const folder: RufusFolder = {
+    const folder: TrufosFolder = {
       id: postmanFolder.id,
       parentId: parent.id,
       type: 'folder',
@@ -97,7 +97,7 @@ export class PostmanImporter implements CollectionImporter {
     parent.children.push(folder);
   }
 
-  private async importRequest(parent: RufusCollection | RufusFolder, item: Item) {
+  private async importRequest(parent: TrufosCollection | TrufosFolder, item: Item) {
     const { request } = item;
 
     let bodyInfo: RequestBody | null = null;
@@ -119,7 +119,7 @@ export class PostmanImporter implements CollectionImporter {
       }
     }
 
-    const rufusRequest: RufusRequest = {
+    const trufosRequest: TrufosRequest = {
       id: item.id,
       parentId: parent.id,
       type: 'request',
@@ -134,6 +134,6 @@ export class PostmanImporter implements CollectionImporter {
       body: bodyInfo,
     };
 
-    parent.children.push(rufusRequest);
+    parent.children.push(trufosRequest);
   }
 }
