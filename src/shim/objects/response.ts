@@ -1,6 +1,6 @@
 import { HttpHeaders } from 'shim/headers';
 
-export type RufusResponse = {
+export type TrufosResponse = {
   headers: HttpHeaders;
   metaInfo: MetaInfo;
   bodyFilePath?: string;

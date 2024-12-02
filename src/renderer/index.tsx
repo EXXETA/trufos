@@ -7,7 +7,7 @@ import { Provider } from 'react-redux';
 import { store } from '@/state/store';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { initialize } from '@/state/requestsSlice';
-import { RufusRequest } from '../shim/objects/request';
+import { TrufosRequest } from '../shim/objects/request';
 
 console.info('Initializing renderer process...');
 
@@ -20,7 +20,7 @@ const root = createRoot(container);
 loader.config({ monaco });
 
 RendererEventService.instance.loadCollection().then((collection) => {
-  const requests = collection.children.filter((c) => c.type === 'request') as RufusRequest[];
+  const requests = collection.children.filter((c) => c.type === 'request') as TrufosRequest[];
   store.dispatch(initialize({ requests, collectionId: collection.id }));
   root.render(
     <Provider store={store}>

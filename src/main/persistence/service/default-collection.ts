@@ -30,7 +30,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
         parentId: collectionId,
         type: 'request',
         title: 'Example Request',
-        url: 'https://github.com/EXXETA/rufus/raw/main/README.md',
+        url: 'https://github.com/EXXETA/trufos/raw/main/README.md',
         method: RequestMethod.GET,
         headers: [],
         body: {

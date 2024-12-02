@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import {
   DRAFT_TEXT_BODY_FILE_NAME,
   RequestBodyType,
-  RufusRequest,
+  TrufosRequest,
   TEXT_BODY_FILE_NAME,
 } from 'shim/objects/request';
 import { RequestInfoFile } from './info-files';
@@ -45,7 +45,7 @@ function getExampleFolder(parentId: string = randomUUID()): Folder {
   };
 }
 
-function getExampleRequest(parentId: string = randomUUID()): RufusRequest {
+function getExampleRequest(parentId: string = randomUUID()): TrufosRequest {
   return {
     id: randomUUID(),
     type: 'request',
@@ -54,7 +54,7 @@ function getExampleRequest(parentId: string = randomUUID()): RufusRequest {
     parentId,
     method: RequestMethod.GET,
     body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-  } as RufusRequest;
+  } as TrufosRequest;
 }
 
 async function streamToString(stream: Readable) {
@@ -301,7 +301,7 @@ describe('PersistenceService', () => {
     expect(oldInfo).toEqual(newInfo);
   });
 
-  it('delete() should delete the directory of a rufus object', async () => {
+  it('delete() should delete the directory of a trufos object', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);

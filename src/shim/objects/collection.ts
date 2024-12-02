@@ -1,5 +1,5 @@
 import { Folder } from 'shim/objects/folder';
-import { RufusRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
 import { VariableObject } from 'shim/variables';
 
 export type Collection = {
@@ -8,5 +8,5 @@ export type Collection = {
   title: string;
   dirPath: string;
   variables: Record<string, VariableObject>;
-  children: (Folder | RufusRequest)[];
+  children: (Folder | TrufosRequest)[];
 };

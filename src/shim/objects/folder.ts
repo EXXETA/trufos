@@ -1,9 +1,9 @@
-import { RufusRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
 
 export type Folder = {
   id: string;
   parentId: string;
   type: 'folder';
   title: string;
-  children: (Folder | RufusRequest)[];
+  children: (Folder | TrufosRequest)[];
 };

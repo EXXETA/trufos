@@ -1,9 +1,9 @@
 import { IEventService } from 'shim/event-service';
 import { HttpService } from 'main/network/service/http-service';
 import { app, ipcMain } from 'electron';
-import { RufusRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
 import { PersistenceService } from '../persistence/service/persistence-service';
-import { RufusObject } from 'shim/objects';
+import { TrufosObject } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import './stream-events';
 
@@ -69,19 +69,19 @@ export class MainEventService implements IEventService {
     return environmentService.currentCollection;
   }
 
-  async sendRequest(request: RufusRequest) {
+  async sendRequest(request: TrufosRequest) {
     return await HttpService.instance.fetchAsync(request);
   }
 
-  async saveRequest(request: RufusRequest, textBody?: string) {
+  async saveRequest(request: TrufosRequest, textBody?: string) {
     await persistenceService.saveRequest(request, textBody);
   }
 
-  async saveChanges(request: RufusRequest) {
+  async saveChanges(request: TrufosRequest) {
     return await persistenceService.saveChanges(request);
   }
 
-  async discardChanges(request: RufusRequest) {
+  async discardChanges(request: TrufosRequest) {
     return await persistenceService.discardChanges(request);
   }
 
@@ -89,7 +89,7 @@ export class MainEventService implements IEventService {
     return app.getVersion();
   }
 
-  async deleteObject(object: RufusObject) {
+  async deleteObject(object: TrufosObject) {
     await persistenceService.delete(object);
   }
 }

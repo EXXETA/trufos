@@ -7,12 +7,12 @@ import { Folder } from 'shim/objects/folder';
 import {
   DRAFT_TEXT_BODY_FILE_NAME,
   RequestBodyType,
-  RufusRequest,
+  TrufosRequest,
   TEXT_BODY_FILE_NAME,
   TextBody,
 } from 'shim/objects/request';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
-import { isCollection, isFolder, isRequest, RufusObject } from 'shim/objects';
+import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { generateDefaultCollection } from './default-collection';
 import { randomUUID } from 'node:crypto';
 
@@ -50,7 +50,7 @@ export class PersistenceService {
    * @param newParent the parent object the child gets moved to
    */
   public async moveChild(
-    child: Folder | RufusRequest,
+    child: Folder | TrufosRequest,
     oldParent: Folder | Collection,
     newParent: Folder | Collection
   ) {
@@ -67,11 +67,11 @@ export class PersistenceService {
   }
 
   /**
-   * Renames a rufus object on the file system.
-   * @param object rufus object to be renamed
+   * Renames a trufos object on the file system.
+   * @param object trufos object to be renamed
    * @param newTitle new title of the object
    */
-  public async rename(object: RufusObject, newTitle: string) {
+  public async rename(object: TrufosObject, newTitle: string) {
     const oldDirPath = this.getDirPath(object);
     object.title = newTitle;
     const newDirPath = path.join(path.dirname(oldDirPath), this.getDirName(object));
@@ -96,7 +96,7 @@ export class PersistenceService {
    * @param request the request to be saved
    * @param textBody OPTIONAL: the text body of the request
    */
-  public async saveRequest(request: RufusRequest, textBody?: string) {
+  public async saveRequest(request: TrufosRequest, textBody?: string) {
     const dirPath = this.getDirPath(request);
     const infoFileName = `${request.draft ? '~' : ''}${request.type}.json`;
     await this.saveInfoFile(request, dirPath, infoFileName);
@@ -130,12 +130,12 @@ export class PersistenceService {
   }
 
   /**
-   * Saves the information of a rufus object to the file system.
+   * Saves the information of a trufos object to the file system.
    * @param object the object to save
    * @param dirPath the directory path to save the object to
    * @param fileName the name of the information file
    */
-  private async saveInfoFile(object: RufusObject, dirPath: string, fileName: string) {
+  private async saveInfoFile(object: TrufosObject, dirPath: string, fileName: string) {
     console.info('Saving object', (object.id ??= randomUUID()));
     if (!isCollection(object) && object.parentId == null) {
       throw new Error('Object must have a parent');
@@ -156,7 +156,7 @@ export class PersistenceService {
   public async saveCollectionRecursive(collection: Collection) {
     await this.saveCollection(collection);
 
-    const queue: RufusObject[] = [...collection.children];
+    const queue: TrufosObject[] = [...collection.children];
     while (queue.length > 0) {
       const child = queue.shift();
       if (isRequest(child)) {
@@ -173,7 +173,7 @@ export class PersistenceService {
    * Also sets the draft flag of the request to false.
    * @param request the request to mark as not a draft
    */
-  private async undraft(request: RufusRequest) {
+  private async undraft(request: TrufosRequest) {
     request.draft = false;
     const infoFileName = request.type + '.json';
     const dirPath = this.getDirPath(request);
@@ -191,7 +191,7 @@ export class PersistenceService {
    *
    * @param request the request to save the draft of
    */
-  public async saveChanges(request: RufusRequest) {
+  public async saveChanges(request: TrufosRequest) {
     const { draft, dirPath, infoFileName } = await this.undraft(request);
     if (draft) {
       console.info('Saving changes of request at', dirPath);
@@ -214,7 +214,7 @@ export class PersistenceService {
    * Discards all draft information.
    * @param request the request to discard the draft of
    */
-  public async discardChanges(request: RufusRequest) {
+  public async discardChanges(request: TrufosRequest) {
     const { draft, dirPath, infoFileName } = await this.undraft(request);
     if (!draft) {
       return request;
@@ -235,7 +235,7 @@ export class PersistenceService {
    * the object(s) from the path map.
    * @param object the object to delete
    */
-  public async delete(object: RufusObject) {
+  public async delete(object: TrufosObject) {
     const dirPath = this.getDirPath(object);
     console.info('Deleting object at', dirPath);
 
@@ -257,7 +257,7 @@ export class PersistenceService {
    * @param encoding the encoding of the text body. Default is binary.
    * @returns the text body of the request if it exists
    */
-  public async loadTextBodyOfRequest(request: RufusRequest, encoding?: BufferEncoding) {
+  public async loadTextBodyOfRequest(request: TrufosRequest, encoding?: BufferEncoding) {
     console.info('Loading text body of request', request.id);
     if (request.body.type === RequestBodyType.TEXT) {
       const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
@@ -293,7 +293,7 @@ export class PersistenceService {
     });
   }
 
-  private async loadRequest(parentId: string, dirPath: string): Promise<RufusRequest> {
+  private async loadRequest(parentId: string, dirPath: string): Promise<TrufosRequest> {
     const type = 'request' as const;
     let infoFileName = type + '.json';
     let draft = false;
@@ -337,8 +337,8 @@ export class PersistenceService {
   private async loadChildren(
     parentId: string,
     parentDirPath: string
-  ): Promise<(Folder | RufusRequest)[]> {
-    const children: (Folder | RufusRequest)[] = [];
+  ): Promise<(Folder | TrufosRequest)[]> {
+    const children: (Folder | TrufosRequest)[] = [];
 
     for (const node of await fs.readdir(parentDirPath, {
       withFileTypes: true,
@@ -357,7 +357,7 @@ export class PersistenceService {
   }
 
   // TODO: simplify type detection
-  private async load<T extends RufusRequest | Folder>(
+  private async load<T extends TrufosRequest | Folder>(
     parentId: string,
     dirPath: string,
     type?: T['type']
@@ -373,7 +373,7 @@ export class PersistenceService {
     }
   }
 
-  private updatePathMapRecursively(child: Folder | RufusRequest, newParentDirPath: string) {
+  private updatePathMapRecursively(child: Folder | TrufosRequest, newParentDirPath: string) {
     const oldDirPath = this.idToPathMap.get(child.id);
     const dirName = path.basename(oldDirPath);
     const newDirPath = path.join(newParentDirPath, dirName);
@@ -385,7 +385,7 @@ export class PersistenceService {
     }
   }
 
-  private getDirPath(object: RufusObject) {
+  private getDirPath(object: TrufosObject) {
     if (isCollection(object)) {
       return object.dirPath;
     } else if (this.idToPathMap.has(object.id)) {
@@ -397,7 +397,7 @@ export class PersistenceService {
     }
   }
 
-  private getDirName(object: RufusObject) {
+  private getDirName(object: TrufosObject) {
     return this.sanitizeTitle(object.title);
   }
 

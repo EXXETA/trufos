@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/state/store';
 import { editor } from 'monaco-editor';
 import { RequestMethod } from 'shim/objects/request-method';
-import { RufusRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
 import { updateRequest } from '@/state/requestsSlice';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
@@ -24,7 +24,7 @@ export function MainTopBar() {
     | editor.ICodeEditor
     | undefined;
   const requestIndex = useSelector<RootState, number>((state) => state.requests.selectedRequest);
-  const requests = useSelector<RootState, RufusRequest[]>((state) => state.requests.requests);
+  const requests = useSelector<RootState, TrufosRequest[]>((state) => state.requests.requests);
   const request = requests[requestIndex];
   const selectedHttpMethod = request?.method;
   const url = request?.url;

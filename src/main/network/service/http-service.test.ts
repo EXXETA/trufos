@@ -1,7 +1,7 @@
 import { HttpService } from './http-service';
 import { MockAgent } from 'undici';
 import fs from 'node:fs';
-import { RufusRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
 import { randomUUID } from 'node:crypto';
 import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
@@ -12,7 +12,7 @@ describe('HttpService', () => {
     const text = 'Hello, world!';
     const url = new URL('https://example.com/api/data');
     const httpService = setupMockHttpService(url, RequestMethod.GET, text);
-    const request: RufusRequest = {
+    const request: TrufosRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
       type: 'request',
@@ -52,7 +52,7 @@ describe('HttpService', () => {
       responseBodyMock,
       responseHeadersMock
     );
-    const request: RufusRequest = {
+    const request: TrufosRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
       type: 'request',
