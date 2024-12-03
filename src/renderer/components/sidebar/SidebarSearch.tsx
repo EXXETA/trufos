@@ -15,7 +15,7 @@ export const SidebarSearch = () => {
         style={{
           width: '100%',
         }}
-        onClick={addNewRequest}
+        onClick={() => addNewRequest()}
       >
         <div className={cn('m-2')}>
           <AddIcon size={24} color={'black'} />

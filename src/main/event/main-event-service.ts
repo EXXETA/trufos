@@ -74,7 +74,7 @@ export class MainEventService implements IEventService {
   }
 
   async saveRequest(request: TrufosRequest, textBody?: string) {
-    await persistenceService.saveRequest(request, textBody);
+    return await persistenceService.saveRequest(request, textBody);
   }
 
   async saveChanges(request: TrufosRequest) {

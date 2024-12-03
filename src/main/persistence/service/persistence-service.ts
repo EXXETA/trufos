@@ -105,12 +105,13 @@ export class PersistenceService {
     if (textBody != null) {
       const body = request.body as TextBody;
       body.type = RequestBodyType.TEXT; // enforce type
-      delete body.text; // remove text body from request body
+      delete body.text; // only present once, if imported collection
       const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
       await fs.writeFile(path.join(dirPath, fileName), textBody);
     } else if (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME))) {
       await fs.unlink(path.join(dirPath, TEXT_BODY_FILE_NAME));
     }
+    return request;
   }
 
   /**

@@ -4,6 +4,9 @@ import { editor } from 'monaco-editor';
 import { TrufosHeader } from 'shim/objects/headers';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { RendererEventService } from '@/services/event/renderer-event-service';
+
+const eventService = RendererEventService.instance;
 
 interface RequestState {
   requests: TrufosRequest[];
@@ -12,7 +15,7 @@ interface RequestState {
   requestEditor?: editor.ICodeEditor;
 
   initialize: (payload: { requests: TrufosRequest[]; collectionId: string }) => void;
-  addNewRequest: () => void;
+  addNewRequest: () => Promise<void>;
 
   /**
    * Replace the current request with the updated request
@@ -40,11 +43,11 @@ interface RequestState {
 }
 
 export const useRequestStore = create<RequestState>()(
-  immer((set) => ({
-    requests: [] as TrufosRequest[],
+  immer((set, get) => ({
+    requests: [],
     selectedRequestIndex: 0,
     collectionId: '',
-    requestEditor: undefined as undefined | editor.ICodeEditor,
+    requestEditor: undefined,
 
     initialize: (payload: { requests: TrufosRequest[]; collectionId: string }) =>
       set({
@@ -52,24 +55,28 @@ export const useRequestStore = create<RequestState>()(
         collectionId: payload.collectionId,
       }),
 
-    addNewRequest: (title?: string) =>
+    addNewRequest: async (title?: string) => {
+      const { collectionId } = get();
+      const request = await eventService.saveRequest({
+        url: 'http://',
+        method: RequestMethod.GET,
+        draft: true,
+        id: null,
+        parentId: collectionId,
+        type: 'request',
+        title: title ?? (Math.random() + 1).toString(36).substring(7),
+        headers: [],
+        body: {
+          type: RequestBodyType.TEXT,
+          mimeType: 'text/plain',
+        },
+      });
+
       set((state) => {
-        state.requests.push({
-          url: 'http://',
-          method: RequestMethod.GET,
-          draft: true,
-          id: null,
-          parentId: state.collectionId,
-          type: 'request',
-          title: title ?? (Math.random() + 1).toString(36).substring(7),
-          headers: [],
-          body: {
-            type: RequestBodyType.TEXT,
-            mimeType: 'text/plain',
-          },
-        });
+        state.requests.push(request);
         state.selectedRequestIndex = state.requests.length - 1;
-      }),
+      });
+    },
 
     updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) =>
       set(({ requests, selectedRequestIndex }) => {
