@@ -37,7 +37,7 @@ export const useRequestStore = create<RequestState>()(
         requests: payload.requests,
         collectionId: payload.collectionId,
       }),
-    addNewRequest: () =>
+    addNewRequest: (title?: string) =>
       set((state) => {
         state.requests.push({
           url: 'http://',
@@ -46,7 +46,7 @@ export const useRequestStore = create<RequestState>()(
           id: null,
           parentId: state.collectionId,
           type: 'request',
-          title: (Math.random() + 1).toString(36).substring(7), // TODO: Let user set title
+          title: title ?? (Math.random() + 1).toString(36).substring(7),
           headers: [],
           body: {
             type: RequestBodyType.TEXT,
