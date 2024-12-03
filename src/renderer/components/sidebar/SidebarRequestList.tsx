@@ -1,12 +1,9 @@
 import { httpMethodColor } from '@/services/StyleHelper';
 import { RequestBodyType } from 'shim/objects/request';
 import { FaTimes } from 'react-icons/fa';
-import { RendererEventService } from '@/services/event/renderer-event-service';
-import { MouseEvent, useCallback, useEffect } from 'react';
+import { MouseEvent, useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { useRequestStore } from '@/state/requestStore';
-
-const eventService = RendererEventService.instance;
 
 export const SidebarRequestList = () => {
   const { requestEditor, requests, selectedRequestIndex, setSelectedRequest, deleteRequest } =
@@ -25,24 +22,10 @@ export const SidebarRequestList = () => {
     }
   }, [request, requestEditor]);
 
-  const handleRowClick = async (index: number) => {
-    if (request != null) {
-      await eventService.saveRequest(request, requestEditor?.getValue());
-    }
-    setSelectedRequest(index);
+  const handleDeleteClick = async (event: MouseEvent, index: number) => {
+    event.stopPropagation();
+    await deleteRequest(index);
   };
-
-  const handleDeleteClick = useCallback(
-    async (event: MouseEvent, index: number) => {
-      event.stopPropagation();
-      const request = requests[index];
-      deleteRequest(index);
-      if (request.id != null) {
-        await eventService.deleteObject(request);
-      }
-    },
-    [deleteRequest, requests]
-  );
 
   return (
     <table className="w-full table-fixed">
@@ -51,7 +34,7 @@ export const SidebarRequestList = () => {
           <tr
             key={index}
             className={`cursor-pointer hover:bg-gray-600 ${selectedRequestIndex == index ? 'bg-gray-500' : ''}`}
-            onClick={() => handleRowClick(index)}
+            onClick={() => setSelectedRequest(index)}
           >
             <td className={'p-2 font-bold w-20 ' + httpMethodColor(request.method)}>
               {request.method}

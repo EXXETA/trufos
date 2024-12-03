@@ -14,8 +14,8 @@ interface RequestState {
   collectionId: string;
   requestEditor?: editor.ICodeEditor;
 
-  initialize: (payload: { requests: TrufosRequest[]; collectionId: string }) => void;
-  addNewRequest: () => Promise<void>;
+  initialize: (state: { requests: TrufosRequest[]; collectionId: string }) => void;
+  addNewRequest: (title?: string) => Promise<void>;
 
   /**
    * Replace the current request with the updated request
@@ -33,8 +33,8 @@ interface RequestState {
 
   setRequestBody: (payload: RequestBody) => void;
   setRequestEditor: (requestEditor?: editor.ICodeEditor) => void;
-  setSelectedRequest: (index: number) => void;
-  deleteRequest: (index: number) => void;
+  setSelectedRequest: (index: number) => Promise<void>;
+  deleteRequest: (index: number) => Promise<void>;
   addHeader: () => void;
   updateHeader: (payload: { index: number; updatedHeader: Partial<TrufosHeader> }) => void;
   deleteHeader: (index: number) => void;
@@ -49,13 +49,13 @@ export const useRequestStore = create<RequestState>()(
     collectionId: '',
     requestEditor: undefined,
 
-    initialize: (payload: { requests: TrufosRequest[]; collectionId: string }) =>
+    initialize: (state) =>
       set({
-        requests: payload.requests,
-        collectionId: payload.collectionId,
+        requests: state.requests,
+        collectionId: state.collectionId,
       }),
 
-    addNewRequest: async (title?: string) => {
+    addNewRequest: async (title) => {
       const { collectionId } = get();
       const request = await eventService.saveRequest({
         url: 'http://',
@@ -88,22 +88,33 @@ export const useRequestStore = create<RequestState>()(
           : { ...currentRequest, ...updatedRequest };
       }),
 
-    setRequestBody: (body: RequestBody) => set((state) => state.updateRequest({ body })),
+    setRequestBody: (body) => set((state) => state.updateRequest({ body })),
 
-    setRequestEditor: (requestEditor?: editor.ICodeEditor) => set({ requestEditor }),
+    setRequestEditor: (requestEditor) => set({ requestEditor }),
 
-    setSelectedRequest: (index: number) => set({ selectedRequestIndex: index }),
+    setSelectedRequest: async (index: number) => {
+      const { selectedRequestIndex, requests, requestEditor } = get();
+      const request = requests[selectedRequestIndex];
+      if (request != null && requestEditor != null) {
+        await eventService.saveRequest(request, requestEditor.getValue());
+      }
+      set({ selectedRequestIndex: index });
+    },
 
-    deleteRequest: (index: number) =>
+    deleteRequest: async (index: number) => {
+      const { requests, selectedRequestIndex, addNewRequest } = get();
+      const request = requests[selectedRequestIndex];
+      if (requests.length === 1) {
+        await addNewRequest();
+      } else if (selectedRequestIndex > 0 && selectedRequestIndex === index) {
+        set({ selectedRequestIndex: selectedRequestIndex - 1 });
+      }
+
       set((state) => {
-        const { requests, selectedRequestIndex } = state;
-        if (requests.length === 1) {
-          state.addNewRequest();
-        } else if (selectedRequestIndex > 0 && selectedRequestIndex === index) {
-          state.selectedRequestIndex--;
-        }
-        requests.splice(index, 1);
-      }),
+        state.requests.splice(index, 1);
+      });
+      await eventService.deleteObject(request);
+    },
 
     addHeader: () =>
       set(({ requests, selectedRequestIndex }) => {
