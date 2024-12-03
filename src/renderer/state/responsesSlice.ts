@@ -1,32 +1,34 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { RootState } from '@/state/store';
 import { TrufosResponse } from 'shim/objects/response';
-import { selectRequest } from '@/state/requestsSlice';
 import { editor } from 'monaco-editor';
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
 
-declare type ResponseInfoMap = Record<string, TrufosResponse>;
+/** A map of requestId => response */
+type ResponseInfoMap = Record<string, TrufosResponse>;
 
-export const responsesSlice = createSlice({
-  name: 'responses',
-  initialState: {
+interface ResponseState {
+  responseInfoMap: ResponseInfoMap;
+  editor?: editor.ICodeEditor;
+  addResponse: (response: TrufosResponse & { requestId: string }) => void;
+  removeResponse: (requestId: string) => void;
+  setResponseEditor: (editor: editor.ICodeEditor | undefined) => void;
+}
+
+export const useResponseStore = create<ResponseState>()(
+  immer((set) => ({
     responseInfoMap: {} as ResponseInfoMap,
     editor: undefined as undefined | editor.ICodeEditor,
-  },
-  reducers: {
-    addResponse(state, action: PayloadAction<TrufosResponse & { requestId: string }>) {
-      state.responseInfoMap[action.payload.requestId] = action.payload;
-    },
-    removeResponse(state, action: PayloadAction<string>) {
-      delete state.responseInfoMap[action.payload];
-    },
-    setResponseEditor: (state, action: PayloadAction<editor.ICodeEditor | undefined>) => {
-      state.editor = action.payload;
-    },
-  },
-});
+    addResponse: (response) =>
+      set((state) => {
+        state.responseInfoMap[response.requestId] = response;
+      }),
+    removeResponse: (requestId) =>
+      set((state) => {
+        delete state.responseInfoMap[requestId];
+      }),
+    setResponseEditor: (responseEditor) => set({ editor: responseEditor }),
+  }))
+);
 
-export const selectResponse = (state: RootState) =>
-  state.responses.responseInfoMap[selectRequest(state)?.id];
-export const selectResponseEditor = (state: RootState) => state.responses.editor;
-
-export const { addResponse, removeResponse, setResponseEditor } = responsesSlice.actions;
+export const selectResponse = (state: ResponseState, requestId?: string) =>
+  state.responseInfoMap[requestId];

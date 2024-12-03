@@ -5,9 +5,8 @@ import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-sett
 import { HttpHeaders } from 'shim/headers';
 import { useEffect, useRef } from 'react';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
-import { selectResponse, selectResponseEditor, setResponseEditor } from '@/state/responsesSlice';
-import { useDispatch, useSelector } from 'react-redux';
 import { IpcPushStream } from '@/lib/ipc-stream';
+import { selectResponse, useResponseStore } from '@/state/responsesSlice';
 
 const monacoOptions = {
   ...DEFAULT_MONACO_OPTIONS,
@@ -42,10 +41,9 @@ interface OutputTabsProps {
 
 export function OutputTabs(props: OutputTabsProps) {
   const { className } = props;
-  const dispatch = useDispatch();
+  const { setResponseEditor, editor } = useResponseStore();
+  const response = useResponseStore(selectResponse);
   const tabsRef = useRef(null);
-  const editor = useSelector(selectResponseEditor);
-  const response = useSelector(selectResponse);
 
   useEffect(() => {
     if (editor == null) {
@@ -86,7 +84,7 @@ export function OutputTabs(props: OutputTabsProps) {
             language={mimeType}
             theme="vs-dark" /* TODO: apply theme from settings */
             options={monacoOptions}
-            onMount={(editor) => dispatch(setResponseEditor(editor))}
+            onMount={setResponseEditor}
           />
         </div>
       </TabsContent>

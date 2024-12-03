@@ -1,5 +1,4 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDispatch, useSelector } from 'react-redux';
 import {
   Select,
   SelectContent,
@@ -12,17 +11,6 @@ import { RequestBodyType } from 'shim/objects/request';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { Editor } from '@monaco-editor/react';
 import { Input } from '@/components/ui/input';
-import { RootState } from '@/state/store';
-import {
-  addHeader,
-  clearHeaders,
-  deleteHeader,
-  selectHeaders,
-  setDraftFlag,
-  setRequestBody,
-  setRequestEditor,
-  updateHeader,
-} from '@/state/requestsSlice';
 import { useCallback, useState } from 'react';
 import { editor } from 'monaco-editor';
 import { Divider } from '@/components/shared/Divider';
@@ -38,6 +26,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
+import { selectRequest, useRequestStore } from '@/state/requestsSlice';
 
 interface InputTabsProps {
   className: string;
@@ -45,11 +34,18 @@ interface InputTabsProps {
 
 export function InputTabs(props: InputTabsProps) {
   const { className } = props;
-  const dispatch = useDispatch();
-  const requestBody = useSelector(
-    ({ requests }: RootState) => requests.requests[requests.selectedRequest]?.body
-  );
-  const headers = useSelector(selectHeaders);
+  const {
+    setRequestBody,
+    setRequestEditor,
+    addHeader,
+    updateHeader,
+    setDraftFlag,
+    deleteHeader,
+    clearHeaders,
+  } = useRequestStore();
+  const request = useRequestStore(selectRequest);
+  const requestBody = request?.body;
+  const headers = request?.headers ?? [];
 
   const [isOpen, setIsOpen] = useState(false);
 
@@ -57,39 +53,37 @@ export function InputTabs(props: InputTabsProps) {
     (type: RequestBodyType) => {
       switch (type) {
         case RequestBodyType.TEXT:
-          dispatch(setRequestBody({ type, mimeType: 'text/plain' }));
+          setRequestBody({ type, mimeType: 'text/plain' });
           break;
         case RequestBodyType.FILE:
-          dispatch(setRequestBody({ type }));
+          setRequestBody({ type });
           break;
       }
     },
-    [dispatch]
+    [setRequestBody]
   );
 
   const setRequestBodyFile = useCallback(
     (file?: File) => {
       if (file == null) return;
-      dispatch(
-        setRequestBody({
-          type: RequestBodyType.FILE,
-          filePath: file.path,
-          mimeType: file.type === '' ? undefined : file.type,
-        })
-      );
+      setRequestBody({
+        type: RequestBodyType.FILE,
+        filePath: file.path,
+        mimeType: file.type === '' ? undefined : file.type,
+      });
     },
-    [dispatch]
+    [setRequestBody]
   );
 
   const onEditorMount = useCallback(
     (editor: editor.ICodeEditor) => {
-      dispatch(setRequestEditor(editor));
+      setRequestEditor(editor);
       editor.onDidChangeModelContent((e) => {
         if (e.isFlush) return;
-        dispatch(setDraftFlag());
+        setDraftFlag();
       });
     },
-    [dispatch]
+    [setRequestEditor, setDraftFlag]
   );
 
   const renderEditor = useCallback(() => {
@@ -112,31 +106,22 @@ export function InputTabs(props: InputTabsProps) {
     );
   }, [setRequestBodyFile]);
 
-  const handleAddHeader = useCallback(() => {
-    dispatch(addHeader());
-  }, [dispatch]);
+  const handleAddHeader = addHeader;
 
-  const handleDeleteHeader = useCallback(
-    (index: number) => {
-      dispatch(deleteHeader(index));
-    },
-    [dispatch]
+  const handleDeleteHeader = deleteHeader;
+
+  const deleteAllHeaders = clearHeaders;
+
+  const handleUpdateHeader = (index: number, updatedFields: Partial<TrufosHeader>) =>
+    updateHeader({
+      index,
+      updatedHeader: updatedFields,
+    });
+
+  const getActiveRowCount = useCallback(
+    () => headers.filter((header) => header.isActive).length,
+    [headers]
   );
-
-  const deleteAllHeaders = useCallback(() => {
-    dispatch(clearHeaders());
-  }, [dispatch]);
-
-  const handleUpdateHeader = useCallback(
-    (index: number, updatedFields: Partial<TrufosHeader>) => {
-      dispatch(updateHeader({ index, updatedHeader: updatedFields }));
-    },
-    [dispatch]
-  );
-
-  const getActiveRowCount = useCallback(() => {
-    return headers.filter((header) => header.isActive).length;
-  }, [headers]);
 
   return (
     <Tabs className={className} defaultValue="body">

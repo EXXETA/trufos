@@ -1,17 +1,12 @@
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AddIcon } from '@/components/icons';
-import React, { useCallback } from 'react';
-import { addNewRequest } from '@/state/requestsSlice';
-import { useDispatch } from 'react-redux';
+import React from 'react';
+import { useRequestStore } from '@/state/requestsSlice';
 
 export const SidebarSearch = () => {
-  const dispatch = useDispatch();
-
-  const createNewRequest = useCallback(() => {
-    dispatch(addNewRequest());
-  }, [dispatch]);
-
+  const { addNewRequest } = useRequestStore();
+  
   return (
     <div className="flex w-full max-w-sm items-center space-x-[24px]">
       <Button
@@ -20,7 +15,7 @@ export const SidebarSearch = () => {
         style={{
           width: '100%',
         }}
-        onClick={createNewRequest}
+        onClick={addNewRequest}
       >
         <div className={cn('m-2')}>
           <AddIcon size={24} color={'black'} />

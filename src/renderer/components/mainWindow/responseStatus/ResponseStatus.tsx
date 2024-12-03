@@ -4,11 +4,10 @@ import {
   getHttpStatusText,
   getSizeText,
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
-import { useSelector } from 'react-redux';
-import { selectResponse } from '@/state/responsesSlice';
+import { selectResponse, useResponseStore } from '@/state/responsesSlice';
 
 export function ResponseStatus() {
-  const response = useSelector(selectResponse);
+  const response = useResponseStore(selectResponse);
 
   if (response?.metaInfo == null) {
     return <span></span>;

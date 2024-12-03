@@ -1,120 +1,116 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RequestMethod } from 'shim/objects/request-method';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { editor } from 'monaco-editor';
 import { TrufosHeader } from 'shim/objects/headers';
-import { RootState } from '@/state/store';
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
 
-export const requestsSlice = createSlice({
-  name: 'requests',
-  initialState: {
+interface RequestState {
+  requests: TrufosRequest[];
+  selectedRequest: number;
+  collectionId: string;
+  requestEditor?: editor.ICodeEditor;
+  requestBody?: RequestBody;
+  initialize: (payload: { requests: TrufosRequest[]; collectionId: string }) => void;
+  addNewRequest: () => void;
+  updateRequest: (payload: { index: number; request: TrufosRequest }) => void;
+  setRequestBody: (payload: RequestBody) => void;
+  setRequestEditor: (requestEditor?: editor.ICodeEditor) => void;
+  setSelectedRequest: (index: number) => void;
+  deleteRequest: (index: number) => void;
+  addHeader: () => void;
+  updateHeader: (payload: { index: number; updatedHeader: Partial<TrufosHeader> }) => void;
+  deleteHeader: (index: number) => void;
+  clearHeaders: () => void;
+  setDraftFlag: () => void;
+}
+
+export const useRequestStore = create<RequestState>()(
+  immer((set, get) => ({
     requests: [] as TrufosRequest[],
     selectedRequest: 0,
     collectionId: '',
     requestEditor: undefined as undefined | editor.ICodeEditor,
     requestBody: undefined as undefined | RequestBody,
-  },
-  reducers: {
-    initialize(state, action: PayloadAction<{ requests: TrufosRequest[]; collectionId: string }>) {
-      state.requests = action.payload.requests;
-      state.collectionId = action.payload.collectionId;
-    },
-    addNewRequest(state) {
-      state.requests.unshift({
-        url: 'http://',
-        method: RequestMethod.GET,
-        draft: true,
-        id: null,
-        parentId: state.collectionId,
-        type: 'request',
-        title: (Math.random() + 1).toString(36).substring(7), // TODO: Let user set title
-        headers: [],
-        body: {
-          type: RequestBodyType.TEXT,
-          mimeType: 'text/plain',
-        },
-      });
-      state.selectedRequest = 0;
-    },
-    updateRequest(state, action: PayloadAction<{ index: number; request: TrufosRequest }>) {
-      const { index, request } = action.payload;
-      state.requests[index] = request;
-    },
-    setRequestBody(state, action: PayloadAction<RequestBody>) {
-      const request = state.requests[state.selectedRequest];
+    initialize: (payload: { requests: TrufosRequest[]; collectionId: string }) =>
+      set({
+        requests: payload.requests,
+        collectionId: payload.collectionId,
+      }),
+    addNewRequest: () =>
+      set((state) => {
+        state.requests.push({
+          url: 'http://',
+          method: RequestMethod.GET,
+          draft: true,
+          id: null,
+          parentId: state.collectionId,
+          type: 'request',
+          title: (Math.random() + 1).toString(36).substring(7), // TODO: Let user set title
+          headers: [],
+          body: {
+            type: RequestBodyType.TEXT,
+            mimeType: 'text/plain',
+          },
+        });
+        state.selectedRequest = state.requests.length - 1;
+      }),
+    updateRequest: (payload: { index: number; request: TrufosRequest }) =>
+      set(({ requests }) => {
+        requests[payload.index] = payload.request;
+      }),
+    setRequestBody: (payload: RequestBody) => {
+      const request = get().requests[get().selectedRequest];
       if (request != null) {
-        request.body = action.payload;
+        request.body = payload;
       }
     },
-    setRequestEditor: (state, action: PayloadAction<editor.ICodeEditor>) => {
-      state.requestEditor = action.payload;
-    },
-    setSelectedRequest: (state, action: PayloadAction<number>) => {
-      state.selectedRequest = action.payload;
-    },
-    deleteRequest(state, action: PayloadAction<number>) {
-      if (state.requests.length === 1) {
-        requestsSlice.caseReducers.addNewRequest(state);
-      } else if (
-        state.selectedRequest > 0 &&
-        state.selectedRequest === action.payload &&
-        state.selectedRequest === state.requests.length - 1
-      ) {
-        state.selectedRequest--;
-      }
-      state.requests = state.requests.toSpliced(action.payload, 1);
-    },
-    addHeader: (state) => {
-      state.requests[state.selectedRequest].headers.push({ key: '', value: '', isActive: false });
-    },
-    updateHeader: (
-      state,
-      action: PayloadAction<{
-        index: number;
-        updatedHeader: Partial<TrufosHeader>;
-      }>
-    ) => {
-      const { index, updatedHeader } = action.payload;
-      state.requests[state.selectedRequest].headers = state.requests[
-        state.selectedRequest
-      ].headers.toSpliced(index, 1, {
-        ...state.requests[state.selectedRequest].headers[index],
-        ...updatedHeader,
-      });
-    },
-    deleteHeader: (state, action: PayloadAction<number>) => {
-      state.requests[state.selectedRequest].headers = state.requests[
-        state.selectedRequest
-      ].headers.toSpliced(action.payload, 1);
-      if (state.requests[state.selectedRequest].headers.length === 0) {
-        requestsSlice.caseReducers.addHeader(state);
-      }
-    },
-    clearHeaders: (state) => {
-      state.requests[state.selectedRequest].headers = [];
-      requestsSlice.caseReducers.addHeader(state);
-    },
-    setDraftFlag: (state) => {
-      state.requests[state.selectedRequest].draft = true;
-    },
-  },
-});
+    setRequestEditor: (requestEditor?: editor.ICodeEditor) => set(() => ({ requestEditor })),
+    setSelectedRequest: (index: number) => set(() => ({ selectedRequest: index })),
+    deleteRequest: (index: number) =>
+      set((state) => {
+        const { requests, selectedRequest } = get();
+        if (requests.length === 1) {
+          state.addNewRequest();
+        } else if (
+          selectedRequest > 0 &&
+          selectedRequest === index &&
+          selectedRequest === requests.length - 1
+        ) {
+          state.selectedRequest--;
+        }
+        requests.splice(index, 1);
+      }),
+    addHeader: () =>
+      set(({ requests, selectedRequest }) => {
+        requests[selectedRequest].headers.push({ key: '', value: '', isActive: false });
+      }),
+    updateHeader: (payload: { index: number; updatedHeader: Partial<TrufosHeader> }) =>
+      set((state) => {
+        const { index, updatedHeader } = payload;
+        const headers = selectHeaders(state);
+        headers[index] = { ...headers[index], ...updatedHeader };
+      }),
+    deleteHeader: (index: number) =>
+      set((state) => {
+        const headers = selectHeaders(state);
+        headers.splice(index, 1);
+        if (state.requests[state.selectedRequest].headers.length === 0) {
+          state.addHeader();
+        }
+      }),
+    clearHeaders: () =>
+      set((state) => {
+        const request = selectRequest(state);
+        request.headers = [];
+        state.addHeader();
+      }),
+    setDraftFlag: () =>
+      set((state) => {
+        selectRequest(state).draft = true;
+      }),
+  }))
+);
 
-export const selectRequest = (state: RootState) =>
-  state.requests.requests[state.requests.selectedRequest];
-export const selectHeaders = (state: RootState) => selectRequest(state)?.headers;
-
-export const {
-  updateRequest,
-  addNewRequest,
-  setSelectedRequest,
-  deleteRequest,
-  initialize,
-  setRequestBody,
-  setRequestEditor,
-  addHeader,
-  updateHeader,
-  deleteHeader,
-  clearHeaders,
-  setDraftFlag,
-} = requestsSlice.actions;
+export const selectRequest = (state: RequestState) => state.requests[state.selectedRequest];
+export const selectHeaders = (state: RequestState) => selectRequest(state)?.headers;

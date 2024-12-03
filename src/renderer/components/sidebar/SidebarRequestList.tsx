@@ -1,12 +1,10 @@
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '@/state/store';
-import { deleteRequest, setSelectedRequest } from '@/state/requestsSlice';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { FaTimes } from 'react-icons/fa';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { MouseEvent, useCallback, useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
+import { useRequestStore } from '@/state/requestsSlice';
 
 interface SidebarRequestListProps {
   requests: TrufosRequest[];
@@ -15,10 +13,13 @@ interface SidebarRequestListProps {
 const eventService = RendererEventService.instance;
 
 export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const selectedRequestIndex = useSelector((state: RootState) => state.requests.selectedRequest);
-  const requestEditor = useSelector((state: RootState) => state.requests.requestEditor);
-  const request: TrufosRequest | undefined = requests[selectedRequestIndex];
+  const {
+    selectedRequest: selectedRequestIndex,
+    requestEditor,
+    setSelectedRequest,
+    deleteRequest,
+  } = useRequestStore();
+  const request = requests[selectedRequestIndex];
 
   useEffect(() => {
     if (requestEditor == null) {
@@ -40,21 +41,21 @@ export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) =
       if (request != null) {
         await eventService.saveRequest(request, requestEditor?.getValue());
       }
-      dispatch(setSelectedRequest(index));
+      setSelectedRequest(index);
     },
-    [dispatch, requestEditor, requests, request]
+    [setSelectedRequest, requestEditor, requests, request]
   );
 
   const handleDeleteClick = useCallback(
     async (event: MouseEvent, index: number) => {
       event.stopPropagation();
       const request = requests[index];
-      dispatch(deleteRequest(index));
+      deleteRequest(index);
       if (request.id != null) {
         await eventService.deleteObject(request);
       }
     },
-    [dispatch, requests]
+    [deleteRequest, requests]
   );
 
   return (
