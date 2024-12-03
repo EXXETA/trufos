@@ -4,7 +4,7 @@ import { FaTimes } from 'react-icons/fa';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { MouseEvent, useCallback, useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
-import { useRequestStore } from '@/state/requestsSlice';
+import { useRequestStore } from '@/state/requestStore';
 
 interface SidebarRequestListProps {
   requests: TrufosRequest[];

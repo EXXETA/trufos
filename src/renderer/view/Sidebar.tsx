@@ -3,7 +3,7 @@ import { Divider } from '@/components/shared/Divider';
 import { SidebarRequestList } from '@/components/sidebar/SidebarRequestList';
 import { FooterBar } from '@/components/sidebar/FooterBar';
 import { SidebarSearch } from '@/components/sidebar/SidebarSearch';
-import { useRequestStore } from '@/state/requestsSlice';
+import { useRequestStore } from '@/state/requestStore';
 
 export const Sidebar = () => {
   const requests = useRequestStore((state) => state.requests);

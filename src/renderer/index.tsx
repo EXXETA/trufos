@@ -4,7 +4,7 @@ import { App } from '@/App';
 import { loader } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { useRequestStore } from '@/state/requestsSlice';
+import { useRequestStore } from '@/state/requestStore';
 import { TrufosRequest } from '../shim/objects/request';
 
 const { initialize } = useRequestStore.getState();

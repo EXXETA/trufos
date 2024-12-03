@@ -2,11 +2,11 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AddIcon } from '@/components/icons';
 import React from 'react';
-import { useRequestStore } from '@/state/requestsSlice';
+import { useRequestStore } from '@/state/requestStore';
 
 export const SidebarSearch = () => {
   const { addNewRequest } = useRequestStore();
-  
+
   return (
     <div className="flex w-full max-w-sm items-center space-x-[24px]">
       <Button

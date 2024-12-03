@@ -8,8 +8,8 @@ import { SendButton } from './mainTopBar/SendButton';
 import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { useRequestStore } from '@/state/requestsSlice';
-import { useResponseStore } from '@/state/responsesSlice';
+import { useRequestStore } from '@/state/requestStore';
+import { useResponseStore } from '@/state/responsStore';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;

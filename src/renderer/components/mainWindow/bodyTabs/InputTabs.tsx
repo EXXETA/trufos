@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
-import { selectRequest, useRequestStore } from '@/state/requestsSlice';
+import { selectRequest, useRequestStore } from '@/state/requestStore';
 
 interface InputTabsProps {
   className: string;
