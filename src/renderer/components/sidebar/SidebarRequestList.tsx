@@ -1,24 +1,16 @@
 import { httpMethodColor } from '@/services/StyleHelper';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { RequestBodyType } from 'shim/objects/request';
 import { FaTimes } from 'react-icons/fa';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { MouseEvent, useCallback, useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { useRequestStore } from '@/state/requestStore';
 
-interface SidebarRequestListProps {
-  requests: TrufosRequest[];
-}
-
 const eventService = RendererEventService.instance;
 
-export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) => {
-  const {
-    selectedRequest: selectedRequestIndex,
-    requestEditor,
-    setSelectedRequest,
-    deleteRequest,
-  } = useRequestStore();
+export const SidebarRequestList = () => {
+  const { requestEditor, requests, selectedRequestIndex, setSelectedRequest, deleteRequest } =
+    useRequestStore();
   const request = requests[selectedRequestIndex];
 
   useEffect(() => {
@@ -27,24 +19,18 @@ export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) =
     } else if (request?.body?.type === RequestBodyType.TEXT && request?.id != null) {
       IpcPushStream.open(request)
         .then((stream) => IpcPushStream.collect(stream))
-        .then((content) => {
-          console.log(content);
-          requestEditor.setValue(content);
-        });
+        .then(requestEditor.setValue.bind(requestEditor));
     } else {
       requestEditor.setValue('');
     }
-  }, [request?.id, requestEditor]);
+  }, [request, requestEditor]);
 
-  const handleRowClick = useCallback(
-    async (index: number) => {
-      if (request != null) {
-        await eventService.saveRequest(request, requestEditor?.getValue());
-      }
-      setSelectedRequest(index);
-    },
-    [setSelectedRequest, requestEditor, requests, request]
-  );
+  const handleRowClick = async (index: number) => {
+    if (request != null) {
+      await eventService.saveRequest(request, requestEditor?.getValue());
+    }
+    setSelectedRequest(index);
+  };
 
   const handleDeleteClick = useCallback(
     async (event: MouseEvent, index: number) => {

@@ -9,18 +9,18 @@ type ResponseInfoMap = Record<string, TrufosResponse>;
 interface ResponseState {
   responseInfoMap: ResponseInfoMap;
   editor?: editor.ICodeEditor;
-  addResponse: (response: TrufosResponse & { requestId: string }) => void;
+  addResponse: (requestId: string, response: TrufosResponse) => void;
   removeResponse: (requestId: string) => void;
   setResponseEditor: (editor: editor.ICodeEditor | undefined) => void;
 }
 
 export const useResponseStore = create<ResponseState>()(
   immer((set) => ({
-    responseInfoMap: {} as ResponseInfoMap,
-    editor: undefined as undefined | editor.ICodeEditor,
-    addResponse: (response) =>
+    responseInfoMap: {},
+    editor: undefined,
+    addResponse: (requestId, response) =>
       set((state) => {
-        state.responseInfoMap[response.requestId] = response;
+        state.responseInfoMap[requestId] = response;
       }),
     removeResponse: (requestId) =>
       set((state) => {

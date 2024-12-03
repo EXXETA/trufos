@@ -8,47 +8,26 @@ import { SendButton } from './mainTopBar/SendButton';
 import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { useRequestStore } from '@/state/requestStore';
+import { selectRequest, useRequestStore } from '@/state/requestStore';
 import { useResponseStore } from '@/state/responsStore';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 export function MainTopBar() {
-  const {
-    updateRequest,
-    requestEditor,
-    selectedRequest: requestIndex,
-    requests,
-  } = useRequestStore();
+  const { updateRequest, requestEditor } = useRequestStore();
   const { addResponse } = useResponseStore();
-  const request = requests[requestIndex];
+  const request = useRequestStore(selectRequest);
   const selectedHttpMethod = request?.method;
   const url = request?.url;
 
-  const handleUrlChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      if (request == null) return;
+  const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) =>
+    updateRequest({
+      url: event.target.value,
+      draft: true,
+    });
 
-      updateRequest({
-        index: requestIndex,
-        request: { ...request, url: event.target.value, draft: true },
-      });
-    },
-    [request]
-  );
-
-  const handleHttpMethodChange = useCallback(
-    (method: RequestMethod) => {
-      if (request == null) return;
-
-      updateRequest({
-        index: requestIndex,
-        request: { ...request, method, draft: true },
-      });
-    },
-    [request]
-  );
+  const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method, draft: true });
 
   const sendRequest = useCallback(
     useErrorHandler(async () => {
@@ -60,9 +39,9 @@ export function MainTopBar() {
       await eventService.saveRequest(request, requestEditor?.getValue());
 
       const response = await httpService.sendRequest(request);
-      addResponse({ requestId: request.id, ...response });
+      addResponse(request.id, response);
     }),
-    [request, requestEditor]
+    [request, requestEditor, addResponse]
   );
 
   const saveRequest = useCallback(
@@ -74,10 +53,7 @@ export function MainTopBar() {
       await eventService.saveRequest(request, requestEditor?.getValue());
 
       // override existing request with the saved draft
-      updateRequest({
-        index: requestIndex,
-        request: await eventService.saveChanges(request),
-      });
+      updateRequest(await eventService.saveChanges(request), true);
     }),
     [request, requestEditor]
   );

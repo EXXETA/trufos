@@ -7,13 +7,27 @@ import { immer } from 'zustand/middleware/immer';
 
 interface RequestState {
   requests: TrufosRequest[];
-  selectedRequest: number;
+  selectedRequestIndex: number;
   collectionId: string;
   requestEditor?: editor.ICodeEditor;
-  requestBody?: RequestBody;
+
   initialize: (payload: { requests: TrufosRequest[]; collectionId: string }) => void;
   addNewRequest: () => void;
-  updateRequest: (payload: { index: number; request: TrufosRequest }) => void;
+
+  /**
+   * Replace the current request with the updated request
+   * @param request The new request content
+   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
+   */
+  updateRequest(request: TrufosRequest, overwrite: true): void;
+
+  /**
+   * Merge the current request with the updated request
+   * @param request The properties to update
+   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
+   */
+  updateRequest(request: Partial<TrufosRequest>, overwrite?: false): void;
+
   setRequestBody: (payload: RequestBody) => void;
   setRequestEditor: (requestEditor?: editor.ICodeEditor) => void;
   setSelectedRequest: (index: number) => void;
@@ -28,15 +42,16 @@ interface RequestState {
 export const useRequestStore = create<RequestState>()(
   immer((set) => ({
     requests: [] as TrufosRequest[],
-    selectedRequest: 0,
+    selectedRequestIndex: 0,
     collectionId: '',
     requestEditor: undefined as undefined | editor.ICodeEditor,
-    requestBody: undefined as undefined | RequestBody,
+
     initialize: (payload: { requests: TrufosRequest[]; collectionId: string }) =>
       set({
         requests: payload.requests,
         collectionId: payload.collectionId,
       }),
+
     addNewRequest: (title?: string) =>
       set((state) => {
         state.requests.push({
@@ -53,61 +68,67 @@ export const useRequestStore = create<RequestState>()(
             mimeType: 'text/plain',
           },
         });
-        state.selectedRequest = state.requests.length - 1;
+        state.selectedRequestIndex = state.requests.length - 1;
       }),
-    updateRequest: (payload: { index: number; request: TrufosRequest }) =>
-      set(({ requests }) => {
-        requests[payload.index] = payload.request;
+
+    updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) =>
+      set(({ requests, selectedRequestIndex }) => {
+        const currentRequest = requests[selectedRequestIndex];
+        if (updatedRequest == null) return;
+
+        requests[selectedRequestIndex] = overwrite
+          ? (updatedRequest as TrufosRequest)
+          : { ...currentRequest, ...updatedRequest };
       }),
-    setRequestBody: (payload: RequestBody) =>
-      set((state) => {
-        const request = selectRequest(state);
-        if (request != null) {
-          request.body = payload;
-        }
-      }),
-    setRequestEditor: (requestEditor?: editor.ICodeEditor) => set(() => ({ requestEditor })),
-    setSelectedRequest: (index: number) => set(() => ({ selectedRequest: index })),
+
+    setRequestBody: (body: RequestBody) => set((state) => state.updateRequest({ body })),
+
+    setRequestEditor: (requestEditor?: editor.ICodeEditor) => set({ requestEditor }),
+
+    setSelectedRequest: (index: number) => set({ selectedRequestIndex: index }),
+
     deleteRequest: (index: number) =>
       set((state) => {
-        const { requests, selectedRequest } = state;
+        const { requests, selectedRequestIndex } = state;
         if (requests.length === 1) {
           state.addNewRequest();
-        } else if (selectedRequest > 0 && selectedRequest === index) {
-          state.selectedRequest--;
+        } else if (selectedRequestIndex > 0 && selectedRequestIndex === index) {
+          state.selectedRequestIndex--;
         }
         requests.splice(index, 1);
       }),
+
     addHeader: () =>
-      set(({ requests, selectedRequest }) => {
-        requests[selectedRequest].headers.push({ key: '', value: '', isActive: false });
+      set(({ requests, selectedRequestIndex }) => {
+        requests[selectedRequestIndex].headers.push({ key: '', value: '', isActive: false });
       }),
+
     updateHeader: (payload: { index: number; updatedHeader: Partial<TrufosHeader> }) =>
       set((state) => {
         const { index, updatedHeader } = payload;
         const headers = selectHeaders(state);
         headers[index] = { ...headers[index], ...updatedHeader };
       }),
+
     deleteHeader: (index: number) =>
       set((state) => {
         const headers = selectHeaders(state);
         headers.splice(index, 1);
-        if (state.requests[state.selectedRequest].headers.length === 0) {
+        if (state.requests[state.selectedRequestIndex].headers.length === 0) {
           state.addHeader();
         }
       }),
+
     clearHeaders: () =>
       set((state) => {
         const request = selectRequest(state);
         request.headers = [];
         state.addHeader();
       }),
-    setDraftFlag: () =>
-      set((state) => {
-        selectRequest(state).draft = true;
-      }),
+
+    setDraftFlag: () => set((state) => (selectRequest(state).draft = true)),
   }))
 );
 
-export const selectRequest = (state: RequestState) => state.requests[state.selectedRequest];
+export const selectRequest = (state: RequestState) => state.requests[state.selectedRequestIndex];
 export const selectHeaders = (state: RequestState) => selectRequest(state)?.headers;
