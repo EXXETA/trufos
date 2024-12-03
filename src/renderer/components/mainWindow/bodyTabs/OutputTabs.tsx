@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { selectResponse, useResponseStore } from '@/state/responsStore';
+import { selectRequest, useRequestStore } from '@/state/requestStore';
 
 const monacoOptions = {
   ...DEFAULT_MONACO_OPTIONS,
@@ -42,7 +43,8 @@ interface OutputTabsProps {
 export function OutputTabs(props: OutputTabsProps) {
   const { className } = props;
   const { setResponseEditor, editor } = useResponseStore();
-  const response = useResponseStore(selectResponse);
+  const requestId = useRequestStore(selectRequest)?.id;
+  const response = useResponseStore((state) => selectResponse(state, requestId));
   const tabsRef = useRef(null);
 
   useEffect(() => {
