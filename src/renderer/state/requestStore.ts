@@ -26,7 +26,7 @@ interface RequestState {
 }
 
 export const useRequestStore = create<RequestState>()(
-  immer((set, get) => ({
+  immer((set) => ({
     requests: [] as TrufosRequest[],
     selectedRequest: 0,
     collectionId: '',
@@ -59,24 +59,21 @@ export const useRequestStore = create<RequestState>()(
       set(({ requests }) => {
         requests[payload.index] = payload.request;
       }),
-    setRequestBody: (payload: RequestBody) => {
-      const request = get().requests[get().selectedRequest];
-      if (request != null) {
-        request.body = payload;
-      }
-    },
+    setRequestBody: (payload: RequestBody) =>
+      set((state) => {
+        const request = selectRequest(state);
+        if (request != null) {
+          request.body = payload;
+        }
+      }),
     setRequestEditor: (requestEditor?: editor.ICodeEditor) => set(() => ({ requestEditor })),
     setSelectedRequest: (index: number) => set(() => ({ selectedRequest: index })),
     deleteRequest: (index: number) =>
       set((state) => {
-        const { requests, selectedRequest } = get();
+        const { requests, selectedRequest } = state;
         if (requests.length === 1) {
           state.addNewRequest();
-        } else if (
-          selectedRequest > 0 &&
-          selectedRequest === index &&
-          selectedRequest === requests.length - 1
-        ) {
+        } else if (selectedRequest > 0 && selectedRequest === index) {
           state.selectedRequest--;
         }
         requests.splice(index, 1);
