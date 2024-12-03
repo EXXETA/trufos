@@ -6,7 +6,7 @@ import { HttpHeaders } from 'shim/headers';
 import { useEffect, useRef } from 'react';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
 import { IpcPushStream } from '@/lib/ipc-stream';
-import { selectResponse, useResponseStore } from '@/state/responsStore';
+import { selectResponse, useResponseStore } from '@/state/responseStore';
 import { selectRequest, useRequestStore } from '@/state/requestStore';
 
 const monacoOptions = {

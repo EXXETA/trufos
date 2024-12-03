@@ -9,7 +9,7 @@ import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useRequestStore } from '@/state/requestStore';
-import { useResponseStore } from '@/state/responsStore';
+import { useResponseStore } from '@/state/responseStore';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;

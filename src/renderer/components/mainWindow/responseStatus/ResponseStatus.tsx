@@ -4,7 +4,7 @@ import {
   getHttpStatusText,
   getSizeText,
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
-import { selectResponse, useResponseStore } from '@/state/responsStore';
+import { selectResponse, useResponseStore } from '@/state/responseStore';
 
 export function ResponseStatus() {
   const response = useResponseStore(selectResponse);
