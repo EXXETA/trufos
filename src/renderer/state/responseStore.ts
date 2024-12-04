@@ -2,6 +2,8 @@ import { TrufosResponse } from 'shim/objects/response';
 import { editor } from 'monaco-editor';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { useRequestStore } from '@/state/requestStore';
+import { useActions } from '@/state/util';
 
 /** A map of requestId => response */
 type ResponseInfoMap = Record<string, TrufosResponse>;
@@ -32,3 +34,4 @@ export const useResponseStore = create<ResponseState>()(
 
 export const selectResponse = (state: ResponseState, requestId?: string) =>
   state.responseInfoMap[requestId];
+export const useResponseActions = () => useResponseStore(useActions());

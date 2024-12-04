@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useShallow } from 'zustand/react/shallow';
+import { useActions } from '@/state/util';
 
 const eventService = RendererEventService.instance;
 
@@ -14,9 +15,12 @@ interface RequestState {
   selectedRequestIndex: number;
   collectionId: string;
   requestEditor?: editor.ICodeEditor;
+}
 
-  initialize: (state: { requests: TrufosRequest[]; collectionId: string }) => void;
-  addNewRequest: (title?: string) => Promise<void>;
+interface RequestStateActions {
+  initialize(state: Pick<RequestState, 'requests' | 'collectionId'>): void;
+
+  addNewRequest(title?: string): Promise<void>;
 
   /**
    * Replace the current request with the updated request
@@ -32,18 +36,41 @@ interface RequestState {
    */
   updateRequest(request: Partial<TrufosRequest>, overwrite?: false): void;
 
-  setRequestBody: (payload: RequestBody) => void;
-  setRequestEditor: (requestEditor?: editor.ICodeEditor) => void;
-  setSelectedRequest: (index: number) => Promise<void>;
-  deleteRequest: (index: number) => Promise<void>;
-  addHeader: () => void;
-  updateHeader: (payload: { index: number; updatedHeader: Partial<TrufosHeader> }) => void;
-  deleteHeader: (index: number) => void;
-  clearHeaders: () => void;
-  setDraftFlag: () => void;
+  setRequestBody(payload: RequestBody): void;
+
+  setRequestEditor(requestEditor?: editor.ICodeEditor): void;
+
+  setSelectedRequest(index: number): Promise<void>;
+
+  deleteRequest(index: number): Promise<void>;
+
+  addHeader(): void;
+
+  /**
+   * Update a header in the currently selected request
+   * @param index The index of the header to update
+   * @param updatedHeader The new header content
+   */
+  updateHeader(index: number, updatedHeader: Partial<TrufosHeader>): void;
+
+  /**
+   * Delete a header from the currently selected request
+   * @param index The index of the header to delete
+   */
+  deleteHeader(index: number): void;
+
+  /**
+   * Clear all headers from the currently selected request and add a new empty header
+   */
+  clearHeaders(): void;
+
+  /**
+   * Set the draft flag on the currently selected request
+   */
+  setDraftFlag(): void;
 }
 
-export const useRequestStore = create<RequestState>()(
+export const useRequestStore = create<RequestState & RequestStateActions>()(
   immer((set, get) => ({
     requests: [],
     selectedRequestIndex: 0,
@@ -122,9 +149,8 @@ export const useRequestStore = create<RequestState>()(
         selectHeaders(state).push({ key: '', value: '', isActive: false });
       }),
 
-    updateHeader: (payload: { index: number; updatedHeader: Partial<TrufosHeader> }) =>
+    updateHeader: (index: number, updatedHeader: Partial<TrufosHeader>) =>
       set((state) => {
-        const { index, updatedHeader } = payload;
         const headers = selectHeaders(state);
         headers[index] = { ...headers[index], ...updatedHeader };
       }),
@@ -154,17 +180,4 @@ export const useRequestStore = create<RequestState>()(
 
 export const selectRequest = (state: RequestState) => state.requests[state.selectedRequestIndex];
 export const selectHeaders = (state: RequestState) => selectRequest(state)?.headers;
-export const useRequestActions = () =>
-  useRequestStore(
-    useShallow((state) => ({
-      addHeader: state.addHeader,
-      updateHeader: state.updateHeader,
-      deleteHeader: state.deleteHeader,
-      clearHeaders: state.clearHeaders,
-      setDraftFlag: state.setDraftFlag,
-      setRequestBody: state.setRequestBody,
-      setRequestEditor: state.setRequestEditor,
-      setSelectedRequest: state.setSelectedRequest,
-      deleteRequest: state.deleteRequest,
-    }))
-  );
+export const useRequestActions = () => useRequestStore(useActions());

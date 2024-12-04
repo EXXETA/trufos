@@ -114,10 +114,7 @@ export function InputTabs(props: InputTabsProps) {
   const deleteAllHeaders = clearHeaders;
 
   const handleUpdateHeader = (index: number, updatedFields: Partial<TrufosHeader>) =>
-    updateHeader({
-      index,
-      updatedHeader: updatedFields,
-    });
+    updateHeader(index, updatedFields);
 
   const getActiveRowCount = useCallback(
     () => headers.filter((header) => header.isActive).length,

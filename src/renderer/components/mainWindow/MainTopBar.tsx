@@ -8,15 +8,16 @@ import { SendButton } from './mainTopBar/SendButton';
 import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { selectRequest, useRequestStore } from '@/state/requestStore';
-import { useResponseStore } from '@/state/responseStore';
+import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
+import { useResponseActions } from '@/state/responseStore';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 export function MainTopBar() {
-  const { updateRequest, requestEditor } = useRequestStore();
-  const { addResponse } = useResponseStore();
+  const { updateRequest } = useRequestActions();
+  const { addResponse } = useResponseActions();
+  const requestEditor = useRequestStore((state) => state.requestEditor);
   const request = useRequestStore(selectRequest);
   const selectedHttpMethod = request?.method;
   const url = request?.url;
