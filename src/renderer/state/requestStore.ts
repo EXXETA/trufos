@@ -5,7 +5,6 @@ import { TrufosHeader } from 'shim/objects/headers';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { useShallow } from 'zustand/react/shallow';
 import { useActions } from '@/state/util';
 
 const eventService = RendererEventService.instance;
@@ -122,6 +121,7 @@ export const useRequestStore = create<RequestState & RequestStateActions>()(
 
     setSelectedRequest: async (index: number) => {
       const { selectedRequestIndex, requests, requestEditor } = get();
+      if (selectedRequestIndex === index) return;
       const request = requests[selectedRequestIndex];
       if (request != null && requestEditor != null) {
         await eventService.saveRequest(request, requestEditor.getValue());

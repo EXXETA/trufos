@@ -27,6 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
+import { useShallow } from 'zustand/react/shallow';
 
 interface InputTabsProps {
   className: string;
@@ -44,7 +45,7 @@ export function InputTabs(props: InputTabsProps) {
     updateHeader,
   } = useRequestActions();
 
-  const request = useRequestStore(selectRequest);
+  const request = useRequestStore(useShallow(selectRequest));
   const requestBody = request?.body;
   const headers = request?.headers ?? [];
 

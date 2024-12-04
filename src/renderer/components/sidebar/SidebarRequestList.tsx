@@ -22,7 +22,7 @@ export const SidebarRequestList = () => {
     } else {
       requestEditor.setValue('');
     }
-  }, [request, requestEditor]);
+  }, [request?.id, requestEditor]);
 
   const handleDeleteClick = async (event: MouseEvent, index: number) => {
     event.stopPropagation();
