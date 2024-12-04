@@ -5,6 +5,7 @@ import { TrufosHeader } from 'shim/objects/headers';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { useShallow } from 'zustand/react/shallow';
 
 const eventService = RendererEventService.instance;
 
@@ -117,8 +118,8 @@ export const useRequestStore = create<RequestState>()(
     },
 
     addHeader: () =>
-      set(({ requests, selectedRequestIndex }) => {
-        requests[selectedRequestIndex].headers.push({ key: '', value: '', isActive: false });
+      set((state) => {
+        selectHeaders(state).push({ key: '', value: '', isActive: false });
       }),
 
     updateHeader: (payload: { index: number; updatedHeader: Partial<TrufosHeader> }) =>
@@ -132,7 +133,7 @@ export const useRequestStore = create<RequestState>()(
       set((state) => {
         const headers = selectHeaders(state);
         headers.splice(index, 1);
-        if (state.requests[state.selectedRequestIndex].headers.length === 0) {
+        if (selectRequest(state).headers.length === 0) {
           state.addHeader();
         }
       }),
@@ -144,9 +145,26 @@ export const useRequestStore = create<RequestState>()(
         state.addHeader();
       }),
 
-    setDraftFlag: () => set((state) => (selectRequest(state).draft = true)),
+    setDraftFlag: () =>
+      set((state) => {
+        selectRequest(state).draft = true;
+      }),
   }))
 );
 
 export const selectRequest = (state: RequestState) => state.requests[state.selectedRequestIndex];
 export const selectHeaders = (state: RequestState) => selectRequest(state)?.headers;
+export const useRequestActions = () =>
+  useRequestStore(
+    useShallow((state) => ({
+      addHeader: state.addHeader,
+      updateHeader: state.updateHeader,
+      deleteHeader: state.deleteHeader,
+      clearHeaders: state.clearHeaders,
+      setDraftFlag: state.setDraftFlag,
+      setRequestBody: state.setRequestBody,
+      setRequestEditor: state.setRequestEditor,
+      setSelectedRequest: state.setSelectedRequest,
+      deleteRequest: state.deleteRequest,
+    }))
+  );

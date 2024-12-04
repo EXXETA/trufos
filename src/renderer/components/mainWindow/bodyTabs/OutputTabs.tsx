@@ -42,8 +42,9 @@ interface OutputTabsProps {
 
 export function OutputTabs(props: OutputTabsProps) {
   const { className } = props;
-  const { setResponseEditor, editor } = useResponseStore();
-  const requestId = useRequestStore(selectRequest)?.id;
+  const setResponseEditor = useResponseStore((state) => state.setResponseEditor);
+  const editor = useResponseStore((state) => state.editor);
+  const requestId = useRequestStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
   const tabsRef = useRef(null);
 

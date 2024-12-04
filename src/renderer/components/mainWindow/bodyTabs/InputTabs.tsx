@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
-import { selectRequest, useRequestStore } from '@/state/requestStore';
+import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
 
 interface InputTabsProps {
   className: string;
@@ -37,12 +37,13 @@ export function InputTabs(props: InputTabsProps) {
   const {
     setRequestBody,
     setRequestEditor,
-    addHeader,
-    updateHeader,
     setDraftFlag,
+    addHeader,
     deleteHeader,
     clearHeaders,
-  } = useRequestStore();
+    updateHeader,
+  } = useRequestActions();
+
   const request = useRequestStore(selectRequest);
   const requestBody = request?.body;
   const headers = request?.headers ?? [];

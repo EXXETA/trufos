@@ -3,11 +3,13 @@ import { RequestBodyType } from 'shim/objects/request';
 import { FaTimes } from 'react-icons/fa';
 import { MouseEvent, useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
-import { useRequestStore } from '@/state/requestStore';
+import { useRequestActions, useRequestStore } from '@/state/requestStore';
 
 export const SidebarRequestList = () => {
-  const { requestEditor, requests, selectedRequestIndex, setSelectedRequest, deleteRequest } =
-    useRequestStore();
+  const { setSelectedRequest, deleteRequest } = useRequestActions();
+  const requestEditor = useRequestStore((state) => state.requestEditor);
+  const requests = useRequestStore((state) => state.requests);
+  const selectedRequestIndex = useRequestStore((state) => state.selectedRequestIndex);
   const request = requests[selectedRequestIndex];
 
   useEffect(() => {
