@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Divider } from '@/components/shared/Divider';
-import { SettingsModal } from '@/components/shared/settings/SettingsModal';
+// import { SettingsModal } from '@/components/shared/settings/SettingsModal';
 import { FaGithub } from 'react-icons/fa';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 
@@ -21,11 +21,10 @@ export function FooterBar() {
         {/* Icons on the right */}
         <div className="flex items-center space-x-4">
           {/* GitHub Icon */}
-          <a href="https://github.com/yourusername" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/EXXETA/trufos" target="_blank" rel="noopener noreferrer">
             <FaGithub className="text-xl" /> {/* Adjust the size as needed */}
           </a>
-          {/* Settings Icon */}
-          <SettingsModal />
+          {/*<SettingsModal />*/}
         </div>
       </div>
     </div>
