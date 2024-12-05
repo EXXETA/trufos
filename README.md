@@ -10,7 +10,8 @@
   A REST client that is both easy to use, efficient, and extendable.
 </p>
 
-As many REST clients exist in the ecosystem, Trufos aims to provide an out-of-the-box experience that is fast, user-friendly, and customizable. Trufos intends to offer the following features:
+As many REST clients exist in the ecosystem, Trufos aims to provide an out-of-the-box experience
+that is fast, user-friendly, and customizable. Trufos intends to offer the following features:
 
 - Offline usage: No registration or login required
 - Smooth handling of large request and response objects
@@ -19,19 +20,24 @@ As many REST clients exist in the ecosystem, Trufos aims to provide an out-of-th
 - Support for various authentication methods, including JWT, OAuth, and basic authentication
 - Extendable plugin architecture for additional features and integrations
 
-**Current Development Status**: Trufos is still at an early stage of development. Be aware of this when using Trufos under production conditions. If you would like to contribute to this project, please check out our [Contributing Guidelines](./CONTRIBUTING.md).
+**Current Development Status**: Trufos is still at an early stage of development. Be aware of this
+when using Trufos under production conditions. If you would like to contribute to this project,
+please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 
 ## Screenshot
 
-![img.png](docs/Screenshot.png)
+![Screenshot](docs/Screenshot.png)
+
 ## Requirements
 
-As Trufos is an Electron application, it can run on Windows, macOS, and Linux without any issues. If you want to develop or build this software yourself, you will need Node.js version 22 or higher and NPM version 10 or higher.
+As Trufos is an Electron application, it can run on Windows, macOS, and Linux without any issues. If
+you want to develop or build this software yourself, you will need Node.js version 22 or higher and
+NPM version 10 or higher.
 
 ## Usage
 
-Once Trufos is installed and launched, you can start adding endpoints, customizing them, and making calls.
-
+Once Trufos is installed and launched, you can start adding endpoints, customizing them, and making
+calls.
 
 ### Example Usage
 
@@ -47,14 +53,14 @@ Here’s a simple example of how to add and utilize an endpoint:
 
 * Where can I find the saved Requests?
 * The saved requests are in this folder:
-  * Mac: ``~/Library/Application\ Support/Trufos/default-collection`` 
-  * Windows: ``C:\Users\USERNAME\AppData\Roaming\Trufos\default-collection``
-
+    * Mac: ``~/Library/Application\ Support/Trufos/default-collection``
+    * Windows: ``C:\Users\USERNAME\AppData\Roaming\Trufos\default-collection``
 
 ## Contributing
 
 If you would like to contribute to this project, please check out our
-[Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md) before you begin.
+[Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md) before you
+begin.
 
 We welcome feedback, suggestions, and pull requests!
 
