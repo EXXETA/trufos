@@ -1,12 +1,4 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { RequestBodyType } from 'shim/objects/request';
 import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { Editor } from '@monaco-editor/react';
@@ -28,9 +20,17 @@ import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
 import { useShallow } from 'zustand/react/shallow';
+import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 
 interface InputTabsProps {
   className: string;
+}
+
+enum Language {
+  JSON = 'json',
+  XML = 'xml',
+  HTML = 'html',
+  TEXT = 'text',
 }
 
 export function InputTabs(props: InputTabsProps) {
@@ -48,8 +48,7 @@ export function InputTabs(props: InputTabsProps) {
   const request = useRequestStore(useShallow(selectRequest));
   const requestBody = request?.body;
   const headers = request?.headers ?? [];
-
-  const [isOpen, setIsOpen] = useState(false);
+  const [language, setLanguage] = useState(Language.JSON);
 
   const changeBodyType = useCallback(
     (type: RequestBodyType) => {
@@ -93,10 +92,11 @@ export function InputTabs(props: InputTabsProps) {
       <Editor
         theme="vs-dark" /* TODO: apply theme from settings */
         options={DEFAULT_MONACO_OPTIONS}
+        language={language}
         onMount={onEditorMount}
       />
     );
-  }, [onEditorMount]);
+  }, [onEditorMount, language]);
 
   const renderFileInput = useCallback(() => {
     return (
@@ -107,6 +107,22 @@ export function InputTabs(props: InputTabsProps) {
       />
     );
   }, [setRequestBodyFile]);
+
+  const renderSelectLanguage = useCallback(() => {
+    if (requestBody?.type !== RequestBodyType.TEXT) return null;
+    return (
+      <SimpleSelect<Language>
+        value={language}
+        onValueChange={setLanguage}
+        items={[
+          [Language.JSON, 'JSON'],
+          [Language.XML, 'XML'],
+          [Language.HTML, 'HTML'],
+          [Language.TEXT, 'Plain'],
+        ]}
+      />
+    );
+  }, [language, setLanguage, requestBody?.type]);
 
   const handleAddHeader = addHeader;
 
@@ -143,23 +159,15 @@ export function InputTabs(props: InputTabsProps) {
         <div className={'p-4 h-full relative'}>
           <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
             <div className={'flex justify-end'}>
-              <Select
+              {renderSelectLanguage()}
+              <SimpleSelect
                 value={requestBody?.type ?? RequestBodyType.TEXT}
-                onValueChange={(bodyType) => changeBodyType(bodyType as RequestBodyType)}
-                onOpenChange={(open) => setIsOpen(open)}
-                defaultValue={'text'}
-              >
-                <SelectTrigger className={'w-[fit-content] h-[fit-content] p-0 '} isOpen={isOpen}>
-                  <SelectValue placeholder="Source" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value={RequestBodyType.TEXT}>Text</SelectItem>
-                    <SelectItem value={RequestBodyType.FILE}>File</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+                onValueChange={changeBodyType}
+                items={[
+                  [RequestBodyType.TEXT, 'Text'],
+                  [RequestBodyType.FILE, 'File'],
+                ]}
+              />
             </div>
 
             <Divider className={'mt-2'} />
