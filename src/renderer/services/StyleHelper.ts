@@ -15,10 +15,10 @@ export const httpMethodColor = (request: RequestMethod) => {
     case RequestMethod.OPTIONS:
       return 'http-method-color-get';
     case RequestMethod.HEAD:
-      return 'http-method-color-head';
+      return 'http-method-color-get';
     case RequestMethod.CONNECT:
-      return 'http-method-color-connect';
+      return 'http-method-color-get';
     case RequestMethod.TRACE:
-      return 'http-method-color-trace';
+      return 'http-method-color-get';
   }
 };

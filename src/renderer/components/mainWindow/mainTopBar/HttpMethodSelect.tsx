@@ -1,9 +1,10 @@
-import * as React from 'react';
+import { FC, useEffect, useRef, useCallback } from 'react';
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -15,17 +16,32 @@ interface HttpMethodSelectProps {
   onHttpMethodChange: (method: RequestMethod) => void;
 }
 
-export const HttpMethodSelect: React.FC<HttpMethodSelectProps> = ({
+export const HttpMethodSelect: FC<HttpMethodSelectProps> = ({
   selectedHttpMethod,
   onHttpMethodChange,
 }) => {
-  const httpMethodSelectRef = React.useRef<HTMLSpanElement>(null);
+  const httpMethodSelectRef = useRef<HTMLSpanElement>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (httpMethodSelectRef.current) {
       httpMethodSelectRef.current.className = httpMethodColor(selectedHttpMethod);
     }
-  }, [selectedHttpMethod]);
+  }, [httpMethodSelectRef?.current, selectedHttpMethod]);
+
+  const renderItems = useCallback(() => {
+    const items = [] as JSX.Element[];
+    for (const method of Object.values(RequestMethod)) {
+      if (method === RequestMethod.OPTIONS) {
+        items.push(<SelectSeparator key="separator" />);
+      }
+      items.push(
+        <SelectItem key={method} value={method} className={httpMethodColor(method)}>
+          {method}
+        </SelectItem>
+      );
+    }
+    return items;
+  }, []);
 
   return (
     <Select defaultValue={selectedHttpMethod} onValueChange={onHttpMethodChange}>
@@ -33,13 +49,7 @@ export const HttpMethodSelect: React.FC<HttpMethodSelectProps> = ({
         <SelectValue ref={httpMethodSelectRef}>{selectedHttpMethod}</SelectValue>
       </SelectTrigger>
       <SelectContent className="ml-2">
-        <SelectGroup>
-          {Object.entries(RequestMethod).map(([key, value]) => (
-            <SelectItem key={key} value={value} className={httpMethodColor(value)}>
-              {value}
-            </SelectItem>
-          ))}
-        </SelectGroup>
+        <SelectGroup>{renderItems()}</SelectGroup>
       </SelectContent>
     </Select>
   );
