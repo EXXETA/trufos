@@ -1,64 +1,33 @@
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '@/state/store';
-import { deleteRequest, setSelectedRequest } from '@/state/requestsSlice';
 import { httpMethodColor } from '@/services/StyleHelper';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { RequestBodyType } from 'shim/objects/request';
 import { FaTimes } from 'react-icons/fa';
-import { RendererEventService } from '@/services/event/renderer-event-service';
-import { MouseEvent, useCallback, useEffect } from 'react';
+import { MouseEvent, useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
+import { useRequestActions, useRequestStore } from '@/state/requestStore';
 
-interface SidebarRequestListProps {
-  requests: TrufosRequest[];
-}
-
-const eventService = RendererEventService.instance;
-
-export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const selectedRequestIndex = useSelector((state: RootState) => state.requests.selectedRequest);
-  const requestEditor = useSelector((state: RootState) => state.requests.requestEditor);
-  const request: TrufosRequest | undefined = requests[selectedRequestIndex];
+export const SidebarRequestList = () => {
+  const { setSelectedRequest, deleteRequest } = useRequestActions();
+  const requestEditor = useRequestStore((state) => state.requestEditor);
+  const requests = useRequestStore((state) => state.requests);
+  const selectedRequestIndex = useRequestStore((state) => state.selectedRequestIndex);
+  const request = requests[selectedRequestIndex];
 
   useEffect(() => {
     if (requestEditor == null) {
       return;
-    } else if (request?.body?.type === RequestBodyType.TEXT) {
+    } else if (request?.body?.type === RequestBodyType.TEXT && request?.id != null) {
       IpcPushStream.open(request)
         .then((stream) => IpcPushStream.collect(stream))
-        .then((content) => {
-          console.log(content);
-          requestEditor.setValue(content);
-        });
+        .then(requestEditor.setValue.bind(requestEditor));
     } else {
       requestEditor.setValue('');
     }
   }, [request?.id, requestEditor]);
 
-  const handleRowClick = useCallback(
-    async (index: number) => {
-      if (request != null) {
-        await eventService.saveRequest(request, requestEditor?.getValue());
-      }
-      dispatch(setSelectedRequest(index));
-    },
-    [dispatch, requestEditor, requests, request]
-  );
-
-  const handleDeleteClick = useCallback(
-    async (event: MouseEvent, index: number) => {
-      const request = requests[index];
-      if (request == null) {
-        return;
-      }
-
-      dispatch(deleteRequest(index));
-      if (request.id != null) {
-        await eventService.deleteObject(request);
-      }
-    },
-    [dispatch, requests]
-  );
+  const handleDeleteClick = async (event: MouseEvent, index: number) => {
+    event.stopPropagation();
+    await deleteRequest(index);
+  };
 
   return (
     <table className="w-full table-fixed">
@@ -67,7 +36,7 @@ export const SidebarRequestList = ({ requests = [] }: SidebarRequestListProps) =
           <tr
             key={index}
             className={`cursor-pointer hover:bg-gray-600 ${selectedRequestIndex == index ? 'bg-gray-500' : ''}`}
-            onClick={() => handleRowClick(index)}
+            onClick={() => setSelectedRequest(index)}
           >
             <td className={'p-2 font-bold w-20 ' + httpMethodColor(request.method)}>
               {request.method}

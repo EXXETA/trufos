@@ -1,10 +1,5 @@
 import { ChangeEvent, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '@/state/store';
-import { editor } from 'monaco-editor';
 import { RequestMethod } from 'shim/objects/request-method';
-import { TrufosRequest } from 'shim/objects/request';
-import { updateRequest } from '@/state/requestsSlice';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
 import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
@@ -13,49 +8,27 @@ import { SendButton } from './mainTopBar/SendButton';
 import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { addResponse } from '@/state/responsesSlice';
+import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
+import { useResponseActions } from '@/state/responseStore';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 export function MainTopBar() {
-  const dispatch = useDispatch();
-  const requestEditor = useSelector<RootState>((state) => state.requests.requestEditor) as
-    | editor.ICodeEditor
-    | undefined;
-  const requestIndex = useSelector<RootState, number>((state) => state.requests.selectedRequest);
-  const requests = useSelector<RootState, TrufosRequest[]>((state) => state.requests.requests);
-  const request = requests[requestIndex];
+  const { updateRequest } = useRequestActions();
+  const { addResponse } = useResponseActions();
+  const requestEditor = useRequestStore((state) => state.requestEditor);
+  const request = useRequestStore(selectRequest);
   const selectedHttpMethod = request?.method;
   const url = request?.url;
 
-  const handleUrlChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      if (request == null) return;
+  const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) =>
+    updateRequest({
+      url: event.target.value,
+      draft: true,
+    });
 
-      dispatch(
-        updateRequest({
-          index: requestIndex,
-          request: { ...request, url: event.target.value, draft: true },
-        })
-      );
-    },
-    [request]
-  );
-
-  const handleHttpMethodChange = useCallback(
-    (method: RequestMethod) => {
-      if (request == null) return;
-
-      dispatch(
-        updateRequest({
-          index: requestIndex,
-          request: { ...request, method, draft: true },
-        })
-      );
-    },
-    [request]
-  );
+  const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method, draft: true });
 
   const sendRequest = useCallback(
     useErrorHandler(async () => {
@@ -67,9 +40,9 @@ export function MainTopBar() {
       await eventService.saveRequest(request, requestEditor?.getValue());
 
       const response = await httpService.sendRequest(request);
-      dispatch(addResponse({ requestId: request.id, ...response }));
+      addResponse(request.id, response);
     }),
-    [request, requestEditor]
+    [request, requestEditor, addResponse]
   );
 
   const saveRequest = useCallback(
@@ -81,12 +54,7 @@ export function MainTopBar() {
       await eventService.saveRequest(request, requestEditor?.getValue());
 
       // override existing request with the saved draft
-      dispatch(
-        updateRequest({
-          index: requestIndex,
-          request: await eventService.saveChanges(request),
-        })
-      );
+      updateRequest(await eventService.saveChanges(request), true);
     }),
     [request, requestEditor]
   );

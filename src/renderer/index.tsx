@@ -3,12 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { App } from '@/App';
 import { loader } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
-import { Provider } from 'react-redux';
-import { store } from '@/state/store';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { initialize } from '@/state/requestsSlice';
+import { useRequestStore } from '@/state/requestStore';
 import { TrufosRequest } from '../shim/objects/request';
 
+const { initialize } = useRequestStore.getState();
 console.info('Initializing renderer process...');
 
 document.getElementById('body')?.classList.add('dark');
@@ -21,10 +20,6 @@ loader.config({ monaco });
 
 RendererEventService.instance.loadCollection().then((collection) => {
   const requests = collection.children.filter((c) => c.type === 'request') as TrufosRequest[];
-  store.dispatch(initialize({ requests, collectionId: collection.id }));
-  root.render(
-    <Provider store={store}>
-      <App />
-    </Provider>
-  );
+  initialize({ requests, collectionId: collection.id });
+  root.render(<App />);
 });

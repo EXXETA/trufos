@@ -25,7 +25,7 @@ export interface IEventService {
    * @param request The request to save.
    * @param textBody OPTIONAL: The text body of the request.
    */
-  saveRequest(request: TrufosRequest, textBody?: string): Promise<void>;
+  saveRequest(request: TrufosRequest, textBody?: string): Promise<TrufosRequest>;
 
   /**
    * Save changes of the given trufos request to the file system.
