@@ -1,4 +1,3 @@
-import { RequestBodyType } from '../../../../../shim/objects/request';
 import {
   Select,
   SelectContent,
