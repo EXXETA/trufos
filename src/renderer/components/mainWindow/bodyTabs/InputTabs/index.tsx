@@ -141,18 +141,12 @@ export function InputTabs(props: InputTabsProps) {
   return (
     <Tabs className={className} defaultValue="body">
       <TabsList>
-        <TabsTrigger className={'tabs-trigger'} value="body">
-          Body
-        </TabsTrigger>
-        {/*<TabsTrigger className={'tabs-trigger'} value="queryParams">*/}
-        {/*  Query*/}
-        {/*</TabsTrigger>*/}
-        <TabsTrigger className={'tabs-trigger'} value="headers">
+        <TabsTrigger value="body">Body</TabsTrigger>
+        {/*<TabsTrigger value="queryParams">Query</TabsTrigger>*/}
+        <TabsTrigger value="headers">
           {getActiveRowCount() === 0 ? 'Headers' : `Headers (${getActiveRowCount()})`}
         </TabsTrigger>
-        {/*<TabsTrigger className={'tabs-trigger'} value="authorization">*/}
-        {/*  Auth*/}
-        {/*</TabsTrigger>*/}
+        {/*<TabsTrigger value="authorization">Auth</TabsTrigger>*/}
       </TabsList>
 
       <TabsContent value="body">

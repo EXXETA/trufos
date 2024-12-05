@@ -72,12 +72,8 @@ export function OutputTabs(props: OutputTabsProps) {
   return (
     <Tabs className={className} defaultValue="body" ref={tabsRef}>
       <TabsList className="flex flex-row items-center">
-        <TabsTrigger className={'tabs-trigger'} value="body">
-          Response Body
-        </TabsTrigger>
-        <TabsTrigger className={'tabs-trigger'} value="header">
-          Headers
-        </TabsTrigger>
+        <TabsTrigger value="body">Response Body</TabsTrigger>
+        <TabsTrigger value="header">Headers</TabsTrigger>
         <ResponseStatus />
       </TabsList>
 
