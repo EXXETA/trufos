@@ -8,6 +8,15 @@ import { VariableObject } from 'shim/variables';
 
 const persistenceService = PersistenceService.instance;
 
+enum SystemVariable {
+  TimestampIso = '$timestampIso',
+  TimestampUnix = '$timestampUnix',
+  Time = '$time',
+  Date = '$date',
+  RandomInt = '$randomInt',
+  RandomUuid = '$randomUuid',
+}
+
 /**
  * The environment service is responsible for managing the current collection and
  * the system, collection, and request variables (the ones that can be used in the
@@ -81,6 +90,16 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
+   * Returns the keys of all active variables in the current collection. This also includes system
+   * variables.
+   */
+  public getActiveVariableKeys() {
+    return Object.keys(this.currentCollection.variables)
+      .filter((key) => this.currentCollection.variables[key].enabled)
+      .concat(Object.values(SystemVariable));
+  }
+
+  /**
    * Returns the value of a variable. The hierarchy is as follows:
    * 1. Collection variables
    * 2. System variables
@@ -100,17 +119,17 @@ export class EnvironmentService implements Initializable {
    */
   private getSystemVariableValue(key: string) {
     switch (key) {
-      case '$timestampIso':
+      case SystemVariable.TimestampIso:
         return new Date().toISOString();
-      case '$timestampUnix':
+      case SystemVariable.TimestampUnix:
         return Math.floor(Date.now() / 1e3).toString();
-      case '$time':
+      case SystemVariable.Time:
         return new Date().toTimeString();
-      case '$date':
+      case SystemVariable.Date:
         return new Date().toDateString();
-      case '$randomInt':
+      case SystemVariable.RandomInt:
         return randomInt(2 ** 48 - 1).toString();
-      case '$randomUuid':
+      case SystemVariable.RandomUuid:
         return randomUUID();
     }
   }
