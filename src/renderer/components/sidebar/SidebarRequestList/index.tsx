@@ -4,6 +4,7 @@ import { FaTimes } from 'react-icons/fa';
 import { MouseEvent, useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { useRequestActions, useRequestStore } from '@/state/requestStore';
+import './index.css';
 
 export const SidebarRequestList = () => {
   const { setSelectedRequest, deleteRequest } = useRequestActions();
@@ -30,42 +31,38 @@ export const SidebarRequestList = () => {
   };
 
   return (
-    <table className="w-full table-fixed">
-      <tbody>
-        {requests.map((request, index) => (
-          <tr
-            key={index}
-            className={joinClassNames(
-              'cursor-pointer',
-              'hover:bg-gray-600',
-              selectedRequestIndex == index ? 'bg-gray-500' : ''
-            )}
-            onClick={() => setSelectedRequest(index)}
-          >
-            <td
-              className={joinClassNames(
-                'p-2',
-                'font-bold',
-                'w-20',
-                'text-right',
-                httpMethodColor(request.method)
-              )}
-            >
-              {request.method}
-            </td>
-            <td className="p-2 truncate tooltip">
-              {request.url}
-              <div className="tooltip-text">{request.url}</div>
-            </td>
-            <td className="p-2 items-end w-8">
-              <FaTimes
-                onClick={(event) => handleDeleteClick(event, index)}
-                className="cursor-pointer"
-              />
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="w-full flex flex-col" id="sidebar-request-list">
+      {requests.map((request, index) => (
+        <span
+          key={index}
+          className={joinClassNames(
+            'sidebar-request-list-item',
+            'cursor-pointer',
+            'flex-row',
+            'justify-between',
+            'inline-flex',
+            'hover:bg-gray-600',
+            'p-2',
+            'gap-2',
+            selectedRequestIndex === index ? 'selected' : ''
+          )}
+          onClick={() => setSelectedRequest(index)}
+        >
+          <div className={joinClassNames('', 'font-bold', httpMethodColor(request.method))}>
+            {request.method}
+          </div>
+          <div className="truncate tooltip flex-1">
+            {request.url}
+            <div className="tooltip-text">{request.url}</div>
+          </div>
+          <div className="items-center justify-center flex">
+            <FaTimes
+              onClick={(event) => handleDeleteClick(event, index)}
+              className="cursor-pointer"
+            />
+          </div>
+        </span>
+      ))}
+    </div>
   );
 };
