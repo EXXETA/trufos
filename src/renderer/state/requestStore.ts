@@ -140,17 +140,14 @@ export const useRequestStore = create<RequestState & RequestStateActions>()(
 
     deleteRequest: async (index: number) => {
       const { requests, selectedRequestIndex, addNewRequest } = get();
-      const request = requests[selectedRequestIndex];
       if (requests.length === 1) {
         await addNewRequest();
       } else if (selectedRequestIndex > 0 && selectedRequestIndex === index) {
         set({ selectedRequestIndex: selectedRequestIndex - 1 });
       }
 
-      set((state) => {
-        state.requests.splice(index, 1);
-      });
-      await eventService.deleteObject(request);
+      await eventService.deleteObject(requests[index]);
+      set(({ requests }) => ({ requests: requests.toSpliced(index, 1) }));
     },
 
     addHeader: () =>
