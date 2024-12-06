@@ -10,6 +10,12 @@ import { TrufosRequest } from '../shim/objects/request';
 const { initialize } = useRequestStore.getState();
 console.info('Initializing renderer process...');
 
+declare global {
+  function joinClassNames(...classNames: string[]): string;
+}
+
+globalThis.joinClassNames = (...classNames: string[]) => classNames.join(' ');
+
 document.getElementById('body')?.classList.add('dark');
 
 const container = document.getElementById('root');
