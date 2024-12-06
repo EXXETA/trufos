@@ -35,10 +35,22 @@ export const SidebarRequestList = () => {
         {requests.map((request, index) => (
           <tr
             key={index}
-            className={`cursor-pointer hover:bg-gray-600 ${selectedRequestIndex == index ? 'bg-gray-500' : ''}`}
+            className={joinClassNames(
+              'cursor-pointer',
+              'hover:bg-gray-600',
+              selectedRequestIndex == index ? 'bg-gray-500' : ''
+            )}
             onClick={() => setSelectedRequest(index)}
           >
-            <td className={'p-2 font-bold w-20 ' + httpMethodColor(request.method)}>
+            <td
+              className={joinClassNames(
+                'p-2',
+                'font-bold',
+                'w-20',
+                'text-right',
+                httpMethodColor(request.method)
+              )}
+            >
               {request.method}
             </td>
             <td className="p-2 truncate tooltip">
