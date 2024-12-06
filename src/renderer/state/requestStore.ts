@@ -29,7 +29,7 @@ interface RequestStateActions {
   updateRequest(request: TrufosRequest, overwrite: true): void;
 
   /**
-   * Merge the current request with the updated request
+   * Merge the current request with the updated request. This will also set the draft flag on the request
    * @param request The properties to update
    * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
    */
@@ -106,16 +106,25 @@ export const useRequestStore = create<RequestState & RequestStateActions>()(
     },
 
     updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) =>
-      set(({ requests, selectedRequestIndex }) => {
-        const currentRequest = requests[selectedRequestIndex];
-        if (updatedRequest == null) return;
+      set((state) => {
+        const request = selectRequest(state);
+        if (request == null) return;
 
-        requests[selectedRequestIndex] = overwrite
-          ? (updatedRequest as TrufosRequest)
-          : { ...currentRequest, ...updatedRequest };
+        if (overwrite) {
+          state.requests[state.selectedRequestIndex] = updatedRequest as TrufosRequest;
+        } else {
+          state.requests[state.selectedRequestIndex] = {
+            ...request,
+            draft: true,
+            ...updatedRequest,
+          };
+        }
       }),
 
-    setRequestBody: (body) => set((state) => state.updateRequest({ body })),
+    setRequestBody: (body) => {
+      const { updateRequest } = get();
+      updateRequest({ body });
+    },
 
     setRequestEditor: (requestEditor) => set({ requestEditor }),
 

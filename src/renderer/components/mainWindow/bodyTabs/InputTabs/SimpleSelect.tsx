@@ -32,7 +32,9 @@ export function SimpleSelect<T extends string>(props: SimpleSelectProps<T>) {
       <SelectContent>
         <SelectGroup>
           {items.map(([value, label]) => (
-            <SelectItem value={value}>{label}</SelectItem>
+            <SelectItem key={value} value={value}>
+              {label}
+            </SelectItem>
           ))}
         </SelectGroup>
       </SelectContent>

@@ -23,12 +23,9 @@ export function MainTopBar() {
   const url = request?.url;
 
   const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) =>
-    updateRequest({
-      url: event.target.value,
-      draft: true,
-    });
+    updateRequest({ url: event.target.value });
 
-  const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method, draft: true });
+  const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
 
   const sendRequest = useCallback(
     useErrorHandler(async () => {
