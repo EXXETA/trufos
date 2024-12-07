@@ -5,9 +5,16 @@ import { plugins } from './webpack.plugins';
 import { TsconfigPathsPlugin } from 'tsconfig-paths-webpack-plugin';
 import MonacoEditorWebpackPlugin from 'monaco-editor-webpack-plugin';
 
+// CSS
 rules.push({
   test: /\.css$/,
   use: [{ loader: 'style-loader' }, { loader: 'css-loader' }, { loader: 'postcss-loader' }],
+});
+
+// SVG
+rules.push({
+  test: /\.svg$/,
+  use: ['@svgr/webpack'],
 });
 
 export const rendererConfig: Configuration = {
