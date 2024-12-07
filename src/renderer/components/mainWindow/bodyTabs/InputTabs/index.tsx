@@ -44,9 +44,8 @@ export function InputTabs(props: InputTabsProps) {
     updateHeader,
   } = useRequestActions();
 
-  const request = useRequestStore(selectRequest);
-  const requestBody = request?.body;
-  const headers = request?.headers ?? [];
+  const requestBody = useRequestStore((state) => selectRequest(state).body);
+  const headers = useRequestStore((state) => selectRequest(state).headers);
   const [language, setLanguage] = useState(Language.JSON);
 
   const changeBodyType = useCallback(
