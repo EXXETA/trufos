@@ -142,6 +142,11 @@ export const useRequestStore = create<RequestState & RequestStateActions>()(
       await eventService.deleteObject(get().requests[index]);
       set((state) => {
         state.requests.splice(index, 1);
+        if (state.selectedRequestIndex === index) {
+          state.selectedRequestIndex = -1;
+        } else if (state.selectedRequestIndex > index) {
+          state.selectedRequestIndex--;
+        }
       });
     },
 
