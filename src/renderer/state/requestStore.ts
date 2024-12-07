@@ -72,7 +72,7 @@ interface RequestStateActions {
 export const useRequestStore = create<RequestState & RequestStateActions>()(
   immer((set, get) => ({
     requests: [],
-    selectedRequestIndex: 0,
+    selectedRequestIndex: -1,
     collectionId: '',
     requestEditor: undefined,
 
@@ -141,9 +141,6 @@ export const useRequestStore = create<RequestState & RequestStateActions>()(
     deleteRequest: async (index: number) => {
       await eventService.deleteObject(get().requests[index]);
       set((state) => {
-        if (state.selectedRequestIndex === index) {
-          state.selectedRequestIndex--;
-        }
         state.requests.splice(index, 1);
       });
     },
