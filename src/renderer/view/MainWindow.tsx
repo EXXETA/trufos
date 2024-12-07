@@ -1,7 +1,7 @@
 import { MainTopBar } from '@/components/mainWindow/MainTopBar';
 import { MainBody } from '@/components/mainWindow/MainBody';
 import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
-import EmptyWildWest from '@/assets/empty-wild-west.svg';
+import { EmptyWildWest } from '@/assets/EmptyWildWest';
 import { MouseEvent, useCallback } from 'react';
 
 export function MainWindow() {
