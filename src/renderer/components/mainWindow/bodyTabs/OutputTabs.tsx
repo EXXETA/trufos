@@ -78,7 +78,7 @@ export function OutputTabs(props: OutputTabsProps) {
       </TabsList>
 
       <TabsContent value="body">
-        <div className={'p-4 h-full'}>
+        <div className={'h-full'}>
           <Editor
             language={mimeType}
             theme="vs-dark" /* TODO: apply theme from settings */
