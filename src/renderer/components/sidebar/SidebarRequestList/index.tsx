@@ -1,10 +1,11 @@
 import { httpMethodColor } from '@/services/StyleHelper';
 import { RequestBodyType } from 'shim/objects/request';
 import { FaTimes } from 'react-icons/fa';
-import { MouseEvent, useEffect } from 'react';
+import { useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { useRequestActions, useRequestStore } from '@/state/requestStore';
 import './index.css';
+import { handleMouseEvent } from '@/util/callback-util';
 
 export const SidebarRequestList = () => {
   const { setSelectedRequest, deleteRequest } = useRequestActions();
@@ -25,13 +26,12 @@ export const SidebarRequestList = () => {
     }
   }, [request?.id, requestEditor]);
 
-  const handleDeleteClick = async (event: MouseEvent, index: number) => {
-    event.stopPropagation();
-    await deleteRequest(index);
-  };
-
   return (
-    <div className="w-full flex flex-col" id="sidebar-request-list">
+    <div
+      className="flex flex-1 flex-col overflow-y-auto"
+      id="sidebar-request-list"
+      onClick={handleMouseEvent(() => setSelectedRequest(-1))}
+    >
       {requests.map((request, index) => (
         <span
           key={index}
@@ -46,7 +46,7 @@ export const SidebarRequestList = () => {
             'gap-2',
             selectedRequestIndex === index ? 'selected' : ''
           )}
-          onClick={() => setSelectedRequest(index)}
+          onClick={handleMouseEvent(() => setSelectedRequest(index))}
         >
           <div className={joinClassNames('', 'font-bold', httpMethodColor(request.method))}>
             {request.method}
@@ -57,8 +57,8 @@ export const SidebarRequestList = () => {
           </div>
           <div className="items-center justify-center flex">
             <FaTimes
-              onClick={(event) => handleDeleteClick(event, index)}
-              className="cursor-pointer"
+              onClick={handleMouseEvent(() => deleteRequest(index))}
+              className="cursor-pointer hover:fill-gray-900"
             />
           </div>
         </span>
