@@ -1,13 +1,13 @@
-import React from 'react';
+import { FC, ReactNode, SVGProps } from 'react';
 
-interface IconProps extends React.SVGProps<SVGSVGElement> {
+export interface IconProps extends SVGProps<SVGSVGElement> {
   size?: number;
   color?: string;
   viewBox?: string;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
-const Icon: React.FC<IconProps> = ({
+const Icon: FC<IconProps> = ({
   children,
   size = 24,
   color = 'currentColor',
