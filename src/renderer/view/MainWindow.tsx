@@ -17,7 +17,7 @@ export function MainWindow() {
 
   if (!requestSelected) {
     return (
-      <div className="flex flex-col flex-auto p-6 items-center justify-center">
+      <div className="flex flex-col flex-1 p-6 items-center justify-center">
         <EmptyWildWest />
         <span className="text-center mt-2">
           <a className="mr-1 text-cyan-400 underline cursor-pointer" onClick={handleAddNewRequest}>
@@ -30,7 +30,7 @@ export function MainWindow() {
   }
 
   return (
-    <div className={'flex flex-col flex-auto p-6'}>
+    <div className={'flex flex-col flex-1 p-6'}>
       {/*<Header />*/}
       <MainTopBar />
       <MainBody />

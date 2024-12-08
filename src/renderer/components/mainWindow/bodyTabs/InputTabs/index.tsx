@@ -92,6 +92,8 @@ export function InputTabs(props: InputTabsProps) {
         options={DEFAULT_MONACO_OPTIONS}
         language={language}
         onMount={onEditorMount}
+        className="h-full"
+        wrapperProps={{ style: { height: '100%', width: '100%' } }}
       />
     );
   }, [onEditorMount, language]);
@@ -147,25 +149,21 @@ export function InputTabs(props: InputTabsProps) {
         {/*<TabsTrigger value="authorization">Auth</TabsTrigger>*/}
       </TabsList>
 
-      <TabsContent value="body">
-        <div className={'h-full relative'}>
-          <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
-            <div className={'flex justify-end'}>
-              {renderSelectLanguage()}
-              <SimpleSelect
-                value={requestBody?.type ?? RequestBodyType.TEXT}
-                onValueChange={changeBodyType}
-                items={[
-                  [RequestBodyType.TEXT, 'Text'],
-                  [RequestBodyType.FILE, 'File'],
-                ]}
-              />
-            </div>
-
-            <Divider className={'mt-2'} />
+      <TabsContent className="flex-1" value="body">
+        <div className="flex flex-col w-full h-full">
+          <div className="flex flex-row justify-end z-10">
+            {renderSelectLanguage()}
+            <SimpleSelect
+              value={requestBody?.type ?? RequestBodyType.TEXT}
+              onValueChange={changeBodyType}
+              items={[
+                [RequestBodyType.TEXT, 'Text'],
+                [RequestBodyType.FILE, 'File'],
+              ]}
+            />
           </div>
 
-          <div className="absolute top-[68px] left-0 bottom-0 right-0">
+          <div className="flex-1 flex">
             {requestBody?.type === RequestBodyType.FILE ? renderFileInput() : renderEditor()}
           </div>
         </div>
@@ -173,34 +171,32 @@ export function InputTabs(props: InputTabsProps) {
 
       <TabsContent value="queryParams">Change your queryParams here.</TabsContent>
 
-      <TabsContent value="headers">
-        <div className={'p-4 h-full relative'}>
-          <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
-            <div className={'flex'}>
-              <Button
-                className={'hover:bg-transparent gap-1 h-fit'}
-                size={'sm'}
-                variant={'ghost'}
-                onClick={handleAddHeader}
-              >
-                <AddIcon />
-                Add Header
-              </Button>
-              <Button
-                className={'hover:bg-transparent gap-1 h-fit'}
-                size={'sm'}
-                variant={'ghost'}
-                onClick={deleteAllHeaders}
-              >
-                <DeleteIcon />
-                Delete All
-              </Button>
-            </div>
-
-            <Divider className={'mt-2'} />
+      <TabsContent className="flex-1" value="headers">
+        <div className={'p-4 flex flex-col w-full h-full z-10 gap-4'}>
+          <div className={'flex flex-1 flex-grow-0 flex-row'}>
+            <Button
+              className={'hover:bg-transparent gap-1 h-fit'}
+              size={'sm'}
+              variant={'ghost'}
+              onClick={handleAddHeader}
+            >
+              <AddIcon />
+              Add Header
+            </Button>
+            <Button
+              className={'hover:bg-transparent gap-1 h-fit'}
+              size={'sm'}
+              variant={'ghost'}
+              onClick={deleteAllHeaders}
+            >
+              <DeleteIcon />
+              Delete All
+            </Button>
           </div>
 
-          <div className="absolute top-[68px] left-[16px] bottom-[16px] right-[16px]">
+          <Divider />
+
+          <div className="overflow-y-auto max-h-full">
             <Table className="table-auto w-full">
               <TableHeader>
                 <TableRow>
@@ -284,7 +280,9 @@ export function InputTabs(props: InputTabsProps) {
         </div>
       </TabsContent>
 
-      <TabsContent value="authorization">Change your authorization here.</TabsContent>
+      <TabsContent className="flex-1" value="authorization">
+        Change your authorization here.
+      </TabsContent>
     </Tabs>
   );
 }

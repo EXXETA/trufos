@@ -7,11 +7,11 @@ import { Toaster } from '@/components/ui/toaster';
 
 export const App = () => {
   return (
-    <div>
-      <div className="size-full">
+    <div className="size-full flex">
+      <div className="flex flex-1">
         {/*<Header />*/}
 
-        <div className="h-screen flex items-stretch">
+        <div className="flex flex-1">
           <Sidebar />
           <MainWindow />
         </div>

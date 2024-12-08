@@ -71,26 +71,26 @@ export function OutputTabs(props: OutputTabsProps) {
 
   return (
     <Tabs className={className} defaultValue="body" ref={tabsRef}>
-      <TabsList className="flex flex-row items-center">
+      <TabsList>
         <TabsTrigger value="body">Response Body</TabsTrigger>
         <TabsTrigger value="header">Headers</TabsTrigger>
         <ResponseStatus />
       </TabsList>
 
-      <TabsContent value="body">
-        <div className={'h-full'}>
-          <Editor
-            language={mimeType}
-            theme="vs-dark" /* TODO: apply theme from settings */
-            options={monacoOptions}
-            onMount={setResponseEditor}
-          />
-        </div>
+      <TabsContent className="flex-1" value="body">
+        <Editor
+          language={mimeType}
+          theme="vs-dark" /* TODO: apply theme from settings */
+          options={monacoOptions}
+          onMount={setResponseEditor}
+          className="w-full h-full"
+          wrapperProps={{ style: { height: '100%', width: '100%' } }}
+        />
       </TabsContent>
 
-      <TabsContent value="header" className={`max-h-[${tabsRef.current?.offsetHeight - 88}px] p-4`}>
+      <TabsContent value="header" className="flex-1 p-4">
         {!headers ? (
-          <div className={'flex items-center justify-center w-full h-full text-center'}>
+          <div className={'flex w-full h-full items-center justify-center text-center'}>
             <span>Please enter URL address and click Send to get a response</span>
           </div>
         ) : (
@@ -103,19 +103,12 @@ export function OutputTabs(props: OutputTabsProps) {
             </TableHeader>
 
             <TableBody>
-              {headers &&
-                Object.keys(headers).map((key) => {
-                  const value = headers[key];
-                  const valueToDisplay =
-                    value !== undefined ? (Array.isArray(value) ? value : [value]) : '';
-                  return (
-                    <TableRow key={key}>
-                      <TableCell className="w-1/3">{key}</TableCell>
-                      <TableCell>{(valueToDisplay as string[]).join(', ')}</TableCell>{' '}
-                      {/* Full width */}
-                    </TableRow>
-                  );
-                })}
+              {Object.entries(headers ?? {}).map(([key, value]) => (
+                <TableRow key={key}>
+                  <TableCell className="w-1/3">{key}</TableCell>
+                  <TableCell>{(Array.isArray(value) ? value : [value]).join(', ')}</TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}

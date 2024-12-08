@@ -4,8 +4,12 @@ import { cn } from '@/lib/utils';
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className={`relative border rounded-[var(--radius)]`}>
-      <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
+    <div className={`flex-1 border rounded-[var(--radius)]`}>
+      <table
+        ref={ref}
+        className={cn('w-full', 'caption-bottom', 'text-sm', className)}
+        {...props}
+      />
     </div>
   )
 );

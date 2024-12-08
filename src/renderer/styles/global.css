@@ -69,8 +69,19 @@
   visibility: visible;
 }
 
+#root {
+  width: 100%;
+  height: 100%;
+}
+
 body {
   font-family: "Lato", sans-serif;
   color: #EEEEEE;
   font-weight: 400;
+  width: 100vw;
+  height: 100vh;
+}
+
+.flex-1 {
+  @apply min-w-0
 }
