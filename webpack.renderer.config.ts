@@ -1,5 +1,4 @@
 import type { Configuration } from 'webpack';
-
 import { rules } from './webpack.rules';
 import { plugins } from './webpack.plugins';
 import { TsconfigPathsPlugin } from 'tsconfig-paths-webpack-plugin';

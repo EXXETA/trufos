@@ -44,9 +44,8 @@ export function InputTabs(props: InputTabsProps) {
     updateHeader,
   } = useRequestActions();
 
-  const request = useRequestStore(selectRequest);
-  const requestBody = request?.body;
-  const headers = request?.headers ?? [];
+  const requestBody = useRequestStore((state) => selectRequest(state).body);
+  const headers = useRequestStore((state) => selectRequest(state).headers);
   const [language, setLanguage] = useState(Language.JSON);
 
   const changeBodyType = useCallback(
@@ -149,7 +148,7 @@ export function InputTabs(props: InputTabsProps) {
       </TabsList>
 
       <TabsContent value="body">
-        <div className={'p-4 h-full relative'}>
+        <div className={'h-full relative'}>
           <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
             <div className={'flex justify-end'}>
               {renderSelectLanguage()}
@@ -166,7 +165,7 @@ export function InputTabs(props: InputTabsProps) {
             <Divider className={'mt-2'} />
           </div>
 
-          <div className="absolute top-[68px] left-[16px] bottom-[16px] right-[16px]">
+          <div className="absolute top-[68px] left-0 bottom-0 right-0">
             {requestBody?.type === RequestBodyType.FILE ? renderFileInput() : renderEditor()}
           </div>
         </div>

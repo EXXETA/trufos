@@ -24,9 +24,9 @@ that is fast, user-friendly, and customizable. Trufos intends to offer the follo
 when using Trufos under production conditions. If you would like to contribute to this project,
 please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 
-## Screenshot
+![Screenshot nothing selected](docs/Screenshot-nothing-selected.png)
 
-![Screenshot](docs/Screenshot.png)
+![Screenshot Request selected](docs/Screenshot-Request.png)
 
 ## Requirements
 
