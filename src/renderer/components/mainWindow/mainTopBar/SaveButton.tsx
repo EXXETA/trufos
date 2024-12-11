@@ -1,25 +1,19 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
-import { BookmarkIcon } from '@radix-ui/react-icons';
+import { BookmarkIcon } from '@/components/icons';
 
 interface SaveButtonProps {
-  disabled: boolean;
+  isDisabled: boolean;
   onClick?: () => void;
 }
 
-export const SaveButton: React.FC<SaveButtonProps> = ({ disabled, onClick }) => {
-  const [isDisabled, setIsDisabled] = React.useState(false);
-
-  React.useEffect(() => {
-    setIsDisabled(disabled);
-  }, [disabled]);
-
-  return (
-    <Button className="gap-3 px-3 ml-2" variant="outline" disabled={isDisabled} onClick={onClick}>
-      <div>
-        <BookmarkIcon />
-      </div>
-      <span className="leading-4">Save</span>
-    </Button>
-  );
-};
+export const SaveButton: React.FC<SaveButtonProps> = ({ isDisabled = true, onClick }) => (
+  <Button
+    className={`flex p-0 w-[24px] h-[24px] absolute top-[8px] right-[16px] ${isDisabled ? 'bg-transparent border-0 text-[var(--disabled)]' : ''}`}
+    variant="secondary"
+    disabled={isDisabled}
+    onClick={onClick}
+  >
+    <BookmarkIcon />
+  </Button>
+);

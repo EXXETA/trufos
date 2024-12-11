@@ -62,6 +62,11 @@
     --http-patch: #EFA349;
     --disabled: #444444;
 
+    /* State */
+    --success: #2BB361;
+    --error: #BD5151;
+    --warning: #F9AA2D;
+
     /* Old */
     --background: 0 0% 6.67%;
     --foreground: 213 31% 91%;
