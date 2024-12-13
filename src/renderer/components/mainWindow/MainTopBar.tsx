@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback } from 'react';
+import { ChangeEvent, useCallback, useState } from 'react';
 import { RequestMethod } from 'shim/objects/request-method';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
@@ -15,6 +15,8 @@ const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 export function MainTopBar() {
+  const [hasError, setHasError] = useState(false);
+
   const { updateRequest } = useRequestActions();
   const { addResponse } = useResponseActions();
   const requestEditor = useRequestStore((state) => state.requestEditor);
@@ -22,8 +24,11 @@ export function MainTopBar() {
   const selectedHttpMethod = request?.method;
   const url = request?.url;
 
-  const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) =>
+  const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setHasError(false);
+
     updateRequest({ url: event.target.value });
+  };
 
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
 
@@ -31,6 +36,8 @@ export function MainTopBar() {
     useErrorHandler(async () => {
       if (request == null) return;
       if (!request.url || !request.method) {
+        setHasError(true);
+
         throw new Error('Missing URL or HTTP method');
       }
 
@@ -57,14 +64,19 @@ export function MainTopBar() {
   );
 
   return (
-    <div className={cn('flex mb-[24px]')}>
-      <HttpMethodSelect
-        selectedHttpMethod={selectedHttpMethod}
-        onHttpMethodChange={handleHttpMethodChange}
-      />
-      <UrlInput url={url} onUrlChange={handleUrlChange} />
+    <div className={cn('flex mb-[24px] gap-6')}>
+      <div className="flex w-full relative">
+        <HttpMethodSelect
+          selectedHttpMethod={selectedHttpMethod}
+          onHttpMethodChange={handleHttpMethodChange}
+        />
+
+        <UrlInput url={url} onUrlChange={handleUrlChange} hasError={hasError} />
+
+        <SaveButton isDisabled={!request?.draft} onClick={saveRequest} />
+      </div>
+
       <SendButton onClick={sendRequest} />
-      <SaveButton disabled={!request?.draft} onClick={saveRequest} />
     </div>
   );
 }
