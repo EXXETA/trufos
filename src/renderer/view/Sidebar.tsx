@@ -6,10 +6,11 @@ import { SidebarSearch } from '@/components/sidebar/SidebarSearch';
 
 export const Sidebar = () => {
   return (
-    <div className="flex-none flex flex-col gap-6 p-6 w-80 h-screen bg-card relative overflow-x-hidden ">
+    <div className="flex-none flex flex-col gap-6 p-6 w-80 h-screen bg-card relative overflow-x-hidden">
       <SidebarSearch />
-      <Divider className="w-full" />
+      <Divider />
       <SidebarRequestList />
+      <Divider />
       <FooterBar />
     </div>
   );
