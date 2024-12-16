@@ -4,8 +4,8 @@ import { FaTimes } from 'react-icons/fa';
 import { useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { useRequestActions, useRequestStore } from '@/state/requestStore';
-import './index.css';
 import { handleMouseEvent } from '@/util/callback-util';
+import './index.css';
 
 export const SidebarRequestList = () => {
   const { setSelectedRequest, deleteRequest } = useRequestActions();
@@ -28,7 +28,7 @@ export const SidebarRequestList = () => {
 
   return (
     <div
-      className="flex flex-1 flex-col overflow-y-auto"
+      className="flex flex-1 flex-col overflow-y-auto -mx-6"
       id="sidebar-request-list"
       onClick={handleMouseEvent(() => setSelectedRequest(-1))}
     >
@@ -42,13 +42,14 @@ export const SidebarRequestList = () => {
             'justify-between',
             'inline-flex',
             'hover:bg-gray-600',
-            'p-2',
+            'py-2',
+            'px-6',
             'gap-2',
             selectedRequestIndex === index ? 'selected' : ''
           )}
           onClick={handleMouseEvent(() => setSelectedRequest(index))}
         >
-          <div className={joinClassNames('', 'font-bold', httpMethodColor(request.method))}>
+          <div className={joinClassNames('font-bold', httpMethodColor(request.method))}>
             {request.method}
           </div>
           <div className="truncate tooltip flex-1">
