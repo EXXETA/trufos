@@ -29,7 +29,7 @@ enum Language {
   JSON = 'json',
   XML = 'xml',
   HTML = 'html',
-  TEXT = 'text',
+  TEXT = 'plaintext',
 }
 
 export function InputTabs(props: InputTabsProps) {
