@@ -28,7 +28,6 @@ interface InputTabsProps {
 enum Language {
   JSON = 'json',
   XML = 'xml',
-  HTML = 'html',
   TEXT = 'plaintext',
 }
 
@@ -115,7 +114,6 @@ export function InputTabs(props: InputTabsProps) {
         items={[
           [Language.JSON, 'JSON'],
           [Language.XML, 'XML'],
-          [Language.HTML, 'HTML'],
           [Language.TEXT, 'Plain'],
         ]}
       />
