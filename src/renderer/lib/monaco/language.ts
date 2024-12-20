@@ -1,6 +1,7 @@
 import { languages } from 'monaco-editor';
 import { TemplateVariableSemanticTokensProvider } from '@/lib/monaco/TemplateVariableSemanticTokensProvider';
 import { TemplateVariableCompletionItemsProvider } from '@/lib/monaco/TemplateVariableCompletionItemsProvider';
+import { TemplateVariableHoverProvider } from '@/lib/monaco/TemplateVariableHoverProvider';
 
 export enum Language {
   JSON = 'json',
@@ -28,3 +29,6 @@ languages.registerCompletionItemProvider(
   supportedLanguages,
   new TemplateVariableCompletionItemsProvider()
 );
+
+// hover provider (shows template variable value on hover)
+languages.registerHoverProvider('json', new TemplateVariableHoverProvider());

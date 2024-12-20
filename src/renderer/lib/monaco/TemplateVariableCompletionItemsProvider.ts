@@ -1,5 +1,6 @@
 import { editor, languages, Position } from 'monaco-editor';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { MAX_TEMPLATE_VARIABLE_LENGTH } from '@/components/shared/settings/monaco-settings';
 
 const eventService = RendererEventService.instance;
 
@@ -8,8 +9,6 @@ const eventService = RendererEventService.instance;
  */
 export class TemplateVariableCompletionItemsProvider implements languages.CompletionItemProvider {
   triggerCharacters = ['{'];
-
-  private static readonly MAX_VARIABLE_NAME_LENGTH = 100;
 
   async provideCompletionItems(
     model: editor.ITextModel,
@@ -34,7 +33,7 @@ export class TemplateVariableCompletionItemsProvider implements languages.Comple
           startColumn,
           endLineNumber: position.lineNumber,
           endColumn: Math.min(
-            position.column + TemplateVariableCompletionItemsProvider.MAX_VARIABLE_NAME_LENGTH,
+            position.column + MAX_TEMPLATE_VARIABLE_LENGTH,
             model.getLineMaxColumn(position.lineNumber)
           ),
         })
