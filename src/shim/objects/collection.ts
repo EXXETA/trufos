@@ -7,6 +7,6 @@ export type Collection = {
   type: 'collection';
   title: string;
   dirPath: string;
-  variables: Record<string, VariableObject>;
+  variables: Record<VariableObject['key'], VariableObject>;
   children: (Folder | TrufosRequest)[];
 };

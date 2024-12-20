@@ -4,7 +4,7 @@ import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { Collection } from 'shim/objects/collection';
 import { VariableObject } from 'shim/variables';
-import { getSystemVariable, getSystemVariableKeys, getSystemVariables } from './system-variable';
+import { getSystemVariable, getSystemVariables } from './system-variable';
 
 const persistenceService = PersistenceService.instance;
 
@@ -63,15 +63,6 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
-   * Replaces all variables in the current collection with the provided variables.
-   *
-   * @param variables The new variables to set.
-   */
-  public setCollectionVariables(variables: Record<string, VariableObject>) {
-    this.currentCollection.variables = variables;
-  }
-
-  /**
    * Changes the current collection to the one at the specified path.
    *
    * @param path The path of the collection to load and set as the current collection.
@@ -98,7 +89,7 @@ export class EnvironmentService implements Initializable {
    * @param key The key of the variable.
    * @returns The value of the variable if it exists, otherwise undefined.
    */
-  public getVariable(key: string) {
+  public getVariable(key: string): VariableObject | undefined {
     return this.currentCollection.variables[key] ?? getSystemVariable(key);
   }
 
