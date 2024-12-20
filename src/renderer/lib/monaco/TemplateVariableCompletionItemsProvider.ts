@@ -1,6 +1,7 @@
 import { editor, languages, Position } from 'monaco-editor';
+import { RendererEventService } from '@/services/event/renderer-event-service';
 
-const variables = new Map([['$randomUuid', '9d81997b-20ae-4543-995e-52e81e7b30ae']]); // TODO: fetch from environment service
+const eventService = RendererEventService.instance;
 
 /**
  * Completion items provider for template variables in any text document.
@@ -10,7 +11,10 @@ export class TemplateVariableCompletionItemsProvider implements languages.Comple
 
   private static readonly MAX_VARIABLE_NAME_LENGTH = 100;
 
-  provideCompletionItems(model: editor.ITextModel, position: Position): languages.CompletionList {
+  async provideCompletionItems(
+    model: editor.ITextModel,
+    position: Position
+  ): Promise<languages.CompletionList> {
     const suggestions: languages.CompletionItem[] = [];
     const startColumn = position.column - 2;
 
@@ -37,18 +41,19 @@ export class TemplateVariableCompletionItemsProvider implements languages.Comple
       );
 
       // create completion items for all variables
-      for (const [label, value] of variables.entries()) {
+      for (const variable of await eventService.getActiveEnvironmentVariables()) {
+        console.log(variable);
         suggestions.push({
-          label,
+          label: variable.key,
           kind: languages.CompletionItemKind.Variable,
-          insertText: ` ${label} }}`, // add variable name and closing bracket
+          insertText: ` ${variable.key} }}`, // add variable name and closing bracket
           range: {
             startLineNumber: position.lineNumber,
             startColumn: position.column,
             endLineNumber: position.lineNumber,
             endColumn: match === null ? position.column : startColumn + match[0].length,
           },
-          detail: value,
+          detail: variable.description,
         });
       }
     }

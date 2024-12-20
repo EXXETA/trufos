@@ -92,4 +92,8 @@ export class MainEventService implements IEventService {
   async deleteObject(object: TrufosObject) {
     await persistenceService.delete(object);
   }
+
+  async getActiveEnvironmentVariables() {
+    return environmentService.getActiveVariables();
+  }
 }
