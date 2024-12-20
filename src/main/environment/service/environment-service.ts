@@ -1,21 +1,12 @@
 import { Readable } from 'node:stream';
-import { randomInt, randomUUID } from 'node:crypto';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { Collection } from 'shim/objects/collection';
 import { VariableObject } from 'shim/variables';
+import { getSystemVariable, getSystemVariableKeys, getSystemVariables } from './system-variable';
 
 const persistenceService = PersistenceService.instance;
-
-enum SystemVariable {
-  TimestampIso = '$timestampIso',
-  TimestampUnix = '$timestampUnix',
-  Time = '$time',
-  Date = '$date',
-  RandomInt = '$randomInt',
-  RandomUuid = '$randomUuid',
-}
 
 /**
  * The environment service is responsible for managing the current collection and
@@ -56,7 +47,7 @@ export class EnvironmentService implements Initializable {
     if (variable !== undefined) {
       variable.value = value;
     } else {
-      this.currentCollection.variables[key] = { value, enabled: true };
+      this.currentCollection.variables[key] = { key, value, enabled: true };
     }
   }
 
@@ -90,13 +81,13 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
-   * Returns the keys of all active variables in the current collection. This also includes system
+   * Returns all active variables in the current collection. This also includes system
    * variables.
    */
-  public getActiveVariableKeys() {
-    return Object.keys(this.currentCollection.variables)
-      .filter((key) => this.currentCollection.variables[key].enabled)
-      .concat(Object.values(SystemVariable));
+  public getActiveVariables() {
+    return Object.values(this.currentCollection.variables)
+      .filter((variable) => variable.enabled)
+      .concat(getSystemVariables());
   }
 
   /**
@@ -105,32 +96,13 @@ export class EnvironmentService implements Initializable {
    * 2. System variables
    *
    * @param key The key of the variable.
-   * @returns The value of the variable if it exists and  is enabled, otherwise undefined.
+   * @returns The value of the variable if it exists, otherwise undefined.
    */
-  private getVariableValue(key: string) {
-    return this.currentCollection.variables[key]?.value ?? this.getSystemVariableValue(key);
+  public getVariable(key: string) {
+    return this.currentCollection.variables[key] ?? getSystemVariable(key);
   }
 
-  /**
-   * Returns the value of a dynamic, predefined system variable.
-   *
-   * @param key The key of the system variable.
-   * @returns The value of the system variable.
-   */
-  private getSystemVariableValue(key: string) {
-    switch (key) {
-      case SystemVariable.TimestampIso:
-        return new Date().toISOString();
-      case SystemVariable.TimestampUnix:
-        return Math.floor(Date.now() / 1e3).toString();
-      case SystemVariable.Time:
-        return new Date().toTimeString();
-      case SystemVariable.Date:
-        return new Date().toDateString();
-      case SystemVariable.RandomInt:
-        return randomInt(2 ** 48 - 1).toString();
-      case SystemVariable.RandomUuid:
-        return randomUUID();
-    }
+  private getVariableValue(key: string) {
+    return this.getVariable(key)?.value;
   }
 }
