@@ -20,16 +20,10 @@ import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
+import { Language } from '@/lib/monaco/language';
 
 interface InputTabsProps {
   className: string;
-}
-
-enum Language {
-  JSON = 'json',
-  XML = 'xml',
-  HTML = 'html',
-  TEXT = 'text',
 }
 
 export function InputTabs(props: InputTabsProps) {
@@ -115,7 +109,6 @@ export function InputTabs(props: InputTabsProps) {
         items={[
           [Language.JSON, 'JSON'],
           [Language.XML, 'XML'],
-          [Language.HTML, 'HTML'],
           [Language.TEXT, 'Plain'],
         ]}
       />

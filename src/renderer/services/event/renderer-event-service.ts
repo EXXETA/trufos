@@ -9,6 +9,8 @@ const METHOD_NAMES = new Set<keyof IEventService>([
   'saveChanges',
   'discardChanges',
   'deleteObject',
+  'getActiveEnvironmentVariables',
+  'getVariable',
 ]);
 
 const INSTANCE = {} as IEventService;

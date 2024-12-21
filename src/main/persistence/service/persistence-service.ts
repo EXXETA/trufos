@@ -283,6 +283,7 @@ export class PersistenceService {
       await fs.readFile(path.join(dirPath, infoFileName), 'utf8')
     )) as CollectionInfoFile;
     delete infoFileContents.version;
+
     const id = randomUUID();
     this.idToPathMap.set(id, dirPath);
     const children = await this.loadChildren(id, dirPath);
@@ -291,6 +292,12 @@ export class PersistenceService {
       type,
       dirPath,
       children,
+      variables: Object.fromEntries(
+        Object.entries(infoFileContents.variables).map(([key, variable]) => [
+          key,
+          Object.assign(variable, { key }),
+        ])
+      ),
     });
   }
 
