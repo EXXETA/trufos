@@ -3,9 +3,11 @@ run-name: Pull Request Validator
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   cpr:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - name: Validate the pull request
