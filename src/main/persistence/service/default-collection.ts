@@ -14,16 +14,20 @@ export function generateDefaultCollection(dirPath: string): Collection {
     type: 'collection',
     title: 'Default Collection',
     dirPath,
-    variables: {
-      'variable-1': {
-        enabled: true,
-        value: 'value-1',
-      },
-      'variable-2': {
-        enabled: true,
-        value: 'value-2',
-      },
-    },
+    variables: Object.fromEntries(
+      [
+        {
+          key: 'variable-1',
+          enabled: true,
+          value: 'value-1',
+        },
+        {
+          key: 'variable-2',
+          enabled: true,
+          value: 'value-2',
+        },
+      ].map((variable) => [variable.key, variable])
+    ),
     children: [
       {
         id: exampleRequestId,
