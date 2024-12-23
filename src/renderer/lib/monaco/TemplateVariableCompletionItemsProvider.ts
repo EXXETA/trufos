@@ -41,11 +41,12 @@ export class TemplateVariableCompletionItemsProvider implements languages.Comple
 
       // create completion items for all variables
       for (const variable of await eventService.getActiveEnvironmentVariables()) {
-        console.log(variable);
         suggestions.push({
           label: variable.key,
-          kind: languages.CompletionItemKind.Variable,
-          insertText: ` ${variable.key} }}`, // add variable name and closing bracket
+          kind: variable.key.startsWith('$')
+            ? languages.CompletionItemKind.Function
+            : languages.CompletionItemKind.Variable,
+          insertText: `${variable.key}}}`, // add variable name and closing bracket
           range: {
             startLineNumber: position.lineNumber,
             startColumn: position.column,
