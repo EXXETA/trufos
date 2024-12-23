@@ -1,22 +1,15 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 const baseConfig = {
   preset: 'ts-jest',
-  moduleFileExtensions: [
-    'js',
-    'jsx',
-    'ts',
-    'tsx',
-    'json',
-  ],
+  moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json'],
   moduleNameMapper: {
     '\\.(css|less|sass|scss)$': 'identity-obj-proxy',
     '^main/(.*)$': '<rootDir>/src/main/$1',
     '^@/(.*)$': '<rootDir>/src/renderer/$1',
     '^shim/(.*)$': '<rootDir>/src/shim/$1',
+    '^monaco-editor$': '<rootDir>/node_modules/@monaco-editor/react',
   },
-  setupFilesAfterEnv: [
-    './scripts/setup-jest.ts',
-  ],
+  setupFilesAfterEnv: ['./scripts/setup-jest.ts'],
   testEnvironmentOptions: {
     url: 'http://localhost/',
   },
@@ -32,17 +25,13 @@ module.exports = {
       ...baseConfig,
       displayName: 'main',
       testEnvironment: 'node',
-      testMatch: [
-        '<rootDir>/src/main/**/*.test.ts',
-      ],
+      testMatch: ['<rootDir>/src/main/**/*.test.ts'],
     },
     {
       ...baseConfig,
       displayName: 'renderer',
       testEnvironment: 'jsdom',
-      testMatch: [
-        '<rootDir>/src/renderer/**/*.test.ts',
-      ],
+      testMatch: ['<rootDir>/src/renderer/**/*.test.ts'],
     },
   ],
 };
