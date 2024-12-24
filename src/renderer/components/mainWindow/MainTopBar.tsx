@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import { RequestMethod } from 'shim/objects/request-method';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
@@ -62,6 +62,24 @@ export function MainTopBar() {
     }),
     [request, requestEditor]
   );
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      //isSaveShortcut is true if save combination is recorded
+      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+      //if save combination is pressed and request is in draft mode, perform save
+      if (isSaveShortcut && request?.draft) {
+        event.preventDefault();
+        saveRequest();
+      }
+    };
+    //add keyboard event listener
+    window.addEventListener('keydown', handleKeyDown);
+    //cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [saveRequest]);
 
   return (
     <div className={cn('flex mb-[24px] gap-6')}>
