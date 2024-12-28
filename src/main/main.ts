@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import installExtension from 'electron-devtools-installer';
 import 'main/event/main-event-service';
@@ -13,6 +13,8 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 if (require('electron-squirrel-startup')) {
   app.quit();
 }
+
+let isQuitting = false;
 
 const createWindow = async () => {
   // initialize services
@@ -33,6 +35,36 @@ const createWindow = async () => {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Handle window close event
+  mainWindow.on('close', async (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+
+      // Send save message to the renderer
+      mainWindow?.webContents.send('save-before-close');
+
+      // Set up one-time listener for the response
+      const cleanup = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        ipcMain.removeListener('save-before-close-response', handleResponse);
+      };
+
+      const handleResponse = () => {
+        cleanup();
+        isQuitting = true;
+        mainWindow?.close();
+      };
+
+      const timeoutId = setTimeout(() => {
+        cleanup();
+        isQuitting = true;
+        mainWindow?.close();
+      }, 5000);
+
+      ipcMain.once('save-before-close-response', handleResponse);
+    }
   });
 
   // Load the index.html of the app.
@@ -59,6 +91,11 @@ app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+app.on('before-quit', async (event) => {
+  console.debug('before-quit event triggered');
+  isQuitting = true;
 });
 
 // In this file you can include the rest of your app's specific main process
