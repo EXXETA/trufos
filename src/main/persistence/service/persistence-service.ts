@@ -305,7 +305,7 @@ export class PersistenceService {
 
   private async loadRequest(parentId: string, dirPath: string): Promise<TrufosRequest> {
     const type = 'request' as const;
-    const draft = !(await exists(path.join(dirPath, type + '.json')));
+    const draft = await exists(path.join(dirPath, '~' + type + '.json'));
     const info = await this.readInfoFile(dirPath, type, draft);
     this.idToPathMap.set(info.id, dirPath);
 

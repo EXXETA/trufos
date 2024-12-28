@@ -1,36 +1,17 @@
 import { IEventService } from 'shim/event-service';
 import { MainProcessError } from '@/error/MainProcessError';
 
-const METHOD_NAMES = new Set<keyof IEventService>([
-  'saveRequest',
-  'sendRequest',
-  'getAppVersion',
-  'loadCollection',
-  'saveChanges',
-  'discardChanges',
-  'deleteObject',
-  'getActiveEnvironmentVariables',
-  'getVariable',
-  'setCollectionVariables',
-]);
-
-const INSTANCE = {} as IEventService;
-for (const methodName of METHOD_NAMES) {
-  Reflect.defineProperty(INSTANCE, methodName, {
-    value: createEventMethod(methodName),
-    writable: false,
-    enumerable: true,
-    configurable: false,
-  });
-}
-
 /**
  * Creates a method that sends an IPC event to the main process and returns the result. If the
  * result is an error, it is thrown.
  * @param methodName The name of the event method to call in the main process.
  */
-function createEventMethod(methodName: keyof IEventService) {
-  return async function (...args: any[]) {
+function createEventMethod<T extends keyof IEventService>(methodName: T) {
+  return async function (
+    ...args: Parameters<IEventService[T]>
+  ): Promise<
+    ReturnType<IEventService[T]> extends Promise<infer R> ? R : ReturnType<IEventService[T]>
+  > {
     const result = await window.electron.ipcRenderer.invoke(methodName, ...args);
     if (result instanceof Error) {
       throw new MainProcessError(result.message);
@@ -40,7 +21,33 @@ function createEventMethod(methodName: keyof IEventService) {
   };
 }
 
-export const RendererEventService = {
-  /** The singleton instance of the RendererEventService */
-  instance: INSTANCE,
-};
+export interface RendererEventService {
+  on(event: 'before-close', listener: () => void): this;
+
+  emit(event: 'ready-to-close'): this;
+}
+
+export class RendererEventService implements IEventService {
+  public static readonly instance = new RendererEventService();
+
+  on(event: string, listener: (...args: unknown[]) => void) {
+    window.electron.ipcRenderer.on(event, listener);
+    return this;
+  }
+
+  emit(event: string, ...args: unknown[]) {
+    window.electron.ipcRenderer.send(event, ...args);
+    return this;
+  }
+
+  saveRequest = createEventMethod('saveRequest');
+  sendRequest = createEventMethod('sendRequest');
+  getAppVersion = createEventMethod('getAppVersion');
+  loadCollection = createEventMethod('loadCollection');
+  saveChanges = createEventMethod('saveChanges');
+  discardChanges = createEventMethod('discardChanges');
+  deleteObject = createEventMethod('deleteObject');
+  getActiveEnvironmentVariables = createEventMethod('getActiveEnvironmentVariables');
+  getVariable = createEventMethod('getVariable');
+  setCollectionVariables = createEventMethod('setCollectionVariables');
+}
