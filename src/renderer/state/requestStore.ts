@@ -8,6 +8,16 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/util';
 
 const eventService = RendererEventService.instance;
+eventService.on('before-close', async () => {
+  console.info('Saving currently opened request before closing');
+  const state = useRequestStore.getState();
+  const request = selectRequest(state);
+  if (request != null && request.draft) {
+    console.debug(`Saving request with ID ${request.id}`);
+    await eventService.saveRequest(request, state.requestEditor?.getValue());
+  }
+  eventService.emit('ready-to-close');
+});
 
 interface RequestState {
   requests: TrufosRequest[];
