@@ -31,4 +31,4 @@ languages.registerCompletionItemProvider(
 );
 
 // hover provider (shows template variable value on hover)
-languages.registerHoverProvider('json', new TemplateVariableHoverProvider());
+languages.registerHoverProvider(supportedLanguages, new TemplateVariableHoverProvider());
