@@ -17,14 +17,14 @@ export function generateDefaultCollection(dirPath: string): Collection {
     variables: Object.fromEntries(
       [
         {
-          key: 'variable-1',
+          key: 'variable1',
           enabled: true,
           value: 'value-1',
         },
         {
-          key: 'variable-2',
+          key: 'variable2',
           enabled: true,
-          value: 'value-2',
+          value: 'value2',
         },
       ].map((variable) => [variable.key, variable])
     ),
