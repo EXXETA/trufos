@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RequestBodyType } from 'shim/objects/request';
-import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
+import { REQUEST_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { Editor } from '@monaco-editor/react';
 import { Input } from '@/components/ui/input';
 import { useCallback, useState } from 'react';
@@ -83,7 +83,7 @@ export function InputTabs(props: InputTabsProps) {
     return (
       <Editor
         theme="vs-dark" /* TODO: apply theme from settings */
-        options={DEFAULT_MONACO_OPTIONS}
+        options={REQUEST_EDITOR_OPTIONS}
         language={language}
         onMount={onEditorMount}
       />
