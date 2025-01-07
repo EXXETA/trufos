@@ -1,9 +1,11 @@
-import { CancellationToken, editor, languages } from 'monaco-editor';
+import { editor, languages } from 'monaco-editor';
 
 /**
  * Semantic tokens provider for template variables in any text document.
  */
-export class TemplateVariableSemanticTokensProvider {
+export class TemplateVariableSemanticTokensProvider
+  implements languages.DocumentSemanticTokensProvider
+{
   private readonly regex = /\{\{\s*(\$?\w+)\s*}}/g;
 
   getLegend(): languages.SemanticTokensLegend {
@@ -14,9 +16,7 @@ export class TemplateVariableSemanticTokensProvider {
   }
 
   provideDocumentSemanticTokens(
-    model: editor.ITextModel,
-    lastResultId: string | null,
-    token: CancellationToken
+    model: editor.ITextModel
   ): languages.ProviderResult<languages.SemanticTokens | languages.SemanticTokensEdits> {
     const tokens: number[] = [];
 
