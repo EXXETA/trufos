@@ -1,7 +1,8 @@
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { TemplateVariableCompletionItemsProvider } from '@/lib/monaco/TemplateVariableCompletionItemsProvider';
 import { VariableObject } from 'shim/variables';
-import { editor, IRange, languages, Position } from 'monaco-editor';
+import { IRange, languages, Position } from 'monaco-editor';
+import { mockModel } from '../../../../__tests__/monaco-util';
 
 jest.mock('@/services/event/renderer-event-service', () => ({
   RendererEventService: {
@@ -21,20 +22,6 @@ jest.mock('monaco-editor', () => ({
 }));
 
 const completionItemsProvider = new TemplateVariableCompletionItemsProvider();
-
-function mockModel(json: object) {
-  const lines = JSON.stringify(json, null, 2).split('\n');
-  return {
-    getValueInRange(range: IRange) {
-      if (range.startLineNumber !== range.endLineNumber)
-        throw new Error('Range must be in the same line');
-      return lines[range.startLineNumber - 1].slice(range.startColumn - 1, range.endColumn - 1);
-    },
-    getLineMaxColumn(lineNumber: number) {
-      return lines[lineNumber - 1].length + 1;
-    },
-  } as editor.ITextModel;
-}
 
 describe('TemplateVariableCompletionItemsProvider', () => {
   // Arrange
