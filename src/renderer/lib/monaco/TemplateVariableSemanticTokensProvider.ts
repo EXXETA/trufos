@@ -1,4 +1,5 @@
 import { editor, languages } from 'monaco-editor';
+import { TokenArray } from '@/lib/monaco/token';
 
 /**
  * Semantic tokens provider for template variables in any text document.
@@ -18,23 +19,23 @@ export class TemplateVariableSemanticTokensProvider
   provideDocumentSemanticTokens(
     model: editor.ITextModel
   ): languages.ProviderResult<languages.SemanticTokens | languages.SemanticTokensEdits> {
-    const tokens: number[] = [];
+    const tokens = new TokenArray();
 
     for (let i = 0; i < model.getLineCount(); i++) {
       this.regex.lastIndex = 0; // reset regex
       for (let match; (match = this.regex.exec(model.getLineContent(i + 1))) !== null; ) {
-        tokens.push(
-          i, // line index (0-based)
-          match.index, // start column (0-based)
-          match[0].length, // token length
-          0, // token type index
-          0 // no modifiers
-        );
+        tokens.push({
+          lineNumber: i,
+          column: match.index,
+          length: match[0].length,
+          type: 0, // variable.template
+          modifiers: [], // no modifiers
+        });
       }
     }
 
     return {
-      data: new Uint32Array(tokens),
+      data: tokens.toUint32Array(),
     };
   }
 

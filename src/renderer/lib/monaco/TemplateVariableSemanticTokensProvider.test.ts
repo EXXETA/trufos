@@ -15,12 +15,12 @@ describe('TemplateVariableSemanticTokensProvider', () => {
     // Assert
     expect(result).toEqual({
       data: new Uint32Array([
-        1, // second line
+        1, // first line + 1
         12,
         template.length,
         0,
         0,
-        2, // third line
+        1, // second line + 1
         13,
         template.length,
         0,
