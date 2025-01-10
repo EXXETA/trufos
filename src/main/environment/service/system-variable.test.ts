@@ -10,7 +10,7 @@ describe('getSystemVariable()', () => {
 
     // Assert
     expect(result.key).toBe(key);
-    expect(result.enabled).toBe(true);
+    expect(result.isActive).toBe(true);
     expect(result.value).toBeDefined();
     expect(result.description).toBeDefined();
   });
@@ -47,7 +47,7 @@ describe('getSystemVariables()', () => {
     // Assert
     expect(result).toContainEqual({
       key: '$randomUuid',
-      enabled: true,
+      isActive: true,
       value: expect.any(String),
       description: expect.any(String),
     });

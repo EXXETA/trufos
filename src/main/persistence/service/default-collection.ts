@@ -18,12 +18,12 @@ export function generateDefaultCollection(dirPath: string): Collection {
       [
         {
           key: 'variable1',
-          enabled: true,
+          isActive: true,
           value: 'value-1',
         },
         {
           key: 'variable2',
-          enabled: true,
+          isActive: true,
           value: 'value2',
         },
       ].map((variable) => [variable.key, variable])

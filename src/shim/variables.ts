@@ -11,8 +11,8 @@ export type VariableObject = {
   /** The value of the variable. Might change on each call for dynamic variables */
   value: string;
 
-  /** Whether the variable is enabled. */
-  enabled: boolean;
+  /** Whether the variable is active. */
+  isActive: boolean;
 
   /** A description of the variable. */
   description?: string;

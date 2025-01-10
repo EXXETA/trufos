@@ -45,7 +45,7 @@ const systemVariables = new Map<VariableObject['key'], VariableObject>(
       },
       description: 'A random UUID.',
     },
-  ].map((variable) => [variable.key, Object.assign(variable, { enabled: true })])
+  ].map((variable) => [variable.key, Object.assign(variable, { isActive: true })])
 );
 
 /**

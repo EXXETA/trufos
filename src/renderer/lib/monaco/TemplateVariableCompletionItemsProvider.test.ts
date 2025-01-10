@@ -26,8 +26,8 @@ const completionItemsProvider = new TemplateVariableCompletionItemsProvider();
 describe('TemplateVariableCompletionItemsProvider', () => {
   // Arrange
   const variables: VariableObject[] = [
-    { key: 'variable', value: '123', enabled: true },
-    { key: '$randomUuid', description: 'Description 2', value: '321', enabled: true },
+    { key: 'variable', value: '123', isActive: true },
+    { key: '$randomUuid', description: 'Description 2', value: '321', isActive: true },
   ];
   jest
     .mocked(RendererEventService.instance.getActiveEnvironmentVariables)

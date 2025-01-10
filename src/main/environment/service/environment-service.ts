@@ -47,7 +47,7 @@ export class EnvironmentService implements Initializable {
     if (variable !== undefined) {
       variable.value = value;
     } else {
-      this.currentCollection.variables[key] = { key, value, enabled: true };
+      this.currentCollection.variables[key] = { key, value, isActive: true };
     }
   }
 
@@ -59,7 +59,7 @@ export class EnvironmentService implements Initializable {
    */
   public setCollectionVariableEnabled(key: string, enabled: boolean) {
     const variable = this.currentCollection.variables[key];
-    if (variable !== undefined) variable.enabled = enabled;
+    if (variable !== undefined) variable.isActive = enabled;
   }
 
   /**
@@ -77,7 +77,7 @@ export class EnvironmentService implements Initializable {
    */
   public getActiveVariables() {
     return Object.values(this.currentCollection.variables)
-      .filter((variable) => variable.enabled)
+      .filter((variable) => variable.isActive)
       .concat(getSystemVariables());
   }
 
