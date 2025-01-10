@@ -1,7 +1,7 @@
 import { languages } from 'monaco-editor';
-import { TemplateVariableSemanticTokensProvider } from '@/lib/monaco/TemplateVariableSemanticTokensProvider';
-import { TemplateVariableCompletionItemsProvider } from '@/lib/monaco/TemplateVariableCompletionItemsProvider';
-import { TemplateVariableHoverProvider } from '@/lib/monaco/TemplateVariableHoverProvider';
+import { TemplateVariableSemanticTokensProvider } from '@/lib/monaco/template-variable-semantic-tokens-provider';
+import { TemplateVariableCompletionItemsProvider } from '@/lib/monaco/template-variable-completion-items-provider';
+import { TemplateVariableHoverProvider } from '@/lib/monaco/template-variable-hover-provider';
 
 export enum Language {
   JSON = 'json',
