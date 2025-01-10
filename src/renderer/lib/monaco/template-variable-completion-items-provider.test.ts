@@ -18,6 +18,10 @@ jest.mock('monaco-editor', () => ({
       Variable: 12,
       Function: 3,
     },
+    CompletionTriggerKind: {
+      TriggerCharacter: 2,
+      Invoke: 3,
+    },
   },
 }));
 
@@ -48,7 +52,10 @@ describe('TemplateVariableCompletionItemsProvider', () => {
     };
 
     // Act
-    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position);
+    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position, {
+      triggerKind: languages.CompletionTriggerKind.TriggerCharacter,
+      triggerCharacter: '{',
+    });
 
     // Assert
     expect(suggestions).toHaveLength(variables.length);
@@ -71,11 +78,14 @@ describe('TemplateVariableCompletionItemsProvider', () => {
       startLineNumber: position.lineNumber,
       startColumn: position.column,
       endLineNumber: position.lineNumber,
-      endColumn: position.column + 2, // + 2 for '}}'
+      endColumn: position.column,
     };
 
     // Act
-    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position);
+    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position, {
+      triggerKind: languages.CompletionTriggerKind.TriggerCharacter,
+      triggerCharacter: '{',
+    });
 
     // Assert
     expect(suggestions).toHaveLength(variables.length);
@@ -90,11 +100,14 @@ describe('TemplateVariableCompletionItemsProvider', () => {
       startLineNumber: position.lineNumber,
       startColumn: position.column,
       endLineNumber: position.lineNumber,
-      endColumn: position.column + 4, // + 2 spaces + 2 brackets
+      endColumn: position.column,
     };
 
     // Act
-    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position);
+    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position, {
+      triggerKind: languages.CompletionTriggerKind.TriggerCharacter,
+      triggerCharacter: '{',
+    });
 
     // Assert
     expect(suggestions).toHaveLength(variables.length);
@@ -110,9 +123,56 @@ describe('TemplateVariableCompletionItemsProvider', () => {
     const position = { lineNumber: 3, column: 14 } as Position;
 
     // Act
-    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position);
+    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position, {
+      triggerKind: languages.CompletionTriggerKind.TriggerCharacter,
+      triggerCharacter: '{',
+    });
 
     // Assert
     expect(suggestions).toHaveLength(0);
+  });
+
+  it('provides completion items for manual invocation at an existing template variable', async () => {
+    // Arrange
+    const model = mockModel({ value: `{{ word }} blah` });
+    const position = { lineNumber: 2, column: 17 } as Position; // after 'w' in 'word'
+    const expectedRange: IRange = {
+      startLineNumber: position.lineNumber,
+      startColumn: position.column - 1,
+      endLineNumber: position.lineNumber,
+      endColumn: position.column + 3,
+    };
+
+    // Act
+    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position, {
+      triggerKind: languages.CompletionTriggerKind.Invoke,
+    });
+
+    // Assert
+    expect(suggestions).toHaveLength(variables.length);
+    expect(suggestions[0].range).toEqual(expectedRange);
+    expect(suggestions[0].insertText).toBe(variables[0].key);
+  });
+
+  it('provides completion items for manual invocation at an existing template variable without closing brackets', async () => {
+    // Arrange
+    const model = mockModel({ value: `{{ word blah` });
+    const position = { lineNumber: 2, column: 16 } as Position; // before 'w' in 'word'
+    const expectedRange: IRange = {
+      startLineNumber: position.lineNumber,
+      startColumn: position.column,
+      endLineNumber: position.lineNumber,
+      endColumn: position.column + 4, // 4 is the length of 'word'
+    };
+
+    // Act
+    const { suggestions } = await completionItemsProvider.provideCompletionItems(model, position, {
+      triggerKind: languages.CompletionTriggerKind.Invoke,
+    });
+
+    // Assert
+    expect(suggestions).toHaveLength(variables.length);
+    expect(suggestions[0].range).toEqual(expectedRange);
+    expect(suggestions[0].insertText).toBe(variables[0].key + '}}');
   });
 });
