@@ -52,6 +52,15 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
+   * Sets and saves all variables in the current collection.
+   * @param variables
+   */
+  public setAndSaveAllVariables(variables: VariableObject[]) {
+    this.currentCollection.variables = {};
+    variables.forEach((variable) => (this.currentCollection.variables[variable.key] = variable));
+  }
+
+  /**
    * Enables or disables a variable in the current collection.
    *
    * @param key The key of the variable.
@@ -95,5 +104,9 @@ export class EnvironmentService implements Initializable {
 
   private getVariableValue(key: string) {
     return this.getVariable(key)?.value;
+  }
+
+  public setVariable(variable: VariableObject) {
+    return (this.currentCollection.variables[variable.key] = variable);
   }
 }

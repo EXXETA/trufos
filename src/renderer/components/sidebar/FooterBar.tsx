@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { GithubIcon } from '@/components/icons';
+import { SettingsModal } from '@/components/shared/settings/SettingsModal';
 
 export function FooterBar() {
   const [appVersion, setAppVersion] = useState<string>(undefined);
@@ -25,7 +26,7 @@ export function FooterBar() {
       >
         <GithubIcon /> {/* Adjust the size as needed */}
       </a>
-      {/*<SettingsModal />*/}
+      <SettingsModal />
     </div>
   );
 }

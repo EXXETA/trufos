@@ -63,4 +63,10 @@ export interface IEventService {
    * @param key The key of the variable.
    */
   getVariable(key: string): Promise<VariableObject>;
+
+  /**
+   * Set a variable.
+   * @param variables
+   */
+  setAndSaveAllVariables(variables: VariableObject[]): void;
 }
