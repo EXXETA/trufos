@@ -6,6 +6,7 @@ import * as monaco from 'monaco-editor';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useRequestStore } from '@/state/requestStore';
 import { TrufosRequest } from '../shim/objects/request';
+import './lib/monaco/language';
 
 const { initialize } = useRequestStore.getState();
 console.info('Initializing renderer process...');

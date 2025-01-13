@@ -1,18 +1,13 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
 import { Editor } from '@monaco-editor/react';
-import { DEFAULT_MONACO_OPTIONS } from '@/components/shared/settings/monaco-settings';
+import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { HttpHeaders } from 'shim/headers';
 import { useEffect, useRef } from 'react';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { selectResponse, useResponseActions, useResponseStore } from '@/state/responseStore';
 import { selectRequest, useRequestStore } from '@/state/requestStore';
-
-const monacoOptions = {
-  ...DEFAULT_MONACO_OPTIONS,
-  readOnly: true,
-};
 
 /**
  * Get the mime type from the content type.
@@ -82,7 +77,7 @@ export function OutputTabs(props: OutputTabsProps) {
           <Editor
             language={mimeType}
             theme="vs-dark" /* TODO: apply theme from settings */
-            options={monacoOptions}
+            options={RESPONSE_EDITOR_OPTIONS}
             onMount={setResponseEditor}
           />
         </div>
