@@ -21,7 +21,10 @@ export const RequestContextMenu = ({ index }: RequestContextMenuProps) => {
         <CiMenuKebab className="cursor-pointer hover:fill-gray-900" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className={'bg-background'}>
-        <DropdownMenuItem onClick={handleMouseEvent(() => deleteRequest(index))}>
+        <DropdownMenuItem
+          onClick={handleMouseEvent(() => deleteRequest(index))}
+          style={{ color: 'var(--text-danger)' }}
+        >
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>

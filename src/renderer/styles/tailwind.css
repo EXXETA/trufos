@@ -53,6 +53,7 @@
     /* Text */
     --text-primary: #EEEEEE;
     --text-secondary: #BBBBBB;
+    --text-danger: #FF5555;
 
     /* Additional */
     --http-get: #93F176;
