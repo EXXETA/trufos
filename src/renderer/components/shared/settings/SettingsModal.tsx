@@ -13,18 +13,14 @@ import { useVariableStore } from '@/state/variableStore';
 import { Button } from '@/components/ui/button';
 import * as React from 'react';
 
-interface Props {
-  className: string;
-}
-export const SettingsModal = (props: Props) => {
-  const { className } = props;
+export const SettingsModal = () => {
   const { save, cancel, openModal } = useVariableStore.getState();
   const isOpen = useVariableStore((state) => state.isOpen);
   const allDoubleKeys = useVariableStore((state) => state.allDoubleKeys);
 
   return (
     <Dialog open={isOpen} onOpenChange={cancel}>
-      <DialogTrigger className={className} onClick={openModal}>
+      <DialogTrigger onClick={openModal}>
         <FiSettings className="text-xl ml-2" />
       </DialogTrigger>
       <DialogContent style={{ minWidth: '100vh' }}>
