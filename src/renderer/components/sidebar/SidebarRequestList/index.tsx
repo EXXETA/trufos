@@ -1,14 +1,14 @@
 import { httpMethodColor } from '@/services/StyleHelper';
 import { RequestBodyType } from 'shim/objects/request';
-import { FaTimes } from 'react-icons/fa';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { useRequestActions, useRequestStore } from '@/state/requestStore';
 import { handleMouseEvent } from '@/util/callback-util';
 import './index.css';
+import { RequestContextMenu } from '@/components/sidebar/SidebarRequestList/ContextMenu/RequestContextMenu';
 
 export const SidebarRequestList = () => {
-  const { setSelectedRequest, deleteRequest } = useRequestActions();
+  const { setSelectedRequest } = useRequestActions();
   const requestEditor = useRequestStore((state) => state.requestEditor);
   const requests = useRequestStore((state) => state.requests);
   const selectedRequestIndex = useRequestStore((state) => state.selectedRequestIndex);
@@ -57,10 +57,7 @@ export const SidebarRequestList = () => {
             <div className="tooltip-text">{request.url}</div>
           </div>
           <div className="items-center justify-center flex">
-            <FaTimes
-              onClick={handleMouseEvent(() => deleteRequest(index))}
-              className="cursor-pointer hover:fill-gray-900"
-            />
+            <RequestContextMenu index={index} />
           </div>
         </span>
       ))}
