@@ -105,8 +105,4 @@ export class EnvironmentService implements Initializable {
   private getVariableValue(key: string) {
     return this.getVariable(key)?.value;
   }
-
-  public setVariable(variable: VariableObject) {
-    return (this.currentCollection.variables[variable.key] = variable);
-  }
 }
