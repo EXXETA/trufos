@@ -23,7 +23,7 @@ export const RequestContextMenu = ({ index }: RequestContextMenuProps) => {
       <DropdownMenuContent className={'bg-background'}>
         <DropdownMenuItem
           onClick={handleMouseEvent(() => deleteRequest(index))}
-          style={{ color: 'var(--text-danger)' }}
+          className="text-danger"
         >
           Delete
         </DropdownMenuItem>
