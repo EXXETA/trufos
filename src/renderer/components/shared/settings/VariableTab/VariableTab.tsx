@@ -10,12 +10,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { useSettingsStore } from '@/state/settingsStore';
+import { useVariableStore } from '@/state/variableStore';
 
 export const VariableTab = () => {
-  const { addNewVariable, deleteVariable, update, checkDuplicate } = useSettingsStore();
-  const allVariables = useSettingsStore((state) => state.variables);
-  const allDoubleKeys = useSettingsStore((state) => state.allDoubleKeys);
+  const { addNewVariable, deleteVariable, update, checkDuplicate } = useVariableStore();
+  const allVariables = useVariableStore((state) => state.variables);
+  const allDoubleKeys = useVariableStore((state) => state.allDoubleKeys);
 
   return (
     <div className="p-4 relative">

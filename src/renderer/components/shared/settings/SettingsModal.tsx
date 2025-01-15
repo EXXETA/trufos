@@ -9,18 +9,22 @@ import {
 import { FiSettings } from 'react-icons/fi';
 import { VariableTab } from '@/components/shared/settings/VariableTab/VariableTab';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useSettingsStore } from '@/state/settingsStore';
+import { useVariableStore } from '@/state/variableStore';
 import { Button } from '@/components/ui/button';
 import * as React from 'react';
 
-export const SettingsModal = () => {
-  const { save, cancel, openModal } = useSettingsStore.getState();
-  const isOpen = useSettingsStore((state) => state.isOpen);
-  const allDoubleKeys = useSettingsStore((state) => state.allDoubleKeys);
+interface Props {
+  className: string;
+}
+export const SettingsModal = (props: Props) => {
+  const { className } = props;
+  const { save, cancel, openModal } = useVariableStore.getState();
+  const isOpen = useVariableStore((state) => state.isOpen);
+  const allDoubleKeys = useVariableStore((state) => state.allDoubleKeys);
 
   return (
     <Dialog open={isOpen} onOpenChange={cancel}>
-      <DialogTrigger onClick={openModal}>
+      <DialogTrigger className={className} onClick={openModal}>
         <FiSettings className="text-xl ml-2" />
       </DialogTrigger>
       <DialogContent style={{ minWidth: '100vh' }}>

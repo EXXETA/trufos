@@ -21,7 +21,7 @@ interface VariableStateAction {
   checkDuplicate: (key: string) => void;
 }
 
-export const useSettingsStore = create<VariableState & VariableStateAction>()(
+export const useVariableStore = create<VariableState & VariableStateAction>()(
   immer((set, get) => ({
     variables: [],
     collectionId: '',

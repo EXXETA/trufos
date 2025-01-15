@@ -26,7 +26,7 @@ export function FooterBar() {
       >
         <GithubIcon /> {/* Adjust the size as needed */}
       </a>
-      <SettingsModal />
+      <SettingsModal className="flex items-center space-x-4" />
     </div>
   );
 }
