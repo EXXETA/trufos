@@ -1,6 +1,6 @@
 import { Divider } from '@/components/shared/Divider';
 import { Button } from '@/components/ui/button';
-import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
+import { AddIcon, DeleteIcon } from '@/components/icons';
 import {
   Table,
   TableBody,
@@ -9,7 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
 import { useVariableStore } from '@/state/variableStore';
 
 export const VariableTab = () => {
@@ -78,24 +77,6 @@ export const VariableTab = () => {
                 </TableCell>
                 <TableCell className="w-16 text-right">
                   <div className="flex items-center justify-center gap-2">
-                    <div className="relative h-4 z-10 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={variable.isActive}
-                        onChange={(e) => update(index, e.target.checked, 'isActive')}
-                        className={cn(
-                          'form-checkbox h-4 w-4 appearance-none border rounded-[2px]',
-                          variable.isActive
-                            ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
-                            : 'border-[rgba(238,238,238,1)] bg-transparent'
-                        )}
-                      />
-                      {variable.isActive && (
-                        <div className="absolute left-0 top-0 h-4 w-4 flex items-center justify-center pointer-events-none rotate-6">
-                          <CheckedIcon size={16} viewBox="0 0 16 16" color="rgba(107,194,224,1)" />
-                        </div>
-                      )}
-                    </div>
                     <Button
                       variant="ghost"
                       size="icon"

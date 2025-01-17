@@ -47,7 +47,7 @@ export class EnvironmentService implements Initializable {
     if (variable !== undefined) {
       variable.value = value;
     } else {
-      this.currentCollection.variables[key] = { key, value, isActive: true };
+      this.currentCollection.variables[key] = { key, value };
     }
   }
 
@@ -59,18 +59,6 @@ export class EnvironmentService implements Initializable {
     this.currentCollection.variables = {};
     variables.forEach((variable) => (this.currentCollection.variables[variable.key] = variable));
   }
-
-  /**
-   * Enables or disables a variable in the current collection.
-   *
-   * @param key The key of the variable.
-   * @param enabled Whether the variable should be enabled or disabled.
-   */
-  public setCollectionVariableEnabled(key: string, enabled: boolean) {
-    const variable = this.currentCollection.variables[key];
-    if (variable !== undefined) variable.isActive = enabled;
-  }
-
   /**
    * Changes the current collection to the one at the specified path.
    *
@@ -84,10 +72,8 @@ export class EnvironmentService implements Initializable {
    * Returns all active variables in the current collection. This also includes system
    * variables.
    */
-  public getActiveVariables() {
-    return Object.values(this.currentCollection.variables)
-      .filter((variable) => variable.isActive)
-      .concat(getSystemVariables());
+  public getVariables() {
+    return Object.values(this.currentCollection.variables).concat(getSystemVariables());
   }
 
   /**

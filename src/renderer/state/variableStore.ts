@@ -39,7 +39,7 @@ export const useVariableStore = create<VariableState & VariableStateAction>()(
     },
     addNewVariable: () => {
       set((state) => {
-        state.variables.push({ key: '', value: '', description: '', isActive: false });
+        state.variables.push({ key: '', value: '', description: '' });
       });
     },
     deleteVariable: (index: number) => {

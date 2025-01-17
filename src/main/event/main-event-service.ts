@@ -95,7 +95,7 @@ export class MainEventService implements IEventService {
   }
 
   async getActiveEnvironmentVariables() {
-    return environmentService.getActiveVariables();
+    return environmentService.getVariables();
   }
 
   async getVariable(key: string) {
