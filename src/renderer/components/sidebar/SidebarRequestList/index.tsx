@@ -6,7 +6,7 @@ import { useRequestActions, useRequestStore } from '@/state/requestStore';
 import { handleMouseEvent } from '@/util/callback-util';
 import './index.css';
 import { RequestContextMenu } from '@/components/sidebar/SidebarRequestList/ContextMenu/RequestContextMenu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export const SidebarRequestList = () => {
   const { setSelectedRequest } = useRequestActions();
@@ -53,16 +53,14 @@ export const SidebarRequestList = () => {
           <div className={joinClassNames('font-bold', httpMethodColor(request.method))}>
             {request.method}
           </div>
-          <TooltipProvider>
-            <Tooltip delayDuration={750}>
-              <TooltipTrigger asChild>
-                <div className="truncate flex-1">{request.url}</div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{request.url}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="truncate flex-1">{request.url}</div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{request.url}</p>
+            </TooltipContent>
+          </Tooltip>
           <div className="items-center justify-center flex">
             <RequestContextMenu index={index} />
           </div>
