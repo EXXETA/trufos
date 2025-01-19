@@ -10,7 +10,6 @@ describe('getSystemVariable()', () => {
 
     // Assert
     expect(result.key).toBe(key);
-    expect(result.isActive).toBe(true);
     expect(result.value).toBeDefined();
     expect(result.description).toBeDefined();
   });

@@ -33,7 +33,6 @@ export class PostmanImporter implements CollectionImporter {
             variable.id,
             {
               value: variable.toString(),
-              isActive: !variable.disabled,
             },
           ] as [string, VariableObject]
       );
