@@ -47,7 +47,7 @@
     "jest-when": "^3.6.0",
     "memfs": "^4.14.0",
     "monaco-editor-webpack-plugin": "^7.1.0",
-    "node-loader": "^2.0.0",
+    "node-loader": "^2.1.0",
     "postcss": "^8.4.49",
     "prettier": "^3.3.3",
     "style-loader": "^4.0.0",
