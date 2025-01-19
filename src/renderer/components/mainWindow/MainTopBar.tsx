@@ -8,7 +8,7 @@ import { SendButton } from './mainTopBar/SendButton';
 import { SaveButton } from './mainTopBar/SaveButton';
 import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
+import { selectRequest, useRequestActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
 
 const httpService = HttpService.instance;
@@ -19,8 +19,8 @@ export function MainTopBar() {
 
   const { updateRequest } = useRequestActions();
   const { addResponse } = useResponseActions();
-  const requestEditor = useRequestStore((state) => state.requestEditor);
-  const request = useRequestStore(selectRequest);
+  const requestEditor = useCollectionStore((state) => state.requestEditor);
+  const request = useCollectionStore(selectRequest);
   const selectedHttpMethod = request?.method;
   const url = request?.url;
 

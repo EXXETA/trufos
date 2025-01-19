@@ -6,20 +6,23 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/util';
+import { Collection } from 'shim/objects/collection';
+import { v4 as uuidv4 } from 'uuid';
+import { Folder } from '../../shim/objects/folder';
 
 const eventService = RendererEventService.instance;
 
-interface RequestState {
-  requests: TrufosRequest[];
-  selectedRequestIndex: number;
+interface CollectionState {
+  selectedRequestIndex: string;
   collectionId: string;
   requestEditor?: editor.ICodeEditor;
+  collection: Collection;
 }
 
-interface RequestStateActions {
-  initialize(state: Pick<RequestState, 'requests' | 'collectionId'>): void;
+interface CollectionStateActions {
+  initialize(collection: Collection): void;
 
-  addNewRequest(title?: string): Promise<void>;
+  addNewRequest(parentId: string): Promise<void>;
 
   /**
    * Replace the current request with the updated request
@@ -39,9 +42,9 @@ interface RequestStateActions {
 
   setRequestEditor(requestEditor?: editor.ICodeEditor): void;
 
-  setSelectedRequest(index: number): Promise<void>;
+  setSelectedRequest(index: string): Promise<void>;
 
-  deleteRequest(index: number): Promise<void>;
+  deleteRequest(index: string): Promise<void>;
 
   addHeader(): void;
 
@@ -69,29 +72,28 @@ interface RequestStateActions {
   setDraftFlag(): void;
 }
 
-export const useRequestStore = create<RequestState & RequestStateActions>()(
+export const useCollectionStore = create<CollectionState & CollectionStateActions>()(
   immer((set, get) => ({
     requests: [],
-    selectedRequestIndex: -1,
+    selectedRequestIndex: '',
     collectionId: '',
     requestEditor: undefined,
-
-    initialize: (state) =>
+    collection: null,
+    initialize: (collection) => {
       set({
-        requests: state.requests,
-        collectionId: state.collectionId,
-      }),
-
-    addNewRequest: async (title) => {
-      const { collectionId } = get();
+        collectionId: collection.id,
+        collection: collection,
+      });
+    },
+    addNewRequest: async (parentId: string) => {
       const request = await eventService.saveRequest({
         url: 'http://',
         method: RequestMethod.GET,
         draft: true,
-        id: null,
-        parentId: collectionId,
+        id: uuidv4(),
+        parentId: parentId,
         type: 'request',
-        title: title ?? (Math.random() + 1).toString(36).substring(7),
+        title: (Math.random() + 1).toString(36).substring(7),
         headers: [],
         body: {
           type: RequestBodyType.TEXT,
@@ -99,26 +101,27 @@ export const useRequestStore = create<RequestState & RequestStateActions>()(
         },
       });
 
-      set((state) => {
-        state.requests.push(request);
-        state.selectedRequestIndex = state.requests.length - 1;
-      });
+      const collection = get().collection;
+      const folder = collection.children.find(
+        (child) => child.id === parentId && child.type === 'folder'
+      ) as Folder;
+      folder.children.push(request);
     },
 
     updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) =>
       set((state) => {
-        const request = selectRequest(state);
-        if (request == null) return;
-
-        if (overwrite) {
-          state.requests[state.selectedRequestIndex] = updatedRequest as TrufosRequest;
-        } else {
-          state.requests[state.selectedRequestIndex] = {
-            ...request,
-            draft: true,
-            ...updatedRequest,
-          };
-        }
+        // const request = selectRequest(state);
+        // if (request == null) return;
+        //
+        // if (overwrite) {
+        //   state.requests[state.selectedRequestIndex] = updatedRequest as TrufosRequest;
+        // } else {
+        //   state.requests[state.selectedRequestIndex] = {
+        //     ...request,
+        //     draft: true,
+        //     ...updatedRequest,
+        //   };
+        // }
       }),
 
     setRequestBody: (body) => {
@@ -128,25 +131,25 @@ export const useRequestStore = create<RequestState & RequestStateActions>()(
 
     setRequestEditor: (requestEditor) => set({ requestEditor }),
 
-    setSelectedRequest: async (index: number) => {
-      const { selectedRequestIndex, requests, requestEditor } = get();
-      if (selectedRequestIndex === index) return;
-      const request = requests[selectedRequestIndex];
-      if (request != null && requestEditor != null) {
-        await eventService.saveRequest(request, requestEditor.getValue());
-      }
-      set({ selectedRequestIndex: index });
+    setSelectedRequest: async (index: string) => {
+      // const { selectedRequestIndex, requests, requestEditor } = get();
+      // if (selectedRequestIndex === index) return;
+      // const request = requests[selectedRequestIndex];
+      // if (request != null && requestEditor != null) {
+      //   await eventService.saveRequest(request, requestEditor.getValue());
+      // }
+      // set(/*{ selectedRequestIndex: index }*/);
     },
 
-    deleteRequest: async (index: number) => {
-      await eventService.deleteObject(get().requests[index]);
+    deleteRequest: async (index: string) => {
+      // await eventService.deleteObject(get().requests[index]);
       set((state) => {
-        state.requests.splice(index, 1);
-        if (state.selectedRequestIndex === index) {
-          state.selectedRequestIndex = -1;
-        } else if (state.selectedRequestIndex > index) {
-          state.selectedRequestIndex--;
-        }
+        //   state.requests.splice(index, 1);
+        //   if (state.selectedRequestIndex === index) {
+        //     state.selectedRequestIndex = -1;
+        //   } else if (state.selectedRequestIndex > index) {
+        //     state.selectedRequestIndex--;
+        //   }
       });
     },
 
@@ -184,6 +187,9 @@ export const useRequestStore = create<RequestState & RequestStateActions>()(
   }))
 );
 
-export const selectRequest = (state: RequestState) => state.requests[state.selectedRequestIndex];
-export const selectHeaders = (state: RequestState) => selectRequest(state)?.headers;
-export const useRequestActions = () => useRequestStore(useActions());
+export const selectRequest = (state: CollectionState) =>
+  state.collection.children.find(
+    (child) => child.id === state.selectedRequestIndex
+  ) as TrufosRequest;
+export const selectHeaders = (state: CollectionState) => selectRequest(state)?.headers;
+export const useRequestActions = () => useCollectionStore(useActions());

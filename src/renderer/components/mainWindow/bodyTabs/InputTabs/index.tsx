@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
-import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
+import { selectRequest, useRequestActions, useCollectionStore } from '@/state/collectionStore';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { Language } from '@/lib/monaco/language';
 
@@ -38,8 +38,8 @@ export function InputTabs(props: InputTabsProps) {
     updateHeader,
   } = useRequestActions();
 
-  const requestBody = useRequestStore((state) => selectRequest(state).body);
-  const headers = useRequestStore((state) => selectRequest(state).headers);
+  const requestBody = useCollectionStore((state) => selectRequest(state).body);
+  const headers = useCollectionStore((state) => selectRequest(state).headers);
   const [language, setLanguage] = useState(Language.JSON);
 
   const changeBodyType = useCallback(
