@@ -53,7 +53,7 @@ export const useVariableStore = create<VariableState & VariableStateAction>()(
       });
     },
     save: () => {
-      RendererEventService.instance.setAndSaveAllVariables(get().variables);
+      RendererEventService.instance.setCollectionVariables(get().variables);
       set((state) => {
         state.variables = [];
         state.isOpen = false;
