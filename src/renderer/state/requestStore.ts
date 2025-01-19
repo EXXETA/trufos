@@ -184,6 +184,7 @@ export const useRequestStore = create<RequestState & RequestStateActions>()(
   }))
 );
 
+export const selectAllRequests = (state: RequestState) => state.requests;
 export const selectRequest = (state: RequestState) => state.requests[state.selectedRequestIndex];
 export const selectHeaders = (state: RequestState) => selectRequest(state)?.headers;
 export const useRequestActions = () => useRequestStore(useActions());
