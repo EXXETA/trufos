@@ -63,4 +63,10 @@ export interface IEventService {
    * @param key The key of the variable.
    */
   getVariable(key: string): Promise<VariableObject>;
+
+  /**
+   * Set the collection variables.
+   * @param variables The variables of the Collection to set.
+   */
+  setCollectionVariables(variables: VariableObject[]): void;
 }

@@ -6,6 +6,7 @@ import { PersistenceService } from '../persistence/service/persistence-service';
 import { TrufosObject } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import './stream-events';
+import { VariableObject } from 'shim/variables';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -94,10 +95,15 @@ export class MainEventService implements IEventService {
   }
 
   async getActiveEnvironmentVariables() {
-    return environmentService.getActiveVariables();
+    return environmentService.getVariables();
   }
 
   async getVariable(key: string) {
     return environmentService.getVariable(key);
+  }
+
+  async setCollectionVariables(variables: VariableObject[]) {
+    environmentService.setCollectionVariables(variables);
+    await persistenceService.saveCollection(environmentService.currentCollection);
   }
 }

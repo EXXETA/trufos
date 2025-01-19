@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { GithubIcon } from '@/components/icons';
+import { SettingsModal } from '@/components/shared/settings/SettingsModal';
 
 export function FooterBar() {
   const [appVersion, setAppVersion] = useState<string>(undefined);
@@ -15,17 +16,14 @@ export function FooterBar() {
       {/* Version text on the left */}
       <span className="text-xs text-gray-500">{appVersion ?? null}</span>
 
-      {/* Icons on the right */}
-      {/* GitHub Icon */}
-      <a
-        className="flex items-center space-x-4"
-        href="https://github.com/EXXETA/trufos"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <GithubIcon /> {/* Adjust the size as needed */}
-      </a>
-      {/*<SettingsModal />*/}
+      <div className="flex items-center gap-1">
+        {/* Icons on the right */}
+        {/* GitHub Icon */}
+        <a href="https://github.com/EXXETA/trufos" target="_blank" rel="noopener noreferrer">
+          <GithubIcon /> {/* Adjust the size as needed */}
+        </a>
+        <SettingsModal />
+      </div>
     </div>
   );
 }
