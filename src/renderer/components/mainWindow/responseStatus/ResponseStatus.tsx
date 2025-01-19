@@ -6,6 +6,7 @@ import {
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
 import { selectResponse, useResponseStore } from '@/state/responseStore';
 import { selectRequest, useRequestStore } from '@/state/requestStore';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function ResponseStatus() {
   const requestId = useRequestStore((state) => selectRequest(state)?.id);
@@ -25,13 +26,17 @@ export function ResponseStatus() {
     <span className="response-status text-nowrap ml-auto truncate">
       <span className={'text-sm  ' + statusColorClass}>{statusText}</span>
       <span className="ml-2 text-sm">{durationText}</span>
-      <span className="ml-2 text-sm tooltip">
-        {sizeText}
-        <div className="tooltip-text flex flex-col items-start">
-          <span>Headers: {getSizeText(metaInfo.size.headersSizeInBytes)}</span>
-          <span>Body: {getSizeText(metaInfo.size.bodySizeInBytes)}</span>
-        </div>
-      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="ml-2 text-sm">{sizeText}</span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div className="flex flex-col items-start">
+            <span>Headers: {getSizeText(metaInfo.size.headersSizeInBytes)}</span>
+            <span>Body: {getSizeText(metaInfo.size.bodySizeInBytes)}</span>
+          </div>
+        </TooltipContent>
+      </Tooltip>
     </span>
   );
 }
