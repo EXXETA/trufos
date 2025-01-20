@@ -12,8 +12,8 @@ export const UrlInput: React.FC<UrlInputProps> = ({ url, onUrlChange, hasError }
     value={url}
     type="url"
     inputMode="url"
-    style={{ fontFamily: 'monospace' }}
-    className={`rounded-l-none flex-grow w-full relative ${hasError ? 'border-[var(--error)]' : ''}`}
+    style={{ fontFamily: 'monospace', backgroundColor: 'var(--background-secondary)' }}
+    className={`rounded-l-none flex-grow w-full relative ${hasError ? 'border-[var(--error)]' : ''} bg-gray-500`}
     onChange={onUrlChange}
   />
 );
