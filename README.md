@@ -31,6 +31,21 @@ As Trufos is an Electron application, it can run on Windows, macOS, and Linux wi
 you want to develop or build this software yourself, you will need Node.js version 22 or higher and
 NPM version 10 or higher.
 
+### Local Development
+
+1. Clone this repository
+2. Run `npm install` to install all dependencies
+3. Run `npm start` to start the application in development mode
+
+### Building the Application
+
+1. Run `npm ci` to install all dependencies
+2. Run `npm run build` to build the application for your platform
+3. The built application will be in the `out/make` directory
+    - Windows: a `Setup.exe` file
+    - macOS: a `.dmg` file
+    - Linux: currently a ZIP file (`.deb` file is planned)
+
 ## Usage
 
 Once Trufos is installed and launched, you can start adding endpoints, customizing them, and making
@@ -40,9 +55,9 @@ calls.
 
 Here’s a simple example of how to add and utilize an endpoint:
 
-1. Click on "New Endpoint".
-2. Enter the API URL.
-3. Select the method (GET, POST, etc.).
+1. Click on "Create New Request".
+2. Enter the URL.
+3. Select the method (`GET`, `POST`, etc.).
 4. Optionally, add headers and body content.
 5. Click "Send Request" and review the response in the results area.
 
