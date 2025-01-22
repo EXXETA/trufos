@@ -1,4 +1,6 @@
-[![CI Pipeline](https://github.com/EXXETA/rufus/actions/workflows/ci.yml/badge.svg)](https://github.com/EXXETA/rufus/actions/workflows/ci.yml) <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->[![All Contributors](https://img.shields.io/badge/all_contributors-0-orange.svg?style=flat-square)](#contributors-)<!-- ALL-CONTRIBUTORS-BADGE:END --> ![coverage](https://img.shields.io/codecov/c/github/EXXETA/rufus) ![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Frufus%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
+[![CI Pipeline](https://github.com/EXXETA/rufus/actions/workflows/ci.yml/badge.svg)](https://github.com/EXXETA/rufus/actions/workflows/ci.yml)
+![GitHub contributors](https://img.shields.io/github/contributors/EXXETA/trufos)
+![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Frufus%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
 
 <h1 align="center">Trufos - The Rest Utility, free and Open Source</h1>
 <p align="center">
