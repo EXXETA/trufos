@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { Folder } from 'shim/objects/folder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
-import React from 'react';
+import React, { useState } from 'react';
 import { TrufosRequest } from 'shim/objects/request';
 import { SidebarMenuSub, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -13,6 +12,7 @@ import { cn } from '@/lib/utils';
 interface NavFolderProps {
   folder: Folder;
 }
+
 export const NavFolder = ({ folder }: NavFolderProps) => {
   const [isActive, setIsActive] = useState(false);
   return (
@@ -39,9 +39,17 @@ export const NavFolder = ({ folder }: NavFolderProps) => {
         <CollapsibleContent>
           {folder.children.map((child: TrufosRequest | Folder) => {
             if (child.type === 'request') {
-              return <NavRequest request={child as TrufosRequest} />;
+              return (
+                <div key={child.id}>
+                  <NavRequest request={child as TrufosRequest} />
+                </div>
+              );
             } else if (child.type === 'folder') {
-              return <NavFolder folder={child as Folder} />;
+              return (
+                <div key={child.id}>
+                  <NavFolder folder={child as Folder} />
+                </div>
+              );
             }
           })}
         </CollapsibleContent>

@@ -12,6 +12,7 @@ import { FolderDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Drop
 interface NavFolderProps {
   folder: Folder;
 }
+
 export const RootFolder = ({ folder }: NavFolderProps) => {
   const [isActive] = useState(false);
   return (
@@ -29,9 +30,17 @@ export const RootFolder = ({ folder }: NavFolderProps) => {
         <CollapsibleContent>
           {folder.children.map((child: TrufosRequest | Folder) => {
             if (child.type === 'request') {
-              return <NavRequest request={child as TrufosRequest} />;
+              return (
+                <div key={child.id}>
+                  <NavRequest request={child as TrufosRequest} />
+                </div>
+              );
             } else if (child.type === 'folder') {
-              return <NavFolder folder={child as Folder} />;
+              return (
+                <div key={child.id}>
+                  <NavFolder folder={child as Folder} />
+                </div>
+              );
             }
           })}
         </CollapsibleContent>

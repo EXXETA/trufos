@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
 const SIDEBAR_COOKIE_NAME = 'sidebar:state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = '40rem'; // TODO make this a resizable
@@ -452,12 +451,14 @@ SidebarMenu.displayName = 'SidebarMenu';
 
 const SidebarMenuItem = React.forwardRef<HTMLLIElement, React.ComponentProps<'li'>>(
   ({ className, ...props }, ref) => (
-    <li
-      ref={ref}
-      data-sidebar="menu-item"
-      className={cn('group/menu-item relative', className)}
-      {...props}
-    />
+    <ul>
+      <li
+        ref={ref}
+        data-sidebar="menu-item"
+        className={cn('group/menu-item relative', className)}
+        {...props}
+      />
+    </ul>
   )
 );
 SidebarMenuItem.displayName = 'SidebarMenuItem';
@@ -639,7 +640,11 @@ const SidebarMenuSub = React.forwardRef<HTMLUListElement, React.ComponentProps<'
 SidebarMenuSub.displayName = 'SidebarMenuSub';
 
 const SidebarMenuSubItem = React.forwardRef<HTMLLIElement, React.ComponentProps<'li'>>(
-  ({ ...props }, ref) => <li ref={ref} {...props} />
+  ({ ...props }, ref) => (
+    <ul>
+      <li ref={ref} {...props} />
+    </ul>
+  )
 );
 SidebarMenuSubItem.displayName = 'SidebarMenuSubItem';
 
