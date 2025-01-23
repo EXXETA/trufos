@@ -2,7 +2,7 @@
 ![GitHub contributors](https://img.shields.io/github/contributors/EXXETA/trufos)
 ![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Frufus%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
 
-<h1 align="center">Trufos - The Rest Utility, free and Open Source</h1>
+<h1 align="center">Trufos - The REST Utility, free and Open Source</h1>
 <p align="center">
   A REST client that is both easy to use, efficient, and extendable.
 </p>
