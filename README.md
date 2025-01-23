@@ -40,7 +40,7 @@ NPM version 10 or higher.
 ### Building the Application
 
 1. Run `npm ci` to install all dependencies
-2. Run `npm run build` to build the application for your platform
+2. Run `npm run make` to build the application for your platform
 3. The built application will be in the `out/make` directory
     - Windows: a `Setup.exe` file
     - macOS: a `.dmg` file
