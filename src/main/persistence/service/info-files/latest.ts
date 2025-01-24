@@ -4,8 +4,10 @@ import { VariableObject } from 'shim/variables';
 import { RequestMethod } from 'shim/objects/request-method';
 import { TrufosHeader } from 'shim/objects/headers';
 
+export const VERSION = '1.0.0' as const;
+
 export type RequestInfoFile = {
-  version: string;
+  version: typeof VERSION;
   title: string;
   url: string;
   method: RequestMethod;
@@ -14,12 +16,12 @@ export type RequestInfoFile = {
 };
 
 export type FolderInfoFile = {
-  version: string;
+  version: typeof VERSION;
   title: string;
 };
 
 export type CollectionInfoFile = {
-  version: string;
+  version: typeof VERSION;
   title: string;
   variables: Record<VariableObject['key'], Omit<VariableObject, 'key'>>;
 };
@@ -31,7 +33,7 @@ export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
  * @param object The trufos object to convert to an info file.
  */
 export function toInfoFile(object: TrufosObject): InfoFile {
-  const infoFile = Object.assign({ version: '1.0.0' }, structuredClone(object));
+  const infoFile = Object.assign({ version: VERSION }, structuredClone(object));
   if (infoFile.type === 'request') {
     delete infoFile.draft;
   } else {
