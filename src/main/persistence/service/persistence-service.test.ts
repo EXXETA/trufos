@@ -12,7 +12,7 @@ import {
   TrufosRequest,
   TEXT_BODY_FILE_NAME,
 } from 'shim/objects/request';
-import { RequestInfoFile } from './info-files';
+import { RequestInfoFile } from './info-files/latest';
 import { RequestMethod } from 'shim/objects/request-method';
 import { Readable } from 'node:stream';
 
