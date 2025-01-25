@@ -55,3 +55,7 @@ body {
   color: #EEEEEE;
   font-weight: 400;
 }
+
+.font-mono {
+  font-family: monospace;
+}
