@@ -1,6 +1,7 @@
 import { InfoFile } from './latest';
+import { SemVerString } from 'main/util/semver';
 
-export type VersionedObject = { version: string };
+export type VersionedObject = { version: SemVerString };
 
 /**
  * Maps one schema of an info file to another. Usually, this is used to migrate info files from the previous version to the current version.

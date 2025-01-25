@@ -1,4 +1,8 @@
-type SemVerString<M extends number, S extends number, P extends number> = `${M}.${S}.${P}`;
+export type SemVerString<
+  M extends number = number,
+  S extends number = number,
+  P extends number = number,
+> = `${M}.${S}.${P}`;
 
 /**
  * A semantic version implementation that is type-safe and immutable.
