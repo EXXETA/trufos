@@ -23,7 +23,7 @@ import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { generateDefaultCollection } from './default-collection';
 import { randomUUID } from 'node:crypto';
 import { migrateInfoFile } from './info-files/mappers';
-import { SemVer } from '../../util/semver';
+import { SemVer } from 'main/util/semver';
 
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
