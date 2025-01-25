@@ -35,7 +35,7 @@ function getExampleCollection(): Collection {
   };
 }
 
-function getExampleFolder(parentId: string = randomUUID()): Folder {
+function getExampleFolder(parentId: string): Folder {
   return {
     id: randomUUID(),
     type: 'folder',
@@ -45,16 +45,18 @@ function getExampleFolder(parentId: string = randomUUID()): Folder {
   };
 }
 
-function getExampleRequest(parentId: string = randomUUID()): TrufosRequest {
+function getExampleRequest(parentId: string): TrufosRequest {
   return {
     id: randomUUID(),
+    url: 'https://example.com',
+    headers: [],
     type: 'request',
     title: 'request',
     draft: false,
     parentId,
     method: RequestMethod.GET,
     body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-  } as TrufosRequest;
+  };
 }
 
 async function streamToString(stream: Readable) {

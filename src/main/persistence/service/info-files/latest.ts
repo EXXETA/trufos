@@ -40,7 +40,7 @@ export function toInfoFile(object: TrufosObject): InfoFile {
       return deleteProperty(infoFile, 'parentId', 'draft');
     case 'collection':
       return {
-        ...deleteProperty(infoFile, 'variables', 'children'),
+        ...deleteProperty(infoFile, 'children'),
         variables: Object.fromEntries(
           Object.entries(infoFile.variables).map(([key, variable]) => [
             key,
