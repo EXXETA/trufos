@@ -3,7 +3,7 @@ import { VariableObject } from 'shim/variables';
 import { RequestMethod } from 'shim/objects/request-method';
 import { TrufosHeader } from 'shim/objects/headers';
 import { InfoFileMapper } from './mapper';
-import { InfoFile, VERSION } from './latest';
+import { InfoFile, VERSION as NEW_VERSION } from './latest';
 import { randomUUID } from 'node:crypto';
 
 const OLD_VERSION = '1.0.0' as const;
@@ -36,8 +36,8 @@ type InfoFileOld = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
  */
 export class InfoFileMapperV1_0_0 extends InfoFileMapper<InfoFileOld, InfoFile> {
   public readonly fromVersion = OLD_VERSION;
-  
+
   async migrate(old: InfoFileOld) {
-    return Object.assign(old, { id: randomUUID(), version: VERSION });
+    return Object.assign(old, { id: randomUUID(), version: NEW_VERSION.toString() });
   }
 }

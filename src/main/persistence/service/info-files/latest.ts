@@ -4,12 +4,13 @@ import { VariableObject } from 'shim/variables';
 import { RequestMethod } from 'shim/objects/request-method';
 import { TrufosHeader } from 'shim/objects/headers';
 import { deleteProperty } from 'main/util/object-util';
+import { SemVer } from 'main/util/semver';
 
-export const VERSION = '1.0.1' as const;
+export const VERSION = new SemVer(1, 0, 1);
 
 export type InfoFileBase = {
   id: string;
-  version: typeof VERSION;
+  version: typeof VERSION.string;
   title: string;
 };
 
@@ -33,7 +34,7 @@ export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
  * @param object The trufos object to convert to an info file.
  */
 export function toInfoFile(object: TrufosObject): InfoFile {
-  const infoFile = Object.assign(structuredClone(object), { version: VERSION });
+  const infoFile = Object.assign(structuredClone(object), { version: VERSION.toString() });
   switch (infoFile.type) {
     case 'request':
       return deleteProperty(infoFile, 'parentId', 'draft');

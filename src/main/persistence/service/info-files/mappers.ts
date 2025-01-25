@@ -1,5 +1,5 @@
 import { InfoFileMapper, VersionedObject } from './mapper';
-import { InfoFile, VERSION } from './latest';
+import { InfoFile, VERSION as LATEST_VERSION } from './latest';
 import { InfoFileMapperV1_0_0 } from './v1-0-0';
 
 const MAPPERS = new Map<string, InfoFileMapper<VersionedObject, VersionedObject>>(
@@ -12,7 +12,7 @@ const MAPPERS = new Map<string, InfoFileMapper<VersionedObject, VersionedObject>
  */
 
 export async function migrateInfoFile(infoFile: VersionedObject) {
-  while (infoFile.version !== VERSION) {
+  while (infoFile.version !== LATEST_VERSION.toString()) {
     console.debug(`Looking for mapper for source version ${infoFile.version}`);
     const mapper = MAPPERS.get(infoFile.version);
     if (!mapper) throw new Error(`No mapper found for version ${infoFile.version}`);
