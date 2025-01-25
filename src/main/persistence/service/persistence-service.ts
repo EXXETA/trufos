@@ -7,6 +7,7 @@ import {
   InfoFile,
   RequestInfoFile,
   toInfoFile,
+  VERSION,
 } from './info-files/latest';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -22,6 +23,7 @@ import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { generateDefaultCollection } from './default-collection';
 import { randomUUID } from 'node:crypto';
 import { migrateInfoFile } from './info-files/mappers';
+import { SemVer } from '../../util/semver';
 
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
@@ -380,8 +382,17 @@ export class PersistenceService {
     draft = false
   ) {
     const filePath = path.join(dirPath, `${draft ? '~' : ''}${type}.json`);
-    const oldInfo = JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile;
-    return await migrateInfoFile(oldInfo);
+    const info = JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile;
+
+    // check if the version is supported
+    if (SemVer.parse(info.version).isNewerThan(VERSION)) {
+      throw new Error(
+        `The version of the loaded ${type} info file is newer than latest supported version ${VERSION}. Please update the application.`
+      );
+    }
+
+    // potentially migrate the info file to latest version
+    return await migrateInfoFile(info);
   }
 
   private updatePathMapRecursively(child: Folder | TrufosRequest, newParentDirPath: string) {
