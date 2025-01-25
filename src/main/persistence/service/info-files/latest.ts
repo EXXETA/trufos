@@ -3,26 +3,26 @@ import { RequestBody } from 'shim/objects/request';
 import { VariableObject } from 'shim/variables';
 import { RequestMethod } from 'shim/objects/request-method';
 import { TrufosHeader } from 'shim/objects/headers';
+import { deleteProperty } from 'main/util/object-util';
 
-export const VERSION = '1.0.0' as const;
+export const VERSION = '1.0.1' as const;
 
-export type RequestInfoFile = {
+export type InfoFileBase = {
+  id: string;
   version: typeof VERSION;
   title: string;
+};
+
+export type RequestInfoFile = InfoFileBase & {
   url: string;
   method: RequestMethod;
   headers: TrufosHeader[];
   body: RequestBody;
 };
 
-export type FolderInfoFile = {
-  version: typeof VERSION;
-  title: string;
-};
+export type FolderInfoFile = InfoFileBase;
 
-export type CollectionInfoFile = {
-  version: typeof VERSION;
-  title: string;
+export type CollectionInfoFile = InfoFileBase & {
   variables: Record<VariableObject['key'], Omit<VariableObject, 'key'>>;
 };
 
@@ -33,20 +33,21 @@ export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
  * @param object The trufos object to convert to an info file.
  */
 export function toInfoFile(object: TrufosObject): InfoFile {
-  const infoFile = Object.assign({ version: VERSION }, structuredClone(object));
-  if (infoFile.type === 'request') {
-    delete infoFile.draft;
-  } else {
-    delete infoFile.children;
+  const infoFile = Object.assign(structuredClone(object), { version: VERSION });
+  switch (infoFile.type) {
+    case 'request':
+      return deleteProperty(infoFile, 'parentId', 'draft');
+    case 'collection':
+      return {
+        ...deleteProperty(infoFile, 'variables', 'children'),
+        variables: Object.fromEntries(
+          Object.entries(infoFile.variables).map(([key, variable]) => [
+            key,
+            deleteProperty(variable, 'key'),
+          ])
+        ),
+      };
+    case 'folder':
+      return deleteProperty(infoFile, 'parentId', 'children');
   }
-  if (infoFile.type === 'collection') {
-    for (const key in infoFile.variables) {
-      delete infoFile.variables[key].key;
-    }
-  } else {
-    delete infoFile.parentId;
-  }
-  delete infoFile.id;
-
-  return infoFile;
 }

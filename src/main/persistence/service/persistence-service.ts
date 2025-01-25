@@ -21,7 +21,7 @@ import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { generateDefaultCollection } from './default-collection';
 import { randomUUID } from 'node:crypto';
-import { InfoFileMapper } from './info-files/mapper';
+import { migrateInfoFile } from './info-files/mappers';
 
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
@@ -285,11 +285,10 @@ export class PersistenceService {
    */
   public async loadCollection(dirPath: string): Promise<Collection> {
     const type = 'collection' as const;
-    const { title, variables } = await this.readInfoFile(dirPath, type);
-
-    const id = randomUUID();
+    const { id, title, variables } = await this.readInfoFile(dirPath, type);
     this.idToPathMap.set(id, dirPath);
     const children = await this.loadChildren(id, dirPath);
+
     return {
       id,
       type,
@@ -305,11 +304,10 @@ export class PersistenceService {
   private async loadRequest(parentId: string, dirPath: string): Promise<TrufosRequest> {
     const type = 'request' as const;
     const draft = !(await exists(path.join(dirPath, type + '.json')));
-    const id = randomUUID();
-    this.idToPathMap.set(id, dirPath);
+    const info = await this.readInfoFile(dirPath, type, draft);
+    this.idToPathMap.set(info.id, dirPath);
 
-    return Object.assign(await this.readInfoFile(dirPath, type, draft), {
-      id,
+    return Object.assign(info, {
       parentId,
       type,
       draft,
@@ -318,12 +316,11 @@ export class PersistenceService {
 
   private async loadFolder(parentId: string, dirPath: string): Promise<Folder> {
     const type = 'folder' as const;
-    const id = randomUUID();
-    this.idToPathMap.set(id, dirPath);
+    const info = await this.readInfoFile(dirPath, type);
+    this.idToPathMap.set(info.id, dirPath);
+    const children = await this.loadChildren(info.id, dirPath);
 
-    const children = await this.loadChildren(id, dirPath);
-    return Object.assign(await this.readInfoFile(dirPath, type), {
-      id,
+    return Object.assign(info, {
       parentId,
       type,
       children,
@@ -384,7 +381,7 @@ export class PersistenceService {
   ) {
     const filePath = path.join(dirPath, `${draft ? '~' : ''}${type}.json`);
     const oldInfo = JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile;
-    return await InfoFileMapper.migrate(oldInfo);
+    return await migrateInfoFile(oldInfo);
   }
 
   private updatePathMapRecursively(child: Folder | TrufosRequest, newParentDirPath: string) {
