@@ -1,6 +1,8 @@
-[![CI Pipeline](https://github.com/EXXETA/rufus/actions/workflows/ci.yml/badge.svg)](https://github.com/EXXETA/rufus/actions/workflows/ci.yml) <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->[![All Contributors](https://img.shields.io/badge/all_contributors-0-orange.svg?style=flat-square)](#contributors-)<!-- ALL-CONTRIBUTORS-BADGE:END --> ![coverage](https://img.shields.io/codecov/c/github/EXXETA/rufus) ![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Frufus%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
+[![CI Pipeline](https://github.com/EXXETA/trufos/actions/workflows/ci.yml/badge.svg)](https://github.com/EXXETA/trufos/actions/workflows/ci.yml)
+![GitHub contributors](https://img.shields.io/github/contributors/EXXETA/trufos)
+![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Frufus%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
 
-<h1 align="center">Trufos - The Rest Utility, free and Open Source</h1>
+<h1 align="center">Trufos - The REST Utility, free and Open Source</h1>
 <p align="center">
   A REST client that is both easy to use, efficient, and extendable.
 </p>
@@ -29,6 +31,21 @@ As Trufos is an Electron application, it can run on Windows, macOS, and Linux wi
 you want to develop or build this software yourself, you will need Node.js version 22 or higher and
 NPM version 10 or higher.
 
+### Local Development
+
+1. Clone this repository
+2. Run `npm install` to install all dependencies
+3. Run `npm start` to start the application in development mode
+
+### Building the Application
+
+1. Run `npm ci` to install all dependencies
+2. Run `npm run make` to build the application for your platform
+3. The built application will be in the `out/make` directory
+    - Windows: a `Setup.exe` file
+    - macOS: a `.dmg` file
+    - Linux: currently a ZIP file (`.deb` file is planned)
+
 ## Usage
 
 Once Trufos is installed and launched, you can start adding endpoints, customizing them, and making
@@ -38,9 +55,9 @@ calls.
 
 Here’s a simple example of how to add and utilize an endpoint:
 
-1. Click on "New Endpoint".
-2. Enter the API URL.
-3. Select the method (GET, POST, etc.).
+1. Click on "Create New Request".
+2. Enter the URL.
+3. Select the method (`GET`, `POST`, etc.).
 4. Optionally, add headers and body content.
 5. Click "Send Request" and review the response in the results area.
 

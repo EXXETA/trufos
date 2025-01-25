@@ -63,7 +63,7 @@ For this repository we have agreed on the following git workflow:
 
 We use [Prettier](https://prettier.io/) for TypeScript code formatting.
 To ensure that the code formatting follows our configuration
-in [.prettierrc](https://github.com/EXXETA/rufus/blob/main/.prettierrc), the Prettier plugin should
+in [.prettierrc](https://github.com/EXXETA/trufos/blob/main/.prettierrc), the Prettier plugin should
 be installed in your IDE.
 The setup for Prettier is described in the following sections for IntelliJ and Visual Studio Code:
 
