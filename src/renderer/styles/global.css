@@ -2,31 +2,31 @@
 
 /* Colors */
 .success {
-  color: #2BB361;
+  color: #2bb361;
 }
 
 .error {
-  color: #CA464E;
+  color: #ca464e;
 }
 
 .http-method-color-get {
-  color: #97E87F;
+  color: #97e87f;
 }
 
 .http-method-color-put {
-  color: #6AC8E7;
+  color: #6ac8e7;
 }
 
 .http-method-color-post {
-  color: #8CA5FF;
+  color: #8ca5ff;
 }
 
 .http-method-color-delete {
-  color: #E36873;
+  color: #e36873;
 }
 
 .http-method-color-patch {
-  color: #EBBA6B;
+  color: #ebba6b;
 }
 
 /* Tabs scrollbar styles */
@@ -51,11 +51,7 @@
 }
 
 body {
-  font-family: "Lato", sans-serif;
-  color: #EEEEEE;
+  font-family: 'Lato', sans-serif;
+  color: #eeeeee;
   font-weight: 400;
-}
-
-.font-mono {
-  font-family: monospace;
 }
