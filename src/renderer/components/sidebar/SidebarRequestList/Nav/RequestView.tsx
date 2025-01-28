@@ -29,7 +29,7 @@ export const RequestView = ({ request }: SidebarRequestListProps) => {
       )}
       onClick={handleMouseEvent(() => setSelectedRequest(request.id))}
     >
-      <div className={cn('font-bold', httpMethodColor(request.method))}>{request.method}</div>
+      <div key={request.id} className={cn('font-bold', httpMethodColor(request.method))}>{request.method}</div>
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="truncate flex-1">{request.url}</div>
@@ -38,7 +38,7 @@ export const RequestView = ({ request }: SidebarRequestListProps) => {
           <p>{request.url}</p>
         </TooltipContent>
       </Tooltip>
-      <RequestDropdown />
+      <RequestDropdown request={request} />
     </span>
   );
 };

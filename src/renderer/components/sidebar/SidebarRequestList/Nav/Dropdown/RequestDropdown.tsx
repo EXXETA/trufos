@@ -7,9 +7,16 @@ import {
 import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { MoreHorizontal } from 'lucide-react';
 import { handleMouseEvent } from '@/util/callback-util';
+import { useCollectionActions } from '@/state/collectionStore';
 import React from 'react';
+import { TrufosRequest } from 'shim/objects/request';
 
-export const RequestDropdown = () => {
+export interface RequestDropdownProps {
+  request: TrufosRequest;
+}
+
+export const RequestDropdown = ({ request }: RequestDropdownProps) => {
+  const deleteRequest = useCollectionActions().deleteRequest;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -19,7 +26,10 @@ export const RequestDropdown = () => {
         </SidebarMenuAction>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-48 rounded-lg" side={'right'} align={'start'}>
-        <DropdownMenuItem onClick={handleMouseEvent(() => ({}))} className="text-danger">
+        <DropdownMenuItem
+          onClick={handleMouseEvent(() => deleteRequest(request.id))}
+          className="text-danger"
+        >
           Delete Request
         </DropdownMenuItem>
       </DropdownMenuContent>

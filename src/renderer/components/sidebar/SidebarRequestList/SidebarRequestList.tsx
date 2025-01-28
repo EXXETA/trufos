@@ -1,9 +1,15 @@
 import React from 'react';
 import { useCollectionStore } from '@/state/collectionStore';
 import './index.css';
-import { SidebarContent, SidebarGroup, SidebarMenu, SidebarRail } from '@/components/ui/sidebar';
-import { RootFolder } from '@/components/sidebar/SidebarRequestList/Nav/RootFolder';
-import { RootRequest } from '@/components/sidebar/SidebarRequestList/Nav/RootRequest';
+import {
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarRail,
+} from '@/components/ui/sidebar';
+import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
+import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
 
 export const SidebarRequestList = () => {
   const collection = useCollectionStore.getState().collection;
@@ -14,23 +20,21 @@ export const SidebarRequestList = () => {
       <SidebarContent>
         <SidebarGroup>
           {/*<SidebarGroupLabel>Collection</SidebarGroupLabel>*/}
-          <SidebarMenu>
-            {collection.children.map((child) => {
-              if (child.type == 'request') {
-                return (
-                  <div key={child.id}>
-                    <RootRequest request={child} />
-                  </div>
-                );
-              } else if (child.type == 'folder') {
-                return (
-                  <div key={child.id}>
-                    <RootFolder folder={child} />
-                  </div>
-                );
-              }
-            })}
-          </SidebarMenu>
+          <SidebarGroupContent>
+            <SidebarMenu  key={collection.id}>
+              {collection.children.map((child) => {
+                if (child.type == 'request') {
+                  return (
+                      <NavRequest key={child.id} request={child} />
+                  );
+                } else if (child.type == 'folder') {
+                  return (
+                      <NavFolder key={child.id} folder={child} />
+                  );
+                }
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
       <SidebarRail />

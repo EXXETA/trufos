@@ -1,5 +1,5 @@
 import { RequestMethod } from 'shim/objects/request-method';
-import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { editor } from 'monaco-editor';
 import { TrufosHeader } from 'shim/objects/headers';
 import { create } from 'zustand';
@@ -9,6 +9,7 @@ import { useActions } from '@/state/util';
 import { Collection } from 'shim/objects/collection';
 import { v4 as uuidv4 } from 'uuid';
 import { Folder } from '../../shim/objects/folder';
+import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 
 const eventService = RendererEventService.instance;
 
@@ -17,74 +18,30 @@ interface CollectionState {
   collectionId: string;
   requestEditor?: editor.ICodeEditor;
   collection: Collection;
-}
-
-interface CollectionStateActions {
-  initialize(collection: Collection): void;
-
-  addNewRequest(parentId: string): Promise<void>;
-
-  /**
-   * Replace the current request with the updated request
-   * @param request The new request content
-   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
-   */
-  updateRequest(request: TrufosRequest, overwrite: true): void;
-
-  /**
-   * Merge the current request with the updated request. This will also set the draft flag on the request
-   * @param request The properties to update
-   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
-   */
-  updateRequest(request: Partial<TrufosRequest>, overwrite?: false): void;
-
-  setRequestBody(payload: RequestBody): void;
-
-  setRequestEditor(requestEditor?: editor.ICodeEditor): void;
-
-  setSelectedRequest(index: string): Promise<void>;
-
-  deleteRequest(index: string): Promise<void>;
-
-  addHeader(): void;
-
-  /**
-   * Update a header in the currently selected request
-   * @param index The index of the header to update
-   * @param updatedHeader The new header content
-   */
-  updateHeader(index: number, updatedHeader: Partial<TrufosHeader>): void;
-
-  /**
-   * Delete a header from the currently selected request
-   * @param index The index of the header to delete
-   */
-  deleteHeader(index: number): void;
-
-  /**
-   * Clear all headers from the currently selected request and add a new empty header
-   */
-  clearHeaders(): void;
-
-  /**
-   * Set the draft flag on the currently selected request
-   */
-  setDraftFlag(): void;
+  selectedRequest: TrufosRequest;
 }
 
 export const useCollectionStore = create<CollectionState & CollectionStateActions>()(
   immer((set, get) => ({
-    requests: [],
     selectedRequestIndex: '',
     collectionId: '',
     requestEditor: undefined,
     collection: null,
+    selectedRequest: null,
     initialize: (collection) => {
       set({
         collectionId: collection.id,
         collection: collection,
       });
     },
+    setSelectedRequest: async (index: string) => {
+      set({
+        selectedRequestIndex: index,
+        selectedRequest: findRequestById(get().collection.children, index),
+      });
+      console.log(get().selectedRequest);
+    },
+    // requests
     addNewRequest: async (parentId: string) => {
       const request = await eventService.saveRequest({
         url: 'http://',
@@ -123,7 +80,6 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         //   };
         // }
       }),
-
     setRequestBody: (body) => {
       const { updateRequest } = get();
       updateRequest({ body });
@@ -131,65 +87,102 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
     setRequestEditor: (requestEditor) => set({ requestEditor }),
 
-    setSelectedRequest: async (index: string) => {
-      // const { selectedRequestIndex, requests, requestEditor } = get();
-      // if (selectedRequestIndex === index) return;
-      // const request = requests[selectedRequestIndex];
-      // if (request != null && requestEditor != null) {
-      //   await eventService.saveRequest(request, requestEditor.getValue());
-      // }
-      // set(/*{ selectedRequestIndex: index }*/);
-    },
-
     deleteRequest: async (index: string) => {
-      // await eventService.deleteObject(get().requests[index]);
-      set((state) => {
-        //   state.requests.splice(index, 1);
-        //   if (state.selectedRequestIndex === index) {
-        //     state.selectedRequestIndex = -1;
-        //   } else if (state.selectedRequestIndex > index) {
-        //     state.selectedRequestIndex--;
-        //   }
-      });
+      const { collection, selectedRequestIndex } = get();
+      const request = findRequestById(collection.children, index);
+
+      if (request) {
+        // Check if the request is at the root level
+        if (collection.children.some((child) => child.id === index && child.type === 'request')) {
+          collection.children = collection.children.filter((child) => child.id !== index);
+        } else {
+          // Remove the request from its parent folder recursively
+          const removeRequestFromFolder = (children: (Folder | TrufosRequest)[], id: string): boolean => {
+            for (const child of children) {
+              if (child.type === 'folder') {
+                const folder = child as Folder;
+                const index = folder.children.findIndex((child) => child.id === id);
+                if (index !== -1) {
+                  folder.children.splice(index, 1);
+                  return true;
+                } else if (removeRequestFromFolder(folder.children, id)) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          };
+          removeRequestFromFolder(collection.children, index);
+        }
+
+        set({ collection: collection });
+
+        // Unselect the request if it is currently selected
+        if (selectedRequestIndex === index) {
+          set({ selectedRequestIndex: '', selectedRequest: null });
+        }
+      }
     },
 
     addHeader: () =>
       set((state) => {
-        selectHeaders(state).push({ key: '', value: '', isActive: false });
+        // selectHeaders(state).push({ key: '', value: '', isActive: false });
       }),
 
     updateHeader: (index: number, updatedHeader: Partial<TrufosHeader>) =>
       set((state) => {
-        const headers = selectHeaders(state);
-        headers[index] = { ...headers[index], ...updatedHeader };
+        // const headers = selectHeaders(state);
+        // headers[index] = { ...headers[index], ...updatedHeader };
       }),
 
     deleteHeader: (index: number) =>
       set((state) => {
-        const headers = selectHeaders(state);
-        headers.splice(index, 1);
-        if (selectRequest(state).headers.length === 0) {
-          state.addHeader();
-        }
+        // const headers = selectHeaders(state);
+        // headers.splice(index, 1);
+        // if (selectRequest(state).headers.length === 0) {
+        //   state.addHeader();
+        // }
       }),
 
     clearHeaders: () =>
       set((state) => {
-        const request = selectRequest(state);
-        request.headers = [];
-        state.addHeader();
+        throw new Error('Method not implemented.');
       }),
 
     setDraftFlag: () =>
       set((state) => {
-        selectRequest(state).draft = true;
+        throw new Error('Method not implemented.');
       }),
+
+    // folder
+    addNewFolder(parentId: string): Promise<void> {
+      throw new Error('Method not implemented.');
+    },
+    updateFolder(folder: Folder, overwrite: true) {
+      throw new Error('Method not implemented.');
+    },
+    deleteFolder: (index: string) => {
+      alert('delete folder');
+    },
   }))
 );
 
-export const selectRequest = (state: CollectionState) =>
-  state.collection.children.find(
-    (child) => child.id === state.selectedRequestIndex
-  ) as TrufosRequest;
-export const selectHeaders = (state: CollectionState) => selectRequest(state)?.headers;
-export const useRequestActions = () => useCollectionStore(useActions());
+export const useCollectionActions = () => useCollectionStore(useActions());
+export const selectRequest = (state: CollectionState) => state.selectedRequest;
+
+const findRequestById = (
+  children: (Folder | TrufosRequest)[],
+  id: string
+): TrufosRequest | undefined => {
+  for (const child of children) {
+    if (child.id === id && child.type === 'request') {
+      return child as TrufosRequest;
+    } else if (child.type === 'folder') {
+      const found = findRequestById(child.children, id);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return undefined;
+};

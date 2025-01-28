@@ -1,5 +1,5 @@
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { useCollectionStore, useRequestActions } from '@/state/collectionStore';
+import { useCollectionStore, useCollectionActions } from '@/state/collectionStore';
 import { useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { SidebarMenuItem, SidebarMenuSubButton, SidebarMenuSubItem } from '@/components/ui/sidebar';
@@ -10,7 +10,7 @@ interface NavRequestProps {
 }
 
 export const NavRequest = ({ request }: NavRequestProps) => {
-  const { setSelectedRequest } = useRequestActions();
+  const { setSelectedRequest } = useCollectionActions();
   const requestEditor = useCollectionStore((state) => state.requestEditor);
   const selectedRequestIndex = useCollectionStore((state) => state.selectedRequestIndex);
 

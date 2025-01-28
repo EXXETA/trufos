@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
-import { selectRequest, useRequestActions, useCollectionStore } from '@/state/collectionStore';
+import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { Language } from '@/lib/monaco/language';
 
@@ -36,7 +36,7 @@ export function InputTabs(props: InputTabsProps) {
     deleteHeader,
     clearHeaders,
     updateHeader,
-  } = useRequestActions();
+  } = useCollectionActions();
 
   const requestBody = useCollectionStore((state) => selectRequest(state).body);
   const headers = useCollectionStore((state) => selectRequest(state).headers);
@@ -101,7 +101,7 @@ export function InputTabs(props: InputTabsProps) {
   }, [setRequestBodyFile]);
 
   const renderSelectLanguage = useCallback(() => {
-    if (requestBody?.type !== RequestBodyType.TEXT) return null;
+    // if (requestBody?.type !== RequestBodyType.TEXT) return null;
     return (
       <SimpleSelect<Language>
         value={language}

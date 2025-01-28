@@ -53,7 +53,7 @@ export const NavFolder = ({ folder }: NavFolderProps) => {
             }
           })}
         </CollapsibleContent>
-        <FolderDropdown />
+        <FolderDropdown folder={folder} />
       </SidebarMenuSub>
     </Collapsible>
   );
