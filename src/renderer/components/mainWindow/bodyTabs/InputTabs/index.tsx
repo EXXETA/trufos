@@ -141,7 +141,7 @@ export function InputTabs(props: InputTabsProps) {
       </TabsList>
 
       <TabsContent value="body">
-        <div className={'xl:h-full min-h-[50vh] relative'}>
+        <div className={'xl:h-full min-h-[30vh] relative'}>
           <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
             <div className={'flex justify-end'}>
               {renderSelectLanguage()}
