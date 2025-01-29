@@ -1,33 +1,8 @@
 import { TrufosObject } from 'shim/objects';
-import { RequestBody } from 'shim/objects/request';
-import { VariableObject } from 'shim/variables';
-import { RequestMethod } from 'shim/objects/request-method';
-import { TrufosHeader } from 'shim/objects/headers';
 import { deleteProperty } from 'main/util/object-util';
-import { SemVer } from 'main/util/semver';
+import { InfoFile, VERSION } from './v1-0-1';
 
-export const VERSION = new SemVer(1, 0, 1);
-
-export type InfoFileBase = {
-  id: string;
-  version: typeof VERSION.string;
-  title: string;
-};
-
-export type RequestInfoFile = InfoFileBase & {
-  url: string;
-  method: RequestMethod;
-  headers: TrufosHeader[];
-  body: RequestBody;
-};
-
-export type FolderInfoFile = InfoFileBase;
-
-export type CollectionInfoFile = InfoFileBase & {
-  variables: Record<VariableObject['key'], Omit<VariableObject, 'key'>>;
-};
-
-export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
+export { VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile, InfoFile } from './v1-0-1';
 
 /**
  * Deep clones the given object and removes any properties that are not allowed in an info file.
