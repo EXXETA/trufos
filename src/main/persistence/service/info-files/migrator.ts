@@ -9,11 +9,11 @@ export type VersionedObject = { version: SemVerString };
  * @typeParam I - The input schema of the info file.
  * @typeParam O - The output schema of the info file. Defaults to the latest schema.
  */
-export abstract class InfoFileMapper<
+export abstract class AbstractInfoFileMigrator<
   I extends VersionedObject,
   O extends VersionedObject = InfoFile,
 > {
-  /** The version of the schema the mapper migrates from. */
+  /** The version of the schema the migrator migrates from. */
   public abstract readonly fromVersion: I['version'];
 
   /**

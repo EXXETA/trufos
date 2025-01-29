@@ -2,14 +2,12 @@ import { RequestBody } from 'shim/objects/request';
 import { VariableObject } from 'shim/variables';
 import { RequestMethod } from 'shim/objects/request-method';
 import { TrufosHeader } from 'shim/objects/headers';
-import { InfoFileMapper } from './mapper';
-import { InfoFile, VERSION as NEW_VERSION } from './latest';
-import { randomUUID } from 'node:crypto';
+import { SemVer } from 'main/util/semver';
 
-const OLD_VERSION = '1.0.0' as const;
+export const VERSION = new SemVer(1, 0, 0);
 
 type InfoFileBase = {
-  version: typeof OLD_VERSION;
+  version: typeof VERSION.string;
   title: string;
 };
 
@@ -26,18 +24,4 @@ type CollectionInfoFile = InfoFileBase & {
   variables: Record<VariableObject['key'], Omit<VariableObject, 'key'>>;
 };
 
-type InfoFileOld = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
-
-/**
- * Maps schema `v1.0.0` to `v1.0.1`.
- *
- * Changes:
- * - Adds an `id` property which will now be persisted.
- */
-export class InfoFileMapperV1_0_0 extends InfoFileMapper<InfoFileOld, InfoFile> {
-  public readonly fromVersion = OLD_VERSION;
-
-  async migrate(old: InfoFileOld) {
-    return Object.assign(old, { id: randomUUID(), version: NEW_VERSION.toString() });
-  }
-}
+export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;

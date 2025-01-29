@@ -22,7 +22,7 @@ import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { generateDefaultCollection } from './default-collection';
 import { randomUUID } from 'node:crypto';
-import { migrateInfoFile } from './info-files/mappers';
+import { migrateInfoFile } from './info-files/migrators';
 import { SemVer } from 'main/util/semver';
 
 /**
