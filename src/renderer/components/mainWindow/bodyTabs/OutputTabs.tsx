@@ -73,7 +73,7 @@ export function OutputTabs(props: OutputTabsProps) {
       </TabsList>
 
       <TabsContent value="body">
-        <div className={'xl:h-full min-h-[30vh]'}>
+        <div className={'xl:h-full xl:pt-0 overflow-auto pt-10 min-h-[30vh]'}>
           <Editor
             language={mimeType}
             theme="vs-dark" /* TODO: apply theme from settings */
