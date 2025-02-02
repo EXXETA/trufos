@@ -2,17 +2,18 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import { TemplateVariableCompletionItemsProvider } from '@/lib/monaco/template-variable-completion-items-provider';
 import { VariableObject } from 'shim/variables';
 import { IRange, languages, Position } from 'monaco-editor';
-import { mockModel } from '../../../../__tests__/monaco-util';
+import { mockModel } from '@/__mocks__/monaco-util';
+import { vi, describe, it, expect } from 'vitest';
 
-jest.mock('@/services/event/renderer-event-service', () => ({
+vi.mock('@/services/event/renderer-event-service', () => ({
   RendererEventService: {
     instance: {
-      getActiveEnvironmentVariables: jest.fn(),
+      getActiveEnvironmentVariables: vi.fn(),
     },
   },
 }));
 
-jest.mock('monaco-editor', () => ({
+vi.mock('monaco-editor', () => ({
   languages: {
     CompletionItemKind: {
       Variable: 12,
@@ -33,9 +34,9 @@ describe('TemplateVariableCompletionItemsProvider', () => {
     { key: 'variable', value: '123' },
     { key: '$randomUuid', description: 'Description 2', value: '321' },
   ];
-  jest
-    .mocked(RendererEventService.instance.getActiveEnvironmentVariables)
-    .mockResolvedValue(variables);
+  vi.mocked(RendererEventService.instance.getActiveEnvironmentVariables).mockResolvedValue(
+    variables
+  );
 
   it("provides completion items if the current position is directly after '{{'", async () => {
     // Arrange

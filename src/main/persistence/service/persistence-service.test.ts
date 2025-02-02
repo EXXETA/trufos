@@ -1,6 +1,4 @@
-import { PersistenceService } from './persistence-service';
 import { Collection } from 'shim/objects/collection';
-import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import path from 'node:path';
 import { generateDefaultCollection } from './default-collection';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -15,10 +13,9 @@ import {
 import { RequestInfoFile } from './info-files/latest';
 import { RequestMethod } from 'shim/objects/request-method';
 import { Readable } from 'node:stream';
-
-jest.mock('./default-collection', () => ({
-  generateDefaultCollection: jest.fn(),
-}));
+import { vi, describe, it, beforeEach, expect } from 'vitest';
+import { exists, USER_DATA_DIR } from 'main/util/fs-util';
+import { PersistenceService } from './persistence-service';
 
 const persistenceService = PersistenceService.instance;
 
@@ -77,7 +74,7 @@ describe('PersistenceService', () => {
   it('loadDefaultCollection() should return the existing default collection if it exists', async () => {
     // Arrange
     const defaultCollection = {} as Collection;
-    const loadCollectionSpy = jest
+    const loadCollectionSpy = vi
       .spyOn(persistenceService, 'loadCollection')
       .mockResolvedValueOnce(defaultCollection);
     await mkdir(collectionDirPath);
@@ -93,9 +90,12 @@ describe('PersistenceService', () => {
 
   it('loadDefaultCollection() should create a new default collection if does not exist', async () => {
     // Arrange
+    const defaultCollectionImport = await import('./default-collection');
     const defaultCollection = {} as Collection;
-    jest.mocked(generateDefaultCollection).mockReturnValueOnce(defaultCollection);
-    const saveCollectionRecursiveSpy = jest
+    vi.spyOn(defaultCollectionImport, 'generateDefaultCollection').mockReturnValueOnce(
+      defaultCollection
+    );
+    const saveCollectionRecursiveSpy = vi
       .spyOn(persistenceService, 'saveCollectionRecursive')
       .mockResolvedValueOnce();
 

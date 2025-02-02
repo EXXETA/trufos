@@ -1,4 +1,5 @@
 import { SemVer } from './semver';
+import { describe, it, expect } from 'vitest';
 
 describe('Semver', () => {
   it.each<[SemVer, SemVer, boolean]>([

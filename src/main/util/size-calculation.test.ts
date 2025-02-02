@@ -1,14 +1,17 @@
 import { calculateResponseSize } from './size-calculation';
+import { vi, describe, it, expect } from 'vitest';
 
-jest.mock('node:fs', () => ({
-  statSync: () => ({ size: 500 }),
+vi.mock('node:fs', () => ({
+  default: {
+    statSync: () => ({ size: 500 }),
+  },
 }));
 
 describe('calculateResponseSize', () => {
   it('calculates size correctly with valid headers and file path', () => {
     const headers = { 'content-length': '100', 'content-type': 'application/json' };
     const filePath = 'path/to/file';
-    //jest.spyOn(fs, 'statSync').mockReturnValue({ size: 100 } as fs.Stats);
+    //vi.spyOn(fs, 'statSync').mockReturnValue({ size: 100 } as fs.Stats);
     const result = calculateResponseSize(headers, filePath);
     expect(result).toEqual({
       totalSizeInBytes: 153,
