@@ -12,3 +12,6 @@ updates:
       electron-forge:
         patterns:
           - "@electron-forge/*"
+      typescript-eslint:
+        patterns:
+          - "@typescript-eslint/*"
