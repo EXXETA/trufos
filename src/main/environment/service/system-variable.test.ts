@@ -1,4 +1,5 @@
 import { getSystemVariable, getSystemVariableKeys, getSystemVariables } from './system-variable';
+import { describe, it, expect } from 'vitest';
 
 describe('getSystemVariable()', () => {
   it('should return the the system variable object', () => {

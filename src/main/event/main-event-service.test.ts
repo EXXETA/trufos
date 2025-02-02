@@ -1,17 +1,18 @@
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { fs } from 'memfs';
+import { vi, describe, it, beforeEach, expect } from 'vitest';
 
-jest.mock('electron', () => ({
+vi.mock('electron', () => ({
   ipcMain: {
-    handle: jest.fn(),
+    handle: vi.fn(),
   },
   app: {
-    getPath: jest.fn().mockReturnValue(''),
+    getPath: vi.fn().mockReturnValue(''),
   },
 }));
 
-jest.mock('./stream-events', () => ({}));
+vi.mock('./stream-events', () => ({}));
 
 const TEST_STRING = 'Hello, World!';
 const TEST_FILE_PATH = path.join(tmpdir(), 'test.txt');

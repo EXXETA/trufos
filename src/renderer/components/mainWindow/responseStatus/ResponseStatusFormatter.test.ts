@@ -4,6 +4,7 @@ import {
   getHttpStatusText,
   getSizeText,
 } from './ResponseStatusFormatter';
+import { describe, it, expect } from 'vitest';
 
 describe('ResponseStatusFormatter', () => {
   describe('getHttpStatusColorClass', () => {

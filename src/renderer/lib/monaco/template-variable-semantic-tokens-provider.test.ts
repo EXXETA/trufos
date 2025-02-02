@@ -1,5 +1,6 @@
-import { mockModel } from '../../../../__tests__/monaco-util';
+import { mockModel } from '@/__mocks__/monaco-util';
 import { TemplateVariableSemanticTokensProvider } from '@/lib/monaco/template-variable-semantic-tokens-provider';
+import { describe, it, expect } from 'vitest';
 
 const semanticTokensProvider = new TemplateVariableSemanticTokensProvider();
 

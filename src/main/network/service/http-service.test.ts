@@ -5,6 +5,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { randomUUID } from 'node:crypto';
 import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
+import { describe, it, expect } from 'vitest';
 
 describe('HttpService', () => {
   it('fetchAsync should make an HTTP call and return the body on read', async () => {
