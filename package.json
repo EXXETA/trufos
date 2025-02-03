@@ -23,7 +23,7 @@
     "@electron-forge/plugin-fuses": "^7.6.1",
     "@electron-forge/plugin-vite": "^7.6.1",
     "@electron/fuses": "^1.8.0",
-    "@testing-library/react": "^16.0.1",
+    "@testing-library/react": "^16.2.0",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/mime-types": "^2.1.4",
     "@types/postman-collection": "^3.5.10",
