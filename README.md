@@ -28,7 +28,7 @@ please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 ## Requirements
 
 As Trufos is an Electron application, it can run on Windows, macOS, and Linux without any issues. If
-you want to develop or build this software yourself, you will need Node.js version 22 or higher and
+you want to develop or build this software yourself, you will need Node.js version 22 and
 NPM version 10 or higher.
 
 ### Local Development
