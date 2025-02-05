@@ -7,7 +7,7 @@ import { useEffect, useRef } from 'react';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { selectResponse, useResponseActions, useResponseStore } from '@/state/responseStore';
-import { selectRequest, useRequestStore } from '@/state/requestStore';
+import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 
 /**
  * Get the mime type from the content type.
@@ -39,7 +39,7 @@ export function OutputTabs(props: OutputTabsProps) {
   const { className } = props;
   const { setResponseEditor } = useResponseActions();
   const editor = useResponseStore((state) => state.editor);
-  const requestId = useRequestStore((state) => selectRequest(state)?.id);
+  const requestId = useCollectionStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
   const tabsRef = useRef(null);
 

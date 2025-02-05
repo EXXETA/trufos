@@ -5,11 +5,11 @@ import {
   getSizeText,
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
 import { selectResponse, useResponseStore } from '@/state/responseStore';
-import { selectRequest, useRequestStore } from '@/state/requestStore';
+import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function ResponseStatus() {
-  const requestId = useRequestStore((state) => selectRequest(state)?.id);
+  const requestId = useCollectionStore((state) => selectRequest(state).id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
 
   if (response?.metaInfo == null) {

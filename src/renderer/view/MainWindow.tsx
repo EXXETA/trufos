@@ -1,12 +1,12 @@
 import { MainTopBar } from '@/components/mainWindow/MainTopBar';
 import { MainBody } from '@/components/mainWindow/MainBody';
-import { selectRequest, useRequestActions, useRequestStore } from '@/state/requestStore';
+import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { EmptyWildWest } from '@/assets/EmptyWildWest';
 import { MouseEvent, useCallback } from 'react';
 
 export function MainWindow() {
-  const requestSelected = useRequestStore((state) => selectRequest(state) != null);
-  const { addNewRequest } = useRequestActions();
+  const requestSelected = useCollectionStore((state) => selectRequest(state) != null);
+  const { addNewRequest } = useCollectionActions();
   const handleAddNewRequest = useCallback(
     (event: MouseEvent) => {
       event.stopPropagation();
