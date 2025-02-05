@@ -1,6 +1,6 @@
 import React from 'react';
 import { CiMenuKebab } from 'react-icons/ci';
-import { useRequestActions } from '@/state/requestStore';
+import { useCollectionActions } from '@/state/collectionStore';
 import { handleMouseEvent } from '@/util/callback-util';
 import {
   DropdownMenu,
@@ -8,13 +8,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { TrufosRequest } from 'shim/objects/request';
 
 interface RequestContextMenuProps {
-  index: number;
+  requestId: TrufosRequest['id'];
 }
 
-export const RequestContextMenu = ({ index }: RequestContextMenuProps) => {
-  const { deleteRequest } = useRequestActions();
+export const RequestContextMenu = ({ requestId }: RequestContextMenuProps) => {
+  const { deleteRequest } = useCollectionActions();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>
@@ -22,7 +23,7 @@ export const RequestContextMenu = ({ index }: RequestContextMenuProps) => {
       </DropdownMenuTrigger>
       <DropdownMenuContent className={'bg-background'}>
         <DropdownMenuItem
-          onClick={handleMouseEvent(() => deleteRequest(index))}
+          onClick={handleMouseEvent(() => deleteRequest(requestId))}
           className="text-danger"
         >
           Delete

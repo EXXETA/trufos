@@ -8,6 +8,7 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/util';
 import { TrufosObject } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
+import { Folder } from '../../shim/objects/folder';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -24,13 +25,10 @@ eventService.on('before-close', async () => {
   eventService.emit('ready-to-close');
 });
 
-type CollectionItem = Collection['children'][number];
-type ParentItem = Exclude<TrufosObject, TrufosRequest>;
-
 interface CollectionState {
   collection?: Omit<Collection, 'dirPath' | 'type'>;
 
-  items: Map<CollectionItem['id'], CollectionItem>;
+  items: Map<TrufosObject['id'], TrufosObject>;
 
   /** The ID of the currently selected request */
   selectedRequestId?: TrufosRequest['id'];
@@ -97,8 +95,10 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     items: new Map(),
 
     initialize: (collection) => {
-      const items = new Map<CollectionItem['id'], CollectionItem>();
-      const stack: CollectionItem[] = [...collection.children];
+      const items = new Map<TrufosObject['id'], TrufosObject>();
+      items.set(collection.id, collection);
+
+      const stack = [...collection.children];
       while (stack.length > 0) {
         const current = stack.pop()!;
         items.set(current.id, current);
@@ -126,10 +126,11 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
           mimeType: 'text/plain',
         },
       });
+      console.info('Created new request with ID', request.id);
 
       set((state) => {
         state.items.set(request.id, request);
-        const parent = state.items.get(request.parentId) as ParentItem;
+        const parent = state.items.get(request.parentId) as Collection | Folder;
         parent.children.push(request);
       });
     },

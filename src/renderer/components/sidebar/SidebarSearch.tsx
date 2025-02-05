@@ -2,10 +2,10 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AddIcon } from '@/components/icons';
 import React from 'react';
-import { useRequestActions } from '@/state/requestStore';
+import { useCollectionActions } from '@/state/collectionStore';
 
 export const SidebarSearch = () => {
-  const { addNewRequest } = useRequestActions();
+  const { addNewRequest } = useCollectionActions();
 
   return (
     <div className="flex w-full max-w-sm items-center space-x-[24px]">

@@ -1,19 +1,20 @@
+import './index.css';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { RequestBodyType } from 'shim/objects/request';
 import React, { useEffect } from 'react';
 import { IpcPushStream } from '@/lib/ipc-stream';
-import { useRequestActions, useRequestStore } from '@/state/requestStore';
+import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { handleMouseEvent } from '@/util/callback-util';
-import './index.css';
 import { RequestContextMenu } from '@/components/sidebar/SidebarRequestList/ContextMenu/RequestContextMenu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export const SidebarRequestList = () => {
-  const { setSelectedRequest } = useRequestActions();
-  const requestEditor = useRequestStore((state) => state.requestEditor);
-  const requests = useRequestStore((state) => state.requests);
-  const selectedRequestIndex = useRequestStore((state) => state.selectedRequestIndex);
-  const request = requests[selectedRequestIndex];
+  const { setSelectedRequest } = useCollectionActions();
+  const { selectedRequestId } = useCollectionStore();
+  const requestEditor = useCollectionStore((state) => state.requestEditor);
+  const collectionItems = useCollectionStore((state) => state.items);
+  const request = useCollectionStore(selectRequest);
+  const requests = Array.from(collectionItems.values()).filter((item) => item.type === 'request');
 
   useEffect(() => {
     if (requestEditor == null) {
@@ -28,14 +29,10 @@ export const SidebarRequestList = () => {
   }, [request?.id, requestEditor]);
 
   return (
-    <div
-      className="flex flex-1 flex-col overflow-y-auto -mx-6"
-      id="sidebar-request-list"
-      onClick={handleMouseEvent(() => setSelectedRequest(-1))}
-    >
-      {requests.map((request, index) => (
+    <div className="flex flex-1 flex-col overflow-y-auto -mx-6" id="sidebar-request-list">
+      {requests.map((request) => (
         <span
-          key={index}
+          key={request.id}
           className={joinClassNames(
             'sidebar-request-list-item',
             'cursor-pointer',
@@ -46,9 +43,9 @@ export const SidebarRequestList = () => {
             'py-2',
             'px-6',
             'gap-2',
-            selectedRequestIndex === index ? 'selected' : ''
+            selectedRequestId === request.id ? 'selected' : ''
           )}
-          onClick={handleMouseEvent(() => setSelectedRequest(index))}
+          onClick={handleMouseEvent(() => setSelectedRequest(request.id))}
         >
           <div className={joinClassNames('font-bold', httpMethodColor(request.method))}>
             {request.method}
@@ -62,7 +59,7 @@ export const SidebarRequestList = () => {
             </TooltipContent>
           </Tooltip>
           <div className="items-center justify-center flex">
-            <RequestContextMenu index={index} />
+            <RequestContextMenu requestId={request.id} />
           </div>
         </span>
       ))}
