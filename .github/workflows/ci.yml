@@ -9,7 +9,7 @@ on:
     branches:
       - main
       - develop
-    types: [opened, synchronize, reopened, ready_for_review]  
+    types: [ opened, synchronize, reopened, ready_for_review ]
 
 jobs:
   build_and_test:
@@ -20,11 +20,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Use Node.js 22
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
-          cache: 'npm'
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -35,5 +35,14 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build package
+      - name: Check if dependencies changed
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            dependencies:
+              - 'package-lock.json'
+
+      - if: steps.changes.outputs.dependencies == 'true'
+        name: Build package
         run: npm run package
