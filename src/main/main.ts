@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import 'main/event/main-event-service';
 import path from 'node:path';
@@ -31,6 +31,30 @@ const createWindow = async () => {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Handle window close event
+  let isClosing = false;
+  mainWindow.on('close', async (event) => {
+    if (!isClosing) {
+      isClosing = true;
+      event.preventDefault();
+      mainWindow?.webContents.send('before-close');
+
+      // Wait for the renderer to respond or timeout
+      try {
+        await new Promise<void>((resolve, reject) => {
+          ipcMain.once('ready-to-close', () => resolve());
+          setTimeout(() => reject(new Error('Timeout')), 30000);
+        });
+      } catch (error) {
+        console.error('Could not handle close event in renderer:', error);
+      }
+
+      // Close app
+      mainWindow.close();
+      app.quit();
+    }
   });
 
   // Load the index.html of the app.

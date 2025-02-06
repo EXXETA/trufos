@@ -1,11 +1,12 @@
 import { MainTopBar } from '@/components/mainWindow/MainTopBar';
 import { MainBody } from '@/components/mainWindow/MainBody';
-import { useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { EmptyWildWest } from '@/assets/EmptyWildWest';
 import { MouseEvent, useCallback } from 'react';
 
 export function RequestWindow() {
-  const { addNewRequest, selectedRequest } = useCollectionStore();
+  const requestSelected = useCollectionStore((state) => selectRequest(state) != null);
+  const { addNewRequest } = useCollectionActions();
   const handleAddNewRequest = useCallback(
     (event: MouseEvent) => {
       event.stopPropagation();
@@ -14,7 +15,7 @@ export function RequestWindow() {
     [addNewRequest]
   );
 
-  if (!selectedRequest) {
+  if (!requestSelected) {
     return (
       <div className="flex flex-col flex-auto p-6 items-center justify-center">
         <EmptyWildWest />
