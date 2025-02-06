@@ -1,59 +1,44 @@
 import { Folder } from 'shim/objects/folder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
-import React, { useState } from 'react';
+import React from 'react';
 import { TrufosRequest } from 'shim/objects/request';
 import { SidebarMenuSub, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronRight } from 'lucide-react';
-import { FaRegFolderClosed } from 'react-icons/fa6';
+import { FaRegFolderClosed, FaRegFolderOpen } from 'react-icons/fa6';
 import { FolderDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/FolderDropdown';
-import { cn } from '@/lib/utils';
+import { useCollectionStore } from '@/state/collectionStore';
 
 interface NavFolderProps {
   folder: Folder;
 }
 
 export const NavFolder = ({ folder }: NavFolderProps) => {
-  const [isActive, setIsActive] = useState(false);
+  const { isFolderOpen, setFolderOpen, items } = useCollectionStore();
   return (
     <Collapsible
       key={folder.id}
       asChild
-      defaultOpen={isActive}
-      onOpenChange={setIsActive}
+      defaultOpen={isFolderOpen(folder.id)}
+      onOpenChange={(open) => setFolderOpen(folder.id, open)}
       className={`group/collapsible`}
     >
       <SidebarMenuSub>
         <CollapsibleTrigger asChild>
           <SidebarMenuSubButton>
-            <FaRegFolderClosed />
+            {isFolderOpen(folder.id) ? <FaRegFolderOpen /> : <FaRegFolderClosed />}
             <span>{folder.title}</span>
-            <ChevronRight
-              className={cn(
-                `ml-auto transition-transform duration-200`,
-                isActive ? 'rotate-90' : ''
-              )}
-            />
+            <FolderDropdown folder={folder} />
           </SidebarMenuSubButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
           {folder.children.map((child: TrufosRequest | Folder) => {
-            if (child.type === 'request') {
-              return (
-                <div key={child.id}>
-                  <NavRequest request={child as TrufosRequest} />
-                </div>
-              );
-            } else if (child.type === 'folder') {
-              return (
-                <div key={child.id}>
-                  <NavFolder folder={child as Folder} />
-                </div>
-              );
+            if (child.type == 'request' && items.has(child.id)) {
+              return <NavRequest key={child.id} request={items.get(child.id) as TrufosRequest} />;
+            } else if (child.type == 'folder' && items.has(child.id)) {
+              return <NavFolder key={child.id} folder={items.get(child.id) as Folder} />;
             }
           })}
         </CollapsibleContent>
-        <FolderDropdown folder={folder} />
       </SidebarMenuSub>
     </Collapsible>
   );

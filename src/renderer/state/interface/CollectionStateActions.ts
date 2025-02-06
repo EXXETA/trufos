@@ -1,14 +1,12 @@
+import { Collection } from 'shim/objects/collection';
+import { RequestBody, TrufosRequest } from 'shim/objects/request';
+import { TrufosHeader } from 'shim/objects/headers';
 import { editor } from 'monaco-editor';
-import { Collection } from '../../../shim/objects/collection';
-import { RequestBody, TrufosRequest } from '../../../shim/objects/request';
-import { Folder } from '../../../shim/objects/folder';
-import { TrufosHeader } from '../../../shim/objects/headers';
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
 
-  addNewRequest(parentId: string): Promise<void>;
-  addNewFolder(parentId: string): Promise<void>;
+  addNewRequest(title?: string, parentId?: string): Promise<void>;
 
   /**
    * Replace the current request with the updated request
@@ -24,17 +22,13 @@ export interface CollectionStateActions {
    */
   updateRequest(request: Partial<TrufosRequest>, overwrite?: false): void;
 
-  updateFolder(folder: Folder, overwrite: true): void;
-
   setRequestBody(payload: RequestBody): void;
 
   setRequestEditor(requestEditor?: editor.ICodeEditor): void;
 
-  setSelectedRequest(index: string): Promise<void>;
+  setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
 
-  deleteRequest(index: string): Promise<void>;
-
-  deleteFolder(index: string): void;
+  deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
   addHeader(): void;
 
@@ -60,4 +54,17 @@ export interface CollectionStateActions {
    * Set the draft flag on the currently selected request
    */
   setDraftFlag(): void;
+
+  /**
+   * needed for rerendering of th sidebar
+   * @param id
+   */
+  isFolderOpen(id: string): boolean;
+
+  /**
+   * must be set manually that the rendering of the sidebar open the folders correctly
+   * @param id
+   * @param isOpen
+   */
+  setFolderOpen(id: string, isOpen: boolean): void;
 }

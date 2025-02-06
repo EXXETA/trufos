@@ -6,6 +6,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 export const App = () => {
+
   return (
     <TooltipProvider delayDuration={750}>
       <SidebarProvider>

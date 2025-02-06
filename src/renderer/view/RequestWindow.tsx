@@ -5,7 +5,7 @@ import { EmptyWildWest } from '@/assets/EmptyWildWest';
 import { MouseEvent, useCallback } from 'react';
 
 export function RequestWindow() {
-  const requestSelected = useCollectionStore((state) => selectRequest(state) != null);
+  const requestSelected = useCollectionStore((state) => state.selectedRequestId != null);
   const { addNewRequest } = useCollectionActions();
   const handleAddNewRequest = useCallback(
     (event: MouseEvent) => {

@@ -9,7 +9,7 @@ import { useCollectionStore } from '@/state/collectionStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function ResponseStatus() {
-  const requestId = useCollectionStore((state) => selectRequest(state).id);
+  const requestId = useCollectionStore((state) => state.selectedRequestId);
   const response = useResponseStore((state) => selectResponse(state, requestId));
 
   if (response?.metaInfo == null) {

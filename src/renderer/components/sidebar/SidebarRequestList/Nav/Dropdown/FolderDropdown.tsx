@@ -16,21 +16,22 @@ export interface FolderDropdownProps {
 }
 
 export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
-  const deleteFolder = useCollectionActions().deleteFolder;
+  const { addNewRequest } = useCollectionActions();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuAction showOnHover>
+        <SidebarMenuAction>
           <MoreHorizontal />
           <span className="sr-only">More</span>
         </SidebarMenuAction>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-48 rounded-lg" side={'right'} align={'start'}>
         <DropdownMenuItem
-          onClick={handleMouseEvent(() => deleteFolder(folder.id))}
-          className="text-danger"
+          onClick={handleMouseEvent(() =>
+            addNewRequest((Math.random() + 1).toString(36).substring(7), folder.id)
+          )}
         >
-          Delete Folder
+          Add Request
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

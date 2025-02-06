@@ -55,3 +55,13 @@ body {
   color: #EEEEEE;
   font-weight: 400;
 }
+
+.sidebar-request-list-item {
+  color: #999999;
+  font-size: 14px;
+}
+
+.sidebar-request-list-item.selected {
+  background-color: #333333;
+  color: #EEEEEE;
+}

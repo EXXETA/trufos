@@ -1,7 +1,7 @@
 import { httpMethodColor } from '@/services/StyleHelper';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { TrufosRequest } from 'shim/objects/request';
-import { useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { handleMouseEvent } from '@/util/callback-util';
 import { cn } from '@/lib/utils';
 import { RequestDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/RequestDropdown';
@@ -9,9 +9,10 @@ import { RequestDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dro
 export interface SidebarRequestListProps {
   request: TrufosRequest;
 }
+
 export const RequestView = ({ request }: SidebarRequestListProps) => {
-  const selectedRequestIndex = useCollectionStore().selectedRequestIndex;
-  const setSelectedRequest = useCollectionStore().setSelectedRequest;
+  const { selectedRequestId } = useCollectionStore();
+  const { setSelectedRequest } = useCollectionActions();
 
   return (
     <span
@@ -25,11 +26,13 @@ export const RequestView = ({ request }: SidebarRequestListProps) => {
         'py-2',
         'px-6',
         'gap-2',
-        selectedRequestIndex === request.id ? 'selected' : ''
+        selectedRequestId === request.id ? 'selected' : ''
       )}
       onClick={handleMouseEvent(() => setSelectedRequest(request.id))}
     >
-      <div key={request.id} className={cn('font-bold', httpMethodColor(request.method))}>{request.method}</div>
+      <div key={request.id} className={cn('font-bold', httpMethodColor(request.method))}>
+        {request.method}
+      </div>
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="truncate flex-1">{request.url}</div>

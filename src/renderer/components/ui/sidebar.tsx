@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { v4 as uuidv4 } from 'uuid';
 const SIDEBAR_COOKIE_NAME = 'sidebar:state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = '40rem'; // TODO make this a resizable
+const SIDEBAR_WIDTH = '25rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
 
@@ -54,7 +54,6 @@ const SidebarProvider = React.forwardRef<
     },
     ref
   ) => {
-
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
     const [_open, _setOpen] = React.useState(defaultOpen);
@@ -455,7 +454,7 @@ const SidebarMenuItem = React.forwardRef<HTMLLIElement, React.ComponentProps<'li
         key={uuidv4()}
         ref={ref}
         data-sidebar="menu-item"
-        className={cn('group/menu-item relative', className)}
+        className={cn('group/menu-item relative', 'mr-0', className)}
         {...props}
       />
     </ul>
@@ -631,6 +630,7 @@ const SidebarMenuSub = React.forwardRef<HTMLUListElement, React.ComponentProps<'
       className={cn(
         'mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5',
         'group-data-[collapsible=icon]:hidden',
+        'mr-0',
         className
       )}
       {...props}

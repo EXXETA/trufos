@@ -1,4 +1,4 @@
-import { InputTabs } from '@/components/mainWindow/bodyTabs/InputTabs';
+import { InputTabs } from '@/components/mainWindow/bodyTabs/InputTabs/InputTabs';
 import { OutputTabs } from '@/components/mainWindow/bodyTabs/OutputTabs';
 
 export function MainBody() {

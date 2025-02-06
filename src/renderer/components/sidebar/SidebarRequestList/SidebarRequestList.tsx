@@ -1,6 +1,5 @@
 import React from 'react';
 import { useCollectionStore } from '@/state/collectionStore';
-import './index.css';
 import {
   SidebarContent,
   SidebarGroup,
@@ -10,27 +9,25 @@ import {
 } from '@/components/ui/sidebar';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
 import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
+import { TrufosRequest } from 'shim/objects/request';
+import { Folder } from 'shim/objects/folder';
 
 export const SidebarRequestList = () => {
-  const collection = useCollectionStore.getState().collection;
+  const { collection, items } = useCollectionStore();
 
-  console.log(collection);
   return (
     <div>
-      <SidebarContent>
+      <SidebarContent key={collection.id}>
         <SidebarGroup>
-          {/*<SidebarGroupLabel>Collection</SidebarGroupLabel>*/}
           <SidebarGroupContent>
-            <SidebarMenu  key={collection.id}>
-              {collection.children.map((child) => {
-                if (child.type == 'request') {
+            <SidebarMenu key={collection.id}>
+              {(items.get(collection.id) as Folder).children.map((child) => {
+                if (child.type == 'request' && items.has(child.id)) {
                   return (
-                      <NavRequest key={child.id} request={child} />
+                    <NavRequest key={child.id} request={items.get(child.id) as TrufosRequest} />
                   );
-                } else if (child.type == 'folder') {
-                  return (
-                      <NavFolder key={child.id} folder={child} />
-                  );
+                } else if (child.type == 'folder' && items.has(child.id)) {
+                  return <NavFolder key={child.id} folder={items.get(child.id) as Folder} />;
                 }
               })}
             </SidebarMenu>

@@ -1,30 +1,29 @@
 import React from 'react';
-import {
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
-import { GalleryVerticalEnd } from 'lucide-react';
+import { SidebarHeader } from '@/components/ui/sidebar';
+import { useCollectionActions } from '@/state/collectionStore';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { AddIcon } from '@/components/icons';
 
 export const SidebarHeaderBar = () => {
+  const { addNewRequest } = useCollectionActions();
   return (
     <SidebarHeader>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="lg" asChild>
-            <a href="#">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <GalleryVerticalEnd className="size-6" />
-              </div>
-              <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold">Collection</span>
-                <span className="">v1.0.0</span>
-              </div>
-            </a>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      <div className="flex w-full max-w-sm items-center space-x-[24px]">
+        <Button
+          className={cn('flex min-w-[36px] h-[36px] p-0 items-center justify-center')}
+          type="button"
+          style={{
+            width: '100%',
+          }}
+          onClick={() => addNewRequest()}
+        >
+          <div className={cn('m-2')}>
+            <AddIcon size={24} color={'black'} />
+          </div>
+          <span className="overflow-hidden">Create New Request</span>
+        </Button>
+      </div>
     </SidebarHeader>
   );
 };

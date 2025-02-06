@@ -2,13 +2,14 @@ import { editor } from 'monaco-editor';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { RequestMethod } from 'shim/objects/request-method';
-import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { TrufosHeader } from 'shim/objects/headers';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/util';
 import { TrufosObject } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
-import { Folder } from '../../shim/objects/folder';
+import { Folder } from 'shim/objects/folder';
+import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
+import { IpcPushStream } from '@/lib/ipc-stream';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -35,64 +36,24 @@ interface CollectionState {
 
   /** The editor instance for text-based request bodies */
   requestEditor?: editor.ICodeEditor;
+
+  folderIsOpen: Map<Folder['id'], boolean>;
 }
 
-interface CollectionStateActions {
-  initialize(collection: Collection): void;
-
-  addNewRequest(title?: string, parentId?: string): Promise<void>;
-
-  /**
-   * Replace the current request with the updated request
-   * @param request The new request content
-   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
-   */
-  updateRequest(request: TrufosRequest, overwrite: true): void;
-
-  /**
-   * Merge the current request with the updated request. This will also set the draft flag on the request
-   * @param request The properties to update
-   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
-   */
-  updateRequest(request: Partial<TrufosRequest>, overwrite?: false): void;
-
-  setRequestBody(payload: RequestBody): void;
-
-  setRequestEditor(requestEditor?: editor.ICodeEditor): void;
-
-  setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
-
-  deleteRequest(id: TrufosRequest['id']): Promise<void>;
-
-  addHeader(): void;
-
-  /**
-   * Update a header in the currently selected request
-   * @param index The index of the header to update
-   * @param updatedHeader The new header content
-   */
-  updateHeader(index: number, updatedHeader: Partial<TrufosHeader>): void;
-
-  /**
-   * Delete a header from the currently selected request
-   * @param index The index of the header to delete
-   */
-  deleteHeader(index: number): void;
-
-  /**
-   * Clear all headers from the currently selected request and add a new empty header
-   */
-  clearHeaders(): void;
-
-  /**
-   * Set the draft flag on the currently selected request
-   */
-  setDraftFlag(): void;
+async function setRequestTextBody(requestEditor: editor.ICodeEditor, request: TrufosRequest) {
+  // load the new request body
+  if (request.body?.type === RequestBodyType.TEXT) {
+    const stream = await IpcPushStream.open(request);
+    requestEditor.setValue(await IpcPushStream.collect(stream));
+  } else {
+    requestEditor.setValue('');
+  }
 }
 
 export const useCollectionStore = create<CollectionState & CollectionStateActions>()(
   immer((set, get) => ({
     items: new Map(),
+    folderIsOpen: new Map(),
 
     initialize: (collection) => {
       const items = new Map<TrufosObject['id'], TrufosObject>();
@@ -108,6 +69,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       }
 
       set({ collection, items });
+      console.info('initialize', get().collection);
     },
 
     addNewRequest: async (title, parentId) => {
@@ -156,27 +118,40 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       updateRequest({ body });
     },
 
-    setRequestEditor: (requestEditor) => set({ requestEditor }),
+    setRequestEditor: async (requestEditor) => {
+      const request = selectRequest(get());
+      if (request != null) {
+        await setRequestTextBody(requestEditor, request);
+      }
+      set({ requestEditor });
+    },
 
-    setSelectedRequest: async (id?: TrufosRequest['id']) => {
+    setSelectedRequest: async (id) => {
       const state = get();
-      const { selectedRequestId, requestEditor } = state;
+      const { selectedRequestId, requestEditor, items } = state;
       if (selectedRequestId === id) return;
 
-      const request = selectRequest(state);
-      if (request != null && requestEditor != null) {
-        await eventService.saveRequest(request, requestEditor.getValue());
+      // save current request body and load new request body
+      if (requestEditor != null) {
+        const oldRequest = selectRequest(state);
+        if (oldRequest != null) {
+          await eventService.saveRequest(oldRequest, requestEditor.getValue());
+        }
+        if (id != null) {
+          await setRequestTextBody(requestEditor, items.get(id) as TrufosRequest);
+        }
       }
       set({ selectedRequestId: id });
     },
 
-    deleteRequest: async (id: TrufosRequest['id']) => {
+    deleteRequest: async (id) => {
       await eventService.deleteObject(get().items.get(id));
 
       set((state) => {
         state.items.delete(id);
         if (state.selectedRequestId === id) delete state.selectedRequestId;
       });
+      console.info('deleteRequest', get().collection);
     },
 
     addHeader: () =>
@@ -184,13 +159,13 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         selectHeaders(state).push({ key: '', value: '', isActive: false });
       }),
 
-    updateHeader: (index: number, updatedHeader: Partial<TrufosHeader>) =>
+    updateHeader: (index, updatedHeader) =>
       set((state) => {
         const headers = selectHeaders(state);
         headers[index] = { ...headers[index], ...updatedHeader };
       }),
 
-    deleteHeader: (index: number) =>
+    deleteHeader: (index) =>
       set((state) => {
         const headers = selectHeaders(state);
         headers.splice(index, 1);
@@ -210,6 +185,17 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       set((state) => {
         selectRequest(state).draft = true;
       }),
+
+    // functionality for the sidebar
+    isFolderOpen: (id: string) => {
+      const state = get();
+      return state.folderIsOpen.get(id) ?? false;
+    },
+    setFolderOpen: (id: string, isOpen: boolean) => {
+      set((state) => {
+        state.folderIsOpen.set(id, isOpen);
+      });
+    },
   }))
 );
 
