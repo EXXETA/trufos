@@ -1,10 +1,10 @@
 import { VariableMap } from './variables';
 
-/** A map of environments as `Record` */
-export type EnvironmentMap = Record<EnvironmentObject['key'], EnvironmentObject>;
+/** A map of environment key => environments as `Record` */
+export type EnvironmentMap = Record<string, EnvironmentObject>;
 
 /** An environment with variables. */
 export type EnvironmentObject = {
-  key: string;
+  /** Variables that exist in the environment */
   variables: VariableMap;
 };

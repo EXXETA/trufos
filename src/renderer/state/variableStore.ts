@@ -1,85 +1,78 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { VariableObject } from 'shim/objects/variables';
+import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 
 interface VariableState {
-  variables: VariableObject[];
+  variables: VariableMap;
   collectionId: string;
   isOpen: boolean;
   allDoubleKeys: string[];
-  lastInput: string | null;
+  lastInput?: string;
 }
 
 interface VariableStateAction {
   openModal: () => void;
   addNewVariable: () => void;
-  deleteVariable: (index: number) => void;
-  update: (index: number, changeValue: string | boolean, key: keyof VariableObject) => void;
+  deleteVariable: (key: string) => void;
+  update: (key: string, changes: Partial<VariableObject>) => void;
+  rename: (oldKey: string, newKey: string) => void;
   save: () => void;
   cancel: () => void;
-  checkDuplicate: (key: string) => void;
 }
+
+const defaultState: VariableState = {
+  variables: {},
+  collectionId: '',
+  isOpen: false,
+  allDoubleKeys: [],
+};
 
 export const useVariableStore = create<VariableState & VariableStateAction>()(
   immer((set, get) => ({
-    variables: [],
-    collectionId: '',
-    isOpen: false,
-    allDoubleKeys: [],
-    lastInput: null,
+    ...defaultState,
+
     openModal: () => {
       RendererEventService.instance.loadCollection().then((collection) => {
         set({
-          variables: Object.values(collection.variables),
+          variables: collection.variables,
           collectionId: collection.id,
           isOpen: true,
         });
       });
     },
+
     addNewVariable: () => {
+      if (get().variables[''] != null) return;
       set((state) => {
-        state.variables.push({ key: '', value: '', description: '' });
+        state.variables[''] = { value: '', description: '' };
       });
     },
-    deleteVariable: (index: number) => {
+
+    deleteVariable: (key: string) => {
       set((state) => {
-        state.variables.splice(index, 1);
+        delete state.variables[key];
       });
     },
-    update: (index: number, changeValue: string | boolean, key: keyof VariableObject) => {
+
+    update: (key: string, changes: Partial<VariableObject>) => {
       set((state) => {
-        state.variables[index] = { ...state.variables[index], [key]: changeValue };
+        state.variables[key] = { ...state.variables[key], ...changes };
       });
     },
+
+    rename: (oldKey: string, newKey: string) => {
+      set((state) => {
+        state.variables[newKey] = state.variables[oldKey];
+        delete state.variables[oldKey];
+      });
+    },
+
     save: () => {
       RendererEventService.instance.setCollectionVariables(get().variables);
-      set((state) => {
-        state.variables = [];
-        state.isOpen = false;
-        state.lastInput = null;
-      });
+      set(() => defaultState);
     },
-    cancel: () => {
-      set((state) => {
-        state.variables = [];
-        state.isOpen = false;
-        state.allDoubleKeys = [];
-        state.lastInput = null;
-      });
-    },
-    checkDuplicate: (key: string) => {
-      const isDuplicate = get().variables.filter((variable) => variable.key === key).length > 1;
-      set((state) => {
-        if (isDuplicate && !state.allDoubleKeys.includes(key)) {
-          state.allDoubleKeys.push(key);
-        } else {
-          state.allDoubleKeys = state.allDoubleKeys.filter(
-            (doubleKey) => doubleKey !== get().lastInput
-          );
-        }
-        state.lastInput = key;
-      });
-    },
+
+    cancel: () => set(() => defaultState),
   }))
 );

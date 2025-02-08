@@ -2,7 +2,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
 import { Collection } from './objects/collection';
 import { TrufosObject } from './objects';
-import { VariableObject } from './objects/variables';
+import { VariableMap, VariableObject } from './objects/variables';
 
 export interface IEventService {
   /**
@@ -65,8 +65,8 @@ export interface IEventService {
   getVariable(key: string): Promise<VariableObject>;
 
   /**
-   * Set the collection variables.
+   * Replace all existing collection variables with the given ones.
    * @param variables The variables of the Collection to set.
    */
-  setCollectionVariables(variables: VariableObject[]): void;
+  setCollectionVariables(variables: VariableMap): void;
 }

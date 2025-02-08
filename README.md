@@ -65,8 +65,8 @@ Here’s a simple example of how to add and utilize an endpoint:
 
 * Where can I find the saved Requests?
 * The saved requests are in this folder:
-    * Mac: ``~/Library/Application\ Support/Trufos/default-collection``
-    * Windows: ``C:\Users\USERNAME\AppData\Roaming\Trufos\default-collection``
+    * Mac: `~/Library/Application\ Support/Trufos/default-collection`
+    * Windows: `C:\Users\USERNAME\AppData\Roaming\Trufos\default-collection`
 
 ## Contributing
 

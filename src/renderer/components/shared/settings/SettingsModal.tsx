@@ -16,7 +16,6 @@ import * as React from 'react';
 export const SettingsModal = () => {
   const { save, cancel, openModal } = useVariableStore.getState();
   const isOpen = useVariableStore((state) => state.isOpen);
-  const allDoubleKeys = useVariableStore((state) => state.allDoubleKeys);
 
   return (
     <Dialog open={isOpen} onOpenChange={cancel}>
@@ -36,12 +35,7 @@ export const SettingsModal = () => {
           </TabsContent>
         </Tabs>
         <DialogFooter className={'bottom-0'}>
-          <Button
-            disabled={allDoubleKeys.length !== 0}
-            className="mt-0 mr-2 mb-0"
-            onClick={save}
-            variant={allDoubleKeys.length === 0 ? 'default' : 'defaultDisable'}
-          >
+          <Button className="mt-0 mr-2 mb-0" onClick={save}>
             <span className="leading-4 font-bold">Save</span>
           </Button>
           <Button className="mt-0 mr-2 mb-0" onClick={cancel} variant="destructive">
