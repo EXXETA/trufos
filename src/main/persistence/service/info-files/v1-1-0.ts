@@ -1,8 +1,8 @@
 import { RequestBody } from 'shim/objects/request';
-import { VariableObject } from 'shim/objects/variables';
+import { VariableMap } from 'shim/objects/variables';
+import { EnvironmentMap } from 'shim/objects/environment';
 import { RequestMethod } from 'shim/objects/request-method';
 import { TrufosHeader } from 'shim/objects/headers';
-import { EnvironmentObject } from 'shim/objects/environment';
 import { SemVer } from 'main/util/semver';
 import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-0-1';
 import { AbstractInfoFileMigrator } from './migrator';
@@ -25,11 +25,9 @@ export type RequestInfoFile = InfoFileBase & {
 
 export type FolderInfoFile = InfoFileBase;
 
-type VariableMap = Record<VariableObject['key'], Omit<VariableObject, 'key'>>;
-
 export type CollectionInfoFile = InfoFileBase & {
   variables: VariableMap;
-  environments: Record<EnvironmentObject['key'], { variables: VariableMap }>;
+  environments: EnvironmentMap;
 };
 
 export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
