@@ -1,5 +1,5 @@
 import { TrufosObject } from 'shim/objects';
-import { deleteProperty } from 'main/util/object-util';
+import { omit } from 'main/util/object-util';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
@@ -12,14 +12,21 @@ export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile 
  * @param object The trufos object to convert to an info file.
  */
 export function toInfoFile(object: TrufosObject): InfoFile {
-  const infoFile = Object.assign(structuredClone(object), { version: VERSION.toString() });
+  const { id, title, ...rest } = object;
+  const infoFile: TrufosObject & { version: typeof VERSION.string } = {
+    id,
+    title,
+    version: VERSION.toString(),
+    ...rest,
+  }; // this is a shallow copy which has id and title on top of the JSON
+
   switch (infoFile.type) {
     case 'request':
-      return deleteProperty(infoFile, 'type', 'parentId', 'draft');
+      return omit(infoFile, 'type', 'parentId', 'draft');
     case 'collection':
-      return deleteProperty(infoFile, 'type', 'dirPath', 'children');
+      return omit(infoFile, 'type', 'dirPath', 'children');
     case 'folder':
-      return deleteProperty(infoFile, 'type', 'parentId', 'children');
+      return omit(infoFile, 'type', 'parentId', 'children');
   }
 }
 
