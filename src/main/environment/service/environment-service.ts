@@ -3,7 +3,7 @@ import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { Collection } from 'shim/objects/collection';
-import { VariableObject } from 'shim/objects/variables';
+import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 
 const persistenceService = PersistenceService.instance;
@@ -37,27 +37,11 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
-   * Sets a variable in the current collection.
-   *
-   * @param key The key of the variable.
-   * @param value The new value of the variable.
+   * Replace all variables in the current collection with the given variables.
+   * @param variables The variables of the Collection to set.
    */
-  public setCollectionVariable(key: string, value: string) {
-    const variable = this.currentCollection.variables[key];
-    if (variable !== undefined) {
-      variable.value = value;
-    } else {
-      this.currentCollection.variables[key] = { key, value };
-    }
-  }
-
-  /**
-   * Sets and saves all variables in the current collection.
-   * @param variables
-   */
-  public setCollectionVariables(variables: VariableObject[]) {
-    this.currentCollection.variables = {};
-    variables.forEach((variable) => (this.currentCollection.variables[variable.key] = variable));
+  public setCollectionVariables(variables: VariableMap) {
+    this.currentCollection.variables = variables;
   }
 
   /**

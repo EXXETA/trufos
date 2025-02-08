@@ -12,9 +12,8 @@ import {
 import { useVariableStore } from '@/state/variableStore';
 
 export const VariableTab = () => {
-  const { addNewVariable, deleteVariable, update, checkDuplicate } = useVariableStore();
-  const allVariables = useVariableStore((state) => state.variables);
-  const allDoubleKeys = useVariableStore((state) => state.allDoubleKeys);
+  const { addNewVariable, deleteVariable, update, rename } = useVariableStore();
+  const variables = useVariableStore((state) => state.variables);
 
   return (
     <div className="p-4 relative">
@@ -43,18 +42,15 @@ export const VariableTab = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {allVariables.map((variable, index) => (
+            {Object.entries(variables).map(([key, variable], index) => (
               <TableRow key={index}>
                 <TableCell className="w-1/4 break-all">
                   <input
                     type="text"
-                    value={variable.key}
-                    className={`w-full bg-transparent outline-none ${allDoubleKeys.includes(variable.key) ? 'text-danger' : ''}`}
+                    value={key}
+                    className={`w-full bg-transparent outline-none ${key === '' ? 'text-danger' : ''}`}
                     placeholder="Enter variable key"
-                    onChange={(e) => {
-                      update(index, e.target.value, 'key');
-                      checkDuplicate(e.target.value);
-                    }}
+                    onChange={(e) => rename(key, e.target.value)}
                   />
                 </TableCell>
                 <TableCell className="w-1/4 break-all">
@@ -63,7 +59,7 @@ export const VariableTab = () => {
                     value={variable.value}
                     className="w-full bg-transparent outline-none"
                     placeholder="Enter variable value"
-                    onChange={(e) => update(index, e.target.value, 'value')}
+                    onChange={(e) => update(key, { value: e.target.value })}
                   />
                 </TableCell>
                 <TableCell className="w-full break-all">
@@ -72,7 +68,7 @@ export const VariableTab = () => {
                     value={variable.description}
                     className="w-full bg-transparent outline-none"
                     placeholder="Enter variable description"
-                    onChange={(e) => update(index, e.target.value, 'description')}
+                    onChange={(e) => update(key, { description: e.target.value })}
                   />
                 </TableCell>
                 <TableCell className="w-16 text-right">
@@ -81,7 +77,7 @@ export const VariableTab = () => {
                       variant="ghost"
                       size="icon"
                       className="hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7] h-6 w-6"
-                      onClick={() => deleteVariable(index)}
+                      onClick={() => deleteVariable(key)}
                     >
                       <DeleteIcon />
                     </Button>

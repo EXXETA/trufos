@@ -1,5 +1,5 @@
 import { TrufosObject } from 'shim/objects';
-import { addKeys, deleteProperty, mapValues, omitKeys } from 'main/util/object-util';
+import { deleteProperty } from 'main/util/object-util';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
@@ -15,17 +15,11 @@ export function toInfoFile(object: TrufosObject): InfoFile {
   const infoFile = Object.assign(structuredClone(object), { version: VERSION.toString() });
   switch (infoFile.type) {
     case 'request':
-      return deleteProperty(infoFile, 'parentId', 'draft');
+      return deleteProperty(infoFile, 'type', 'parentId', 'draft');
     case 'collection':
-      return {
-        ...deleteProperty(infoFile, 'children'),
-        variables: omitKeys(infoFile.variables),
-        environments: mapValues(infoFile.environments, (env) => ({
-          variables: omitKeys(env.variables),
-        })),
-      };
+      return deleteProperty(infoFile, 'type', 'dirPath', 'children');
     case 'folder':
-      return deleteProperty(infoFile, 'parentId', 'children');
+      return deleteProperty(infoFile, 'type', 'parentId', 'children');
   }
 }
 
@@ -34,16 +28,9 @@ export function fromCollectionInfoFile(
   dirPath: string,
   children: Collection['children']
 ): Collection {
-  const variables: Collection['variables'] = addKeys(infoFile.variables);
-  const environments: Collection['environments'] = mapValues(infoFile.environments, (env, key) => ({
-    key,
-    variables: addKeys(env.variables),
-  }));
   return Object.assign(infoFile, {
-    dirPath,
     type: 'collection' as const,
-    variables,
-    environments,
+    dirPath,
     children,
   });
 }
@@ -53,12 +40,12 @@ export function fromFolderInfoFile(
   parentId: Folder['parentId'],
   children: Folder['children']
 ): Folder {
-  return Object.assign(infoFile, { parentId, type: 'folder' as const, children });
+  return Object.assign(infoFile, { type: 'folder' as const, parentId, children });
 }
 
 export function fromRequestInfoFile(
   infoFile: RequestInfoFile,
   parentId: TrufosRequest['parentId']
 ): TrufosRequest {
-  return Object.assign(infoFile, { parentId, type: 'request' as const });
+  return Object.assign(infoFile, { type: 'request' as const, parentId });
 }
