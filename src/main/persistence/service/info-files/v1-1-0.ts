@@ -2,12 +2,13 @@ import { RequestBody } from 'shim/objects/request';
 import { VariableObject } from 'shim/objects/variables';
 import { RequestMethod } from 'shim/objects/request-method';
 import { TrufosHeader } from 'shim/objects/headers';
+import { EnvironmentObject } from 'shim/objects/environment';
 import { SemVer } from 'main/util/semver';
-import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-0-0';
+import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-0-1';
 import { AbstractInfoFileMigrator } from './migrator';
-import { randomUUID } from 'node:crypto';
+import { TrufosObjectType } from 'shim/objects';
 
-export const VERSION = new SemVer(1, 0, 1);
+export const VERSION = new SemVer(1, 1, 0);
 
 type InfoFileBase = {
   id: string;
@@ -24,8 +25,11 @@ export type RequestInfoFile = InfoFileBase & {
 
 export type FolderInfoFile = InfoFileBase;
 
+type VariableMap = Record<VariableObject['key'], Omit<VariableObject, 'key'>>;
+
 export type CollectionInfoFile = InfoFileBase & {
-  variables: Record<VariableObject['key'], Omit<VariableObject, 'key'>>;
+  variables: VariableMap;
+  environments: Record<EnvironmentObject['key'], { variables: VariableMap }>;
 };
 
 export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
@@ -39,7 +43,11 @@ export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: OldInfoFile) {
-    return Object.assign(old, { id: randomUUID(), version: VERSION.toString() });
+  async migrate(old: OldInfoFile, type: TrufosObjectType): Promise<InfoFile> {
+    if (type === 'collection') {
+      return Object.assign(old, { version: VERSION.toString(), environments: {} });
+    } else {
+      return Object.assign(old, { version: VERSION.toString() });
+    }
   }
 }

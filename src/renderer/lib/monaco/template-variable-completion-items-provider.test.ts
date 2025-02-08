@@ -1,6 +1,6 @@
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { TemplateVariableCompletionItemsProvider } from './template-variable-completion-items-provider';
-import { VariableObject } from 'shim/variables';
+import { VariableObject } from 'shim/objects/variables';
 import { IRange, languages, Position } from 'monaco-editor';
 import { mockModel } from '@/__mocks__/monaco-util';
 import { vi, describe, it, expect } from 'vitest';

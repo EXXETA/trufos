@@ -2,7 +2,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
 import { Collection } from './objects/collection';
 import { TrufosObject } from './objects';
-import { VariableObject } from './variables';
+import { VariableObject } from './objects/variables';
 
 export interface IEventService {
   /**
