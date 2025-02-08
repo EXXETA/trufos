@@ -3,7 +3,7 @@ import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { Collection } from 'shim/objects/collection';
-import { VariableObject } from 'shim/variables';
+import { VariableObject } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 
 const persistenceService = PersistenceService.instance;
@@ -59,6 +59,7 @@ export class EnvironmentService implements Initializable {
     this.currentCollection.variables = {};
     variables.forEach((variable) => (this.currentCollection.variables[variable.key] = variable));
   }
+
   /**
    * Changes the current collection to the one at the specified path.
    *

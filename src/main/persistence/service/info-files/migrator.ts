@@ -1,5 +1,6 @@
 import { InfoFile } from './latest';
 import { SemVerString } from 'main/util/semver';
+import { TrufosObjectType } from 'shim/objects';
 
 export type VersionedObject = { version: SemVerString };
 
@@ -19,6 +20,7 @@ export abstract class AbstractInfoFileMigrator<
   /**
    * Migrates the given info file to the implementation's schema.
    * @param old The info file to migrate.
+   * @param type The type of the info file.
    */
-  abstract migrate(old: I): Promise<O>;
+  abstract migrate(old: I, type: TrufosObjectType): Promise<O>;
 }

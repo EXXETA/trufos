@@ -1,4 +1,4 @@
-import { VariableObject } from 'shim/variables';
+import { VariableObject } from 'shim/objects/variables';
 import { randomInt, randomUUID } from 'node:crypto';
 
 const systemVariables = new Map<VariableObject['key'], VariableObject>(

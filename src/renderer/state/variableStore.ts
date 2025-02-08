@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { VariableObject } from 'shim/variables';
+import { VariableObject } from 'shim/objects/variables';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 
 interface VariableState {

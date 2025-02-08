@@ -1,5 +1,5 @@
 import { RequestBody } from 'shim/objects/request';
-import { VariableObject } from 'shim/variables';
+import { VariableObject } from 'shim/objects/variables';
 import { RequestMethod } from 'shim/objects/request-method';
 import { TrufosHeader } from 'shim/objects/headers';
 import { SemVer } from 'main/util/semver';
