@@ -21,12 +21,14 @@ function createEventMethod<T extends keyof IEventService>(methodName: T) {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export interface RendererEventService {
   on(event: 'before-close', listener: () => void): this;
 
   emit(event: 'ready-to-close'): this;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class RendererEventService implements IEventService {
   public static readonly instance = new RendererEventService();
 
@@ -50,4 +52,5 @@ export class RendererEventService implements IEventService {
   getActiveEnvironmentVariables = createEventMethod('getActiveEnvironmentVariables');
   getVariable = createEventMethod('getVariable');
   setCollectionVariables = createEventMethod('setCollectionVariables');
+  selectEnvironment = createEventMethod('selectEnvironment');
 }

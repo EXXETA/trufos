@@ -106,4 +106,8 @@ export class MainEventService implements IEventService {
     environmentService.setCollectionVariables(variables);
     await persistenceService.saveCollection(environmentService.currentCollection);
   }
+
+  async selectEnvironment(key: string) {
+    environmentService.currentEnvironmentKey = key;
+  }
 }
