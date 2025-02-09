@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
-import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCollectionStore } from '@/state/collectionStore';
 import { useActions } from '@/state/util';
 
@@ -17,7 +16,7 @@ interface VariableStateAction {
   deleteVariable: (key: string) => void;
   update: (key: string, changes: Partial<VariableObject>) => void;
   rename: (oldKey: string, newKey: string) => void;
-  save: () => void;
+  save: () => Promise<void>;
   cancel: () => void;
 }
 
@@ -67,11 +66,11 @@ export const useVariableStore = create<VariableState & VariableStateAction>()(
     },
 
     save: async () => {
-      await RendererEventService.instance.setCollectionVariables(get().variables);
-      set(() => defaultState);
+      await useCollectionStore.getState().setVariables(get().variables);
+      set(defaultState);
     },
 
-    cancel: () => set(() => defaultState),
+    cancel: () => set(defaultState),
   }))
 );
 

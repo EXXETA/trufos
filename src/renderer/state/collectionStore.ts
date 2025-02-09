@@ -9,6 +9,7 @@ import { useActions } from '@/state/util';
 import { TrufosObject } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from '../../shim/objects/folder';
+import { VariableMap } from '../../shim/objects/variables';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -88,6 +89,12 @@ interface CollectionStateActions {
    * Set the draft flag on the currently selected request
    */
   setDraftFlag(): void;
+
+  /**
+   * Set the variables of the current collection
+   * @param variables The new variables to set
+   */
+  setVariables(variables: VariableMap): Promise<void>;
 }
 
 export const useCollectionStore = create<CollectionState & CollectionStateActions>()(
@@ -210,6 +217,13 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       set((state) => {
         selectRequest(state).draft = true;
       }),
+
+    setVariables: async (variables) => {
+      await eventService.setCollectionVariables(variables);
+      set((state) => {
+        state.collection.variables = variables;
+      });
+    },
   }))
 );
 
