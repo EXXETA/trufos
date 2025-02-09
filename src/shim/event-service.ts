@@ -69,4 +69,10 @@ export interface IEventService {
    * @param variables The variables of the Collection to set.
    */
   setCollectionVariables(variables: VariableMap): void;
+
+  /**
+   * Select an environment by its key.
+   * @param key The key of the environment to select.
+   */
+  selectEnvironment(key: string): void;
 }
