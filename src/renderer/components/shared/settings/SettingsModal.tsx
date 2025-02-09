@@ -9,16 +9,18 @@ import {
 import { FiSettings } from 'react-icons/fi';
 import { VariableTab } from '@/components/shared/settings/VariableTab/VariableTab';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useVariableStore } from '@/state/variableStore';
+import { useVariableActions, useVariableStore } from '@/state/variableStore';
 import { Button } from '@/components/ui/button';
 import * as React from 'react';
+import { useCallback } from 'react';
 
 export const SettingsModal = () => {
-  const { save, cancel, openModal } = useVariableStore.getState();
+  const { save, cancel, openModal } = useVariableActions();
   const isOpen = useVariableStore((state) => state.isOpen);
+  const handleOpenChange = useCallback((open: boolean) => !open && cancel(), [cancel]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={cancel}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger onClick={openModal}>
         <FiSettings className="text-xl ml-2" />
       </DialogTrigger>

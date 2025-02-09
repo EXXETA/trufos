@@ -56,7 +56,7 @@ export interface IEventService {
   /**
    * @returns all active environment variables. This includes system variables and collection variables.
    */
-  getActiveEnvironmentVariables(): Promise<VariableObject[]>;
+  getActiveEnvironmentVariables(): Promise<[string, VariableObject][]>;
 
   /**
    * Get a variable by its key.

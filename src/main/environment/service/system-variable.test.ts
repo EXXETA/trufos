@@ -10,7 +10,6 @@ describe('getSystemVariable()', () => {
     const result = getSystemVariable(key);
 
     // Assert
-    expect(result.key).toBe(key);
     expect(result.value).toBeDefined();
     expect(result.description).toBeDefined();
   });
@@ -45,12 +44,13 @@ describe('getSystemVariables()', () => {
     const result = getSystemVariables();
 
     // Assert
-    expect(result).toContainEqual({
-      key: '$randomUuid',
-      isActive: true,
-      value: expect.any(String),
-      description: expect.any(String),
-    });
+    expect(result).toContainEqual([
+      '$randomUuid',
+      {
+        value: expect.any(String),
+        description: expect.any(String),
+      },
+    ]);
     expect(result).toHaveLength(6);
   });
 });
