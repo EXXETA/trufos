@@ -9,6 +9,7 @@ import { Folder } from 'shim/objects/folder';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { Collection } from 'shim/objects/collection';
+import { VariableMap } from 'shim/objects/variables';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -38,6 +39,12 @@ interface CollectionState {
 
   /** A set of folder IDs that are currently open in the sidebar */
   openFolders: Set<Folder['id']>;
+
+  /**
+   * Set the variables of the current collection
+   * @param variables The new variables to set
+   */
+  setVariables(variables: VariableMap): Promise<void>;
 }
 
 async function setRequestTextBody(requestEditor: editor.ICodeEditor, request: TrufosRequest) {
@@ -205,6 +212,13 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     setFolderClose: (id: string) => {
       set((state) => {
         state.openFolders.delete(id);
+      });
+    },
+
+    setVariables: async (variables) => {
+      await eventService.setCollectionVariables(variables);
+      set((state) => {
+        state.collection.variables = variables;
       });
     },
   }))
