@@ -1,6 +1,6 @@
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { TemplateVariableCompletionItemsProvider } from './template-variable-completion-items-provider';
-import { VariableObject } from 'shim/objects/variables';
+import { VariableMap } from 'shim/objects/variables';
 import { IRange, languages, Position } from 'monaco-editor';
 import { mockModel } from '@/__mocks__/monaco-util';
 import { vi, describe, it, expect } from 'vitest';
@@ -30,12 +30,16 @@ const completionItemsProvider = new TemplateVariableCompletionItemsProvider();
 
 describe('TemplateVariableCompletionItemsProvider', () => {
   // Arrange
-  const variables: VariableObject[] = [
-    { key: 'variable', value: '123' },
-    { key: '$randomUuid', description: 'Description 2', value: '321' },
-  ];
+  const variables: VariableMap = {
+    variable: { value: '123' },
+    $randomUuid: {
+      description: 'Description 2',
+      value: '321',
+    },
+  };
+  const variablesArray = Object.entries(variables);
   vi.mocked(RendererEventService.instance.getActiveEnvironmentVariables).mockResolvedValue(
-    variables
+    variablesArray
   );
 
   it("provides completion items if the current position is directly after '{{'", async () => {
@@ -59,15 +63,15 @@ describe('TemplateVariableCompletionItemsProvider', () => {
     });
 
     // Assert
-    expect(suggestions).toHaveLength(variables.length);
-    expect(suggestions[0].label).toBe(variables[0].key);
+    expect(suggestions).toHaveLength(variablesArray.length);
+    expect(suggestions[0].label).toBe(variablesArray[0][0]);
     expect(suggestions[0].kind).toBe(languages.CompletionItemKind.Variable);
-    expect(suggestions[0].insertText).toBe(`${variables[0].key}}}`);
+    expect(suggestions[0].insertText).toBe(`${variablesArray[0][0]}}}`);
     expect(suggestions[0].range).toEqual(expectedRange);
 
-    expect(suggestions[1].label).toBe(variables[1].key);
+    expect(suggestions[1].label).toBe(variablesArray[1][0]);
     expect(suggestions[1].kind).toBe(languages.CompletionItemKind.Function);
-    expect(suggestions[1].insertText).toBe(`${variables[1].key}}}`);
+    expect(suggestions[1].insertText).toBe(`${variablesArray[1][0]}}}`);
     expect(suggestions[1].range).toEqual(expectedRange);
   });
 
@@ -89,7 +93,7 @@ describe('TemplateVariableCompletionItemsProvider', () => {
     });
 
     // Assert
-    expect(suggestions).toHaveLength(variables.length);
+    expect(suggestions).toHaveLength(variablesArray.length);
     expect(suggestions[0].range).toEqual(expectedRange);
   });
 
@@ -111,7 +115,7 @@ describe('TemplateVariableCompletionItemsProvider', () => {
     });
 
     // Assert
-    expect(suggestions).toHaveLength(variables.length);
+    expect(suggestions).toHaveLength(variablesArray.length);
     expect(suggestions[0].range).toEqual(expectedRange);
   });
 
@@ -150,9 +154,9 @@ describe('TemplateVariableCompletionItemsProvider', () => {
     });
 
     // Assert
-    expect(suggestions).toHaveLength(variables.length);
+    expect(suggestions).toHaveLength(variablesArray.length);
     expect(suggestions[0].range).toEqual(expectedRange);
-    expect(suggestions[0].insertText).toBe(variables[0].key);
+    expect(suggestions[0].insertText).toBe(variablesArray[0][0]);
   });
 
   it('provides completion items for manual invocation at an existing template variable without closing brackets', async () => {
@@ -172,8 +176,8 @@ describe('TemplateVariableCompletionItemsProvider', () => {
     });
 
     // Assert
-    expect(suggestions).toHaveLength(variables.length);
+    expect(suggestions).toHaveLength(variablesArray.length);
     expect(suggestions[0].range).toEqual(expectedRange);
-    expect(suggestions[0].insertText).toBe(variables[0].key + '}}');
+    expect(suggestions[0].insertText).toBe(variablesArray[0][0] + '}}');
   });
 });

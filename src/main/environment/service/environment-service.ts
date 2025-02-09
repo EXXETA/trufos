@@ -54,11 +54,11 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
-   * Returns all active variables in the current collection. This also includes system
-   * variables.
+   * Returns all variables for the current state (e.g. collection variables). This also includes
+   * system variables.
    */
   public getVariables() {
-    return Object.values(this.currentCollection.variables).concat(getSystemVariables());
+    return Object.entries(this.currentCollection.variables).concat(getSystemVariables());
   }
 
   /**

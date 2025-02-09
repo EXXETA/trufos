@@ -2,13 +2,13 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { useCollectionStore } from '@/state/collectionStore';
+import { useActions } from '@/state/util';
 
 interface VariableState {
   variables: VariableMap;
   collectionId: string;
   isOpen: boolean;
-  allDoubleKeys: string[];
-  lastInput?: string;
 }
 
 interface VariableStateAction {
@@ -25,7 +25,6 @@ const defaultState: VariableState = {
   variables: {},
   collectionId: '',
   isOpen: false,
-  allDoubleKeys: [],
 };
 
 export const useVariableStore = create<VariableState & VariableStateAction>()(
@@ -33,12 +32,11 @@ export const useVariableStore = create<VariableState & VariableStateAction>()(
     ...defaultState,
 
     openModal: () => {
-      RendererEventService.instance.loadCollection().then((collection) => {
-        set({
-          variables: collection.variables,
-          collectionId: collection.id,
-          isOpen: true,
-        });
+      const { collection } = useCollectionStore.getState();
+      set({
+        variables: collection.variables,
+        collectionId: collection.id,
+        isOpen: true,
       });
     },
 
@@ -68,11 +66,13 @@ export const useVariableStore = create<VariableState & VariableStateAction>()(
       });
     },
 
-    save: () => {
-      RendererEventService.instance.setCollectionVariables(get().variables);
+    save: async () => {
+      await RendererEventService.instance.setCollectionVariables(get().variables);
       set(() => defaultState);
     },
 
     cancel: () => set(() => defaultState),
   }))
 );
+
+export const useVariableActions = () => useVariableStore(useActions());
