@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { useVariableStore } from '@/state/variableStore';
 
-export const VariableTab = () => {
+export const VariableEditor = () => {
   const { addNewVariable, deleteVariable, update, rename } = useVariableStore();
   const variables = useVariableStore((state) => state.variables);
 

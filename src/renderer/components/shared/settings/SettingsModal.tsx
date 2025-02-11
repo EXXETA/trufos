@@ -7,7 +7,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { FiSettings } from 'react-icons/fi';
-import { VariableTab } from '@/components/shared/settings/VariableTab/VariableTab';
+import { VariableEditor } from '@/components/shared/settings/VariableEditor/VariableEditor';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useVariableActions, useVariableStore } from '@/state/variableStore';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ export const SettingsModal = () => {
             <TabsTrigger value="variables">Variables</TabsTrigger>
           </TabsList>
           <TabsContent value="variables" className="max-h-[50vh] overflow-y-auto">
-            <VariableTab />
+            <VariableEditor />
           </TabsContent>
         </Tabs>
         <DialogFooter className={'bottom-0'}>
