@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 
-export function HeaderTab() {
+export const HeaderTab = () => {
   const { addHeader, deleteHeader, clearHeaders, updateHeader } = useCollectionActions();
   const headers = useCollectionStore((state) => selectRequest(state).headers);
 
@@ -134,4 +134,4 @@ export function HeaderTab() {
       </div>
     </div>
   );
-}
+};
