@@ -65,3 +65,9 @@ body {
   background-color: #333333;
   color: #EEEEEE;
 }
+
+.sidebar-item.selected {
+  background: #007bff; /* Background color for selected item */
+  color: white;        /* Text color for selected item */
+  font-weight: bold;   /* Optional: make text bold */
+}

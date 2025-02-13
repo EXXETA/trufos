@@ -7,7 +7,7 @@ import {
 import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { MoreHorizontal } from 'lucide-react';
 import { handleMouseEvent } from '@/util/callback-util';
-import { useCollectionActions } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import React from 'react';
 import { TrufosRequest } from 'shim/objects/request';
 
@@ -17,10 +17,11 @@ export interface RequestDropdownProps {
 
 export const RequestDropdown = ({ request }: RequestDropdownProps) => {
   const deleteRequest = useCollectionActions().deleteRequest;
+  const selectedRequestId = useCollectionStore().selectedRequestId;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuAction showOnHover>
+        <SidebarMenuAction showOnHover={selectedRequestId !== request.id}>
           <MoreHorizontal />
           <span className="sr-only">More</span>
         </SidebarMenuAction>
