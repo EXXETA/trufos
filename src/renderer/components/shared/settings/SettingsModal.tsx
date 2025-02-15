@@ -7,21 +7,38 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { FiSettings } from 'react-icons/fi';
-import { VariableTab } from '@/components/shared/settings/VariableTab/VariableTab';
+import {
+  variableArrayToMap,
+  VariableEditor,
+  variableMapToArray,
+} from '@/components/shared/settings/VariableTab/VariableEditor';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useVariableActions, useVariableStore } from '@/state/variableStore';
 import { Button } from '@/components/ui/button';
 import * as React from 'react';
-import { useCallback } from 'react';
+import { useState } from 'react';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 
 export const SettingsModal = () => {
-  const { save, cancel, openModal } = useVariableActions();
-  const isOpen = useVariableStore((state) => state.isOpen);
-  const handleOpenChange = useCallback((open: boolean) => !open && cancel(), [cancel]);
+  const { setVariables } = useCollectionActions();
+  const variables = useCollectionStore((state) => state.collection.variables);
+  const [editorVariables, setEditorVariables] = useState(variableMapToArray(variables));
+  const [isValid, setValid] = useState(false);
+  const [isOpen, setOpen] = useState(false);
+
+  const save = async () => {
+    console.info('Saving variables:', editorVariables);
+    await setVariables(variableArrayToMap(editorVariables));
+    setOpen(false);
+  };
+
+  const cancel = () => {
+    setEditorVariables(variableMapToArray(variables));
+    setOpen(false);
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger onClick={openModal}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && cancel()}>
+      <DialogTrigger onClick={() => setOpen(true)}>
         <FiSettings className="text-xl ml-2" />
       </DialogTrigger>
       <DialogContent style={{ minWidth: '100vh' }}>
@@ -33,11 +50,20 @@ export const SettingsModal = () => {
             <TabsTrigger value="variables">Variables</TabsTrigger>
           </TabsList>
           <TabsContent value="variables" className="max-h-[50vh] overflow-y-auto">
-            <VariableTab />
+            <VariableEditor
+              variables={editorVariables}
+              onValidChange={setValid}
+              onVariablesChange={setEditorVariables}
+            />
           </TabsContent>
         </Tabs>
         <DialogFooter className={'bottom-0'}>
-          <Button className="mt-0 mr-2 mb-0" onClick={save}>
+          <Button
+            className="mt-0 mr-2 mb-0"
+            onClick={save}
+            disabled={!isValid}
+            variant={isValid ? 'default' : 'defaultDisable'}
+          >
             <span className="leading-4 font-bold">Save</span>
           </Button>
           <Button className="mt-0 mr-2 mb-0" onClick={cancel} variant="destructive">
