@@ -2,13 +2,13 @@ import { editor } from 'monaco-editor';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { RequestMethod } from 'shim/objects/request-method';
-import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { TrufosHeader } from 'shim/objects/headers';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/util';
-import { TrufosObject } from 'shim/objects';
+import { Folder } from 'shim/objects/folder';
+import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
+import { IpcPushStream } from '@/lib/ipc-stream';
 import { Collection } from 'shim/objects/collection';
-import { Folder } from '../../shim/objects/folder';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -26,88 +26,53 @@ eventService.on('before-close', async () => {
 });
 
 interface CollectionState {
-  collection?: Omit<Collection, 'dirPath' | 'type'>;
-
-  items: Map<TrufosObject['id'], TrufosObject>;
+  collection?: Collection;
+  requests: Map<TrufosRequest['id'], TrufosRequest>;
+  folders: Map<Folder['id'], Folder>;
 
   /** The ID of the currently selected request */
   selectedRequestId?: TrufosRequest['id'];
 
   /** The editor instance for text-based request bodies */
   requestEditor?: editor.ICodeEditor;
+
+  /** A set of folder IDs that are currently open in the sidebar */
+  openFolders: Set<Folder['id']>;
 }
 
-interface CollectionStateActions {
-  initialize(collection: Collection): void;
-
-  addNewRequest(title?: string, parentId?: string): Promise<void>;
-
-  /**
-   * Replace the current request with the updated request
-   * @param request The new request content
-   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
-   */
-  updateRequest(request: TrufosRequest, overwrite: true): void;
-
-  /**
-   * Merge the current request with the updated request. This will also set the draft flag on the request
-   * @param request The properties to update
-   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
-   */
-  updateRequest(request: Partial<TrufosRequest>, overwrite?: false): void;
-
-  setRequestBody(payload: RequestBody): void;
-
-  setRequestEditor(requestEditor?: editor.ICodeEditor): void;
-
-  setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
-
-  deleteRequest(id: TrufosRequest['id']): Promise<void>;
-
-  addHeader(): void;
-
-  /**
-   * Update a header in the currently selected request
-   * @param index The index of the header to update
-   * @param updatedHeader The new header content
-   */
-  updateHeader(index: number, updatedHeader: Partial<TrufosHeader>): void;
-
-  /**
-   * Delete a header from the currently selected request
-   * @param index The index of the header to delete
-   */
-  deleteHeader(index: number): void;
-
-  /**
-   * Clear all headers from the currently selected request and add a new empty header
-   */
-  clearHeaders(): void;
-
-  /**
-   * Set the draft flag on the currently selected request
-   */
-  setDraftFlag(): void;
+async function setRequestTextBody(requestEditor: editor.ICodeEditor, request: TrufosRequest) {
+  // load the new request body
+  if (request.body?.type === RequestBodyType.TEXT) {
+    const stream = await IpcPushStream.open(request);
+    requestEditor.setValue(await IpcPushStream.collect(stream));
+  } else {
+    requestEditor.setValue('');
+  }
 }
 
 export const useCollectionStore = create<CollectionState & CollectionStateActions>()(
   immer((set, get) => ({
-    items: new Map(),
+    requests: new Map(),
+    folders: new Map(),
+    openFolders: new Set(),
 
     initialize: (collection) => {
-      const items = new Map<TrufosObject['id'], TrufosObject>();
-      items.set(collection.id, collection);
+      const requests = new Map<TrufosRequest['id'], TrufosRequest>();
+      const folders = new Map<Folder['id'], Folder>();
 
       const stack = [...collection.children];
       while (stack.length > 0) {
         const current = stack.pop()!;
-        items.set(current.id, current);
         if (current.type === 'folder') {
+          folders.set(current.id, current);
           stack.push(...current.children);
+        } else if (current.type === 'request') {
+          requests.set(current.id, current);
         }
       }
 
-      set({ collection, items });
+      set({ collection, requests, folders });
+      console.info('initialize', get().collection);
     },
 
     addNewRequest: async (title, parentId) => {
@@ -129,8 +94,8 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       console.info('Created new request with ID', request.id);
 
       set((state) => {
-        state.items.set(request.id, request);
-        const parent = state.items.get(request.parentId) as Collection | Folder;
+        state.requests.set(request.id, request);
+        const parent = selectParent(state, request.parentId);
         parent.children.push(request);
       });
     },
@@ -141,9 +106,9 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         if (request == null) return;
 
         if (overwrite) {
-          state.items.set(state.selectedRequestId, updatedRequest as TrufosRequest);
+          state.requests.set(state.selectedRequestId, updatedRequest as TrufosRequest);
         } else {
-          state.items.set(state.selectedRequestId, {
+          state.requests.set(state.selectedRequestId, {
             ...request,
             draft: true,
             ...updatedRequest,
@@ -156,26 +121,41 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       updateRequest({ body });
     },
 
-    setRequestEditor: (requestEditor) => set({ requestEditor }),
+    setRequestEditor: async (requestEditor) => {
+      const request = selectRequest(get());
+      if (request != null) {
+        await setRequestTextBody(requestEditor, request);
+      }
+      set({ requestEditor });
+    },
 
-    setSelectedRequest: async (id?: TrufosRequest['id']) => {
+    setSelectedRequest: async (id) => {
       const state = get();
-      const { selectedRequestId, requestEditor } = state;
+      const { selectedRequestId, requestEditor, requests } = state;
       if (selectedRequestId === id) return;
 
-      const request = selectRequest(state);
-      if (request != null && requestEditor != null) {
-        await eventService.saveRequest(request, requestEditor.getValue());
+      // save current request body and load new request body
+      if (requestEditor != null) {
+        const oldRequest = selectRequest(state);
+        if (oldRequest != null) {
+          await eventService.saveRequest(oldRequest, requestEditor.getValue());
+        }
+        if (id != null) {
+          await setRequestTextBody(requestEditor, requests.get(id));
+        }
       }
       set({ selectedRequestId: id });
     },
 
-    deleteRequest: async (id: TrufosRequest['id']) => {
-      await eventService.deleteObject(get().items.get(id));
+    deleteRequest: async (id) => {
+      await eventService.deleteObject(selectRequest(get(), id));
 
       set((state) => {
-        state.items.delete(id);
         if (state.selectedRequestId === id) delete state.selectedRequestId;
+        const request = selectRequest(state, id);
+        const parent = selectParent(state, request.parentId);
+        parent.children = parent.children.filter((child) => child.id !== id);
+        state.requests.delete(id);
       });
     },
 
@@ -184,13 +164,13 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         selectHeaders(state).push({ key: '', value: '', isActive: false });
       }),
 
-    updateHeader: (index: number, updatedHeader: Partial<TrufosHeader>) =>
+    updateHeader: (index, updatedHeader) =>
       set((state) => {
         const headers = selectHeaders(state);
         headers[index] = { ...headers[index], ...updatedHeader };
       }),
 
-    deleteHeader: (index: number) =>
+    deleteHeader: (index) =>
       set((state) => {
         const headers = selectHeaders(state);
         headers.splice(index, 1);
@@ -210,10 +190,33 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       set((state) => {
         selectRequest(state).draft = true;
       }),
+
+    isFolderOpen: (id: string) => {
+      const state = get();
+      return state.openFolders.has(id);
+    },
+
+    setFolderOpen: (id: string) => {
+      set((state) => {
+        state.openFolders.add(id);
+      });
+    },
+
+    setFolderClose: (id: string) => {
+      set((state) => {
+        state.openFolders.delete(id);
+      });
+    },
   }))
 );
 
-export const selectRequest = (state: CollectionState) =>
-  state.items.get(state.selectedRequestId) as TrufosRequest;
+export const selectParent = (state: CollectionState, parentId: string) => {
+  if (state.collection.id === parentId) return state.collection;
+  return state.folders.get(parentId)!;
+};
+export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) =>
+  state.requests.get(requestId ?? state.selectedRequestId);
 export const selectHeaders = (state: CollectionState) => selectRequest(state)?.headers;
+export const selectFolder = (state: CollectionState, folderId: Folder['id']) =>
+  state.folders.get(folderId);
 export const useCollectionActions = () => useCollectionStore(useActions());

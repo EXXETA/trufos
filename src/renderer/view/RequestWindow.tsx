@@ -1,16 +1,16 @@
 import { MainTopBar } from '@/components/mainWindow/MainTopBar';
 import { MainBody } from '@/components/mainWindow/MainBody';
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { EmptyWildWest } from '@/assets/EmptyWildWest';
 import { MouseEvent, useCallback } from 'react';
 
-export function MainWindow() {
-  const requestSelected = useCollectionStore((state) => selectRequest(state) != null);
+export function RequestWindow() {
+  const requestSelected = useCollectionStore((state) => state.selectedRequestId != null);
   const { addNewRequest } = useCollectionActions();
   const handleAddNewRequest = useCallback(
     (event: MouseEvent) => {
       event.stopPropagation();
-      addNewRequest();
+      addNewRequest('');
     },
     [addNewRequest]
   );
@@ -31,7 +31,6 @@ export function MainWindow() {
 
   return (
     <div className={'flex flex-col flex-auto p-6'}>
-      {/*<Header />*/}
       <MainTopBar />
       <MainBody />
     </div>

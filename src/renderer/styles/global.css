@@ -55,3 +55,19 @@ body {
   color: #EEEEEE;
   font-weight: 400;
 }
+
+.sidebar-request-list-item {
+  color: #999999;
+  font-size: 14px;
+}
+
+.sidebar-request-list-item.selected {
+  background-color: #333333;
+  color: #EEEEEE;
+}
+
+.sidebar-item.selected {
+  background: #007bff; /* Background color for selected item */
+  color: white;        /* Text color for selected item */
+  font-weight: bold;   /* Optional: make text bold */
+}
