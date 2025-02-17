@@ -6,12 +6,25 @@ import { cn } from '@/lib/utils';
 import { AddIcon } from '@/components/icons';
 
 export const SidebarHeaderBar = () => {
-  const { addNewRequest } = useCollectionActions();
+  const { addNewRequest, addNewFolder } = useCollectionActions();
   return (
     <SidebarHeader>
-      <div className="flex w-full max-w-sm items-center space-x-[24px]">
+      <div className="mt-2 flex w-full max-w-sm items-center space-x-[24px]">
         <Button
-          className={cn('flex min-w-[36px] h-[36px] p-0 items-center justify-center')}
+          className={cn('flex min-w-[24px] h-[36px] p-0 items-center justify-center')}
+          type="button"
+          style={{
+            width: '100%',
+          }}
+          onClick={() => addNewFolder()}
+        >
+          <div className={cn('m-2')}>
+            <AddIcon size={24} color={'black'} />
+          </div>
+          <span className="overflow-hidden">New Folder</span>
+        </Button>
+        <Button
+          className={cn(' flex min-w-[24px] h-[36px] p-0 items-center justify-center')}
           type="button"
           style={{
             width: '100%',
@@ -21,7 +34,7 @@ export const SidebarHeaderBar = () => {
           <div className={cn('m-2')}>
             <AddIcon size={24} color={'black'} />
           </div>
-          <span className="overflow-hidden">Create New Request</span>
+          <span className="overflow-hidden">New Request</span>
         </Button>
       </div>
     </SidebarHeader>

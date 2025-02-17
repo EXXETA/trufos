@@ -139,7 +139,7 @@ export class PersistenceService {
    * @param folder the folder to save
    */
   public async saveFolder(folder: Folder) {
-    await this.saveInfoFile(folder, this.getDirPath(folder), folder.type + '.json');
+    return await this.saveInfoFile(folder, this.getDirPath(folder), folder.type + '.json');
   }
 
   /**
@@ -160,6 +160,7 @@ export class PersistenceService {
     const infoFilePath = path.join(dirPath, fileName);
     await fs.writeFile(infoFilePath, JSON.stringify(infoFileContents, null, 2));
     this.idToPathMap.set(object.id, dirPath);
+    return object;
   }
 
   /**
