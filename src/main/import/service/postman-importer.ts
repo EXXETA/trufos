@@ -13,7 +13,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { exists } from 'main/util/fs-util';
 import { InternalError, InternalErrorType } from 'main/error/internal-error';
-import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/variables';
+import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
 
 /**
  * An importer for Postman collections. It will import the collection and all of its variables,
@@ -60,6 +60,7 @@ export class PostmanImporter implements CollectionImporter {
       dirPath: dirPath,
       children: [],
       variables: variables,
+      environments: {},
     };
 
     // import children

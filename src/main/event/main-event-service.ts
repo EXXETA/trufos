@@ -1,3 +1,4 @@
+import './stream-events';
 import { IEventService } from 'shim/event-service';
 import { HttpService } from 'main/network/service/http-service';
 import { app, ipcMain } from 'electron';
@@ -5,8 +6,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { TrufosObject } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import './stream-events';
-import { VariableObject } from 'shim/variables';
+import { VariableMap } from 'shim/objects/variables';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -102,8 +102,12 @@ export class MainEventService implements IEventService {
     return environmentService.getVariable(key);
   }
 
-  async setCollectionVariables(variables: VariableObject[]) {
+  async setCollectionVariables(variables: VariableMap) {
     environmentService.setCollectionVariables(variables);
     await persistenceService.saveCollection(environmentService.currentCollection);
+  }
+
+  async selectEnvironment(key: string) {
+    environmentService.currentEnvironmentKey = key;
   }
 }

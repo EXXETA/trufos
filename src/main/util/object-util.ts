@@ -4,7 +4,7 @@
  * @param object The object to modify.
  * @param properties The properties to delete.
  */
-export function deleteProperty<T extends object, K extends keyof T>(object: T, ...properties: K[]) {
+export function omit<T, K extends keyof T>(object: T, ...properties: K[]) {
   for (const property of properties) {
     delete object[property];
   }

@@ -2,7 +2,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
 import { Collection } from './objects/collection';
 import { TrufosObject } from './objects';
-import { VariableObject } from './variables';
+import { VariableMap, VariableObject } from './objects/variables';
 
 export interface IEventService {
   /**
@@ -56,7 +56,7 @@ export interface IEventService {
   /**
    * @returns all active environment variables. This includes system variables and collection variables.
    */
-  getActiveEnvironmentVariables(): Promise<VariableObject[]>;
+  getActiveEnvironmentVariables(): Promise<[string, VariableObject][]>;
 
   /**
    * Get a variable by its key.
@@ -65,8 +65,14 @@ export interface IEventService {
   getVariable(key: string): Promise<VariableObject>;
 
   /**
-   * Set the collection variables.
+   * Replace all existing collection variables with the given ones.
    * @param variables The variables of the Collection to set.
    */
-  setCollectionVariables(variables: VariableObject[]): void;
+  setCollectionVariables(variables: VariableMap): void;
+
+  /**
+   * Select an environment by its key.
+   * @param key The key of the environment to select.
+   */
+  selectEnvironment(key: string): void;
 }

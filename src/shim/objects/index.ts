@@ -4,6 +4,8 @@ import { Collection } from 'shim/objects/collection';
 
 export type TrufosObject = TrufosRequest | Folder | Collection;
 
+export type TrufosObjectType = TrufosObject['type'];
+
 export function isRequest(object: TrufosObject): object is TrufosRequest {
   return object.type === 'request';
 }
