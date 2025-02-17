@@ -9,7 +9,6 @@ import { Folder } from 'shim/objects/folder';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { Collection } from 'shim/objects/collection';
-import { VariableMap } from 'shim/objects/variables';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -27,8 +26,13 @@ eventService.on('before-close', async () => {
 });
 
 interface CollectionState {
+  /** The currently selected collection */
   collection?: Collection;
+
+  /** A map of all requests in the collection */
   requests: Map<TrufosRequest['id'], TrufosRequest>;
+
+  /** A map of all folders in the collection */
   folders: Map<Folder['id'], Folder>;
 
   /** The ID of the currently selected request */
@@ -39,12 +43,6 @@ interface CollectionState {
 
   /** A set of folder IDs that are currently open in the sidebar */
   openFolders: Set<Folder['id']>;
-
-  /**
-   * Set the variables of the current collection
-   * @param variables The new variables to set
-   */
-  setVariables(variables: VariableMap): Promise<void>;
 }
 
 async function setRequestTextBody(requestEditor: editor.ICodeEditor, request: TrufosRequest) {
