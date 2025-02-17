@@ -1,20 +1,20 @@
 import { httpMethodColor } from '@/services/StyleHelper';
 import { TrufosRequest } from 'shim/objects/request';
-import { useCollectionActions } from '@/state/collectionStore';
+import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { handleMouseEvent } from '@/util/callback-util';
 import { cn } from '@/lib/utils';
 import { RequestDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/RequestDropdown';
 
 export interface SidebarRequestListProps {
-  request: TrufosRequest;
+  requestId: TrufosRequest['id'];
 }
 
-export const RequestView = ({ request }: SidebarRequestListProps) => {
+export const RequestView = ({ requestId }: SidebarRequestListProps) => {
   const { setSelectedRequest } = useCollectionActions();
+  const request = useCollectionStore((state) => selectRequest(state, requestId));
 
   return (
     <span
-      key={request.id}
       className={cn(
         'sidebar-request-list-item',
         'cursor-pointer',
@@ -25,13 +25,11 @@ export const RequestView = ({ request }: SidebarRequestListProps) => {
         'px-6',
         'gap-2'
       )}
-      onClick={handleMouseEvent(() => setSelectedRequest(request.id))}
+      onClick={handleMouseEvent(() => setSelectedRequest(requestId))}
     >
-      <div key={request.id} className={cn('font-bold', httpMethodColor(request.method))}>
-        {request.method}
-      </div>
+      <div className={cn('font-bold', httpMethodColor(request.method))}>{request.method}</div>
       <p>{request.url}</p>
-      <RequestDropdown request={request} />
+      <RequestDropdown requestId={requestId} />
     </span>
   );
 };

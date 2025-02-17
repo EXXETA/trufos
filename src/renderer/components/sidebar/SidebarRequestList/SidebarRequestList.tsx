@@ -7,30 +7,17 @@ import {
   SidebarMenu,
   SidebarRail,
 } from '@/components/ui/sidebar';
-import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
-import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
-import { TrufosRequest } from 'shim/objects/request';
-import { Folder } from 'shim/objects/folder';
+import { renderChildren } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
 
 export const SidebarRequestList = () => {
-  const { collection, items } = useCollectionStore();
+  const children = useCollectionStore((state) => state.collection.children);
 
   return (
     <div>
-      <SidebarContent key={collection.id}>
+      <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu key={collection.id}>
-              {(items.get(collection.id) as Folder).children.map((child) => {
-                if (child.type == 'request' && items.has(child.id)) {
-                  return (
-                    <NavRequest key={child.id} request={items.get(child.id) as TrufosRequest} />
-                  );
-                } else if (child.type == 'folder' && items.has(child.id)) {
-                  return <NavFolder key={child.id} folder={items.get(child.id) as Folder} />;
-                }
-              })}
-            </SidebarMenu>
+            <SidebarMenu>{renderChildren(children)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

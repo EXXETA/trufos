@@ -4,16 +4,16 @@ import { RequestView } from '@/components/sidebar/SidebarRequestList/Nav/Request
 import { useCollectionStore } from '@/state/collectionStore';
 
 interface NavRequestProps {
-  request: TrufosRequest;
+  requestId: TrufosRequest['id'];
 }
 
-export const NavRequest = ({ request }: NavRequestProps) => {
-  const selectedRequest = useCollectionStore((state) => state.selectedRequestId);
+export const NavRequest = ({ requestId }: NavRequestProps) => {
+  const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   return (
-    <SidebarMenuSubItem key={request.id} >
-      <SidebarMenuSubButton asChild isActive={request.id === selectedRequest}>
+    <SidebarMenuSubItem>
+      <SidebarMenuSubButton asChild isActive={requestId === selectedRequestId}>
         <SidebarMenuItem>
-          <RequestView request={request} />
+          <RequestView requestId={requestId} />
         </SidebarMenuItem>
       </SidebarMenuSubButton>
     </SidebarMenuSubItem>

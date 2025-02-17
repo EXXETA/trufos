@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { v4 as uuidv4 } from 'uuid';
 const SIDEBAR_COOKIE_NAME = 'sidebar:state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = '25rem';
@@ -437,7 +436,6 @@ SidebarGroupContent.displayName = 'SidebarGroupContent';
 const SidebarMenu = React.forwardRef<HTMLUListElement, React.ComponentProps<'ul'>>(
   ({ className, ...props }, ref) => (
     <ul
-      key={uuidv4()}
       ref={ref}
       data-sidebar="menu"
       className={cn('flex w-full min-w-0 flex-col gap-1', className)}
@@ -451,7 +449,6 @@ const SidebarMenuItem = React.forwardRef<HTMLLIElement, React.ComponentProps<'li
   ({ className, ...props }, ref) => (
     <ul>
       <li
-        key={uuidv4()}
         ref={ref}
         data-sidebar="menu-item"
         className={cn('group/menu-item relative', 'mr-0', className)}

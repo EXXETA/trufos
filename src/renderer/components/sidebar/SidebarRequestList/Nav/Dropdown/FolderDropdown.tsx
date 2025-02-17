@@ -12,10 +12,10 @@ import { Folder } from 'shim/objects/folder';
 import { useCollectionActions } from '@/state/collectionStore';
 
 export interface FolderDropdownProps {
-  folder: Folder;
+  folderId: Folder['id'];
 }
 
-export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
+export const FolderDropdown = ({ folderId }: FolderDropdownProps) => {
   const { addNewRequest } = useCollectionActions();
   return (
     <DropdownMenu>
@@ -28,7 +28,7 @@ export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
       <DropdownMenuContent className="w-48 rounded-lg" side={'right'} align={'start'}>
         <DropdownMenuItem
           onClick={handleMouseEvent(() =>
-            addNewRequest((Math.random() + 1).toString(36).substring(7), folder.id)
+            addNewRequest((Math.random() + 1).toString(36).substring(7), folderId)
           )}
         >
           Add Request

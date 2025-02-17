@@ -64,7 +64,12 @@ export interface CollectionStateActions {
   /**
    * must be set manually that the rendering of the sidebar open the folders correctly
    * @param id
-   * @param isOpen
    */
-  setFolderOpen(id: string, isOpen: boolean): void;
+  setFolderOpen(id: string): void;
+
+  /**
+   * needed for rerendering of th sidebar
+   * @param id
+   */
+  setFolderClose(id: string): void;
 }

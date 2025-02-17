@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab';
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';
@@ -8,12 +8,12 @@ interface InputTabsProps {
   className: string;
 }
 
-export function InputTabs(props: InputTabsProps) {
+export function InputTabs(props: Readonly<InputTabsProps>) {
   const { className } = props;
 
   const headers = useCollectionStore((state) => selectRequest(state).headers);
 
-  const getActiveRowCount = useCallback(
+  const activeRowCount = useMemo(
     () => headers.filter((header) => header.isActive).length,
     [headers]
   );
@@ -24,7 +24,7 @@ export function InputTabs(props: InputTabsProps) {
         <TabsTrigger value="body">Body</TabsTrigger>
         {/*<TabsTrigger value="queryParams">Query</TabsTrigger>*/}
         <TabsTrigger value="headers">
-          {getActiveRowCount() === 0 ? 'Headers' : `Headers (${getActiveRowCount()})`}
+          {activeRowCount === 0 ? 'Headers' : `Headers (${activeRowCount})`}
         </TabsTrigger>
         {/*<TabsTrigger value="authorization">Auth</TabsTrigger>*/}
       </TabsList>

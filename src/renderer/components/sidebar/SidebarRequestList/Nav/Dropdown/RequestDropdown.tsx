@@ -12,23 +12,23 @@ import React from 'react';
 import { TrufosRequest } from 'shim/objects/request';
 
 export interface RequestDropdownProps {
-  request: TrufosRequest;
+  requestId: TrufosRequest['id'];
 }
 
-export const RequestDropdown = ({ request }: RequestDropdownProps) => {
+export const RequestDropdown = ({ requestId }: RequestDropdownProps) => {
   const deleteRequest = useCollectionActions().deleteRequest;
-  const selectedRequestId = useCollectionStore().selectedRequestId;
+  const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuAction showOnHover={selectedRequestId !== request.id}>
+        <SidebarMenuAction showOnHover={selectedRequestId !== requestId}>
           <MoreHorizontal />
           <span className="sr-only">More</span>
         </SidebarMenuAction>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-48 rounded-lg" side={'right'} align={'start'}>
         <DropdownMenuItem
-          onClick={handleMouseEvent(() => deleteRequest(request.id))}
+          onClick={handleMouseEvent(() => deleteRequest(requestId))}
           className="text-danger"
         >
           Delete Request
