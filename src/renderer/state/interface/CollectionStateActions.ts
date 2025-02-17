@@ -68,6 +68,21 @@ export interface CollectionStateActions {
   setDraftFlag(): void;
 
   /**
+   * Add a new folder to the collection
+   * @param title
+   * @param parentId
+   */
+  addNewFolder(title?: string, parentId?: string): Promise<void>;
+
+  /**
+   * Delete the folder to the file system
+   * @param id
+   */
+  deleteFolder(id: string): Promise<void>;
+
+
+  /** For functionality of the sidebar */
+  /**
    * needed for rerendering of th sidebar
    * @param id
    */

@@ -16,7 +16,7 @@ export interface FolderDropdownProps {
 }
 
 export const FolderDropdown = ({ folderId }: FolderDropdownProps) => {
-  const { addNewRequest } = useCollectionActions();
+  const { addNewRequest, addNewFolder, deleteFolder } = useCollectionActions();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -33,6 +33,16 @@ export const FolderDropdown = ({ folderId }: FolderDropdownProps) => {
         >
           Add Request
         </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={handleMouseEvent(() =>
+            addNewFolder((Math.random() + 1).toString(36).substring(7), folderId)
+          )}
+        >Add Folder</DropdownMenuItem>
+        <DropdownMenuItem className={'text-danger'}
+                          onClick={handleMouseEvent(() =>
+                            deleteFolder(folderId)
+                          )}
+        >Delete Folder</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
