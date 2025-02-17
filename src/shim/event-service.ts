@@ -3,6 +3,7 @@ import { TrufosResponse } from 'shim/objects/response';
 import { Collection } from './objects/collection';
 import { TrufosObject } from './objects';
 import { VariableObject } from './variables';
+import { Folder } from 'shim/objects/folder';
 
 export interface IEventService {
   /**
@@ -69,4 +70,10 @@ export interface IEventService {
    * @param variables The variables of the Collection to set.
    */
   setCollectionVariables(variables: VariableObject[]): void;
+
+  /**
+   * Save the folder to the file system.
+   * @param folder The folder to save.
+   */
+  saveFolder(folder: Folder): Promise<Folder>;
 }
