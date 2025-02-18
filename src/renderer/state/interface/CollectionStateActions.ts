@@ -80,7 +80,6 @@ export interface CollectionStateActions {
    */
   deleteFolder(id: string): Promise<void>;
 
-
   /** For functionality of the sidebar */
   /**
    * needed for rerendering of th sidebar

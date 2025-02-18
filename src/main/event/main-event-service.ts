@@ -113,6 +113,6 @@ export class MainEventService implements IEventService {
   }
 
   async saveFolder(folder: Folder) {
-    return await persistenceService.saveFolder(folder) as Folder;
+    return (await persistenceService.saveFolder(folder)) as Folder;
   }
 }

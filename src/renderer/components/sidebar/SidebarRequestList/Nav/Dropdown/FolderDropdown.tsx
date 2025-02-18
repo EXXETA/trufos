@@ -37,12 +37,15 @@ export const FolderDropdown = ({ folderId }: FolderDropdownProps) => {
           onClick={handleMouseEvent(() =>
             addNewFolder((Math.random() + 1).toString(36).substring(7), folderId)
           )}
-        >Add Folder</DropdownMenuItem>
-        <DropdownMenuItem className={'text-danger'}
-                          onClick={handleMouseEvent(() =>
-                            deleteFolder(folderId)
-                          )}
-        >Delete Folder</DropdownMenuItem>
+        >
+          Add Folder
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={'text-danger'}
+          onClick={handleMouseEvent(() => deleteFolder(folderId))}
+        >
+          Delete Folder
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
