@@ -26,8 +26,13 @@ eventService.on('before-close', async () => {
 });
 
 interface CollectionState {
+  /** The currently selected collection */
   collection?: Collection;
+
+  /** A map of all requests in the collection */
   requests: Map<TrufosRequest['id'], TrufosRequest>;
+
+  /** A map of all folders in the collection */
   folders: Map<Folder['id'], Folder>;
 
   /** The ID of the currently selected request */
@@ -205,6 +210,13 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     setFolderClose: (id: string) => {
       set((state) => {
         state.openFolders.delete(id);
+      });
+    },
+
+    setVariables: async (variables) => {
+      await eventService.setCollectionVariables(variables);
+      set((state) => {
+        state.collection.variables = variables;
       });
     },
   }))

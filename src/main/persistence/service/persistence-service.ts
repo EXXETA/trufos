@@ -4,6 +4,9 @@ import { createReadStream } from 'node:fs';
 import {
   CollectionInfoFile,
   FolderInfoFile,
+  fromCollectionInfoFile,
+  fromFolderInfoFile,
+  fromRequestInfoFile,
   InfoFile,
   RequestInfoFile,
   toInfoFile,
@@ -287,20 +290,11 @@ export class PersistenceService {
    */
   public async loadCollection(dirPath: string): Promise<Collection> {
     const type = 'collection' as const;
-    const { id, title, variables } = await this.readInfoFile(dirPath, type);
-    this.idToPathMap.set(id, dirPath);
-    const children = await this.loadChildren(id, dirPath);
+    const info = await this.readInfoFile(dirPath, type);
+    this.idToPathMap.set(info.id, dirPath);
+    const children = await this.loadChildren(info.id, dirPath);
 
-    return {
-      id,
-      type,
-      title,
-      dirPath,
-      children,
-      variables: Object.fromEntries(
-        Object.entries(variables).map(([key, variable]) => [key, Object.assign(variable, { key })])
-      ),
-    };
+    return fromCollectionInfoFile(info, dirPath, children);
   }
 
   private async loadRequest(parentId: string, dirPath: string): Promise<TrufosRequest> {
@@ -309,11 +303,7 @@ export class PersistenceService {
     const info = await this.readInfoFile(dirPath, type, draft);
     this.idToPathMap.set(info.id, dirPath);
 
-    return Object.assign(info, {
-      parentId,
-      type,
-      draft,
-    });
+    return fromRequestInfoFile(info, parentId);
   }
 
   private async loadFolder(parentId: string, dirPath: string): Promise<Folder> {
@@ -322,11 +312,7 @@ export class PersistenceService {
     this.idToPathMap.set(info.id, dirPath);
     const children = await this.loadChildren(info.id, dirPath);
 
-    return Object.assign(info, {
-      parentId,
-      type,
-      children,
-    });
+    return fromFolderInfoFile(info, parentId, children);
   }
 
   private async loadChildren(
@@ -351,7 +337,6 @@ export class PersistenceService {
     return children;
   }
 
-  // TODO: simplify type detection
   private async load<T extends TrufosRequest | Folder>(
     parentId: string,
     dirPath: string,
@@ -392,7 +377,7 @@ export class PersistenceService {
     }
 
     // potentially migrate the info file to latest version
-    return await migrateInfoFile(info);
+    return await migrateInfoFile(info, type);
   }
 
   private updatePathMapRecursively(child: Folder | TrufosRequest, newParentDirPath: string) {

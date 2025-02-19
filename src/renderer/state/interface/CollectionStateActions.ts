@@ -2,6 +2,7 @@ import { Collection } from 'shim/objects/collection';
 import { RequestBody, TrufosRequest } from 'shim/objects/request';
 import { TrufosHeader } from 'shim/objects/headers';
 import { editor } from 'monaco-editor';
+import { VariableMap } from 'shim/objects/variables';
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
@@ -22,14 +23,25 @@ export interface CollectionStateActions {
    */
   updateRequest(request: Partial<TrufosRequest>, overwrite?: false): void;
 
+  /**
+   * Set the request body of the currently selected request
+   * @param payload The new request body
+   */
   setRequestBody(payload: RequestBody): void;
 
+  /**
+   * Set the editor instance for text-based request bodies
+   * @param requestEditor The editor instance
+   */
   setRequestEditor(requestEditor?: editor.ICodeEditor): void;
 
   setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
 
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
+  /**
+   * Add a new header to the currently selected request
+   */
   addHeader(): void;
 
   /**
@@ -72,4 +84,10 @@ export interface CollectionStateActions {
    * @param id
    */
   setFolderClose(id: string): void;
+
+  /**
+   * Set the variables of the current collection
+   * @param variables The new variables to set
+   */
+  setVariables(variables: VariableMap): Promise<void>;
 }

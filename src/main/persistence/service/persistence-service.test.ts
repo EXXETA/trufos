@@ -28,6 +28,7 @@ function getExampleCollection(): Collection {
     title: 'collection',
     children: [],
     variables: {},
+    environments: {},
     dirPath: path.join(USER_DATA_DIR, 'collections', randomUUID()),
   };
 }

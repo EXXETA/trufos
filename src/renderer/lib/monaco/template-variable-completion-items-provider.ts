@@ -32,14 +32,14 @@ export class TemplateVariableCompletionItemsProvider implements languages.Comple
   private async getSuggestions(range: IRange, withClosingBracket = true) {
     const suggestions: languages.CompletionItem[] = [];
 
-    for (const variable of await eventService.getActiveEnvironmentVariables()) {
+    for (const [key, variable] of await eventService.getActiveEnvironmentVariables()) {
       const postfix = withClosingBracket ? '}}' : '';
       suggestions.push({
-        label: variable.key,
-        kind: variable.key.startsWith('$')
+        label: key,
+        kind: key.startsWith('$')
           ? languages.CompletionItemKind.Function
           : languages.CompletionItemKind.Variable,
-        insertText: `${variable.key}${postfix}`, // add variable name and optionally closing bracket
+        insertText: `${key}${postfix}`, // add variable name and optionally closing bracket
         range,
         detail: variable.description,
       });

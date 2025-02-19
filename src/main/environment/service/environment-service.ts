@@ -3,7 +3,7 @@ import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { Collection } from 'shim/objects/collection';
-import { VariableObject } from 'shim/variables';
+import { VariableMap } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 
 const persistenceService = PersistenceService.instance;
@@ -16,7 +16,17 @@ const persistenceService = PersistenceService.instance;
 export class EnvironmentService implements Initializable {
   public static readonly instance: EnvironmentService = new EnvironmentService();
 
+  /** The current collection that is being used. */
   public currentCollection: Collection;
+
+  /** The key of the current environment in the current collection. */
+  public currentEnvironmentKey?: string;
+
+  /** The currently selected environment in the current collection. */
+  public get currentEnvironment() {
+    if (this.currentEnvironmentKey == null) return;
+    return this.currentCollection.environments[this.currentEnvironmentKey];
+  }
 
   /**
    * Initializes the environment service by loading the last used collection.
@@ -37,28 +47,13 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
-   * Sets a variable in the current collection.
-   *
-   * @param key The key of the variable.
-   * @param value The new value of the variable.
+   * Replace all variables in the current collection with the given variables.
+   * @param variables The variables of the Collection to set.
    */
-  public setCollectionVariable(key: string, value: string) {
-    const variable = this.currentCollection.variables[key];
-    if (variable !== undefined) {
-      variable.value = value;
-    } else {
-      this.currentCollection.variables[key] = { key, value };
-    }
+  public setCollectionVariables(variables: VariableMap) {
+    this.currentCollection.variables = variables;
   }
 
-  /**
-   * Sets and saves all variables in the current collection.
-   * @param variables
-   */
-  public setCollectionVariables(variables: VariableObject[]) {
-    this.currentCollection.variables = {};
-    variables.forEach((variable) => (this.currentCollection.variables[variable.key] = variable));
-  }
   /**
    * Changes the current collection to the one at the specified path.
    *
@@ -69,23 +64,30 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
-   * Returns all active variables in the current collection. This also includes system
-   * variables.
+   * Returns all variables for the current state (e.g. collection variables). This also includes
+   * system variables.
    */
   public getVariables() {
-    return Object.values(this.currentCollection.variables).concat(getSystemVariables());
+    return Object.entries(this.currentEnvironment.variables)
+      .concat(Object.entries(this.currentCollection.variables))
+      .concat(getSystemVariables());
   }
 
   /**
    * Returns the value of a variable. The hierarchy is as follows:
-   * 1. Collection variables
-   * 2. System variables
+   * 1. Environment variables
+   * 2. Collection variables
+   * 3. System variables
    *
    * @param key The key of the variable.
    * @returns The value of the variable if it exists, otherwise undefined.
    */
-  public getVariable(key: string): VariableObject | undefined {
-    return this.currentCollection.variables[key] ?? getSystemVariable(key);
+  public getVariable(key: string) {
+    return (
+      this.currentEnvironment?.variables[key] ??
+      this.currentCollection.variables[key] ??
+      getSystemVariable(key)
+    );
   }
 
   private getVariableValue(key: string) {
