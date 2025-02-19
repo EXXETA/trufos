@@ -100,6 +100,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
       set((state) => {
         state.requests.set(request.id, request);
+        state.selectedRequestId = request.id;
         const parent = selectParent(state, request.parentId);
         parent.children.push(request);
       });
@@ -195,6 +196,36 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       set((state) => {
         selectRequest(state).draft = true;
       }),
+
+    addNewFolder: async (title, parentId) => {
+      const { collection } = get();
+      const folder = await eventService.saveFolder({
+        id: null,
+        parentId: parentId ?? collection.id,
+        type: 'folder',
+        title: title ?? (Math.random() + 1).toString(36).substring(7),
+        children: [],
+      });
+
+      set((state) => {
+        state.folders.set(folder.id, folder);
+        const parent = selectParent(state, folder.parentId);
+        parent.children.push(folder);
+      });
+    },
+
+    deleteFolder: async (id) => {
+      const folder = selectFolder(get(), id);
+      console.info('Deleting folder', folder);
+      await eventService.deleteObject(folder);
+
+      set((state) => {
+        const folder = selectFolder(state, id);
+        const parent = selectParent(state, folder.parentId);
+        parent.children = parent.children.filter((child) => child.id !== id);
+        state.folders.delete(id);
+      });
+    },
 
     isFolderOpen: (id: string) => {
       const state = get();
