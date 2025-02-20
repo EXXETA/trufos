@@ -323,7 +323,7 @@ export class PersistenceService {
     const info = await this.readInfoFile(dirPath, type, draft);
     this.idToPathMap.set(info.id, dirPath);
 
-    return fromRequestInfoFile(info, parentId);
+    return fromRequestInfoFile(info, parentId, draft);
   }
 
   private async loadFolder(parentId: string, dirPath: string): Promise<Folder> {
