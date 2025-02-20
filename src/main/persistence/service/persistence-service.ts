@@ -21,38 +21,33 @@ import {
   TEXT_BODY_FILE_NAME,
   TextBody,
 } from 'shim/objects/request';
-import { exists, USER_DATA_DIR } from 'main/util/fs-util';
+import { exists } from 'main/util/fs-util';
 import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { generateDefaultCollection } from './default-collection';
 import { randomUUID } from 'node:crypto';
 import { migrateInfoFile } from './info-files/migrators';
 import { SemVer } from 'main/util/semver';
+import { SettingsService } from './settings-service';
 
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
  * to and from the file system.
  */
 export class PersistenceService {
-  private static readonly DEFAULT_COLLECTION_DIR = path.join(USER_DATA_DIR, 'default-collection');
-
   public static readonly instance = new PersistenceService();
 
   private readonly idToPathMap: Map<string, string> = new Map();
 
   /**
-   * Loads the default collection into memory.
-   * @returns the default collection
+   * Creates the default collection if it does not exist.
    */
-  public async loadDefaultCollection() {
-    const dirPath = PersistenceService.DEFAULT_COLLECTION_DIR;
-    if (await exists(path.join(dirPath, 'collection.json'))) {
-      return await this.loadCollection(dirPath);
+  public async createDefaultCollectionIfNotExists() {
+    const dirPath = SettingsService.DEFAULT_COLLECTION_DIR;
+    if (!(await exists(path.join(dirPath, 'collection.json')))) {
+      console.info('Creating default collection at', dirPath);
+      const collection = generateDefaultCollection(dirPath);
+      await this.saveCollectionRecursive(collection);
     }
-
-    console.info('Creating default collection at', dirPath);
-    const collection = generateDefaultCollection(dirPath);
-    await this.saveCollectionRecursive(collection);
-    return collection;
   }
 
   /**
@@ -284,11 +279,36 @@ export class PersistenceService {
   }
 
   /**
+   * Creates a new collection at the specified directory path.
+   * @param dirPath the directory path where the collection should be created
+   * @param title the title of the collection
+   */
+  public async createCollection(dirPath: string, title: string): Promise<Collection> {
+    console.info('Creating new collection at', dirPath);
+    if ((await fs.readdir(dirPath)).length !== 0) {
+      throw new Error('Directory is not empty');
+    }
+
+    const collection: Collection = {
+      id: randomUUID(),
+      title: title,
+      type: 'collection',
+      dirPath,
+      variables: {},
+      environments: {},
+      children: [],
+    };
+    await this.saveCollection(collection);
+    return collection;
+  }
+
+  /**
    * Loads a collection and all of its children from the file system.
    * @param dirPath the directory path where the collection is located
    * @returns the loaded collection
    */
   public async loadCollection(dirPath: string): Promise<Collection> {
+    console.info('Loading collection at', dirPath);
     const type = 'collection' as const;
     const info = await this.readInfoFile(dirPath, type);
     this.idToPathMap.set(info.id, dirPath);

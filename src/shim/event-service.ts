@@ -82,4 +82,17 @@ export interface IEventService {
    * @param folder The folder to save.
    */
   saveFolder(folder: Folder): void;
+
+  /**
+   * Open an existing collection at the given directory path.
+   * @param dirPath The directory path of the collection.
+   */
+  openCollection(dirPath: string): Promise<Collection>;
+
+  /**
+   * Create a new collection at the given directory path with the given title.
+   * @param dirPath The directory path of the new collection. Must be empty.
+   * @param title The title of the new collection.
+   */
+  createCollection(dirPath: string, title: string): Promise<Collection>;
 }

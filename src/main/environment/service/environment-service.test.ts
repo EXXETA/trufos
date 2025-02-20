@@ -5,6 +5,7 @@ import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { randomUUID } from 'node:crypto';
 import { getSystemVariables } from './system-variable';
+import { SettingsObject, SettingsService } from '../../persistence/service/settings-service';
 
 const environmentService = EnvironmentService.instance;
 
@@ -122,5 +123,24 @@ describe('EnvironmentService', () => {
 
     // Assert
     expect(result).toEqual(systemVariable);
+  });
+
+  it('should load the configured collection from SettingsService', async () => {
+    // Arrange
+    const getSettingsSpy = vi.spyOn(SettingsService.instance, 'settings', 'get');
+    const collectionPath = '/path/to/collection';
+    const settings: SettingsObject = { collections: [collectionPath], currentCollectionIndex: 0 };
+    getSettingsSpy.mockReturnValueOnce(settings);
+    const loadCollectionSpy = vi
+      .spyOn(PersistenceService.instance, 'loadCollection')
+      .mockResolvedValueOnce(collection as Collection);
+
+    // Act
+    await environmentService.init();
+
+    // Assert
+    expect(getSettingsSpy).toHaveBeenCalled();
+    expect(loadCollectionSpy).toHaveBeenCalledWith(collectionPath);
+    expect(environmentService.currentCollection).toEqual(collection);
   });
 });
