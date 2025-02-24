@@ -11,6 +11,12 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     icon: './images/icon',
+    osxSign: {},
+    osxNotarize: {
+      appleApiKey: process.env.APPLE_API_KEY!,
+      appleApiKeyId: process.env.APPLE_API_KEY_ID!,
+      appleApiIssuer: process.env.APPLE_API_ISSUER!
+    },
   },
   rebuildConfig: {},
   makers: [new MakerSquirrel({}), new MakerZIP({}, ['linux']), new MakerDMG()],
