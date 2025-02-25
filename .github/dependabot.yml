@@ -17,10 +17,7 @@ updates:
           - "@typescript-eslint/*"
       react:
         patterns:
-          - "react"
-          - "react-dom"
-          - "@types/react"
-          - "@types/react-dom"
+          - "*react*"
       vitest:
         patterns:
           - "vitest"
