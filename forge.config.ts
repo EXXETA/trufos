@@ -64,6 +64,17 @@ const config: ForgeConfig = {
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
     }),
   ],
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: 'EXXETA',
+          name: 'trufos',
+        },
+      },
+    },
+  ],
 };
 
 export default config;
