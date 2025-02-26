@@ -67,7 +67,10 @@ export class MainEventService implements IEventService {
     console.debug('Registered event channels on backend');
   }
 
-  async loadCollection() {
+  async loadCollection(force?: boolean) {
+    if (force) {
+      return await persistenceService.loadDefaultCollection();
+    }
     return environmentService.currentCollection;
   }
 
@@ -113,6 +116,6 @@ export class MainEventService implements IEventService {
   }
 
   async saveFolder(folder: Folder) {
-    return (await persistenceService.saveFolder(folder)) as Folder;
+    await persistenceService.saveFolder(folder);
   }
 }

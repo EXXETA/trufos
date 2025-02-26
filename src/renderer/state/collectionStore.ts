@@ -104,6 +104,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         const parent = selectParent(state, request.parentId);
         parent.children.push(request);
       });
+      get().setFolderOpen(parentId);
     },
 
     updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) =>
@@ -197,21 +198,20 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         selectRequest(state).draft = true;
       }),
 
-    addNewFolder: async (title, parentId) => {
-      const { collection } = get();
-      const folder = await eventService.saveFolder({
+    addNewFolder: async (title?, parentId?) => {
+      await eventService.saveFolder({
         id: null,
-        parentId: parentId ?? collection.id,
+        parentId: parentId ?? get().collection.id,
         type: 'folder',
         title: title ?? (Math.random() + 1).toString(36).substring(7),
         children: [],
       });
 
-      set((state) => {
-        state.folders.set(folder.id, folder);
-        const parent = selectParent(state, folder.parentId);
-        parent.children.push(folder);
-      });
+      const collection = await eventService.loadCollection(true);
+      if (parentId) {
+        get().setFolderOpen(parentId);
+      }
+      get().initialize(collection);
     },
 
     deleteFolder: async (id) => {
@@ -219,11 +219,10 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       console.info('Deleting folder', folder);
       await eventService.deleteObject(folder);
 
+      const collection = await eventService.loadCollection(true);
+      get().initialize(collection);
       set((state) => {
-        const folder = selectFolder(state, id);
-        const parent = selectParent(state, folder.parentId);
-        parent.children = parent.children.filter((child) => child.id !== id);
-        state.folders.delete(id);
+        state.openFolders.delete(id);
       });
     },
 

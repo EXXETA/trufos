@@ -9,7 +9,7 @@ export interface IEventService {
   /**
    * Load the default collection.
    */
-  loadCollection(): Promise<Collection>;
+  loadCollection(force?: boolean): Promise<Collection>;
 
   /**
    * Send an HTTP request.
@@ -81,5 +81,5 @@ export interface IEventService {
    * Save the folder to the file system.
    * @param folder The folder to save.
    */
-  saveFolder(folder: Folder): Promise<Folder>;
+  saveFolder(folder: Folder): void;
 }
