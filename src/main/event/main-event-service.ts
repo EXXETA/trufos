@@ -120,11 +120,16 @@ export class MainEventService implements IEventService {
   async saveFolder(folder: Folder) {
     await persistenceService.saveFolder(folder);
   }
+
   async openCollection(dirPath: string) {
     return await persistenceService.loadCollection(dirPath);
   }
 
   async createCollection(dirPath: string, title: string) {
     return await persistenceService.createCollection(dirPath, title);
+  }
+
+  async closeCollection(dirPath?: string) {
+    return await environmentService.closeCollection(dirPath);
   }
 }

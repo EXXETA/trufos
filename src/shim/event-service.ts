@@ -95,4 +95,10 @@ export interface IEventService {
    * @param title The title of the new collection.
    */
   createCollection(dirPath: string, title: string): Promise<Collection>;
+
+  /**
+   * Close the collection at the given directory path. You cannot close the default collection.
+   * @param dirPath The directory path of the collection to close. If not provided, the current collection is closed.
+   */
+  closeCollection(dirPath?: string): Promise<Collection>;
 }

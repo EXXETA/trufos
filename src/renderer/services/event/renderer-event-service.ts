@@ -56,4 +56,5 @@ export class RendererEventService implements IEventService {
   selectEnvironment = createEventMethod('selectEnvironment');
   openCollection = createEventMethod('openCollection');
   createCollection = createEventMethod('createCollection');
+  closeCollection = createEventMethod('closeCollection');
 }
