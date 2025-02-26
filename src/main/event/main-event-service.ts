@@ -69,7 +69,9 @@ export class MainEventService implements IEventService {
 
   async loadCollection(force?: boolean) {
     if (force) {
-      return await persistenceService.loadDefaultCollection();
+      return await environmentService.changeCollection(
+        environmentService.currentCollection.dirPath
+      );
     }
     return environmentService.currentCollection;
   }
