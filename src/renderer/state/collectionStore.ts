@@ -55,6 +55,15 @@ async function setRequestTextBody(requestEditor: editor.ICodeEditor, request: Tr
   }
 }
 
+function isRequestInAParentFolder(requestId: string, folder: Folder): boolean {
+  return folder.children.some((child) => {
+    if (child.type === 'folder') {
+      return isRequestInAParentFolder(requestId, child);
+    }
+    return child.id === requestId;
+  });
+}
+
 export const useCollectionStore = create<CollectionState & CollectionStateActions>()(
   immer((set, get) => ({
     requests: new Map(),
@@ -158,7 +167,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       await eventService.deleteObject(selectRequest(get(), id));
 
       set((state) => {
-        if (state.selectedRequestId === id) delete state.selectedRequestId;
+        if (state.selectedRequestId === id) state.selectedRequestId = undefined;
         const request = selectRequest(state, id);
         const parent = selectParent(state, request.parentId);
         parent.children = parent.children.filter((child) => child.id !== id);
@@ -223,6 +232,9 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       get().initialize(collection);
       set((state) => {
         state.openFolders.delete(id);
+        if (isRequestInAParentFolder(state.selectedRequestId, folder)) {
+          state.selectedRequestId = undefined;
+        }
       });
     },
 
