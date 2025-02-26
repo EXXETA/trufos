@@ -55,6 +55,15 @@ async function setRequestTextBody(requestEditor: editor.ICodeEditor, request: Tr
   }
 }
 
+function isRequestInAParentFolder(requestId: string, folder: Folder): boolean {
+  return folder.children.some((child) => {
+    if (child.type === 'folder') {
+      return isRequestInAParentFolder(requestId, child);
+    }
+    return child.id === requestId;
+  });
+}
+
 export const useCollectionStore = create<CollectionState & CollectionStateActions>()(
   immer((set, get) => ({
     requests: new Map(),
@@ -100,9 +109,11 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
       set((state) => {
         state.requests.set(request.id, request);
+        state.selectedRequestId = request.id;
         const parent = selectParent(state, request.parentId);
         parent.children.push(request);
       });
+      get().setFolderOpen(parentId);
     },
 
     updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) =>
@@ -156,7 +167,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       await eventService.deleteObject(selectRequest(get(), id));
 
       set((state) => {
-        if (state.selectedRequestId === id) delete state.selectedRequestId;
+        if (state.selectedRequestId === id) state.selectedRequestId = undefined;
         const request = selectRequest(state, id);
         const parent = selectParent(state, request.parentId);
         parent.children = parent.children.filter((child) => child.id !== id);
@@ -195,6 +206,37 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       set((state) => {
         selectRequest(state).draft = true;
       }),
+
+    addNewFolder: async (title?, parentId?) => {
+      await eventService.saveFolder({
+        id: null,
+        parentId: parentId ?? get().collection.id,
+        type: 'folder',
+        title: title ?? (Math.random() + 1).toString(36).substring(7),
+        children: [],
+      });
+
+      const collection = await eventService.loadCollection(true);
+      if (parentId) {
+        get().setFolderOpen(parentId);
+      }
+      get().initialize(collection);
+    },
+
+    deleteFolder: async (id) => {
+      const folder = selectFolder(get(), id);
+      console.info('Deleting folder', folder);
+      await eventService.deleteObject(folder);
+
+      const collection = await eventService.loadCollection(true);
+      get().initialize(collection);
+      set((state) => {
+        state.openFolders.delete(id);
+        if (isRequestInAParentFolder(state.selectedRequestId, folder)) {
+          state.selectedRequestId = undefined;
+        }
+      });
+    },
 
     isFolderOpen: (id: string) => {
       const state = get();

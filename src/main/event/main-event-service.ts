@@ -7,6 +7,7 @@ import { PersistenceService } from '../persistence/service/persistence-service';
 import { TrufosObject } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { VariableMap } from 'shim/objects/variables';
+import { Folder } from 'shim/objects/folder';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -66,7 +67,12 @@ export class MainEventService implements IEventService {
     console.debug('Registered event channels on backend');
   }
 
-  async loadCollection() {
+  async loadCollection(force?: boolean) {
+    if (force) {
+      return await environmentService.changeCollection(
+        environmentService.currentCollection.dirPath
+      );
+    }
     return environmentService.currentCollection;
   }
 
@@ -109,5 +115,9 @@ export class MainEventService implements IEventService {
 
   async selectEnvironment(key: string) {
     environmentService.currentEnvironmentKey = key;
+  }
+
+  async saveFolder(folder: Folder) {
+    await persistenceService.saveFolder(folder);
   }
 }
