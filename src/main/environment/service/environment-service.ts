@@ -83,6 +83,34 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
+   * Closes the collection at the specified path.
+   * @param path The path of the collection to close. If not specified, the current collection is closed.
+   */
+  public async closeCollection(path?: string) {
+    path ??= this.currentCollection.dirPath;
+    path = normalize(path);
+
+    // do not close the default collection
+    const settings = settingsService.modifiableSettings;
+    if (path === SettingsService.DEFAULT_COLLECTION_DIR || settings.collections.length <= 1) {
+      console.warn('Cannot close the default collection.');
+      return this.currentCollection;
+    }
+
+    // change the current collection if the collection to close is the current one
+    if (path === this.currentCollection.dirPath) {
+      await this.changeCollection(SettingsService.DEFAULT_COLLECTION_DIR);
+    }
+
+    // remove the collection from the list of open collections
+    settings.collections = settings.collections.filter((collectionPath) => collectionPath !== path);
+    await settingsService.setSettings(settings);
+
+    // return the current collection (after closing the specified collection)
+    return this.currentCollection;
+  }
+
+  /**
    * Returns all variables for the current state (e.g. collection variables). This also includes
    * system variables.
    */
