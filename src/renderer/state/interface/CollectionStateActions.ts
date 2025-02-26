@@ -3,6 +3,7 @@ import { RequestBody, TrufosRequest } from 'shim/objects/request';
 import { TrufosHeader } from 'shim/objects/headers';
 import { editor } from 'monaco-editor';
 import { VariableMap } from 'shim/objects/variables';
+import { Folder } from 'shim/objects/folder';
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
@@ -38,6 +39,13 @@ export interface CollectionStateActions {
   setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
 
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
+
+  /**
+   * Rename the request title
+   * @param id
+   * @param title
+   */
+  renameRequest(id: TrufosRequest['id'], title: string): void;
 
   /**
    * Add a new header to the currently selected request
@@ -79,6 +87,13 @@ export interface CollectionStateActions {
    * @param id
    */
   deleteFolder(id: string): Promise<void>;
+
+  /**
+   * Rename the folder title
+   * @param id
+   * @param title
+   */
+  renameFolder(id: Folder['id'], title: string): void;
 
   /** For functionality of the sidebar */
   /**

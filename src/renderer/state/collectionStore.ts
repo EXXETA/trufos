@@ -174,6 +174,23 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         state.requests.delete(id);
       });
     },
+    renameRequest(id: TrufosRequest['id'], title: string) {
+      set((state) => {
+        const request = selectRequest(state, id);
+        if (request == null) return;
+
+        // Create a new request object with the updated title
+        const updatedRequest = {
+          ...request,
+          title: title,
+        };
+
+        // Update the folders map with the new object
+        state.requests.set(id, updatedRequest);
+      });
+      const request = selectRequest(get(), id);
+      eventService.saveRequest(request);
+    },
 
     addHeader: () =>
       set((state) => {
@@ -236,6 +253,23 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
           state.selectedRequestId = undefined;
         }
       });
+    },
+    renameFolder(id: Folder['id'], title: string) {
+      set((state) => {
+        const folder = selectFolder(state, id);
+        if (folder == null) return;
+
+        // Create a new folder object with the updated title
+        const updatedFolder = {
+          ...folder,
+          title: title,
+        };
+
+        // Update the folders map with the new object
+        state.folders.set(id, updatedFolder);
+      });
+      const folder = selectFolder(get(), id);
+      eventService.saveFolder(folder);
     },
 
     isFolderOpen: (id: string) => {
