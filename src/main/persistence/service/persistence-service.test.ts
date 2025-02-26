@@ -72,24 +72,24 @@ describe('PersistenceService', () => {
     await mkdir(collection.dirPath, { recursive: true });
   });
 
-  it('loadDefaultCollection() should return the existing default collection if it exists', async () => {
+  it('createDefaultCollectionIfNotExists() should not create if it already exists', async () => {
     // Arrange
-    const defaultCollection = {} as Collection;
-    const loadCollectionSpy = vi
-      .spyOn(persistenceService, 'loadCollection')
-      .mockResolvedValueOnce(defaultCollection);
+    const defaultCollectionImport = await import('./default-collection');
+    const generateDefaultCollectionSpy = vi.spyOn(
+      defaultCollectionImport,
+      'generateDefaultCollection'
+    );
     await mkdir(collectionDirPath);
     await writeFile(path.join(collectionDirPath, 'collection.json'), '');
 
     // Act
-    const result = await persistenceService.loadDefaultCollection();
+    await persistenceService.createDefaultCollectionIfNotExists();
 
     // Assert
-    expect(result).toBe(defaultCollection);
-    expect(loadCollectionSpy).toHaveBeenCalledWith(collectionDirPath);
+    expect(generateDefaultCollectionSpy).not.toHaveBeenCalled();
   });
 
-  it('loadDefaultCollection() should create a new default collection if does not exist', async () => {
+  it('createDefaultCollectionIfNotExists() should create a new default collection if does not exist', async () => {
     // Arrange
     const defaultCollectionImport = await import('./default-collection');
     const defaultCollection = {} as Collection;
@@ -101,10 +101,9 @@ describe('PersistenceService', () => {
       .mockResolvedValueOnce();
 
     // Act
-    const result = await persistenceService.loadDefaultCollection();
+    await persistenceService.createDefaultCollectionIfNotExists();
 
     // Assert
-    expect(result).toBe(defaultCollection);
     expect(generateDefaultCollection).toHaveBeenCalledWith(collectionDirPath);
     expect(saveCollectionRecursiveSpy).toHaveBeenCalledWith(defaultCollection);
   });

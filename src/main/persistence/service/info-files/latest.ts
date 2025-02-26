@@ -52,7 +52,8 @@ export function fromFolderInfoFile(
 
 export function fromRequestInfoFile(
   infoFile: RequestInfoFile,
-  parentId: TrufosRequest['parentId']
+  parentId: TrufosRequest['parentId'],
+  draft: boolean
 ): TrufosRequest {
-  return Object.assign(infoFile, { type: 'request' as const, parentId });
+  return Object.assign(infoFile, { type: 'request' as const, parentId, draft });
 }

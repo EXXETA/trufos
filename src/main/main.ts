@@ -3,6 +3,7 @@ import { EnvironmentService } from 'main/environment/service/environment-service
 import 'main/event/main-event-service';
 import path from 'node:path';
 import quit from 'electron-squirrel-startup';
+import { SettingsService } from './persistence/service/settings-service';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -13,7 +14,8 @@ if (quit) {
 }
 
 const createWindow = async () => {
-  // initialize services
+  // initialize services in correct order
+  await SettingsService.instance.init();
   await EnvironmentService.instance.init();
 
   // Create the browser window.

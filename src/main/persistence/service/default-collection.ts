@@ -26,6 +26,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
         },
       ].map((variable) => [variable.key, variable])
     ),
+    environments: {},
     children: [
       {
         id: exampleRequestId,

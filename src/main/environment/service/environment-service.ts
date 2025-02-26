@@ -1,12 +1,15 @@
 import { Readable } from 'node:stream';
+import { normalize } from 'node:path';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { Collection } from 'shim/objects/collection';
 import { VariableMap } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
+import { SettingsService } from 'main/persistence/service/settings-service';
 
 const persistenceService = PersistenceService.instance;
+const settingsService = SettingsService.instance;
 
 /**
  * The environment service is responsible for managing the current collection and
@@ -32,8 +35,11 @@ export class EnvironmentService implements Initializable {
    * Initializes the environment service by loading the last used collection.
    */
   public async init() {
-    // TODO: load the last used collection from state instead
-    this.currentCollection = await persistenceService.loadDefaultCollection();
+    const { settings } = settingsService;
+    await persistenceService.createDefaultCollectionIfNotExists();
+
+    const collectionDir = settings.collections[settings.currentCollectionIndex];
+    this.currentCollection = await persistenceService.loadCollection(collectionDir);
   }
 
   /**
@@ -55,12 +61,53 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
-   * Changes the current collection to the one at the specified path.
+   * Loads the collection at the specified path and sets it as the current collection.
    *
-   * @param path The path of the collection to load and set as the current collection.
+   * @param path The path of the collection
    */
   public async changeCollection(path: string) {
-    return (this.currentCollection = await persistenceService.loadCollection(path));
+    path = normalize(path);
+    const settings = settingsService.modifiableSettings;
+
+    // open the collection if it is not already open
+    const collectionIndex = settings.collections.indexOf(path);
+    if (collectionIndex === -1) {
+      settings.currentCollectionIndex = settings.collections.push(path) - 1;
+    } else {
+      settings.currentCollectionIndex = collectionIndex;
+    }
+
+    this.currentCollection = await persistenceService.loadCollection(path);
+    await settingsService.setSettings(settings);
+    return this.currentCollection;
+  }
+
+  /**
+   * Closes the collection at the specified path.
+   * @param path The path of the collection to close. If not specified, the current collection is closed.
+   */
+  public async closeCollection(path?: string) {
+    path ??= this.currentCollection.dirPath;
+    path = normalize(path);
+
+    // do not close the default collection
+    const settings = settingsService.modifiableSettings;
+    if (path === SettingsService.DEFAULT_COLLECTION_DIR || settings.collections.length <= 1) {
+      console.warn('Cannot close the default collection.');
+      return this.currentCollection;
+    }
+
+    // change the current collection if the collection to close is the current one
+    if (path === this.currentCollection.dirPath) {
+      await this.changeCollection(SettingsService.DEFAULT_COLLECTION_DIR);
+    }
+
+    // remove the collection from the list of open collections
+    settings.collections = settings.collections.filter((collectionPath) => collectionPath !== path);
+    await settingsService.setSettings(settings);
+
+    // return the current collection (after closing the specified collection)
+    return this.currentCollection;
   }
 
   /**
