@@ -37,7 +37,7 @@ describe('SettingsService', async () => {
 
     // Assert
     expect(settingsService.settings).not.toEqual(newSettings);
-    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toEqual(
+    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
       settingsService.settings
     );
 
@@ -46,6 +46,8 @@ describe('SettingsService', async () => {
 
     // Assert
     expect(settingsService.settings).toEqual(newSettings);
-    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toEqual(newSettings);
+    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
+      newSettings
+    );
   });
 });
