@@ -90,13 +90,12 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     },
 
     addNewRequest: async (title, parentId) => {
-      const { collection } = get();
       const request = await eventService.saveRequest({
         url: 'http://',
         method: RequestMethod.GET,
         draft: true,
         id: null,
-        parentId: parentId ?? collection.id,
+        parentId: parentId ?? get().collection.id,
         type: 'request',
         title: title ?? (Math.random() + 1).toString(36).substring(7),
         headers: [],

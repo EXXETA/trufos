@@ -10,16 +10,17 @@ import { handleMouseEvent } from '@/util/callback-util';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useState } from 'react';
 import { TrufosRequest } from 'shim/objects/request';
-import { RenameModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/RenameModal';
+import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
 
 export interface RequestDropdownProps {
   request: TrufosRequest;
 }
 
 export const RequestDropdown = ({ request }: RequestDropdownProps) => {
-  const deleteRequest = useCollectionActions().deleteRequest;
+  const { deleteRequest } = useCollectionActions();
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const [renameModalIsOpen, setRenameModalIsOpen] = useState(false);
+
   return (
     <div>
       <DropdownMenu>
@@ -29,7 +30,7 @@ export const RequestDropdown = ({ request }: RequestDropdownProps) => {
             <span className="sr-only">More</span>
           </SidebarMenuAction>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-48 rounded-lg" side={'right'} align={'start'}>
+        <DropdownMenuContent className="w-48 rounded-lg" side="right" align="start">
           <DropdownMenuItem onClick={handleMouseEvent(() => setRenameModalIsOpen(true))}>
             Rename Request
           </DropdownMenuItem>
@@ -41,11 +42,14 @@ export const RequestDropdown = ({ request }: RequestDropdownProps) => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <RenameModal
-        isOpen={renameModalIsOpen}
-        trufosObject={request}
-        setOpen={(open) => setRenameModalIsOpen(open)}
-      />
+      {renameModalIsOpen && (
+        <NamingModal
+          isOpen={renameModalIsOpen}
+          trufosObject={request}
+          createType={null}
+          setOpen={setRenameModalIsOpen}
+        />
+      )}
     </div>
   );
 };
