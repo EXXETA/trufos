@@ -28,8 +28,8 @@ export const RequestView = ({ requestId }: SidebarRequestListProps) => {
       onClick={handleMouseEvent(() => setSelectedRequest(requestId))}
     >
       <div className={cn('font-bold', httpMethodColor(request.method))}>{request.method}</div>
-      <p>{request.url}</p>
-      <RequestDropdown requestId={requestId} />
+      <p>{request.title ?? request.url}</p>
+      <RequestDropdown request={request} />
     </span>
   );
 };
