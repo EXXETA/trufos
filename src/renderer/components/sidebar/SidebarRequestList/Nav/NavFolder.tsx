@@ -29,9 +29,9 @@ export function renderChildren(children: (TrufosRequest | Folder)[]) {
 export const NavFolder = ({ folderId }: NavFolderProps) => {
   const { setFolderOpen, setFolderClose } = useCollectionActions();
   const isFolderOpen = useCollectionStore((state) => state.openFolders.has(folderId));
-  const { type, title } = useCollectionStore((state) => selectFolder(state, folderId));
+  const folder = useCollectionStore((state) => selectFolder(state, folderId));
   const children = useCollectionStore((state) => selectFolder(state, folderId).children);
-  if (type !== 'folder') return null;
+  if (folder.type !== 'folder') return null;
 
   return (
     <Collapsible
@@ -44,8 +44,8 @@ export const NavFolder = ({ folderId }: NavFolderProps) => {
         <CollapsibleTrigger asChild>
           <SidebarMenuSubButton>
             {isFolderOpen ? <FaRegFolderOpen /> : <FaRegFolderClosed />}
-            <span>{title}</span>
-            <FolderDropdown folderId={folderId} />
+            <span>{folder.title}</span>
+            <FolderDropdown folder={folder} />
           </SidebarMenuSubButton>
         </CollapsibleTrigger>
         <CollapsibleContent>{renderChildren(children)}</CollapsibleContent>
