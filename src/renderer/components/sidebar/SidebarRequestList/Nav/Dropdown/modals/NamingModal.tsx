@@ -12,14 +12,14 @@ import { Button } from '@/components/ui/button';
 import { useCollectionActions, useCollectionStore, selectFolder } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
 
-export interface RenameModalProps {
-  createType: 'folder' | 'request' | null;
+export interface NamingModalProps {
+  createType?: 'folder' | 'request';
   trufosObject: Folder | TrufosRequest | Collection;
   isOpen: boolean;
   setOpen: (open: boolean) => void;
 }
 
-export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: RenameModalProps) => {
+export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: NamingModalProps) => {
   const [isValid, setValid] = useState(false);
   const [name, setName] = useState(createType ? '' : trufosObject.title);
   const { renameFolder, renameRequest, addNewRequest, addNewFolder } = useCollectionActions();
