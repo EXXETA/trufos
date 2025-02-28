@@ -115,7 +115,7 @@ export class EnvironmentService implements Initializable {
    * system variables.
    */
   public getVariables() {
-    return Object.entries(this.currentEnvironment.variables)
+    return Object.entries(this.currentEnvironment?.variables ?? {})
       .concat(Object.entries(this.currentCollection.variables))
       .concat(getSystemVariables());
   }
