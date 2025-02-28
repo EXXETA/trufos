@@ -4,32 +4,37 @@ import { immer } from 'zustand/middleware/immer';
 import { VariableMap } from 'shim/objects/variables';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/helper/util';
+import { EnvironmentMap } from 'shim/objects/environment';
 
 const eventService = RendererEventService.instance;
 
 interface VariableState {
   /** The variables of the current collection */
-  variables: VariableMap;
+  collectionVariables: VariableMap;
+  environmentVariables: EnvironmentMap;
 }
 
 export const useVariableStore = create<VariableState & VariableStateActions>()(
   immer((set, get) => ({
-    variables: {},
+    collectionVariables: {} as VariableMap,
+    environmentVariables: {} as EnvironmentMap,
 
-    initialize(variables: VariableMap) {
+    initialize(collectionVariables: VariableMap, environmentVariables: EnvironmentMap) {
       set((state) => {
-        state.variables = variables;
+        state.collectionVariables = collectionVariables;
+        state.environmentVariables = environmentVariables;
       });
     },
 
-    setVariables: async (variables) => {
+    setCollectionVariables: async (variables) => {
       await eventService.setCollectionVariables(variables);
       set((state) => {
-        state.variables = variables;
+        state.collectionVariables = variables;
       });
     },
   }))
 );
 
-export const selectVariables = (state: VariableState) => state.variables;
+export const selectCollectionVariables = (state: VariableState) => state.collectionVariables;
+export const selectEnvironmentVariables = (state: VariableState) => state.environmentVariables;
 export const useVariableActions = () => useVariableStore(useActions());
