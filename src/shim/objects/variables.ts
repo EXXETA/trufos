@@ -12,3 +12,5 @@ export type VariableObject = {
   /** A description of the variable. */
   description?: string;
 };
+
+export type VariableObjectWithKey = VariableObject & { key: string };
