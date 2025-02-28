@@ -16,11 +16,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import * as React from 'react';
 import { useState } from 'react';
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { selectVariables, useVariableActions, useVariableStore } from '@/state/variableStore';
 
 export const SettingsModal = () => {
-  const { setVariables } = useCollectionActions();
-  const variables = useCollectionStore((state) => state.collection.variables);
+  const { setVariables } = useVariableActions();
+  const variables = useVariableStore((state) => selectVariables(state));
   const [editorVariables, setEditorVariables] = useState(variableMapToArray(variables));
   const [isValid, setValid] = useState(false);
   const [isOpen, setOpen] = useState(false);

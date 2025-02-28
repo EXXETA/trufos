@@ -4,11 +4,12 @@ import { immer } from 'zustand/middleware/immer';
 import { RequestMethod } from 'shim/objects/request-method';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { useActions } from '@/state/util';
 import { Folder } from 'shim/objects/folder';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
-import { IpcPushStream } from '@/lib/ipc-stream';
 import { Collection } from 'shim/objects/collection';
+import { isRequestInAParentFolder, setRequestTextBody } from '@/state/helper/collectionUtil';
+import { useActions } from '@/state/helper/util';
+import { useVariableActions, useVariableStore } from '@/state/variableStore';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -45,25 +46,6 @@ interface CollectionState {
   openFolders: Set<Folder['id']>;
 }
 
-async function setRequestTextBody(requestEditor: editor.ICodeEditor, request: TrufosRequest) {
-  // load the new request body
-  if (request.body?.type === RequestBodyType.TEXT) {
-    const stream = await IpcPushStream.open(request);
-    requestEditor.setValue(await IpcPushStream.collect(stream));
-  } else {
-    requestEditor.setValue('');
-  }
-}
-
-function isRequestInAParentFolder(requestId: string, folder: Folder): boolean {
-  return folder.children.some((child) => {
-    if (child.type === 'folder') {
-      return isRequestInAParentFolder(requestId, child);
-    }
-    return child.id === requestId;
-  });
-}
-
 export const useCollectionStore = create<CollectionState & CollectionStateActions>()(
   immer((set, get) => ({
     requests: new Map(),
@@ -73,6 +55,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     initialize: (collection) => {
       const requests = new Map<TrufosRequest['id'], TrufosRequest>();
       const folders = new Map<Folder['id'], Folder>();
+      const { initialize } = useVariableStore.getState();
 
       const stack = [...collection.children];
       while (stack.length > 0) {
@@ -86,6 +69,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       }
 
       set({ collection, requests, folders });
+      initialize(collection.variables);
       console.info('initialize', get().collection);
     },
 
@@ -287,23 +271,16 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         state.openFolders.delete(id);
       });
     },
-
-    setVariables: async (variables) => {
-      await eventService.setCollectionVariables(variables);
-      set((state) => {
-        state.collection.variables = variables;
-      });
-    },
   }))
 );
 
-export const selectParent = (state: CollectionState, parentId: string) => {
+const selectParent = (state: CollectionState, parentId: string) => {
   if (state.collection.id === parentId) return state.collection;
   return state.folders.get(parentId)!;
 };
+const selectHeaders = (state: CollectionState) => selectRequest(state)?.headers;
 export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) =>
   state.requests.get(requestId ?? state.selectedRequestId);
-export const selectHeaders = (state: CollectionState) => selectRequest(state)?.headers;
 export const selectFolder = (state: CollectionState, folderId: Folder['id']) =>
   state.folders.get(folderId);
 export const useCollectionActions = () => useCollectionStore(useActions());

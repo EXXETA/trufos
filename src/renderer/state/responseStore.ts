@@ -2,7 +2,7 @@ import { TrufosResponse } from 'shim/objects/response';
 import { editor } from 'monaco-editor';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { useActions } from '@/state/util';
+import { useActions } from '@/state/helper/util';
 
 /** A map of requestId => response */
 type ResponseInfoMap = Record<string, TrufosResponse>;

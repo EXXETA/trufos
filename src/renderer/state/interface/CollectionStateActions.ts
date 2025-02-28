@@ -2,7 +2,6 @@ import { Collection } from 'shim/objects/collection';
 import { RequestBody, TrufosRequest } from 'shim/objects/request';
 import { TrufosHeader } from 'shim/objects/headers';
 import { editor } from 'monaco-editor';
-import { VariableMap } from 'shim/objects/variables';
 import { Folder } from 'shim/objects/folder';
 
 export interface CollectionStateActions {
@@ -113,10 +112,4 @@ export interface CollectionStateActions {
    * @param id
    */
   setFolderClose(id: string): void;
-
-  /**
-   * Set the variables of the current collection
-   * @param variables The new variables to set
-   */
-  setVariables(variables: VariableMap): Promise<void>;
 }
