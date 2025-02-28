@@ -14,7 +14,7 @@ import { Collection } from 'shim/objects/collection';
 
 export interface NamingModalProps {
   createType?: 'folder' | 'request';
-  trufosObject: Folder | TrufosRequest | Collection;
+  trufosObject: Folder | TrufosRequest | Omit<Collection, 'variables' | 'environments'>;
   isOpen: boolean;
   setOpen: (open: boolean) => void;
 }

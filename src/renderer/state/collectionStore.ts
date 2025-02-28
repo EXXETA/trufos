@@ -55,7 +55,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     initialize: (collection) => {
       const requests = new Map<TrufosRequest['id'], TrufosRequest>();
       const folders = new Map<Folder['id'], Folder>();
-      const { initialize: initializeVariables } = useVariableStore.getState();
+      const { initialize: initializeVariables } = useVariableStore.getState(); // useVariableActions is not loaded yet
 
       const stack = [...collection.children];
       while (stack.length > 0) {
@@ -70,7 +70,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
       // (re)set initial state
       set({ collection, requests, folders, openFolders: new Set(), selectedRequestId: undefined });
-      initializeVariables(collection.variables);
+      initializeVariables(collection.variables, collection.environments);
       console.info('Initialized collection:', get().collection);
     },
 
