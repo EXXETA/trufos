@@ -1,7 +1,7 @@
 import { VariableStateActions } from '@/state/interface/VariableStateAction';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { VariableMap } from '../../shim/objects/variables';
+import { VariableMap } from 'shim/objects/variables';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/helper/util';
 

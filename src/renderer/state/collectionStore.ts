@@ -9,7 +9,7 @@ import { CollectionStateActions } from '@/state/interface/CollectionStateActions
 import { Collection } from 'shim/objects/collection';
 import { isRequestInAParentFolder, setRequestTextBody } from '@/state/helper/collectionUtil';
 import { useActions } from '@/state/helper/util';
-import { useVariableActions, useVariableStore } from '@/state/variableStore';
+import { useVariableStore } from '@/state/variableStore';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -28,7 +28,7 @@ eventService.on('before-close', async () => {
 
 interface CollectionState {
   /** The currently selected collection */
-  collection?: Collection;
+  collection?: Omit<Collection, 'variables' | 'environments'>;
 
   /** A map of all requests in the collection */
   requests: Map<TrufosRequest['id'], TrufosRequest>;
