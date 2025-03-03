@@ -26,7 +26,7 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
   const siblingTitles: string[] = [];
   if (createType !== null && trufosObject.type !== 'request') {
     siblingTitles.push(...trufosObject.children.map((parent) => parent.title));
-  } else {
+  } else if (trufosObject.type !== 'collection') {
     const parent = useCollectionStore((state) => selectFolder(state, trufosObject.parentId));
     if (parent) {
       siblingTitles.push(...parent.children.map((child) => child.title));
