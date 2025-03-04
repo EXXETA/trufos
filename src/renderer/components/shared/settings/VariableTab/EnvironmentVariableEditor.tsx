@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { VARIABLE_NAME_REGEX, VariableMap, VariableObject } from 'shim/objects/variables';
+import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
 import { memo, useEffect } from 'react';
 import { produce } from 'immer';
 
@@ -20,17 +20,6 @@ export interface VariableEditorProps {
 }
 
 type VariableObjectWithKey = VariableObject & { key: string };
-
-export function variableMapToArray(map: VariableMap) {
-  return Object.entries(map).map<VariableObjectWithKey>(([key, variable]) => ({
-    key,
-    ...variable,
-  }));
-}
-
-export function variableArrayToMap(array: VariableObjectWithKey[]) {
-  return Object.fromEntries<VariableObject>(array.map(({ key, ...variable }) => [key, variable]));
-}
 
 function getInvalidVariableKeys(variables: VariableObjectWithKey[]) {
   const allKeys = new Set<string>();
@@ -46,7 +35,7 @@ function getInvalidVariableKeys(variables: VariableObjectWithKey[]) {
 }
 
 /** A component that allows adding, editing and removing variables */
-export const VariableEditor = memo<VariableEditorProps>(
+export const EnvironmentVariableEditor = memo<VariableEditorProps>(
   ({ variables, onValidChange, onVariablesChange }) => {
     // default props
     onValidChange ??= () => {};
