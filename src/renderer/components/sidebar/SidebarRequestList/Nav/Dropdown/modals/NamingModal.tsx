@@ -79,7 +79,7 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full bg-transparent outline-none"
-            placeholder="Enter the folder name"
+            placeholder={`Enter the ${createType ?? trufosObject.type} name`}
           />
         </div>
         <DialogFooter className="bottom-0">
