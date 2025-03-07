@@ -14,4 +14,6 @@ export interface VariableStateActions {
    * @param variables The new variables to set
    */
   setCollectionVariables(variables: VariableMap): Promise<void>;
+
+  setEnvironmentVariables(environmentVariables: EnvironmentMap): Promise<void>;
 }
