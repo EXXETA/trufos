@@ -29,18 +29,18 @@ please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 
 As Trufos is an Electron application, it can run on Windows, macOS, and Linux without any issues. If
 you want to develop or build this software yourself, you will need Node.js version 22 and
-NPM version 10 or higher.
+a recent yarn version.
 
 ### Local Development
 
 1. Clone this repository
-2. Run `npm install` to install all dependencies
-3. Run `npm start` to start the application in development mode
+2. Run `yarn install` to install all dependencies
+3. Run `yarn start` to start the application in development mode
 
 ### Building the Application
 
-1. Run `npm ci` to install all dependencies
-2. Run `npm run make` to build the application for your platform
+1. Run `yarn install` to install all dependencies
+2. Run `yarn run make` to build the application for your platform
 3. The built application will be in the `out/make` directory
     - Windows: a `Setup.exe` file
     - macOS: a `.dmg` file
