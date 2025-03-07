@@ -1,4 +1,3 @@
-import { VariableObjectWithKey } from 'shim/objects/variables';
 import { useEffect, useState } from 'react';
 import {
   Sidebar,
@@ -7,19 +6,23 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { EnvironmentMap } from 'shim/objects/environment';
-import { variableMapToArray } from '@/components/shared/settings/variableTabs/helper/EditVariableHelper';
+import {
+  variableArrayToMap,
+  variableMapToArray,
+} from '@/components/shared/settings/variableTabs/helper/EditVariableHelper';
 import { VariableEditor } from '@/components/shared/settings/variableTabs/table/VariableEditor';
+import { VariableObjectWithKey } from '../../../../../shim/objects/variables';
 
 export interface EnvironmentVariableEditorProps {
   environments: EnvironmentMap;
   onValidChange?: (valid: boolean) => void;
-  onVariablesChange?: (variables: VariableObjectWithKey[]) => void;
+  onEnvironmentChange?: (variables: EnvironmentMap) => void;
 }
 
 /** A component that allows adding, editing and removing variables */
 export const EnvironmentVariableTab = ({
   environments,
-  onVariablesChange,
+  onEnvironmentChange,
   onValidChange,
 }: EnvironmentVariableEditorProps) => {
   const environmentList = Object.keys(environments);
@@ -29,6 +32,29 @@ export const EnvironmentVariableTab = ({
     variableMapToArray(firstEnvironment)
   );
   const [selectedEnvironment, setSelectedEnvironment] = useState(environmentList[0]);
+
+  const onVariableChange = (variables: VariableObjectWithKey[]) => {
+    const selectedEnvironmentKey = selectedEnvironment as keyof EnvironmentMap;
+    const variableMap = variableArrayToMap(variables);
+    const updatedEnvironment = {
+      ...environments,
+      [selectedEnvironmentKey]: variableMap,
+    } as EnvironmentMap;
+    console.log('onVariableChange', updatedEnvironment);
+    setEditorEnvironmentVariables(variables);
+    onEnvironmentChange(updatedEnvironment);
+  };
+
+  const newEnvironment = () => {
+    console.log('newEnvironment');
+    const newEnvironmentName = (Math.random() + 1).toString(36).substring(7);
+    const updatedEnvironment = {
+      ...environments,
+      [newEnvironmentName]: {},
+    } as EnvironmentMap;
+    onEnvironmentChange(updatedEnvironment);
+    setSelectedEnvironment(newEnvironmentName);
+  };
 
   useEffect(() => {
     const selectedEnvironmentKey = selectedEnvironment as keyof EnvironmentMap;
@@ -51,12 +77,12 @@ export const EnvironmentVariableTab = ({
               {environment}
             </SidebarMenuButton>
           ))}
-          <SidebarMenuButton> + Add Environment</SidebarMenuButton>
+          <SidebarMenuButton onClick={newEnvironment}> + Add Environment</SidebarMenuButton>
         </Sidebar>
         <VariableEditor
           className={'p-4 m-1 flex-1'}
           variables={editorEnvironmentVariables}
-          onVariablesChange={onVariablesChange}
+          onVariablesChange={onVariableChange}
           onValidChange={onValidChange}
         />
       </SidebarProvider>
