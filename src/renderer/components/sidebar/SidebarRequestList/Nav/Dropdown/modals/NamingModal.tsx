@@ -63,7 +63,12 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
     setValid(
       name.trim().length > 0 &&
         name !== (createType ? '' : trufosObject.title) &&
-        siblingTitles.indexOf(name) === -1
+        siblingTitles.indexOf(name) === -1 &&
+        !siblingTitles.some((title) =>
+          name.includes('-')
+            ? title.toLowerCase() === name.replaceAll('-', ' ').toLowerCase()
+            : false
+        )
     );
   }, [name]);
 
