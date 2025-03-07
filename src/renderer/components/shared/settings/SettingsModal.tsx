@@ -37,18 +37,19 @@ export const SettingsModal = () => {
   const [isOpen, setOpen] = useState(true);
 
   const save = async () => {
-    await actions.setCollectionVariables(variableArrayToMap(collectionVariables));
+    apply();
     await setEnvironmentVariables(environmentVariables);
     setOpen(false);
   };
 
   const apply = async () => {
-    await actions.setCollectionVariables(variableArrayToMap(v));
-    await setEnvironmentVariables(environmentVariables);
+    await actions.setCollectionVariables(variableArrayToMap(collectionVariables));
+    await actions.setEnvironmentVariables(environmentVariables);
   };
 
   const cancel = () => {
     setCollectionVariables(variableMapToArray(collectionStoreVariables));
+    setEnvironmentVariables(environmentStoreVariables);
     setOpen(false);
   };
 
@@ -77,7 +78,7 @@ export const SettingsModal = () => {
             <EnvironmentVariableTab
               environments={environmentVariables}
               onValidChange={setValid}
-              onVariablesChange={setCollectionVariables} // TODO is wrong
+              onEnvironmentChange={setEnvironmentVariables}
             />
           </TabsContent>
         </Tabs>

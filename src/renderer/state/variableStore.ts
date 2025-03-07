@@ -32,6 +32,13 @@ export const useVariableStore = create<VariableState & VariableStateActions>()(
         state.collectionVariables = variables;
       });
     },
+
+    setEnvironmentVariables: async (environmentVariables) => {
+      await eventService.setEnvironmentVariables(environmentVariables);
+      set((state) => {
+        state.environmentVariables = environmentVariables;
+      });
+    },
   }))
 );
 

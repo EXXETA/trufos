@@ -8,6 +8,7 @@ import { TrufosObject } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { VariableMap } from 'shim/objects/variables';
 import { Folder } from 'shim/objects/folder';
+import { EnvironmentMap } from 'shim/objects/environment';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -114,6 +115,11 @@ export class MainEventService implements IEventService {
 
   async setCollectionVariables(variables: VariableMap) {
     environmentService.setCollectionVariables(variables);
+    await persistenceService.saveCollection(environmentService.currentCollection);
+  }
+
+  async setEnvironmentVariables(environmentVariables: EnvironmentMap) {
+    environmentService.setEnvironmentVariables(environmentVariables);
     await persistenceService.saveCollection(environmentService.currentCollection);
   }
 
