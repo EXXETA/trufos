@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: "daily"
     commit-message:
-      prefix: "[Dependabot - npm]"
+      prefix: "[Dependabot]"
     labels: [ "dependencies" ]
     milestone: 1
     groups:
