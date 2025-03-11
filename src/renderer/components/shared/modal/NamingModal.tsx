@@ -6,12 +6,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { FormEvent } from 'react';
 
 interface NamingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   modalTitle: string;
-  onSubmit: () => Promise<void>;
+  onSubmit: () => void;
   onReset: () => void;
   value: string;
   onChange: (value: string) => void;
@@ -20,13 +21,18 @@ interface NamingModalProps {
 }
 
 export const NamingModal = (props: NamingModalProps) => {
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    props.onSubmit();
+  };
+
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{props.modalTitle}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={props.onSubmit} onReset={props.onReset}>
+        <form onSubmit={onSubmit} onReset={props.onReset}>
           <div className="p-4">
             <input
               type="text"

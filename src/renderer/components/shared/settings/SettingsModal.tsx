@@ -34,7 +34,7 @@ export const SettingsModal = () => {
   );
   const [environmentVariables, setEnvironmentVariables] = useState(environmentStoreVariables);
   const [isValid, setValid] = useState(false);
-  const [isOpen, setOpen] = useState(true);
+  const [isOpen, setOpen] = useState(false);
 
   const save = async () => {
     apply();
