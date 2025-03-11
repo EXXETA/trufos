@@ -12,6 +12,7 @@ import {
 } from '@/components/shared/settings/variableTabs/helper/EditVariableHelper';
 import { VariableEditor } from '@/components/shared/settings/variableTabs/table/VariableEditor';
 import { VariableObjectWithKey } from '../../../../../shim/objects/variables';
+import { CreateEnvironmentModal } from '@/components/shared/settings/variableTabs/modal/CreateEnvironmentModal';
 
 export interface EnvironmentVariableEditorProps {
   environments: EnvironmentMap;
@@ -40,21 +41,11 @@ export const EnvironmentVariableTab = ({
       ...environments,
       [selectedEnvironmentKey]: variableMap,
     } as EnvironmentMap;
-    console.log('onVariableChange', updatedEnvironment);
     setEditorEnvironmentVariables(variables);
     onEnvironmentChange(updatedEnvironment);
   };
 
-  const newEnvironment = () => {
-    console.log('newEnvironment');
-    const newEnvironmentName = (Math.random() + 1).toString(36).substring(7);
-    const updatedEnvironment = {
-      ...environments,
-      [newEnvironmentName]: {},
-    } as EnvironmentMap;
-    onEnvironmentChange(updatedEnvironment);
-    setSelectedEnvironment(newEnvironmentName);
-  };
+  const [createModalIsOpen, setCreateModalIsOpen] = useState(false);
 
   useEffect(() => {
     const selectedEnvironmentKey = selectedEnvironment as keyof EnvironmentMap;
@@ -77,7 +68,9 @@ export const EnvironmentVariableTab = ({
               {environment}
             </SidebarMenuButton>
           ))}
-          <SidebarMenuButton onClick={newEnvironment}> + Add Environment</SidebarMenuButton>
+          <SidebarMenuButton onClick={() => setCreateModalIsOpen(true)}>
+            + Add Environment
+          </SidebarMenuButton>
         </Sidebar>
         <VariableEditor
           className={'p-4 m-1 flex-1'}
@@ -86,6 +79,13 @@ export const EnvironmentVariableTab = ({
           onValidChange={onValidChange}
         />
       </SidebarProvider>
+      <CreateEnvironmentModal
+        isOpen={createModalIsOpen}
+        setIsOpen={setCreateModalIsOpen}
+        environments={environments}
+        onEnvironmentChange={onEnvironmentChange}
+        setSelectedEnvironment={setSelectedEnvironment}
+      />
     </div>
   );
 };
