@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -78,27 +78,25 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="p-4">
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full bg-transparent outline-none"
-            placeholder="Enter the folder name"
-          />
-        </div>
-        <DialogFooter className="bottom-0">
-          <Button
-            onClick={save}
-            disabled={!isValid}
-            variant={isValid ? 'default' : 'defaultDisable'}
-          >
-            <span className="leading-4 font-bold">Save</span>
-          </Button>
-          <Button onClick={() => setOpen(false)} variant="destructive">
-            <span className="leading-4 font-bold">Cancel</span>
-          </Button>
-        </DialogFooter>
+        <form onSubmit={() => save()} onReset={() => setOpen(false)}>
+          <div className="p-4">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-transparent outline-none"
+              placeholder={`Enter the ${createType ?? trufosObject.type} name`}
+            />
+          </div>
+          <DialogFooter className="bottom-0">
+            <Button disabled={!isValid} variant={isValid ? 'default' : 'defaultDisable'}>
+              <span className="leading-4 font-bold">Save</span>
+            </Button>
+            <Button type="reset" variant="destructive">
+              <span className="leading-4 font-bold">Cancel</span>
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
