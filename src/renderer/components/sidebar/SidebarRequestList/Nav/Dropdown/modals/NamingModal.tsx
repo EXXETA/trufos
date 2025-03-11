@@ -73,7 +73,7 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={() => save()}>
+        <form onSubmit={() => save()} onReset={() => setOpen(false)}>
           <div className="p-4">
             <input
               type="text"
@@ -87,7 +87,7 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
             <Button disabled={!isValid} variant={isValid ? 'default' : 'defaultDisable'}>
               <span className="leading-4 font-bold">Save</span>
             </Button>
-            <Button type="reset" onReset={() => setOpen(false)} variant="destructive">
+            <Button type="reset" variant="destructive">
               <span className="leading-4 font-bold">Cancel</span>
             </Button>
           </DialogFooter>
