@@ -10,7 +10,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { handleMouseEvent } from '@/util/callback-util';
 import { Folder } from 'shim/objects/folder';
 import { useCollectionActions } from '@/state/collectionStore';
-import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
+import { RequestFolderNamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/RequestFolderNamingModal';
 
 export interface FolderDropdownProps {
   folder: Folder;
@@ -54,7 +54,7 @@ export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
         </DropdownMenuContent>
       </DropdownMenu>
       {renameModalIsOpen && (
-        <NamingModal
+        <RequestFolderNamingModal
           isOpen={renameModalIsOpen}
           trufosObject={folder}
           createType={isCreateModal}

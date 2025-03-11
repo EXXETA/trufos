@@ -10,7 +10,7 @@ import { handleMouseEvent } from '@/util/callback-util';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useState } from 'react';
 import { TrufosRequest } from 'shim/objects/request';
-import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
+import { RequestFolderNamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/RequestFolderNamingModal';
 
 export interface RequestDropdownProps {
   request: TrufosRequest;
@@ -43,7 +43,7 @@ export const RequestDropdown = ({ request }: RequestDropdownProps) => {
         </DropdownMenuContent>
       </DropdownMenu>
       {renameModalIsOpen && (
-        <NamingModal
+        <RequestFolderNamingModal
           isOpen={renameModalIsOpen}
           trufosObject={request}
           createType={null}
