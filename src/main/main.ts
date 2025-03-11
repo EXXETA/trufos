@@ -28,7 +28,6 @@ const createWindow = async () => {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
-  mainWindow.setFullScreen(true);
 
   // Open links in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
