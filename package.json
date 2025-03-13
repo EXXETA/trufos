@@ -95,7 +95,7 @@
     "tailwindcss-animate": "^1.0.7",
     "template-replace-stream": "^2.1.2",
     "tmp": "^0.2.3",
-    "undici": "^7.3.0",
+    "undici": "^7.5.0",
     "zustand": "^5.0.3"
   }
 }
