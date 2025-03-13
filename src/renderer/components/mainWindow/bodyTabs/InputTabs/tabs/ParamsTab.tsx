@@ -1,3 +1,4 @@
+import { ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
 import { Divider } from '@/components/shared/Divider';
@@ -10,21 +11,29 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useQueryParams } from '@/hooks/useQueryParams';
 
-export const HeaderTab = () => {
-  const { addHeader, deleteHeader, clearHeaders, updateHeader } = useCollectionActions();
-  const headers = useCollectionStore((state) => selectRequest(state).headers);
-  console.log('headers', headers);
-  const handleAddHeader = addHeader;
+export const ParamsTab = () => {
+  const { updateRequest } = useCollectionActions();
+  const url = useCollectionStore((state) => selectRequest(state).url);
 
-  const handleDeleteHeader = deleteHeader;
+  const [queryParams, setQueryParams] = useQueryParams(url);
 
-  const deleteAllHeaders = clearHeaders;
+  const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
+    updateRequest({ url: event.target.value });
+  };
 
-  const handleUpdateHeader = (index: number, updatedFields: Partial<TrufosHeader>) =>
-    updateHeader(index, updatedFields);
+  const handleDeleteParam = (index: number) => {
+    const newQueryParams = queryParams.splice(index, 1);
+
+    console.log(index);
+    console.log('newQueryParams', newQueryParams);
+    console.log('queryParams', queryParams);
+    setQueryParams(newQueryParams);
+  };
+
+  // console.log('queryParams', queryParams);
 
   return (
     <div className={'p-4 h-full relative'}>
@@ -34,16 +43,16 @@ export const HeaderTab = () => {
             className={'hover:bg-transparent gap-1 h-fit'}
             size={'sm'}
             variant={'ghost'}
-            onClick={handleAddHeader}
+            // onClick={handleAddHeader}
           >
             <AddIcon />
-            Add Header
+            Add Query Param
           </Button>
           <Button
             className={'hover:bg-transparent gap-1 h-fit'}
             size={'sm'}
             variant={'ghost'}
-            onClick={deleteAllHeaders}
+            // onClick={deleteAllHeaders}
           >
             <DeleteIcon />
             Delete All
@@ -64,26 +73,26 @@ export const HeaderTab = () => {
           </TableHeader>
 
           <TableBody>
-            {headers.map((header, index) => (
+            {queryParams.map((param, index) => (
               <TableRow key={index}>
                 {/* Editable key field */}
                 <TableCell className="w-1/3 break-all">
                   <input
                     type="text"
-                    value={header.key}
-                    onChange={(e) => handleUpdateHeader(index, { key: e.target.value })}
+                    value={param.key}
+                    // onChange={(e) => handleUpdateHeader(index, { key: e.target.value })}
                     className="w-full bg-transparent outline-none"
-                    placeholder="Enter header key"
+                    placeholder="Enter param key"
                   />
                 </TableCell>
 
                 <TableCell className="w-full break-all">
                   <input
                     type="text"
-                    value={header.value}
-                    onChange={(e) => handleUpdateHeader(index, { value: e.target.value })}
+                    value={param.value}
+                    // onChange={(e) => handleUpdateHeader(index, { value: e.target.value })}
                     className="w-full bg-transparent outline-none"
-                    placeholder="Enter header value"
+                    placeholder="Enter param value"
                   />
                 </TableCell>
 
@@ -92,17 +101,17 @@ export const HeaderTab = () => {
                     <div className={'relative h-4 z-10 cursor-pointer'}>
                       <input
                         type="checkbox"
-                        checked={header.isActive}
-                        onChange={(e) => handleUpdateHeader(index, { isActive: e.target.checked })}
+                        checked={param.isActive}
+                        // onChange={(e) => handleUpdateHeader(index, { isActive: e.target.checked })}
                         className={cn(
                           'form-checkbox h-4 w-4 appearance-none border rounded-[2px] ',
-                          header.isActive
+                          param.isActive
                             ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
                             : 'border-[rgba(238,238,238,1)] bg-transparent'
                         )}
                       />
 
-                      {header.isActive && (
+                      {param.isActive && (
                         <div
                           className={
                             'absolute left-0 top-0 h-4 w-4 flex items-center justify-center pointer-events-none rotate-6'
@@ -121,7 +130,7 @@ export const HeaderTab = () => {
                       variant="ghost"
                       size="icon"
                       className="hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7] h-6 w-6"
-                      onClick={() => handleDeleteHeader(index)}
+                      onClick={() => handleDeleteParam(index)}
                     >
                       <DeleteIcon />
                     </Button>
@@ -131,6 +140,8 @@ export const HeaderTab = () => {
             ))}
           </TableBody>
         </Table>
+
+        <pre>{JSON.stringify(queryParams, null, 2)}</pre>
       </div>
     </div>
   );
