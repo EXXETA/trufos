@@ -7,8 +7,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { FiSettings } from 'react-icons/fi';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import * as React from 'react';
 import { useState } from 'react';
 import {
@@ -23,6 +22,7 @@ import {
   variableMapToArray,
 } from '@/components/shared/settings/variableTabs/helper/EditVariableHelper';
 import { EnvironmentVariableTab } from '@/components/shared/settings/variableTabs/EnvironmentVariableTab';
+import { SettingsModalFooter } from '@/components/shared/settings/footer/SettingsModalFooter';
 
 export const SettingsModal = () => {
   const actions = useVariableActions();
@@ -34,11 +34,10 @@ export const SettingsModal = () => {
   );
   const [environmentVariables, setEnvironmentVariables] = useState(environmentStoreVariables);
   const [isValid, setValid] = useState(false);
-  const [isOpen, setOpen] = useState(false);
+  const [isOpen, setOpen] = useState(true);
 
   const save = async () => {
-    apply();
-    await setEnvironmentVariables(environmentVariables);
+    await apply();
     setOpen(false);
   };
 
@@ -62,7 +61,7 @@ export const SettingsModal = () => {
         <DialogHeader className="mt-auto">
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="collectionVariables" className="h-[calc(50vh)]">
+        <Tabs defaultValue="environmentVariables" className="h-[calc(50vh)]">
           <TabsList>
             <TabsTrigger value="collectionVariables">CollectionVariables</TabsTrigger>
             <TabsTrigger value="environmentVariables">EnvironmentVariables</TabsTrigger>
@@ -83,25 +82,7 @@ export const SettingsModal = () => {
           </TabsContent>
         </Tabs>
         <DialogFooter className={'bottom-0'}>
-          <Button
-            className="mt-0 mr-2 mb-0"
-            onClick={save}
-            disabled={!isValid}
-            variant={isValid ? 'default' : 'defaultDisable'}
-          >
-            <span className="leading-4 font-bold">Save</span>
-          </Button>
-          <Button
-            className="mt-0 ml-0 mr-0 mb-0"
-            onClick={apply}
-            disabled={!isValid}
-            variant={isValid ? 'secondary' : 'secondaryDisable'}
-          >
-            <span className="leading-4 font-bold">Apply</span>
-          </Button>
-          <Button className="mt-0 mr-2 mb-0" onClick={cancel} variant="destructive">
-            <span className="leading-4 font-bold">Cancel</span>
-          </Button>
+          <SettingsModalFooter save={save} valid={isValid} apply={apply} cancel={cancel} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

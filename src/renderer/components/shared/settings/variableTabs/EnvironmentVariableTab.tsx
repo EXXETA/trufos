@@ -1,8 +1,10 @@
+import * as React from 'react';
 import { useEffect, useState } from 'react';
 import {
   Sidebar,
   SidebarHeader,
   SidebarMenuButton,
+  SidebarMenuSubButton,
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { EnvironmentMap } from 'shim/objects/environment';
@@ -11,8 +13,9 @@ import {
   variableMapToArray,
 } from '@/components/shared/settings/variableTabs/helper/EditVariableHelper';
 import { VariableEditor } from '@/components/shared/settings/variableTabs/table/VariableEditor';
-import { VariableObjectWithKey } from '../../../../../shim/objects/variables';
+import { VariableObjectWithKey } from 'shim/objects/variables';
 import { CreateEnvironmentModal } from '@/components/shared/settings/variableTabs/modal/CreateEnvironmentModal';
+import { EnvironmentDropdown } from '@/components/shared/settings/variableTabs/dropdown/EnvironmentDropdown';
 
 export interface EnvironmentVariableEditorProps {
   environments: EnvironmentMap;
@@ -27,19 +30,17 @@ export const EnvironmentVariableTab = ({
   onValidChange,
 }: EnvironmentVariableEditorProps) => {
   const environmentList = Object.keys(environments);
-  const firstEnvironmentKey = environmentList[0] as keyof EnvironmentMap;
-  const firstEnvironment = environments[firstEnvironmentKey] ?? {};
+  const firstEnvironment = environments[environmentList[0]] ?? {};
   const [editorEnvironmentVariables, setEditorEnvironmentVariables] = useState(
     variableMapToArray(firstEnvironment)
   );
   const [selectedEnvironment, setSelectedEnvironment] = useState(environmentList[0]);
 
   const onVariableChange = (variables: VariableObjectWithKey[]) => {
-    const selectedEnvironmentKey = selectedEnvironment as keyof EnvironmentMap;
     const variableMap = variableArrayToMap(variables);
     const updatedEnvironment = {
       ...environments,
-      [selectedEnvironmentKey]: variableMap,
+      [selectedEnvironment]: variableMap,
     } as EnvironmentMap;
     setEditorEnvironmentVariables(variables);
     onEnvironmentChange(updatedEnvironment);
@@ -48,27 +49,42 @@ export const EnvironmentVariableTab = ({
   const [createModalIsOpen, setCreateModalIsOpen] = useState(false);
 
   useEffect(() => {
-    const selectedEnvironmentKey = selectedEnvironment as keyof EnvironmentMap;
-    const selectedEnvironmentVariables = environments[selectedEnvironmentKey] ?? {};
+    const selectedEnvironmentVariables = environments[selectedEnvironment] ?? {};
     setEditorEnvironmentVariables(variableMapToArray(selectedEnvironmentVariables));
   }, [selectedEnvironment, environments]);
 
   return (
-    <div className="p-4 flex">
-      <SidebarProvider>
+    <div className="p-4 flex h-full">
+      <SidebarProvider
+        style={
+          {
+            '--sidebar-width': '15rem',
+          } as React.CSSProperties
+        }
+      >
         <Sidebar collapsible={'none'}>
           <SidebarHeader>Environments</SidebarHeader>
-          {environmentList.map((environment) => (
-            <SidebarMenuButton
-              isActive={environment === selectedEnvironment}
-              onClick={() => setSelectedEnvironment(environment)}
-              className="mr-4"
-              key={environment}
-            >
-              {environment}
-            </SidebarMenuButton>
-          ))}
-          <SidebarMenuButton onClick={() => setCreateModalIsOpen(true)}>
+          {environmentList.map((environment) => {
+            const [hover, setHover] = useState(false);
+
+            return (
+              <SidebarMenuSubButton
+                onMouseMove={() => setHover(true)}
+                onMouseLeave={() => setHover(false)}
+                isActive={environment === selectedEnvironment}
+                onClick={() => setSelectedEnvironment(environment)}
+                key={environment}
+              >
+                {environment}
+                <EnvironmentDropdown
+                  environmentKey={environment}
+                  hover={hover}
+                  selected={environment === selectedEnvironment}
+                />
+              </SidebarMenuSubButton>
+            );
+          })}
+          <SidebarMenuButton key={'newEnv'} onClick={() => setCreateModalIsOpen(true)}>
             + Add Environment
           </SidebarMenuButton>
         </Sidebar>
