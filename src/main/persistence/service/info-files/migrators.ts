@@ -19,12 +19,12 @@ const MIGRATORS = new Map<string, AbstractInfoFileMigrator<VersionedObject, Vers
 
 export async function migrateInfoFile(infoFile: VersionedObject, type: TrufosObjectType) {
   while (infoFile.version !== LATEST_VERSION.toString()) {
-    console.debug(`Looking for mapper for source version ${infoFile.version}`);
+    logger.debug(`Looking for mapper for source version ${infoFile.version}`);
     const mapper = MIGRATORS.get(infoFile.version);
     if (!mapper) throw new Error(`No mapper found for version ${infoFile.version}`);
     const oldVersion = infoFile.version;
     infoFile = await mapper.migrate(infoFile, type);
-    console.info(`Migrated from version ${oldVersion} to ${infoFile.version}`);
+    logger.info(`Migrated from version ${oldVersion} to ${infoFile.version}`);
     if (oldVersion === infoFile.version) {
       throw new Error(`Mapper for version ${infoFile.version} did not change the version`);
     }

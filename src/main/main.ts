@@ -1,3 +1,5 @@
+import './logging/logger';
+
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import 'main/event/main-event-service';
@@ -50,7 +52,7 @@ const createWindow = async () => {
           setTimeout(() => reject(new Error('Timeout')), 30000);
         });
       } catch (error) {
-        console.error('Could not handle close event in renderer:', error);
+        logger.error('Could not handle close event in renderer:', error);
       }
 
       // Close app
