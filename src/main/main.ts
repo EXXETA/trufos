@@ -52,7 +52,7 @@ const createWindow = async () => {
           setTimeout(() => reject(new Error('Timeout')), 30000);
         });
       } catch (error) {
-        console.error('Could not handle close event in renderer:', error);
+        logger.error('Could not handle close event in renderer:', error);
       }
 
       // Close app

@@ -36,7 +36,7 @@ export class PostmanImporter implements CollectionImporter {
             },
           ] as [string, VariableObject]
       );
-    console.info('Loaded', variablesArray.length, 'collection variables');
+    logger.info('Loaded', variablesArray.length, 'collection variables');
 
     // create collection directory
     const dirName = path.basename(targetDirPath);

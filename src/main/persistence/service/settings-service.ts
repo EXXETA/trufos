@@ -35,7 +35,7 @@ export class SettingsService implements Initializable {
     if (await exists(SettingsService.SETTINGS_FILE)) {
       await this.readSettings();
     } else {
-      console.info('No settings file found. Creating default.');
+      logger.info('No settings file found. Creating default.');
       await this.writeSettings();
     }
   }

@@ -44,7 +44,7 @@ export class PersistenceService {
   public async createDefaultCollectionIfNotExists() {
     const dirPath = SettingsService.DEFAULT_COLLECTION_DIR;
     if (!(await exists(path.join(dirPath, 'collection.json')))) {
-      console.info('Creating default collection at', dirPath);
+      logger.info('Creating default collection at', dirPath);
       const collection = generateDefaultCollection(dirPath);
       await this.saveCollectionRecursive(collection);
     }
@@ -83,7 +83,7 @@ export class PersistenceService {
     object.title = newTitle;
     const newDirPath = path.join(path.dirname(oldDirPath), this.getDirName(object));
 
-    console.info('Renaming object at', oldDirPath, 'to', newDirPath);
+    logger.info('Renaming object at', oldDirPath, 'to', newDirPath);
     await fs.rename(oldDirPath, newDirPath);
 
     this.idToPathMap.set(object.id, newDirPath);
@@ -144,7 +144,7 @@ export class PersistenceService {
    * @param fileName the name of the information file
    */
   private async saveInfoFile(object: TrufosObject, dirPath: string, fileName: string) {
-    console.info('Saving object', (object.id ??= randomUUID()));
+    logger.info('Saving object', (object.id ??= randomUUID()));
     if (!isCollection(object) && object.parentId == null) {
       throw new Error('Object must have a parent');
     } else if (!(await exists(dirPath))) {
@@ -202,7 +202,7 @@ export class PersistenceService {
   public async saveChanges(request: TrufosRequest) {
     const { draft, dirPath, infoFileName } = await this.undraft(request);
     if (draft) {
-      console.info('Saving changes of request at', dirPath);
+      logger.info('Saving changes of request at', dirPath);
       await fs.rename(path.join(dirPath, '~' + infoFileName), path.join(dirPath, infoFileName));
       if (isRequest(request)) {
         const draftBodyFilePath = path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME);
@@ -227,7 +227,7 @@ export class PersistenceService {
     if (!draft) {
       return request;
     }
-    console.info('Discarding changes of request at', dirPath);
+    logger.info('Discarding changes of request at', dirPath);
 
     // delete draft files
     await fs.unlink(path.join(dirPath, '~' + infoFileName));
@@ -245,7 +245,7 @@ export class PersistenceService {
    */
   public async delete(object: TrufosObject) {
     const dirPath = this.getDirPath(object);
-    console.info('Deleting object at', dirPath);
+    logger.info('Deleting object at', dirPath);
 
     // delete children first
     if (!isRequest(object)) {
@@ -266,15 +266,15 @@ export class PersistenceService {
    * @returns the text body of the request if it exists
    */
   public async loadTextBodyOfRequest(request: TrufosRequest, encoding?: BufferEncoding) {
-    console.info('Loading text body of request', request.id);
+    logger.info('Loading text body of request', request.id);
     if (request.body.type === RequestBodyType.TEXT) {
       const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
       const filePath = path.join(this.getDirPath(request), fileName);
       if (await exists(filePath)) {
-        console.debug(`Opening text body file at ${filePath}`);
+        logger.debug(`Opening text body file at ${filePath}`);
         return createReadStream(filePath, encoding);
       }
-      console.warn('Text body file does not exist for request', request.id);
+      logger.warn('Text body file does not exist for request', request.id);
     }
   }
 
@@ -284,7 +284,7 @@ export class PersistenceService {
    * @param title the title of the collection
    */
   public async createCollection(dirPath: string, title: string): Promise<Collection> {
-    console.info('Creating new collection at', dirPath);
+    logger.info('Creating new collection at', dirPath);
     if ((await fs.readdir(dirPath)).length !== 0) {
       throw new Error('Directory is not empty');
     }
@@ -308,7 +308,7 @@ export class PersistenceService {
    * @returns the loaded collection
    */
   public async loadCollection(dirPath: string): Promise<Collection> {
-    console.info('Loading collection at', dirPath);
+    logger.info('Loading collection at', dirPath);
     const type = 'collection' as const;
     const info = await this.readInfoFile(dirPath, type);
     this.idToPathMap.set(info.id, dirPath);
