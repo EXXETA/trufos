@@ -93,7 +93,7 @@ export class EnvironmentService implements Initializable {
     // do not close the default collection
     const settings = settingsService.modifiableSettings;
     if (path === SettingsService.DEFAULT_COLLECTION_DIR || settings.collections.length <= 1) {
-      console.warn('Cannot close the default collection.');
+      logger.warn('Cannot close the default collection.');
       return this.currentCollection;
     }
 

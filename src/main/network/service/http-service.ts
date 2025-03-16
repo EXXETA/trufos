@@ -33,7 +33,7 @@ export class HttpService {
    * @returns response object
    */
   public async fetchAsync(request: TrufosRequest) {
-    console.info('Sending request:', request);
+    logger.info('Sending request:', request);
 
     const now = getSteadyTimestamp();
     const body = await this.readBody(request);
@@ -49,14 +49,14 @@ export class HttpService {
     });
 
     const duration = getDurationFromNow(now);
-    console.info(`Received response in ${duration} milliseconds`);
+    logger.info(`Received response in ${duration} milliseconds`);
 
     // write the response body to a temporary file
     const bodyFile = fileSystemService.temporaryFile();
     if (responseData.body != null) {
-      console.debug('Writing response body to temporary file:', bodyFile.name);
+      logger.debug('Writing response body to temporary file:', bodyFile.name);
       await pipeline(responseData.body, fs.createWriteStream('', { fd: bodyFile.fd }));
-      console.debug('Successfully written response body');
+      logger.debug('Successfully written response body');
     }
 
     // return a new Response instance
@@ -73,7 +73,7 @@ export class HttpService {
       bodyFilePath: responseData.body != null ? bodyFile.name : null,
     };
 
-    console.debug('Returning response:', response);
+    logger.debug('Returning response:', response);
     return response;
   }
 
