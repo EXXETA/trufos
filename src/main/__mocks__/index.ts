@@ -2,6 +2,9 @@ import { homedir, tmpdir } from 'node:os';
 import { vol } from 'memfs';
 import { vi, beforeEach } from 'vitest';
 
+// @ts-expect-error mock global logger with console
+global.logger = console;
+
 vi.mock('electron', () => ({
   app: {
     getPath: () => tmpdir(),
