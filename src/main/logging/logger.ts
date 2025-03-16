@@ -27,7 +27,13 @@ global.logger = winston.createLogger({
   ),
   defaultMeta: { process: 'main' },
   transports: [
-    new winston.transports.File({ dirname: app.getPath('logs'), filename: 'combined.log' }),
+    new winston.transports.File({
+      dirname: app.getPath('logs'),
+      filename: 'trufos.log',
+      maxFiles: 10,
+      maxsize: 1024 * 1024 * 10, // 10MiB
+      tailable: true,
+    }),
   ],
 });
 
