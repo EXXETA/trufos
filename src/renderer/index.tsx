@@ -1,3 +1,4 @@
+import '@/logging/console';
 import { enableMapSet } from 'immer';
 
 enableMapSet();
@@ -7,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from '@/App';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCollectionStore } from '@/state/collectionStore';
+import winston from 'winston';
 
 import('@/lib/monaco/config'); // lazy load monaco editor to improve startup time
 
@@ -16,10 +18,10 @@ console.info('Initializing renderer process...');
 
 // declare global functions
 declare global {
-  function joinClassNames(...classNames: string[]): string;
+  interface Window {
+    logger: winston.Logger;
+  }
 }
-
-globalThis.joinClassNames = (...classNames: string[]) => classNames.join(' ');
 
 document.getElementById('body')?.classList.add('dark');
 

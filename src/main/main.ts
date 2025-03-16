@@ -1,3 +1,5 @@
+import './logging/logger';
+
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import 'main/event/main-event-service';
