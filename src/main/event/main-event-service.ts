@@ -24,7 +24,7 @@ function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
     try {
       return (await fn(...args)) as R;
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       return toError(error);
     }
   };
@@ -40,7 +40,7 @@ function registerEvent<T>(instance: T, functionName: keyof T) {
 
   const method = instance[functionName];
   if (typeof method === 'function') {
-    console.debug(`Registering event function "${functionName}()" on backend`);
+    logger.debug(`Registering event function "${functionName}()" on backend`);
     ipcMain.handle(functionName as string, (_event, ...args) =>
       wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args)
     );
@@ -64,7 +64,7 @@ export class MainEventService implements IEventService {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
       registerEvent(this, propertyName as keyof MainEventService);
     }
-    console.debug('Registered event channels on backend');
+    logger.debug('Registered event channels on backend');
   }
 
   async loadCollection(force?: boolean) {
