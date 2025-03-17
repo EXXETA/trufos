@@ -3,7 +3,7 @@ import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { AddIcon } from '@/components/icons';
-import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
+import { RequestFolderNamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/RequestFolderNamingModal';
 import { useCollectionStore } from '@/state/collectionStore';
 
 export const SidebarHeaderBar = () => {
@@ -43,7 +43,7 @@ export const SidebarHeaderBar = () => {
         </div>
       </SidebarHeader>
       {modalState.isOpen && (
-        <NamingModal
+        <RequestFolderNamingModal
           isOpen={modalState.isOpen}
           trufosObject={collection}
           createType={modalState.type}
