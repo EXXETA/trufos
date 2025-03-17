@@ -1,4 +1,4 @@
-import { ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
 import { Divider } from '@/components/shared/Divider';
@@ -12,47 +12,150 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { useQueryParams } from '@/hooks/useQueryParams';
+import { TrufosQueryParam } from '../../../../../../shim/objects/queryParams';
+import { getQueryParamsFromUrl } from '@/util/query-util';
 
 export const ParamsTab = () => {
-  const { updateRequest } = useCollectionActions();
-  const url = useCollectionStore((state) => selectRequest(state).url);
+  const [isActiveStateUpdating, setIsActiveStateUpdating] = useState<boolean>(false);
 
-  const [queryParams, setQueryParams] = useQueryParams(url);
+  const {
+    updateRequest,
+    addQueryParam,
+    updateQueryParam,
+    clearQueryParams,
+    deleteQueryParam,
+    toggleQueryParam,
+  } = useCollectionActions();
 
-  const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
-    updateRequest({ url: event.target.value });
+  const queryParams = useCollectionStore((state) => selectRequest(state).queryParams);
+
+  const request = useCollectionStore(selectRequest);
+  const requestUrl = request?.url;
+
+  const { queryParams: queryParamsFromUrl } = getQueryParamsFromUrl(requestUrl);
+
+  useEffect(() => {
+    if (isActiveStateUpdating) {
+      const currentParams = queryParams || [];
+
+      const mergedParams = currentParams.map((param) => {
+        const matchedParam = queryParamsFromUrl.find((p) => p.key === param.key);
+
+        return matchedParam
+          ? { ...param, value: matchedParam.value, isActive: matchedParam.isActive }
+          : param;
+      });
+
+      queryParamsFromUrl.forEach((p) => {
+        if (!mergedParams.some((existing) => existing.key === p.key)) {
+          mergedParams.push(p);
+        }
+      });
+
+      if (JSON.stringify(mergedParams) !== JSON.stringify(currentParams)) {
+        updateRequest({ queryParams: mergedParams });
+      }
+
+      setIsActiveStateUpdating(false);
+    } else {
+      updateRequest({ queryParams: queryParamsFromUrl });
+    }
+  }, [queryParamsFromUrl]);
+
+  const buildUrl = (activeParams: TrufosQueryParam[]) => {
+    try {
+      const url = new URL(requestUrl);
+
+      url.search = '';
+
+      activeParams.forEach(({ key, value, isActive }) => {
+        if (isActive && key) {
+          if (typeof value === 'string') {
+            url.searchParams.append(key, value);
+          }
+        }
+      });
+
+      return url.toString();
+    } catch (error) {
+      console.error('Error building URL:', error);
+      return requestUrl;
+    }
   };
 
-  const handleDeleteParam = (index: number) => {
-    const newQueryParams = queryParams.splice(index, 1);
-
-    console.log(index);
-    console.log('newQueryParams', newQueryParams);
-    console.log('queryParams', queryParams);
-    setQueryParams(newQueryParams);
+  const handleAddQueryParam = () => {
+    addQueryParam();
   };
 
-  // console.log('queryParams', queryParams);
+  const handleUpdateQueryParam = (index: number, field: 'key' | 'value', value: string) => {
+    const updatedParams = queryParams.map((param, i) =>
+      i === index ? { ...param, [field]: value } : param
+    );
+
+    const newBuiltUrl = buildUrl(updatedParams);
+
+    if (newBuiltUrl !== requestUrl) {
+      updateRequest({ url: newBuiltUrl });
+    }
+
+    updateQueryParam(index, { [field]: value });
+  };
+
+  const handleDeleteQueryParam = (index: number) => {
+    const updatedParams = queryParams.filter((_, i) => i !== index);
+
+    const newBuiltUrl = buildUrl(updatedParams);
+
+    if (newBuiltUrl !== requestUrl) {
+      updateRequest({ url: newBuiltUrl });
+    }
+
+    deleteQueryParam(index);
+  };
+
+  const handleDeleteAllParams = () => {
+    const newBuiltUrl = buildUrl([]);
+
+    if (newBuiltUrl !== requestUrl) {
+      updateRequest({ url: newBuiltUrl });
+    }
+
+    clearQueryParams();
+  };
+
+  const handleToggleQueryParam = (index: number) => {
+    setIsActiveStateUpdating(true);
+
+    const currentParams = queryParams || [];
+
+    const updatedParams = currentParams.map((param, i) =>
+      i === index ? { ...param, isActive: !param.isActive } : param
+    );
+
+    const newBuiltUrl = buildUrl(updatedParams);
+    updateRequest({ url: newBuiltUrl });
+
+    toggleQueryParam(index);
+  };
 
   return (
     <div className={'p-4 h-full relative'}>
       <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
         <div className={'flex'}>
           <Button
-            className={'hover:bg-transparent gap-1 h-fit'}
+            className={'gap-1 h-fit'}
             size={'sm'}
             variant={'ghost'}
-            // onClick={handleAddHeader}
+            onClick={handleAddQueryParam}
           >
             <AddIcon />
             Add Query Param
           </Button>
           <Button
-            className={'hover:bg-transparent gap-1 h-fit'}
+            className={'gap-1 h-fit'}
             size={'sm'}
             variant={'ghost'}
-            // onClick={deleteAllHeaders}
+            onClick={handleDeleteAllParams}
           >
             <DeleteIcon />
             Delete All
@@ -68,19 +171,18 @@ export const ParamsTab = () => {
             <TableRow>
               <TableHead className="w-auto">Key</TableHead>
               <TableHead className="w-full">Value</TableHead>
-              <TableHead className="w-16"> {/* Action Column */} </TableHead>
+              <TableHead className="w-16">Actions</TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {queryParams.map((param, index) => (
+            {queryParams?.map((param, index) => (
               <TableRow key={index}>
-                {/* Editable key field */}
                 <TableCell className="w-1/3 break-all">
                   <input
                     type="text"
                     value={param.key}
-                    // onChange={(e) => handleUpdateHeader(index, { key: e.target.value })}
+                    onChange={(e) => handleUpdateQueryParam(index, 'key', e.target.value)}
                     className="w-full bg-transparent outline-none"
                     placeholder="Enter param key"
                   />
@@ -90,7 +192,7 @@ export const ParamsTab = () => {
                   <input
                     type="text"
                     value={param.value}
-                    // onChange={(e) => handleUpdateHeader(index, { value: e.target.value })}
+                    onChange={(e) => handleUpdateQueryParam(index, 'value', e.target.value)}
                     className="w-full bg-transparent outline-none"
                     placeholder="Enter param value"
                   />
@@ -102,9 +204,9 @@ export const ParamsTab = () => {
                       <input
                         type="checkbox"
                         checked={param.isActive}
-                        // onChange={(e) => handleUpdateHeader(index, { isActive: e.target.checked })}
+                        onChange={() => handleToggleQueryParam(index)}
                         className={cn(
-                          'form-checkbox h-4 w-4 appearance-none border rounded-[2px] ',
+                          'form-checkbox h-4 w-4 appearance-none border rounded-[2px]',
                           param.isActive
                             ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
                             : 'border-[rgba(238,238,238,1)] bg-transparent'
@@ -130,7 +232,7 @@ export const ParamsTab = () => {
                       variant="ghost"
                       size="icon"
                       className="hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7] h-6 w-6"
-                      onClick={() => handleDeleteParam(index)}
+                      onClick={() => handleDeleteQueryParam(index)}
                     >
                       <DeleteIcon />
                     </Button>
@@ -140,8 +242,6 @@ export const ParamsTab = () => {
             ))}
           </TableBody>
         </Table>
-
-        <pre>{JSON.stringify(queryParams, null, 2)}</pre>
       </div>
     </div>
   );
