@@ -1,10 +1,5 @@
 import { useState, useEffect } from 'react';
-
-interface QueryParam {
-  key: string;
-  value: string | string[];
-  isActive: boolean;
-}
+import { TrufosQueryParam } from '../../shim/objects/queryParams';
 
 const safeDecode = (value: string): string => {
   try {
@@ -14,10 +9,8 @@ const safeDecode = (value: string): string => {
   }
 };
 
-export const useQueryParams = (
-  url: string
-): [QueryParam[], React.Dispatch<React.SetStateAction<QueryParam[]>>] => {
-  const [queryParams, setQueryParams] = useState<QueryParam[]>([]);
+export const getQueryParamsFromUrl = (url: string): { queryParams: TrufosQueryParam[] } => {
+  const [queryParams, setQueryParams] = useState<TrufosQueryParam[]>([]);
 
   useEffect(() => {
     if (!url.includes('?')) {
@@ -39,7 +32,7 @@ export const useQueryParams = (
       }
     });
 
-    const parsedParams: QueryParam[] = Array.from(parsedParamsMap.entries()).map(
+    const parsedParams: TrufosQueryParam[] = Array.from(parsedParamsMap.entries()).map(
       ([key, value]) => ({
         key,
         value: value.length > 1 ? value : value[0],
@@ -50,5 +43,5 @@ export const useQueryParams = (
     setQueryParams(parsedParams);
   }, [url]);
 
-  return [queryParams, setQueryParams];
+  return { queryParams };
 };
