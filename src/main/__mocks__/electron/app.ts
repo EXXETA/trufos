@@ -7,3 +7,5 @@ export function getPath() {
 export function getName() {
   return 'Trufos';
 }
+
+export const isPackaged = false;
