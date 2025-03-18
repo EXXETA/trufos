@@ -5,12 +5,7 @@ import { vi, beforeEach } from 'vitest';
 // @ts-expect-error mock global logger with console
 global.logger = console;
 
-vi.mock('electron', () => ({
-  app: {
-    getPath: () => tmpdir(),
-    getName: () => 'Trufos',
-  },
-}));
+vi.mock('electron');
 vi.mock('node:fs');
 vi.mock('node:fs/promises');
 vi.mock('tmp');
