@@ -38,22 +38,8 @@ export const ParamsTab = () => {
     if (isActiveStateUpdating) {
       const currentParams = queryParams || [];
 
-      const mergedParams = currentParams.map((param) => {
-        const matchedParam = queryParamsFromUrl.find((p) => p.key === param.key);
-
-        return matchedParam
-          ? { ...param, value: matchedParam.value, isActive: matchedParam.isActive }
-          : param;
-      });
-
-      queryParamsFromUrl.forEach((p) => {
-        if (!mergedParams.some((existing) => existing.key === p.key)) {
-          mergedParams.push(p);
-        }
-      });
-
-      if (JSON.stringify(mergedParams) !== JSON.stringify(currentParams)) {
-        updateRequest({ queryParams: mergedParams });
+      if (JSON.stringify(queryParamsFromUrl) !== JSON.stringify(currentParams)) {
+        updateRequest({ queryParams: currentParams });
       }
 
       setIsActiveStateUpdating(false);
@@ -128,11 +114,12 @@ export const ParamsTab = () => {
 
     const currentParams = queryParams || [];
 
-    const updatedParams = currentParams.map((param, i) =>
-      i === index ? { ...param, isActive: !param.isActive } : param
-    );
+    const updatedParams = currentParams.map((param, i) => {
+      return i === index ? { ...param, isActive: !param.isActive } : param;
+    });
 
     const newBuiltUrl = buildUrl(updatedParams);
+
     updateRequest({ url: newBuiltUrl });
 
     toggleQueryParam(index);
