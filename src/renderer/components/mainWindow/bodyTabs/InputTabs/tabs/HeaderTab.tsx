@@ -16,7 +16,7 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 export const HeaderTab = () => {
   const { addHeader, deleteHeader, clearHeaders, updateHeader } = useCollectionActions();
   const headers = useCollectionStore((state) => selectRequest(state).headers);
-  console.log('headers', headers);
+
   const handleAddHeader = addHeader;
 
   const handleDeleteHeader = deleteHeader;
