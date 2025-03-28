@@ -4766,10 +4766,10 @@ lru-cache@^7.7.1:
   resolved "https://registry.yarnpkg.com/lru-cache/-/lru-cache-7.18.3.tgz#f793896e0fd0e954a59dfdd82f0773808df6aa89"
   integrity sha512-jumlc0BIUrS3qJGgIkWZsyfAM7NCWiBcCDhnd+3NNM5KbBmLTgHVfWBcg6W+rLUsIpzpERPsvwUP7CckAQSOoA==
 
-lucide-react@^0.484.0:
-  version "0.484.0"
-  resolved "https://registry.yarnpkg.com/lucide-react/-/lucide-react-0.484.0.tgz#b746deb6576be178628a9e2c575432ab53ba6a1b"
-  integrity sha512-oZy8coK9kZzvqhSgfbGkPtTgyjpBvs3ukLgDPv14dSOZtBtboryWF5o8i3qen7QbGg7JhiJBz5mK1p8YoMZTLQ==
+lucide-react@^0.485.0:
+  version "0.485.0"
+  resolved "https://registry.yarnpkg.com/lucide-react/-/lucide-react-0.485.0.tgz#96079022f766e7feabcc1b1d9c084bc529802ff6"
+  integrity sha512-NvyQJ0LKyyCxL23nPKESlr/jmz8r7fJO1bkuptSNYSy0s8VVj4ojhX0YAgmE1e0ewfxUZjIlZpvH+otfTnla8Q==
 
 macos-alias@~0.2.5:
   version "0.2.12"
