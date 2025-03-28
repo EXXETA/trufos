@@ -15,7 +15,6 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import { TrufosQueryParam } from 'shim/objects/queryParams';
 import { getQueryParamsFromUrl } from '@/util/query-util';
 import { shallowEqual } from '@/util/object-util';
-// import { TrufosQueryParam } from '@/shim/objects/queryParams';
 
 export const ParamsTab = () => {
   const [isActiveStateUpdating, setIsActiveStateUpdating] = useState<boolean>(false);
@@ -40,17 +39,18 @@ export const ParamsTab = () => {
     if (isActiveStateUpdating) {
       const currentParams = queryParams || [];
 
-      // if (JSON.stringify(queryParamsFromUrl) !== JSON.stringify(currentParams)) {
-      //   updateRequest({ queryParams: currentParams });
-      // }
-
-      if (shallowEqual(queryParamsFromUrl, currentParams)) {
+      if (!shallowEqual(queryParamsFromUrl, currentParams)) {
         updateRequest({ queryParams: currentParams });
       }
 
       setIsActiveStateUpdating(false);
     } else {
-      updateRequest({ queryParams: queryParamsFromUrl });
+      const currentParams = queryParams || [];
+      const inactiveParams = currentParams.filter((param) => !param.isActive);
+
+      updateRequest({
+        queryParams: [...queryParamsFromUrl, ...inactiveParams],
+      });
     }
   }, [queryParamsFromUrl]);
 
@@ -80,6 +80,8 @@ export const ParamsTab = () => {
   };
 
   const handleUpdateQueryParam = (index: number, field: 'key' | 'value', value: string) => {
+    setIsActiveStateUpdating(true);
+
     const updatedParams = queryParams.map((param, i) =>
       i === index ? { ...param, [field]: value } : param
     );
@@ -174,7 +176,7 @@ export const ParamsTab = () => {
                 <TableCell className="w-1/3 break-all">
                   <input
                     type="text"
-                    value={param.key}
+                    value={param?.key}
                     onChange={(e) => handleUpdateQueryParam(index, 'key', e.target.value)}
                     className="w-full bg-transparent outline-none"
                     placeholder="Enter param key"
@@ -184,7 +186,7 @@ export const ParamsTab = () => {
                 <TableCell className="w-full break-all">
                   <input
                     type="text"
-                    value={param.value}
+                    value={param?.value}
                     onChange={(e) => handleUpdateQueryParam(index, 'value', e.target.value)}
                     className="w-full bg-transparent outline-none"
                     placeholder="Enter param value"
@@ -196,17 +198,17 @@ export const ParamsTab = () => {
                     <div className={'relative h-4 z-10 cursor-pointer'}>
                       <input
                         type="checkbox"
-                        checked={param.isActive}
+                        checked={param?.isActive}
                         onChange={() => handleToggleQueryParam(index)}
                         className={cn(
                           'form-checkbox h-4 w-4 appearance-none border rounded-[2px]',
-                          param.isActive
+                          param?.isActive
                             ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
                             : 'border-[rgba(238,238,238,1)] bg-transparent'
                         )}
                       />
 
-                      {param.isActive && (
+                      {param?.isActive && (
                         <div
                           className={
                             'absolute left-0 top-0 h-4 w-4 flex items-center justify-center pointer-events-none rotate-6'

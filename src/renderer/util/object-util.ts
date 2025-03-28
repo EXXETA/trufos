@@ -1,5 +1,6 @@
 type Primitive = string | number | boolean | null | undefined | symbol | bigint;
-type DeepValue = Primitive | { [key: string]: DeepValue } | DeepValue[];
+type PlainObject = { [key: string]: DeepValue };
+type DeepValue = Primitive | PlainObject | DeepValue[];
 type ShallowValue = Primitive | { [key: string]: unknown } | unknown[];
 
 export const shallowEqual = (objA: ShallowValue, objB: ShallowValue): boolean => {
@@ -15,6 +16,14 @@ export const shallowEqual = (objA: ShallowValue, objB: ShallowValue): boolean =>
     Array.isArray(objA) !== Array.isArray(objB)
   ) {
     return false;
+  }
+
+  if (Array.isArray(objA) && Array.isArray(objB)) {
+    if (objA.length !== objB.length) {
+      return false;
+    }
+
+    return objA.every((item, index) => objB[index] === item);
   }
 
   const keysA = Object.keys(objA);
