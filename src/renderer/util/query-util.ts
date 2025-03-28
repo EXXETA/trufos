@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrufosQueryParam } from '../../shim/objects/queryParams';
+import { TrufosQueryParam } from 'shim/objects/queryParams';
 
 export const getQueryParamsFromUrl = (url: string): { queryParams: TrufosQueryParam[] } => {
   const [queryParams, setQueryParams] = useState<TrufosQueryParam[]>([]);
