@@ -83,6 +83,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         type: 'request',
         title: title ?? (Math.random() + 1).toString(36).substring(7),
         headers: [],
+        queryParams: [],
         body: {
           type: RequestBodyType.TEXT,
           mimeType: 'text/plain',
@@ -202,6 +203,44 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         state.addHeader();
       }),
 
+    addQueryParam: () =>
+      set((state) => {
+        selectQueryParams(state).push({ key: '', value: '', isActive: true });
+      }),
+
+    updateQueryParam: (index, updatedParam) =>
+      set((state) => {
+        const queryParams = selectQueryParams(state);
+
+        if (queryParams[index]) {
+          queryParams[index] = { ...queryParams[index], ...updatedParam };
+        }
+      }),
+
+    deleteQueryParam: (index) =>
+      set((state) => {
+        const queryParams = selectQueryParams(state);
+        queryParams.splice(index, 1);
+        if (selectRequest(state).queryParams.length === 0) {
+          state.addQueryParam();
+        }
+      }),
+
+    clearQueryParams: () =>
+      set((state) => {
+        const request = selectRequest(state);
+        request.queryParams = [];
+        state.addQueryParam();
+      }),
+
+    toggleQueryParam: (index) =>
+      set((state) => {
+        const queryParams = selectQueryParams(state);
+        if (queryParams[index]) {
+          queryParams[index].isActive = !queryParams[index].isActive;
+        }
+      }),
+
     setDraftFlag: () =>
       set((state) => {
         selectRequest(state).draft = true;
@@ -279,6 +318,7 @@ const selectParent = (state: CollectionState, parentId: string) => {
   return state.folders.get(parentId)!;
 };
 const selectHeaders = (state: CollectionState) => selectRequest(state)?.headers;
+const selectQueryParams = (state: CollectionState) => selectRequest(state)?.queryParams;
 export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) =>
   state.requests.get(requestId ?? state.selectedRequestId);
 export const selectFolder = (state: CollectionState, folderId: Folder['id']) =>
