@@ -12,8 +12,10 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { TrufosQueryParam } from '../../../../../../shim/objects/queryParams';
+import { TrufosQueryParam } from 'shim/objects/queryParams';
 import { getQueryParamsFromUrl } from '@/util/query-util';
+import { shallowEqual } from '@/util/object-util';
+// import { TrufosQueryParam } from '@/shim/objects/queryParams';
 
 export const ParamsTab = () => {
   const [isActiveStateUpdating, setIsActiveStateUpdating] = useState<boolean>(false);
@@ -38,7 +40,11 @@ export const ParamsTab = () => {
     if (isActiveStateUpdating) {
       const currentParams = queryParams || [];
 
-      if (JSON.stringify(queryParamsFromUrl) !== JSON.stringify(currentParams)) {
+      // if (JSON.stringify(queryParamsFromUrl) !== JSON.stringify(currentParams)) {
+      //   updateRequest({ queryParams: currentParams });
+      // }
+
+      if (shallowEqual(queryParamsFromUrl, currentParams)) {
         updateRequest({ queryParams: currentParams });
       }
 

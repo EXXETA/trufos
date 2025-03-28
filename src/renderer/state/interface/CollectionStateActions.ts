@@ -3,7 +3,7 @@ import { RequestBody, TrufosRequest } from 'shim/objects/request';
 import { TrufosHeader } from 'shim/objects/headers';
 import { editor } from 'monaco-editor';
 import { Folder } from 'shim/objects/folder';
-import { TrufosQueryParam } from '../../../shim/objects/queryParams';
+import { TrufosQueryParam } from 'shim/objects/queryParams';
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
