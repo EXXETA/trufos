@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { TrufosQueryParam } from 'shim/objects/queryParams';
+import { TrufosQueryParam } from 'shim/objects/query-param';
 import { getQueryParamsFromUrl } from '@/util/query-util';
 import { shallowEqual } from '@/util/object-util';
 

@@ -1,6 +1,6 @@
 import { RequestMethod } from './request-method';
 import { TrufosHeader } from './headers';
-import { TrufosQueryParam } from './queryParams';
+import { TrufosQueryParam } from './query-param';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 export const DRAFT_TEXT_BODY_FILE_NAME = '~' + TEXT_BODY_FILE_NAME;
