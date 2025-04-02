@@ -3,6 +3,7 @@ import { RequestBody, TrufosRequest } from 'shim/objects/request';
 import { TrufosHeader } from 'shim/objects/headers';
 import { editor } from 'monaco-editor';
 import { Folder } from 'shim/objects/folder';
+import { TrufosQueryParam } from 'shim/objects/query-param';
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
@@ -68,6 +69,35 @@ export interface CollectionStateActions {
    * Clear all headers from the currently selected request and add a new empty header
    */
   clearHeaders(): void;
+
+  /**
+   * Add a new query parameter to the currently selected request
+   */
+  addQueryParam(): void;
+
+  /**
+   * Update a query parameter in the currently selected request
+   * @param index The index of the query parameter to update
+   * @param updatedParam The new query parameter content
+   */
+  updateQueryParam(index: number, updatedParam: Partial<TrufosQueryParam>): void;
+
+  /**
+   * Delete a query parameter from the currently selected request
+   * @param index The index of the query parameter to delete
+   */
+  deleteQueryParam(index: number): void;
+
+  /**
+   * Clear all query parameters from the currently selected request and add a new empty query parameter
+   */
+  clearQueryParams(): void;
+
+  /**
+   * Toggle the active state of a query parameter
+   * @param index The index of the query parameter to toggle
+   */
+  toggleQueryParam(index: number): void;
 
   /**
    * Set the draft flag on the currently selected request
