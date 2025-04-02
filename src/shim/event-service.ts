@@ -101,4 +101,9 @@ export interface IEventService {
    * @param dirPath The directory path of the collection to close. If not provided, the current collection is closed.
    */
   closeCollection(dirPath?: string): Promise<Collection>;
+
+  /**
+   * Open a folder dialog and return the selected directory path.
+   */
+  showOpenDialog(options: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue>;
 }
