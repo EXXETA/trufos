@@ -8,6 +8,12 @@ import { TrufosQueryParam } from 'shim/objects/query-param';
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
 
+  /**
+   * Change the current collection to the given collection. Will save any unsaved changes
+   * @param collection The collection to change to
+   */
+  changeCollection(collection: Collection): void;
+
   addNewRequest(title?: string, parentId?: string): Promise<void>;
 
   /**
