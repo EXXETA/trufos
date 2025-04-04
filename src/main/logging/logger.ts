@@ -1,6 +1,10 @@
-import winston, { format, Logform, transports } from 'winston';
+import winston, { format, transports } from 'winston';
+import { Format, TransformableInfo } from 'logform';
 import { app, ipcMain } from 'electron';
 import { LogEntry } from 'shim/logger';
+import { format as formatString } from 'node:util';
+
+const SPLAT = Symbol.for('splat');
 
 console.info('Saving logs at', app.getPath('logs'));
 
@@ -9,22 +13,26 @@ declare global {
   var logger: winston.Logger;
 }
 
+class SplatFormat implements Format {
+  transform(info: TransformableInfo) {
+    const args = info[SPLAT];
+    if (Array.isArray(args)) info.message = formatString(info.message, ...args);
+    return info;
+  }
+}
+
 function print({
   timestamp,
   level,
   process,
   message,
-}: Logform.TransformableInfo & LogEntry & { timestamp: string }) {
+}: TransformableInfo & LogEntry & { timestamp: string }) {
   return `${timestamp} [${process.toUpperCase()}] [${level.toUpperCase()}]: ${message}`;
 }
 
 global.logger = winston.createLogger({
-  level: 'info',
-  format: format.combine(
-    format.splat(),
-    format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    format.printf(print)
-  ),
+  level: 'warn',
+  format: format.combine(format.timestamp(), new SplatFormat(), format.printf(print)),
   defaultMeta: { process: 'main' },
   transports: [
     new winston.transports.File({
@@ -38,9 +46,11 @@ global.logger = winston.createLogger({
 });
 
 if (!app.isPackaged) {
-  logger.add(new transports.Console());
+  logger.add(new transports.Console({ level: 'info' }));
 }
 
-ipcMain.on('log', (event, data: LogEntry) => {
+ipcMain.on('log', (event, data: TransformableInfo & LogEntry) => {
+  data[SPLAT] = data.splat;
+  delete data.splat;
   logger.write(data);
 });

@@ -1,7 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Writable } from 'node:stream';
+import Transport from 'winston-transport';
+import { LogEntry } from 'shim/logger';
+import { transports } from 'winston';
 
 import './logger';
-import Transport from 'winston-transport';
 
 class MemoryTransport extends Transport {
   public logs: unknown[] = [];
@@ -42,7 +45,7 @@ describe('Logger', () => {
 
       // Assert
       expect(memoryTransport.logs).toHaveLength(1);
-      expect(memoryTransport.logs[0].message).toBe(message);
+      expect((memoryTransport.logs[0] as LogEntry).message).toBe(message);
     }
   );
 
@@ -64,5 +67,37 @@ describe('Logger', () => {
 
     // Assert
     expect(memoryTransport.logs).toHaveLength(1);
+  });
+
+  it('should log objects to console', async () => {
+    // Arrange
+    const now = new Date();
+    const message = 'message';
+    const number = 1.23;
+    const object = { test: 'test' };
+    const string = 'test';
+    const array = [1, 2, 3];
+    const expected = `${now.toISOString()} [MAIN] [DEBUG]: ${message} ${number} { test: 'test' } ${string} [ 1, 2, 3 ]\n`;
+
+    const data: unknown[] = [];
+    const stream = new Writable({ write: (chunk) => data.push(chunk) });
+    const transport = new transports.Stream({ stream });
+
+    vi.useFakeTimers({ now });
+    logger.add(transport);
+
+    try {
+      // Act
+      logger.debug(message, number, object, string, array);
+
+      // Assert
+      expect(data.length).toBe(1);
+      expect(data[0]).toBeInstanceOf(Buffer);
+      const actual = data[0].toString();
+      expect(actual).toEqual(expected);
+    } finally {
+      vi.useRealTimers();
+      logger.remove(transport);
+    }
   });
 });
