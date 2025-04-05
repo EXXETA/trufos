@@ -29,6 +29,9 @@ import { migrateInfoFile } from './info-files/migrators';
 import { SemVer } from 'main/util/semver';
 import { SettingsService } from './settings-service';
 
+/** Content of the .gitignore file for a collection */
+const COLLECTION_GITIGNORE = ['~request.json'].join('\n');
+
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
  * to and from the file system. If you want to open a collection, you should use the
@@ -286,7 +289,7 @@ export class PersistenceService {
    */
   public async createCollection(dirPath: string, title: string): Promise<Collection> {
     logger.info('Creating new collection at', dirPath);
-    if ((await fs.readdir(dirPath)).length !== 0) {
+    if ((await fs.readdir(dirPath)).some((file) => file !== '.DS_Store')) {
       throw new Error('Directory is not empty');
     }
 
@@ -299,7 +302,8 @@ export class PersistenceService {
       environments: {},
       children: [],
     };
-    await this.saveCollection(collection);
+    await this.saveCollection(collection); // save collection file
+    await fs.writeFile(path.join(dirPath, '.gitignore'), COLLECTION_GITIGNORE); // create .gitignore
     return collection;
   }
 
