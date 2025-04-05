@@ -100,4 +100,61 @@ describe('Logger', () => {
       logger.remove(transport);
     }
   });
+
+  it('should log exceptions as single argument', async () => {
+    // Arrange
+    const now = new Date();
+    const error = new Error('test error');
+    const expected = `${now.toISOString()} [MAIN] [ERROR]: ${error.stack}\n`;
+
+    const data: unknown[] = [];
+    const stream = new Writable({ write: (chunk) => data.push(chunk) });
+    const transport = new transports.Stream({ stream });
+
+    vi.useFakeTimers({ now });
+    logger.add(transport);
+
+    try {
+      // Act
+      logger.error(error);
+
+      // Assert
+      expect(data.length).toBe(1);
+      expect(data[0]).toBeInstanceOf(Buffer);
+      const actual = data[0].toString();
+      expect(actual).toEqual(expected);
+    } finally {
+      vi.useRealTimers();
+      logger.remove(transport);
+    }
+  });
+
+  it('should log exceptions as last argument after message', async () => {
+    // Arrange
+    const now = new Date();
+    const message = 'Error was thrown:';
+    const error = new Error('test error');
+    const expected = `${now.toISOString()} [MAIN] [ERROR]: ${message} ${error.stack}\n`;
+
+    const data: unknown[] = [];
+    const stream = new Writable({ write: (chunk) => data.push(chunk) });
+    const transport = new transports.Stream({ stream });
+
+    vi.useFakeTimers({ now });
+    logger.add(transport);
+
+    try {
+      // Act
+      logger.error(message, error);
+
+      // Assert
+      expect(data.length).toBe(1);
+      expect(data[0]).toBeInstanceOf(Buffer);
+      const actual = data[0].toString();
+      expect(actual).toEqual(expected);
+    } finally {
+      vi.useRealTimers();
+      logger.remove(transport);
+    }
+  });
 });
