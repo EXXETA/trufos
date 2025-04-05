@@ -61,15 +61,20 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
-   * Loads the collection at the specified path and sets it as the current collection.
+   * Loads the given collection and sets it as the current collection.
    *
-   * @param path The path of the collection
+   * @param collection The collection to select or the path to the collection.
    */
-  public async changeCollection(path: string) {
-    path = normalize(path);
-    const settings = settingsService.modifiableSettings;
+  public async changeCollection(collection: Collection | string) {
+    // load collection
+    this.currentCollection =
+      typeof collection === 'string'
+        ? await persistenceService.loadCollection(collection)
+        : collection;
 
-    // open the collection if it is not already open
+    // add collection to the list of open collections if it is not already there
+    const path = this.currentCollection.dirPath;
+    const settings = settingsService.modifiableSettings;
     const collectionIndex = settings.collections.indexOf(path);
     if (collectionIndex === -1) {
       settings.currentCollectionIndex = settings.collections.push(path) - 1;
@@ -77,7 +82,7 @@ export class EnvironmentService implements Initializable {
       settings.currentCollectionIndex = collectionIndex;
     }
 
-    this.currentCollection = await persistenceService.loadCollection(path);
+    // save settings and return the current collection
     await settingsService.setSettings(settings);
     return this.currentCollection;
   }

@@ -122,11 +122,13 @@ export class MainEventService implements IEventService {
   }
 
   async openCollection(dirPath: string) {
-    return await persistenceService.loadCollection(dirPath);
+    return await environmentService.changeCollection(dirPath);
   }
 
   async createCollection(dirPath: string, title: string) {
-    return await persistenceService.createCollection(dirPath, title);
+    return await environmentService.changeCollection(
+      await persistenceService.createCollection(dirPath, title)
+    );
   }
 
   async closeCollection(dirPath?: string) {

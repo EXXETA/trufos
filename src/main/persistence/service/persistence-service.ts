@@ -31,7 +31,8 @@ import { SettingsService } from './settings-service';
 
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
- * to and from the file system.
+ * to and from the file system. If you want to open a collection, you should use the
+ * {@link EnvironmentService.changeCollection} which will call this service internally.
  */
 export class PersistenceService {
   public static readonly instance = new PersistenceService();
