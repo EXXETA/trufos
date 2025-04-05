@@ -32,14 +32,21 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
-   * Initializes the environment service by loading the last used collection.
+   * Initializes the environment service by loading the last used collection. If that fails, the
+   * default collection is loaded instead.
    */
   public async init() {
     const { settings } = settingsService;
     await persistenceService.createDefaultCollectionIfNotExists();
 
     const collectionDir = settings.collections[settings.currentCollectionIndex];
-    this.currentCollection = await persistenceService.loadCollection(collectionDir);
+    try {
+      this.currentCollection = await persistenceService.loadCollection(collectionDir);
+    } catch (e) {
+      logger.error(`Failed to load collection at ${collectionDir}:`, e);
+      logger.info('Loading default collection instead.');
+      await this.changeCollection(SettingsService.DEFAULT_COLLECTION_DIR);
+    }
   }
 
   /**
