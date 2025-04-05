@@ -8,7 +8,7 @@ export const Menubar = () => {
   return (
     <div>
       <Sidebar collapsible={'none'}>
-        <SidebarHeaderBar></SidebarHeaderBar>
+        <SidebarHeaderBar />
         <SidebarRequestList />
         <FooterBar />
       </Sidebar>

@@ -1,0 +1,13 @@
+{
+  "id": "35efb7a3-84ab-4d28-a91c-2945c0591c6e",
+  "title": "Echo",
+  "version": "1.1.0",
+  "url": "https://echo.free.beeceptor.com",
+  "method": "POST",
+  "headers": [],
+  "queryParams": [],
+  "body": {
+    "type": "text",
+    "mimeType": "application/json"
+  }
+}

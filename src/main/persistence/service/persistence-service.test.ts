@@ -53,6 +53,7 @@ function getExampleRequest(parentId: string): TrufosRequest {
     draft: false,
     parentId,
     method: RequestMethod.GET,
+    queryParams: [],
     body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
   };
 }
