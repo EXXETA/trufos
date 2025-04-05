@@ -15,8 +15,25 @@ declare global {
 
 class SplatFormat implements Format {
   transform(info: TransformableInfo) {
-    const args = info[SPLAT];
-    if (Array.isArray(args)) info.message = formatString(info.message, ...args);
+    if (info instanceof Error) {
+      info.message = info.stack ?? info.message;
+      return info;
+    }
+
+    let args = info[SPLAT] as unknown[];
+    if (!Array.isArray(args)) args = [];
+    if (args.length === 0 && info.message instanceof Error) {
+      info.message = info.message.stack ?? info.message.message;
+    } else if (args.length !== 0 && args[args.length - 1] instanceof Error) {
+      const error = args.pop() as Error;
+      if (typeof info.message === 'string' && info.message.length !== 0) {
+        info.message = info.message.slice(0, -error.message.length - 1);
+      }
+      args.push(error.stack);
+    }
+
+    // format rest of the arguments
+    info.message = formatString(info.message, ...args);
     return info;
   }
 }
@@ -32,7 +49,7 @@ function print({
 
 global.logger = winston.createLogger({
   level: 'warn',
-  format: format.combine(format.timestamp(), new SplatFormat(), format.printf(print)),
+  format: format.combine(new SplatFormat(), format.timestamp(), format.printf(print)),
   defaultMeta: { process: 'main' },
   transports: [
     new winston.transports.File({
