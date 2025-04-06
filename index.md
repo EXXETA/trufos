@@ -4,3 +4,7 @@
 
 layout: home
 ---
+
+# Trufos
+
+Welcome to the Trufos documentation!
