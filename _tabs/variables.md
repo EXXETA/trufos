@@ -1,10 +1,9 @@
 ---
-layout: default
+icon: fas fa-code
+order: 5
 ---
 
 {% raw %}
-
-# Variables
 
 Variables enable easy reuse of values in your requests. Any variable can be used in any request
 using the syntax `{{ variableName }}`. Currently, there are three kinds of variables:
@@ -12,23 +11,21 @@ using the syntax `{{ variableName }}`. Currently, there are three kinds of varia
 - **[System Variables](#system-variables)**: These are variables that are set by the system and
   cannot be changed by the user. Examples are the current time, or a random UUID.
 - **[Collection Variables](#collection-variables)**: These are variables that are set at the
-  collection level. They can be
-  used in any request within the collection.
+  collection level. They can be used in any request within the collection.
 - **[Environment Variables](#environment-variables)**: These are variables that are set at the
-  environment level. They can be
-  used in any request within the collection and change based on the environment you are using (e.g.,
-  development, staging, production).
+  environment level. They can be used in any request within the collection and change based on the
+  environment you are using (e.g., development, staging, production).
 
 When writing `{{` in your request, the editor will show you a list of all available variables. You
 can navigate through the list using the arrow keys and select a variable by pressing `Enter`. The
 variable will be inserted at the current cursor position.
 
-![Variable List](images/variables/variable-list.png)
+![Variable List](/assets/variable-list.png)
 
-A variables are highlighted in blue. When hovering over a variable, a tooltip will show you
-the variable name, its current value, and optionally a description.
+A variables are highlighted in blue. When hovering over a variable, a tooltip will show you the
+variable name, its current value, and optionally a description.
 
-![Variable Tooltip](images/variables/variable-tooltip.png)
+![Variable Tooltip](/assets/variable-tooltip.png)
 
 ## System Variables
 
