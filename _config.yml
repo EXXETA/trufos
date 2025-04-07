@@ -22,6 +22,7 @@ description: >- # used by seo meta and the atom feed
     A free, open source REST Client Application with VCS support.
 
 url: "https://exxeta.github.io"
+baseurl: "/trufos"
 
 github:
     username: EXXETA
@@ -138,9 +139,6 @@ pwa:
         # - "/example"  # URLs match `<SITE_URL>/example/*` will not be cached by the PWA
 
 paginate: 10
-
-# The base URL of your site
-baseurl: "/trufos"
 
 # ------------ The following options are not recommended to be modified ------------------
 
