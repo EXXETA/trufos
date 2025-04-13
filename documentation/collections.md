@@ -1,6 +1,7 @@
 ---
 title: Collections
-nav_order: 3
+parent: Documentation
+nav_order: 1
 ---
 
 # Collections
