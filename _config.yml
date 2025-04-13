@@ -19,6 +19,8 @@ description: A free, open source REST Client Application with VCS support.
 url: "https://exxeta.github.io"
 baseurl: "/trufos"
 
+favicon_ico: "/assets/favicon.ico"
+
 defaults:
   - scope:
       path: "" # an empty string here means all files in the project
@@ -41,6 +43,7 @@ exclude:
   # specific to the theme website:
   - bin/
   - lib/
+  - tools/
   - "*.gemspec"
   - "*.gem"
   - LICENSE.txt

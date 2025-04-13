@@ -1,9 +1,9 @@
 ---
-title: Getting Started
+title: Download
 nav_order: 2
 ---
 
-# Getting Started
+# Download
 
 We're currently working on prebuilt binaries for Windows, macOS, and Linux. In the meantime, you can
 [build the application yourself](#build-it-yourself).
@@ -16,9 +16,10 @@ recent yarn version.
 
 From inside the project directory, run:
 
-1. Run `yarn install --frozen-lockfile` to install all dependencies
-2. Run `yarn run make` to build the application for your platform
-3. The built application will be in the `out/make` directory
+1. Clone the repository with `git clone
+2. Run `yarn install --frozen-lockfile` to install all dependencies
+3. Run `yarn run make` to build the application for your platform
+4. The built application will be in the `out/make` directory
     - Windows: a `Setup.exe` file
     - macOS: a `.dmg` file
     - Linux: currently a ZIP file (`.deb` file and Flatpak is planned)
