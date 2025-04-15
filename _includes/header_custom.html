@@ -1,18 +1,10 @@
-<!-- include icons, please use feather icons -->
-<svg xmlns="http://www.w3.org/2000/svg" class="d-none">
-  {% include icons/moon.html %}
-  {% include icons/sun.html %}
-</svg>
-
 <!-- button to toggle dark mode -->
 <div class="toggle-theme-container">
   <svg id="toggle-theme-icon" viewBox="0 0 24 24" class="icon" aria-label="Toggle Dark Mode"
        role="button" tabindex="0"
        xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2"
        stroke-linecap="round"
-       stroke-linejoin="round" style="cursor: pointer;">
+       stroke-linejoin="round" width="24" height="24" overflow="hidden" cursor="pointer">
     <use xlink:href="#svg-sun"></use>
   </svg>
 </div>
-
-<script>{% include js/toggle-dark-mode.js %}</script>
