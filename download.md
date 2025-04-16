@@ -14,12 +14,11 @@ Trufos is an open-source project, and you can build it yourself. As it is an [El
 it can run on Windows, macOS, and Linux without any issues. You will need [Node.js] version 22 and a
 recent yarn version.
 
-From inside the project directory, run:
-
-1. Clone the repository with `git clone
-2. Run `yarn install --frozen-lockfile` to install all dependencies
-3. Run `yarn run make` to build the application for your platform
-4. The built application will be in the `out/make` directory
+1. Clone the repository with `git clone`
+2. Change to the cloned directory with `cd trufos`
+3. Run `yarn install --frozen-lockfile` to install all dependencies
+4. Run `yarn run make` to build the application for your platform
+5. The built application will be in the `out/make` directory
     - Windows: a `Setup.exe` file
     - macOS: a `.dmg` file
     - Linux: currently a ZIP file (`.deb` file and Flatpak is planned)
