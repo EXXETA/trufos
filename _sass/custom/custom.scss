@@ -1,9 +1,10 @@
-.toggle-theme-container {
+.nav-icons {
+  display: flex;
+  gap: .5rem;
+}
+
+.nav-icon-container {
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-.toggle-theme-icon {
-  align-self: center;
 }
