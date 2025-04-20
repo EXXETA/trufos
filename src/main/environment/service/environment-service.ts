@@ -3,7 +3,7 @@ import { normalize } from 'node:path';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { Collection } from 'shim/objects/collection';
+import { Collection, CollectionBase } from 'shim/objects/collection';
 import { VariableMap } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 import { SettingsService } from 'main/persistence/service/settings-service';
@@ -101,6 +101,7 @@ export class EnvironmentService implements Initializable {
   public async closeCollection(path?: string) {
     path ??= this.currentCollection.dirPath;
     path = normalize(path);
+    logger.info('Closing collection at', path);
 
     // do not close the default collection
     const settings = settingsService.modifiableSettings;
@@ -120,6 +121,30 @@ export class EnvironmentService implements Initializable {
 
     // return the current collection (after closing the specified collection)
     return this.currentCollection;
+  }
+
+  /**
+   * Lists all collections that are currently open. This includes the default collection.
+   * Closes any collections that fail to load.
+   */
+  public async listCollections() {
+    const collections: CollectionBase[] = [];
+
+    for (const dirPath of settingsService.settings.collections) {
+      try {
+        const collection = await persistenceService.loadCollection(dirPath, false);
+        collections.push({
+          id: collection.id,
+          title: collection.title,
+          dirPath,
+        });
+      } catch (e) {
+        logger.error(`Failed to load collection at ${dirPath}:`, e);
+        await this.closeCollection(dirPath).catch(logger.error);
+      }
+    }
+
+    return collections;
   }
 
   /**

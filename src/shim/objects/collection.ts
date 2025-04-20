@@ -3,12 +3,16 @@ import { TrufosRequest } from './request';
 import { VariableMap } from './variables';
 import { EnvironmentMap } from './environment';
 
-/** A collection of folders and requests. */
-export type Collection = {
+/** Minimal information about a collection. */
+export type CollectionBase = {
   id: string;
-  type: 'collection';
   title: string;
   dirPath: string;
+};
+
+/** A collection of folders and requests. */
+export type Collection = CollectionBase & {
+  type: 'collection';
   variables: VariableMap;
   environments: EnvironmentMap;
   children: (Folder | TrufosRequest)[];

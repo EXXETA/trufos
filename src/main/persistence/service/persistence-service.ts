@@ -307,18 +307,25 @@ export class PersistenceService {
     return collection;
   }
 
+  public loadCollection(dirPath: string, recursive: false): Promise<CollectionInfoFile>;
+  public loadCollection(dirPath: string, recursive?: true): Promise<Collection>;
+
   /**
    * Loads a collection and all of its children from the file system.
    * @param dirPath the directory path where the collection is located
+   * @param recursive DEFAULT: true. Whether to load all children of the collection recursively
    * @returns the loaded collection
    */
-  public async loadCollection(dirPath: string): Promise<Collection> {
+  public async loadCollection(dirPath: string, recursive = true) {
     logger.info('Loading collection at', dirPath);
     const type = 'collection' as const;
     const info = await this.readInfoFile(dirPath, type);
+    if (!recursive) {
+      return info;
+    }
+
     this.idToPathMap.set(info.id, dirPath);
     const children = await this.loadChildren(info.id, dirPath);
-
     return fromCollectionInfoFile(info, dirPath, children);
   }
 

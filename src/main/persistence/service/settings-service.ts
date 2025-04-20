@@ -2,7 +2,7 @@ import path from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { Initializable } from 'main/shared/initializable';
-import { SemVer } from '../../util/semver';
+import { SemVer } from 'main/util/semver';
 
 const VERSION = new SemVer(1, 0, 0);
 
