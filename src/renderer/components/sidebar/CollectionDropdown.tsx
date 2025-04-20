@@ -3,7 +3,8 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -12,6 +13,7 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCallback, useEffect, useState } from 'react';
 import { CollectionBase } from 'shim/objects/collection';
+import { FolderOpen, FolderPlus } from 'lucide-react';
 
 const eventService = RendererEventService.instance;
 const COLLECTION_FILE_NAME = 'collection.json';
@@ -25,6 +27,14 @@ export default function CollectionDropdown() {
     eventService.listCollections().then(setCollections);
   }, []);
 
+  const loadCollection = useCallback(
+    async (dirPath: string) => {
+      console.info('Opening collection at', dirPath);
+      changeCollection(await eventService.openCollection(dirPath));
+    },
+    [changeCollection]
+  );
+
   const openCollection = useCallback(async () => {
     try {
       const result = await eventService.showOpenDialog({
@@ -32,14 +42,12 @@ export default function CollectionDropdown() {
         filters: [{ name: 'Collection', extensions: [COLLECTION_FILE_NAME] }],
       });
       if (!result.canceled && result.filePaths.length > 0) {
-        const dirPath = result.filePaths[0].slice(0, -COLLECTION_FILE_NAME.length);
-        console.info('Opening collection at', dirPath);
-        changeCollection(await eventService.openCollection(dirPath));
+        await loadCollection(result.filePaths[0].slice(0, -COLLECTION_FILE_NAME.length));
       }
     } catch (e) {
       console.error('Error opening collection:', e);
     }
-  }, [changeCollection]);
+  }, [loadCollection]);
 
   const createCollection = useCallback(async () => {
     try {
@@ -58,15 +66,9 @@ export default function CollectionDropdown() {
   const renderCollectionList = useCallback(
     () =>
       collections.map(({ title, dirPath }, i) => (
-        <DropdownMenuItem
-          key={i}
-          onClick={async () => {
-            console.info('Opening collection at', dirPath);
-            changeCollection(await eventService.openCollection(dirPath));
-          }}
-        >
-          <span>{title}</span>
-        </DropdownMenuItem>
+        <DropdownMenuRadioItem key={i} value={dirPath}>
+          {title}
+        </DropdownMenuRadioItem>
       )),
     [collections, changeCollection]
   );
@@ -74,26 +76,26 @@ export default function CollectionDropdown() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">{collection.title}</Button>
+        <Button variant="outline">Switch Collection</Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent>
-        <DropdownMenuLabel>Collection</DropdownMenuLabel>
-
-        <DropdownMenuSeparator />
-
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={createCollection}>
+            <FolderPlus />
             <span>New Collection</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={openCollection}>
+            <FolderOpen />
             <span>Open Collection</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuGroup>{renderCollectionList()}</DropdownMenuGroup>
+        <DropdownMenuRadioGroup value={collection.dirPath} onValueChange={loadCollection}>
+          {renderCollectionList()}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
