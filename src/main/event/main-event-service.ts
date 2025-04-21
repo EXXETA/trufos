@@ -1,7 +1,7 @@
 import './stream-events';
 import { IEventService } from 'shim/event-service';
 import { HttpService } from 'main/network/service/http-service';
-import { app, ipcMain } from 'electron';
+import { app, ipcMain, dialog } from 'electron';
 import { TrufosRequest } from 'shim/objects/request';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { TrufosObject } from 'shim/objects';
@@ -122,14 +122,20 @@ export class MainEventService implements IEventService {
   }
 
   async openCollection(dirPath: string) {
-    return await persistenceService.loadCollection(dirPath);
+    return await environmentService.changeCollection(dirPath);
   }
 
   async createCollection(dirPath: string, title: string) {
-    return await persistenceService.createCollection(dirPath, title);
+    return await environmentService.changeCollection(
+      await persistenceService.createCollection(dirPath, title)
+    );
   }
 
   async closeCollection(dirPath?: string) {
     return await environmentService.closeCollection(dirPath);
+  }
+
+  async showOpenDialog(options: Electron.OpenDialogOptions) {
+    return await dialog.showOpenDialog(options);
   }
 }
