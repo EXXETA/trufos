@@ -1,5 +1,4 @@
 import { Readable } from 'node:stream';
-import { normalize } from 'node:path';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
@@ -100,10 +99,6 @@ export class EnvironmentService implements Initializable {
    */
   public async closeCollection(path?: string) {
     path ??= this.currentCollection.dirPath;
-    path = normalize(path);
-    if (path.endsWith('/')) {
-      path = path.slice(0, -1);
-    }
     logger.info('Closing collection at', path);
 
     // do not close the default collection
