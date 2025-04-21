@@ -23,9 +23,13 @@ export default function CollectionDropdown() {
   const collection = useCollectionStore((state) => state.collection);
   const [collections, setCollections] = useState<CollectionBase[]>([]);
 
+  const loadCollections = useCallback(async () => {
+    setCollections(await eventService.listCollections());
+  }, [setCollections]);
+
   useEffect(() => {
-    eventService.listCollections().then(setCollections);
-  }, []);
+    loadCollections();
+  }, [loadCollections]);
 
   const loadCollection = useCallback(
     async (dirPath: string) => {
@@ -44,6 +48,7 @@ export default function CollectionDropdown() {
       if (!result.canceled && result.filePaths.length > 0) {
         await loadCollection(result.filePaths[0].slice(0, -COLLECTION_FILE_NAME.length));
       }
+      await loadCollections();
     } catch (e) {
       console.error('Error opening collection:', e);
     }
@@ -58,6 +63,7 @@ export default function CollectionDropdown() {
           await eventService.createCollection(result.filePaths[0], 'New Collection')
         );
       }
+      await loadCollections();
     } catch (e) {
       console.error('Error creating collection:', e);
     }
