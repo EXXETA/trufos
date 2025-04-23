@@ -388,7 +388,7 @@ describe('PersistenceService', () => {
     expect(await streamToString(result)).toBe(textBody);
   });
 
-  it('loadCollection() should load the collection at the given directory', async () => {
+  it('loadCollection() should load the collection and its children at the given directory', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);
@@ -405,6 +405,25 @@ describe('PersistenceService', () => {
     expect(result.children).toHaveLength(1);
     result.children[0].id = folder.id;
     result.children[0].parentId = collection.id;
+    expect(result).toEqual(collection);
+  });
+
+  it('loadCollection() without recursive flag should load the basic collection at the given directory', async () => {
+    // Arrange
+    const folder = getExampleFolder(collection.id);
+    collection.children.push(folder);
+
+    await persistenceService.saveCollectionRecursive(collection);
+
+    // Act
+    const result = await persistenceService.loadCollection(collection.dirPath, false);
+
+    // Arrange
+    delete collection.type;
+    delete collection.children;
+    delete collection.dirPath;
+
+    // Assert
     expect(result).toEqual(collection);
   });
 });

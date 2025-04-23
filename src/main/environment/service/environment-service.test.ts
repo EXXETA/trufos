@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EnvironmentService } from './environment-service';
-import { Collection } from 'shim/objects/collection';
+import { Collection, CollectionBase } from 'shim/objects/collection';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { randomUUID } from 'node:crypto';
@@ -142,5 +142,36 @@ describe('EnvironmentService', () => {
     expect(getSettingsSpy).toHaveBeenCalled();
     expect(loadCollectionSpy).toHaveBeenCalledWith(collectionPath);
     expect(environmentService.currentCollection).toEqual(collection);
+  });
+
+  it('listCollections() should return all collections that are currently open', async () => {
+    // Arrange
+    const getSettingsSpy = vi.spyOn(SettingsService.instance, 'settings', 'get');
+    const collections: CollectionBase[] = [
+      { id: randomUUID(), dirPath: '/path/to/collection1', title: 'Collection 1' },
+      { id: randomUUID(), dirPath: '/path/to/collection2', title: 'Collection 2' },
+    ];
+    const settings: SettingsObject = {
+      collections: collections.map((collection) => collection.dirPath),
+      currentCollectionIndex: 0,
+    };
+    getSettingsSpy.mockReturnValueOnce(settings);
+    const loadCollectionSpy = vi
+      .spyOn(PersistenceService.instance, 'loadCollection')
+      .mockImplementation(async (dirPath: string) => {
+        const collection = collections.find((collection) => collection.dirPath === dirPath);
+        if (!collection) {
+          throw new Error(`Collection not found at ${dirPath}`);
+        }
+        return collection as Collection;
+      });
+
+    // Act
+    const result = await environmentService.listCollections();
+
+    // Assert
+    expect(getSettingsSpy).toHaveBeenCalled();
+    expect(loadCollectionSpy).toHaveBeenCalledTimes(settings.collections.length);
+    expect(result).toEqual(collections);
   });
 });

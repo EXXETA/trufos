@@ -32,6 +32,14 @@ import { SettingsService } from './settings-service';
 /** Content of the .gitignore file for a collection */
 const COLLECTION_GITIGNORE = ['~request.json'].join('\n');
 
+function normalizeDirPath(dirPath: string) {
+  dirPath = path.normalize(dirPath);
+  if (dirPath.endsWith(path.sep)) {
+    dirPath = dirPath.slice(0, -1);
+  }
+  return dirPath;
+}
+
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
  * to and from the file system. If you want to open a collection, you should use the
@@ -288,6 +296,7 @@ export class PersistenceService {
    * @param title the title of the collection
    */
   public async createCollection(dirPath: string, title: string): Promise<Collection> {
+    dirPath = normalizeDirPath(dirPath);
     logger.info('Creating new collection at', dirPath);
     if ((await fs.readdir(dirPath)).some((file) => file !== '.DS_Store')) {
       throw new Error('Directory is not empty');
@@ -307,18 +316,26 @@ export class PersistenceService {
     return collection;
   }
 
+  public loadCollection(dirPath: string, recursive: false): Promise<CollectionInfoFile>;
+  public loadCollection(dirPath: string, recursive?: true): Promise<Collection>;
+
   /**
    * Loads a collection and all of its children from the file system.
    * @param dirPath the directory path where the collection is located
+   * @param recursive DEFAULT: true. Whether to load all children of the collection recursively
    * @returns the loaded collection
    */
-  public async loadCollection(dirPath: string): Promise<Collection> {
+  public async loadCollection(dirPath: string, recursive = true) {
+    dirPath = normalizeDirPath(dirPath);
     logger.info('Loading collection at', dirPath);
     const type = 'collection' as const;
     const info = await this.readInfoFile(dirPath, type);
+    if (!recursive) {
+      return info;
+    }
+
     this.idToPathMap.set(info.id, dirPath);
     const children = await this.loadChildren(info.id, dirPath);
-
     return fromCollectionInfoFile(info, dirPath, children);
   }
 

@@ -76,6 +76,10 @@ export class MainEventService implements IEventService {
     return environmentService.currentCollection;
   }
 
+  async listCollections() {
+    return await environmentService.listCollections();
+  }
+
   async sendRequest(request: TrufosRequest) {
     return await HttpService.instance.fetchAsync(request);
   }

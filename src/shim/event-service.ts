@@ -1,15 +1,21 @@
 import { TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
-import { Collection } from './objects/collection';
+import { Collection, CollectionBase } from './objects/collection';
 import { TrufosObject } from './objects';
 import { VariableMap, VariableObject } from './objects/variables';
 import { Folder } from 'shim/objects/folder';
 
 export interface IEventService {
   /**
-   * Load the default collection.
+   * (Re)load the last opened collection.
+   * @param force If true, the collection is reloaded even if it is already loaded.
    */
   loadCollection(force?: boolean): Promise<Collection>;
+
+  /**
+   * Lists all recently opened collections.
+   */
+  listCollections(): Promise<CollectionBase[]>;
 
   /**
    * Send an HTTP request.
