@@ -5635,10 +5635,10 @@ postject@^1.0.0-alpha.6:
   dependencies:
     commander "^9.4.0"
 
-postman-collection@^5.0.0:
-  version "5.0.0"
-  resolved "https://registry.yarnpkg.com/postman-collection/-/postman-collection-5.0.0.tgz#045b9f6ff20baea19b05bcef7af67b00776809a9"
-  integrity sha512-1LK795Atv/ZX3jK1MCTx9KCBz0rAiIJJhTLqnJ4AsXLiLSqJuAH1w5jI1CQzHVLpPFg6E8Rl4tQIhF0eBgKNQQ==
+postman-collection@^5.0.2:
+  version "5.0.2"
+  resolved "https://registry.yarnpkg.com/postman-collection/-/postman-collection-5.0.2.tgz#bd5182bd426ecfecd8c288b2311c716c63f201a6"
+  integrity sha512-6nq0D1n4TyCcw8XEQ57e/IiSDWhkFuwiSqNMxKCbRlVN2xRsJEkBtX2qtaNqlp+wFQW/2WsyYJA1R21HBAAllg==
   dependencies:
     "@faker-js/faker" "5.5.3"
     file-type "3.9.0"
@@ -5648,14 +5648,14 @@ postman-collection@^5.0.0:
     lodash "4.17.21"
     mime-format "2.0.2"
     mime-types "2.1.35"
-    postman-url-encoder "3.0.6"
+    postman-url-encoder "3.0.7"
     semver "7.7.1"
     uuid "8.3.2"
 
-postman-url-encoder@3.0.6:
-  version "3.0.6"
-  resolved "https://registry.yarnpkg.com/postman-url-encoder/-/postman-url-encoder-3.0.6.tgz#d8e596afc923fbaf0f77c3012a7e2f2cf60da1e9"
-  integrity sha512-uOlnZW+4Cmpbfbuq02hdj1hSpcIFmQxlAwsO6dflwUIVpt9+1duYVxXv3ikf+wHrAO8Wy98uVKnnuR8R0Qpdng==
+postman-url-encoder@3.0.7:
+  version "3.0.7"
+  resolved "https://registry.yarnpkg.com/postman-url-encoder/-/postman-url-encoder-3.0.7.tgz#2b11813db5e96b5a143f3cdba4ac0d87a44a5817"
+  integrity sha512-JlWT4yLtL01ogxL+PSzs89++2sKdxsJrk5QrWken/VzKx5b+UMQ646/glZA3MbqfL3KtsUqanLhL0PQtkmcUyg==
   dependencies:
     punycode "^2.3.1"
 
