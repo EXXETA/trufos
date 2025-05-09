@@ -55,19 +55,6 @@ const TabsTrigger = React.forwardRef<
 ));
 TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
-// const TabsTrigger = React.forwardRef<React.ElementRef<typeof TabsPrimitive.Trigger>, React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>>(({
-//   className,
-//   ...props
-// }, ref) => {
-//
-//   return (<TabsPrimitive.Trigger
-//           ref={ref}
-//           className={cn('tabs-trigger', className)}
-//           {...props}
-//       />);
-// });
-// TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
-
 const TabsContent = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
@@ -75,7 +62,7 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      `overflow-y-auto rounded-[24px] bg-card flex-1 mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 tabs-scrollbar`,
+      `overflow-y-auto flex-1 rounded-[24px] bg-card mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 tabs-scrollbar`,
       className
     )}
     {...props}
