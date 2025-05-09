@@ -71,11 +71,11 @@ export class PersistenceService {
   public async moveChild(
     child: Folder | TrufosRequest,
     oldParent: Folder | Collection,
-    newParent: Folder | Collection
+    newParent: Folder | Collection,
   ) {
     const childDirName = this.getDirName(child);
-    const oldChildDirPath = this.getDirPath(child);
-    const newParentDirPath = this.getDirPath(newParent);
+    const oldChildDirPath = this.getOrCreateDirPath(child);
+    const newParentDirPath = this.getOrCreateDirPath(newParent);
     const newChildDirPath = path.join(newParentDirPath, childDirName);
 
     oldParent.children = oldParent.children.filter((c) => c.id !== child.id);
@@ -91,7 +91,7 @@ export class PersistenceService {
    * @param newTitle new title of the object
    */
   public async rename(object: TrufosObject, newTitle: string) {
-    const oldDirPath = this.getDirPath(object);
+    const oldDirPath = this.getOrCreateDirPath(object);
     object.title = newTitle;
     const newDirPath = path.join(path.dirname(oldDirPath), this.getDirName(object));
 
@@ -116,7 +116,7 @@ export class PersistenceService {
    * @param textBody OPTIONAL: the text body of the request
    */
   public async saveRequest(request: TrufosRequest, textBody?: string) {
-    const dirPath = this.getDirPath(request);
+    const dirPath = this.getOrCreateDirPath(request);
     const infoFileName = `${request.draft ? '~' : ''}${request.type}.json`;
     await this.saveInfoFile(request, dirPath, infoFileName);
 
@@ -138,7 +138,7 @@ export class PersistenceService {
    * @param collection the collection to save
    */
   public async saveCollection(collection: Collection) {
-    await this.saveInfoFile(collection, this.getDirPath(collection), collection.type + '.json');
+    await this.saveInfoFile(collection, this.getOrCreateDirPath(collection), collection.type + '.json');
   }
 
   /**
@@ -146,7 +146,7 @@ export class PersistenceService {
    * @param folder the folder to save
    */
   public async saveFolder(folder: Folder) {
-    await this.saveInfoFile(folder, this.getDirPath(folder), folder.type + '.json');
+    await this.saveInfoFile(folder, this.getOrCreateDirPath(folder), folder.type + '.json');
   }
 
   /**
@@ -196,7 +196,7 @@ export class PersistenceService {
   private async undraft(request: TrufosRequest) {
     request.draft = false;
     const infoFileName = request.type + '.json';
-    const dirPath = this.getDirPath(request);
+    const dirPath = this.getOrCreateDirPath(request);
     if (!(await exists(path.join(dirPath, '~' + infoFileName)))) {
       return { draft: false };
     }
@@ -256,7 +256,7 @@ export class PersistenceService {
    * @param object the object to delete
    */
   public async delete(object: TrufosObject) {
-    const dirPath = this.getDirPath(object);
+    const dirPath = this.getOrCreateDirPath(object);
     logger.info('Deleting object at', dirPath);
 
     // delete children first
@@ -281,7 +281,7 @@ export class PersistenceService {
     logger.info('Loading text body of request', request.id);
     if (request.body.type === RequestBodyType.TEXT) {
       const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
-      const filePath = path.join(this.getDirPath(request), fileName);
+      const filePath = path.join(this.getOrCreateDirPath(request), fileName);
       if (await exists(filePath)) {
         logger.debug(`Opening text body file at ${filePath}`);
         return createReadStream(filePath, encoding);
@@ -359,7 +359,7 @@ export class PersistenceService {
 
   private async loadChildren(
     parentId: string,
-    parentDirPath: string
+    parentDirPath: string,
   ): Promise<(Folder | TrufosRequest)[]> {
     const children: (Folder | TrufosRequest)[] = [];
 
@@ -382,7 +382,7 @@ export class PersistenceService {
   private async load<T extends TrufosRequest | Folder>(
     parentId: string,
     dirPath: string,
-    type?: T['type']
+    type?: T['type'],
   ): Promise<T> {
     if (type === 'folder' || (await exists(path.join(dirPath, 'folder.json')))) {
       return (await this.loadFolder(parentId, dirPath)) as T;
@@ -400,13 +400,13 @@ export class PersistenceService {
   private readInfoFile(
     dirPath: string,
     type: TrufosRequest['type'],
-    draft: boolean
+    draft: boolean,
   ): Promise<RequestInfoFile>;
 
   private async readInfoFile<T extends TrufosObject>(
     dirPath: string,
     type: T['type'],
-    draft = false
+    draft = false,
   ) {
     const filePath = path.join(dirPath, `${draft ? '~' : ''}${type}.json`);
     const info = JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile;
@@ -414,7 +414,7 @@ export class PersistenceService {
     // check if the version is supported
     if (SemVer.parse(info.version).isNewerThan(VERSION)) {
       throw new Error(
-        `The version of the loaded ${type} info file is newer than latest supported version ${VERSION}. Please update the application.`
+        `The version of the loaded ${type} info file is newer than latest supported version ${VERSION}. Please update the application.`,
       );
     }
 
@@ -434,16 +434,37 @@ export class PersistenceService {
     }
   }
 
-  private getDirPath(object: TrufosObject) {
+  private getOrCreateDirPath(object: TrufosObject) {
     if (isCollection(object)) {
       return object.dirPath;
     } else if (this.idToPathMap.has(object.id)) {
       return this.idToPathMap.get(object.id);
     } else {
-      // must derive the path from parent
+      // object is not yet associated with any directory, must be a new object
+      // we need to derive a new and unused directory path from the parent
       const parentDirPath = this.idToPathMap.get(object.parentId);
-      return path.join(parentDirPath, this.getDirName(object));
+      if (!parentDirPath) {
+        throw new Error(`Parent directory path for ${object.parentId} not found`);
+      }
+
+      const newDirName = this.getDirName(object);
+      let newDirPath = path.join(parentDirPath, newDirName);
+
+      // Check if the newDirPath is already taken, in that case we just append a number
+      for (let i = 2; this.isDirPathTaken(newDirPath); i++) {
+        newDirPath = path.join(parentDirPath, newDirName + '-' + i);
+      }
+
+      if (this.isDirPathTaken(newDirPath)) {
+        throw new Error(`Directory path ${newDirPath} is already taken`);
+      }
+
+      return newDirPath;
     }
+  }
+
+  private isDirPathTaken(targetDirPath: string) {
+    return this.idToPathMap.values().some((path) => path === targetDirPath);
   }
 
   private getDirName(object: TrufosObject) {
@@ -452,8 +473,8 @@ export class PersistenceService {
 
   private sanitizeTitle(title: string) {
     return title
-      .toLowerCase()
-      .replace(/\s/g, '-')
-      .replace(/[^a-z0-9-]/g, '');
+    .toLowerCase()
+    .replace(/\s/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
   }
 }
