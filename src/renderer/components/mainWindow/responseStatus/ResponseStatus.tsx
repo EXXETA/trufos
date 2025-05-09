@@ -23,7 +23,7 @@ export function ResponseStatus() {
   const sizeText = getSizeText(metaInfo.size.totalSizeInBytes);
 
   return (
-    <span className="response-status text-nowrap ml-auto truncate">
+    <span className="response-status text-nowrap truncate">
       <span className={'text-sm  ' + statusColorClass}>{statusText}</span>
       <span className="ml-2 text-sm">{durationText}</span>
       <Tooltip>

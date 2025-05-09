@@ -1,13 +1,14 @@
+import { useCallback, useState } from 'react';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { RequestBodyType } from 'shim/objects/request';
 import { Divider } from '@/components/shared/Divider';
-import { useCallback, useState } from 'react';
 import { Editor } from '@monaco-editor/react';
 import { editor } from 'monaco-editor';
 import { REQUEST_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { Input } from '@/components/ui/input';
 import { Language } from '@/lib/monaco/language';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { styleMonacoScrollbar } from '@/util/style-editor-util';
 
 export const BodyTab = () => {
   const { setRequestBody, setRequestEditor, setDraftFlag } = useCollectionActions();
@@ -58,7 +59,10 @@ export const BodyTab = () => {
         theme="vs-dark" /* TODO: apply theme from settings */
         options={REQUEST_EDITOR_OPTIONS}
         language={language}
-        onMount={onEditorMount}
+        onMount={(editor) => {
+          onEditorMount(editor);
+          styleMonacoScrollbar(editor);
+        }}
       />
     );
   }, [onEditorMount, language]);
