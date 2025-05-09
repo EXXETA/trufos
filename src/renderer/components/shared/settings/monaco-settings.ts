@@ -3,6 +3,14 @@ import { editor } from 'monaco-editor';
 export const DEFAULT_MONACO_OPTIONS: Partial<editor.IStandaloneEditorConstructionOptions> = {
   minimap: { enabled: false },
   wordWrap: 'on',
+  scrollbar: {
+    verticalScrollbarSize: 8,
+    horizontalScrollbarSize: 8,
+    alwaysConsumeMouseWheel: true,
+    useShadows: false,
+  },
+  smoothScrolling: true,
+  mouseWheelScrollSensitivity: 1,
 };
 
 export const REQUEST_EDITOR_OPTIONS: Partial<editor.IStandaloneEditorConstructionOptions> = {
