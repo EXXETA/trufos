@@ -455,10 +455,6 @@ export class PersistenceService {
         newDirPath = path.join(parentDirPath, newDirName + '-' + i);
       }
 
-      if (this.isDirPathTaken(newDirPath)) {
-        throw new Error(`Directory path ${newDirPath} is already taken`);
-      }
-
       return newDirPath;
     }
   }
