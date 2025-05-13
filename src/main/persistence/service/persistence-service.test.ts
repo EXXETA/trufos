@@ -201,6 +201,49 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, 'collection.json'))).toBe(true);
   });
 
+  it('saveRequest() should find an unused directory name', async () => {
+    // Arrange requests
+    const firstRequest = { ...getExampleRequest(collection.id), title: 'A B' };
+    const secondRequest = { ...getExampleRequest(collection.id), title: 'A-B' };
+    const thirdRequest = { ...getExampleRequest(collection.id), title: 'a b' };
+    const expectedFirstDirPath = path.join(collection.dirPath, 'a-b');
+    const expectedSecondDirPath = path.join(collection.dirPath, 'a-b-2');
+    const expectedThirdDirPath = path.join(collection.dirPath, 'a-b-3');
+
+    expect(await exists(expectedFirstDirPath)).toBe(false);
+    expect(await exists(expectedSecondDirPath)).toBe(false);
+    expect(await exists(expectedThirdDirPath)).toBe(false);
+
+    await persistenceService.saveCollectionRecursive(collection);
+
+    // Act
+    collection.children.push(firstRequest);
+    await persistenceService.saveRequest(firstRequest);
+
+    // Assert
+    expect(await exists(expectedFirstDirPath)).toBe(true);
+    expect(await exists(expectedSecondDirPath)).toBe(false);
+    expect(await exists(expectedThirdDirPath)).toBe(false);
+
+    // Act
+    collection.children.push(secondRequest);
+    await persistenceService.saveRequest(secondRequest);
+
+    // Assert
+    expect(await exists(expectedFirstDirPath)).toBe(true);
+    expect(await exists(expectedSecondDirPath)).toBe(true);
+    expect(await exists(expectedThirdDirPath)).toBe(false);
+
+    // Act
+    collection.children.push(thirdRequest);
+    await persistenceService.saveRequest(thirdRequest);
+
+    // Assert
+    expect(await exists(expectedFirstDirPath)).toBe(true);
+    expect(await exists(expectedSecondDirPath)).toBe(true);
+    expect(await exists(expectedThirdDirPath)).toBe(true);
+  });
+
   it('saveFolder() should save the metadata of the folder', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
