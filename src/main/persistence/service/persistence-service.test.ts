@@ -78,7 +78,7 @@ describe('PersistenceService', () => {
     const defaultCollectionImport = await import('./default-collection');
     const generateDefaultCollectionSpy = vi.spyOn(
       defaultCollectionImport,
-      'generateDefaultCollection',
+      'generateDefaultCollection'
     );
     await mkdir(collectionDirPath);
     await writeFile(path.join(collectionDirPath, 'collection.json'), '');
@@ -95,11 +95,11 @@ describe('PersistenceService', () => {
     const defaultCollectionImport = await import('./default-collection');
     const defaultCollection = {} as Collection;
     vi.spyOn(defaultCollectionImport, 'generateDefaultCollection').mockReturnValueOnce(
-      defaultCollection,
+      defaultCollection
     );
     const saveCollectionRecursiveSpy = vi
-    .spyOn(persistenceService, 'saveCollectionRecursive')
-    .mockResolvedValueOnce();
+      .spyOn(persistenceService, 'saveCollectionRecursive')
+      .mockResolvedValueOnce();
 
     // Act
     await persistenceService.createDefaultCollectionIfNotExists();
@@ -175,7 +175,7 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollectionRecursive(collection);
 
     const oldInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8'),
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
     ) as RequestInfoFile;
     request.method = RequestMethod.PUT;
 
@@ -187,7 +187,7 @@ describe('PersistenceService', () => {
 
     // Assert
     const newInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8'),
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
     ) as RequestInfoFile;
     expect(newInfo.method).toBe(request.method);
     expect(newInfo).not.toEqual(oldInfo);
@@ -277,7 +277,7 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, 'collection.json'))).toBe(true);
     expect(await exists(path.join(collection.dirPath, folder.title, 'folder.json'))).toBe(true);
     expect(
-      await exists(path.join(collection.dirPath, folder.title, request.title, 'request.json')),
+      await exists(path.join(collection.dirPath, folder.title, request.title, 'request.json'))
     ).toBe(true);
   });
 
@@ -293,10 +293,10 @@ describe('PersistenceService', () => {
 
     await persistenceService.saveRequest(request);
     let originalInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8'),
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
     ) as RequestInfoFile;
     const draftInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, '~request.json'), 'utf-8'),
+      await readFile(path.join(collection.dirPath, request.title, '~request.json'), 'utf-8')
     ) as RequestInfoFile;
 
     // Assert
@@ -311,7 +311,7 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
     expect(await exists(path.join(collection.dirPath, request.title, '~request.json'))).toBe(false);
     originalInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8'),
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
     ) as RequestInfoFile;
     expect(originalInfo).toEqual(draftInfo);
   });
@@ -328,7 +328,7 @@ describe('PersistenceService', () => {
 
     await persistenceService.saveRequest(request);
     const oldInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8'),
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
     ) as RequestInfoFile;
 
     // Assert
@@ -342,7 +342,7 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
     expect(await exists(path.join(collection.dirPath, request.title, '~request.json'))).toBe(false);
     const newInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8'),
+      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
     ) as RequestInfoFile;
     expect(oldInfo).toEqual(newInfo);
   });
@@ -375,10 +375,10 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(
-      true,
+      true
     );
     expect(
-      await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME)),
+      await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME))
     ).toBe(false);
 
     // Act
@@ -418,10 +418,10 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(
-      false,
+      false
     );
     expect(
-      await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME)),
+      await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME))
     ).toBe(true);
 
     // Act

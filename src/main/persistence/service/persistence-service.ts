@@ -71,7 +71,7 @@ export class PersistenceService {
   public async moveChild(
     child: Folder | TrufosRequest,
     oldParent: Folder | Collection,
-    newParent: Folder | Collection,
+    newParent: Folder | Collection
   ) {
     const childDirName = this.getDirName(child);
     const oldChildDirPath = this.getOrCreateDirPath(child);
@@ -138,7 +138,11 @@ export class PersistenceService {
    * @param collection the collection to save
    */
   public async saveCollection(collection: Collection) {
-    await this.saveInfoFile(collection, this.getOrCreateDirPath(collection), collection.type + '.json');
+    await this.saveInfoFile(
+      collection,
+      this.getOrCreateDirPath(collection),
+      collection.type + '.json'
+    );
   }
 
   /**
@@ -359,7 +363,7 @@ export class PersistenceService {
 
   private async loadChildren(
     parentId: string,
-    parentDirPath: string,
+    parentDirPath: string
   ): Promise<(Folder | TrufosRequest)[]> {
     const children: (Folder | TrufosRequest)[] = [];
 
@@ -382,7 +386,7 @@ export class PersistenceService {
   private async load<T extends TrufosRequest | Folder>(
     parentId: string,
     dirPath: string,
-    type?: T['type'],
+    type?: T['type']
   ): Promise<T> {
     if (type === 'folder' || (await exists(path.join(dirPath, 'folder.json')))) {
       return (await this.loadFolder(parentId, dirPath)) as T;
@@ -400,13 +404,13 @@ export class PersistenceService {
   private readInfoFile(
     dirPath: string,
     type: TrufosRequest['type'],
-    draft: boolean,
+    draft: boolean
   ): Promise<RequestInfoFile>;
 
   private async readInfoFile<T extends TrufosObject>(
     dirPath: string,
     type: T['type'],
-    draft = false,
+    draft = false
   ) {
     const filePath = path.join(dirPath, `${draft ? '~' : ''}${type}.json`);
     const info = JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile;
@@ -414,7 +418,7 @@ export class PersistenceService {
     // check if the version is supported
     if (SemVer.parse(info.version).isNewerThan(VERSION)) {
       throw new Error(
-        `The version of the loaded ${type} info file is newer than latest supported version ${VERSION}. Please update the application.`,
+        `The version of the loaded ${type} info file is newer than latest supported version ${VERSION}. Please update the application.`
       );
     }
 
@@ -469,8 +473,8 @@ export class PersistenceService {
 
   private sanitizeTitle(title: string) {
     return title
-    .toLowerCase()
-    .replace(/\s/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
+      .toLowerCase()
+      .replace(/\s/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
   }
 }
