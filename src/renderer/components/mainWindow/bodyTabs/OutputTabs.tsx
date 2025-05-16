@@ -8,7 +8,6 @@ import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseS
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { selectResponse, useResponseActions, useResponseStore } from '@/state/responseStore';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
-import { styleMonacoScrollbar } from '@/util/style-editor-util';
 
 /**
  * Get the mime type from the content type.
@@ -67,8 +66,7 @@ export function OutputTabs(props: OutputTabsProps) {
   const updateMaxHeight = () => {
     const windowHeight = window.innerHeight;
     const calculated = windowHeight - 88;
-    console.log('windowHeight', windowHeight);
-    console.log('calculated', calculated);
+
     setMaxHeight(calculated);
   };
 
@@ -103,7 +101,6 @@ export function OutputTabs(props: OutputTabsProps) {
           }}
           onMount={(editor) => {
             setResponseEditor(editor);
-            styleMonacoScrollbar(editor);
           }}
         />
       </TabsContent>

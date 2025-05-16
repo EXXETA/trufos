@@ -8,7 +8,6 @@ import { REQUEST_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-sett
 import { Input } from '@/components/ui/input';
 import { Language } from '@/lib/monaco/language';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { styleMonacoScrollbar } from '@/util/style-editor-util';
 
 export const BodyTab = () => {
   const { setRequestBody, setRequestEditor, setDraftFlag } = useCollectionActions();
@@ -61,7 +60,6 @@ export const BodyTab = () => {
         language={language}
         onMount={(editor) => {
           onEditorMount(editor);
-          styleMonacoScrollbar(editor);
         }}
       />
     );

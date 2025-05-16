@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { AddIcon, NewFolderIcon } from '@/components/icons';
+import { AddIcon } from '@/components/icons';
 import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
 import { useCollectionStore } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
-
+import { FolderPlus } from 'lucide-react';
 export const SidebarHeaderBar = () => {
   const collection = useCollectionStore((state) => state.collection);
   const [modalState, setModalState] = useState({ isOpen: false, type: null });
@@ -23,7 +23,7 @@ export const SidebarHeaderBar = () => {
         <div className="flex w-full items-center gap-6">
           <Button className={buttonClassName} type="button" onClick={() => openModal('folder')}>
             <div className="flex items-center h-6 w-6">
-              <NewFolderIcon size={24} color={'black'} />
+              <FolderPlus size={24} color={'black'} />
             </div>
 
             <span className="hidden md:block">New Folder</span>
