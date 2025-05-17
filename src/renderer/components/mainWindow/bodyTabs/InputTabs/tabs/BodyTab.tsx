@@ -1,7 +1,7 @@
+import { useCallback, useState } from 'react';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { RequestBodyType } from 'shim/objects/request';
 import { Divider } from '@/components/shared/Divider';
-import { useCallback, useState } from 'react';
 import { Editor } from '@monaco-editor/react';
 import { editor } from 'monaco-editor';
 import { REQUEST_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
@@ -58,7 +58,9 @@ export const BodyTab = () => {
         theme="vs-dark" /* TODO: apply theme from settings */
         options={REQUEST_EDITOR_OPTIONS}
         language={language}
-        onMount={onEditorMount}
+        onMount={(editor) => {
+          onEditorMount(editor);
+        }}
       />
     );
   }, [onEditorMount, language]);

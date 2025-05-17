@@ -47,6 +47,11 @@
   background: rgba(0, 0, 0, 0.5); /* Darker color on hover */
 }
 
+.scrollbar > .slider {
+  background: #333;
+  border-radius: 4px;
+}
+
 .response-status {
 }
 

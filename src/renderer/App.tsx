@@ -8,7 +8,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 export const App = () => {
   return (
     <TooltipProvider delayDuration={750}>
-      <SidebarProvider>
+      <SidebarProvider className="grid grid-cols-[1fr_3fr]">
         <Menubar />
         <RequestWindow />
       </SidebarProvider>

@@ -7,46 +7,38 @@ import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdow
 import { useCollectionStore } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
-
+import { FolderPlus } from 'lucide-react';
 export const SidebarHeaderBar = () => {
   const collection = useCollectionStore((state) => state.collection);
   const [modalState, setModalState] = useState({ isOpen: false, type: null });
-  const buttonClassName = cn('flex min-w-[24px] h-[36px] p-0 items-center justify-center');
+  const buttonClassName = cn('flex w-full min-w-[24px] h-[36px] items-center justify-center gap-1');
 
   const openModal = (type: 'request' | 'folder') => setModalState({ isOpen: true, type });
 
   return (
     <div>
-      <SidebarHeader>
+      <SidebarHeader className="flex-col gap-4">
         <CollectionDropdown />
 
-        <div className="mt-2 flex w-full max-w-sm items-center space-x-[24px]">
-          <Button
-            className={buttonClassName}
-            type="button"
-            style={{ width: '100%' }}
-            onClick={() => openModal('folder')}
-          >
-            <div className={cn('m-2')}>
-              <AddIcon size={24} color={'black'} />
+        <div className="flex w-full items-center gap-6">
+          <Button className={buttonClassName} type="button" onClick={() => openModal('folder')}>
+            <div className="flex items-center h-6 w-6">
+              <FolderPlus size={24} color={'black'} />
             </div>
-            <span className="overflow-hidden">New Folder</span>
+
+            <span className="hidden md:block">New Folder</span>
           </Button>
-          <Button
-            className={buttonClassName}
-            type="button"
-            style={{
-              width: '100%',
-            }}
-            onClick={() => openModal('request')}
-          >
-            <div className={cn('m-2')}>
+
+          <Button className={buttonClassName} type="button" onClick={() => openModal('request')}>
+            <div className="flex items-center h-6 w-6">
               <AddIcon size={24} color={'black'} />
             </div>
-            <span className="overflow-hidden">New Request</span>
+
+            <span className="hidden md:block">New Request</span>
           </Button>
         </div>
       </SidebarHeader>
+
       {modalState.isOpen && (
         <NamingModal
           isOpen={modalState.isOpen}
