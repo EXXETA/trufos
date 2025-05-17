@@ -1,9 +1,13 @@
 name: Release Pipeline
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
       - release
+      - feature/114-release-pipeline
 
 jobs:
   build_and_test:
@@ -28,8 +32,7 @@ jobs:
       - name: Run tests
         run: yarn test
 
-      - name: Build App
-        run: yarn run make
-
-      - name: Publish App
+      - name: Build and publish app
         run: yarn run publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
