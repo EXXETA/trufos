@@ -3,6 +3,7 @@ import { Writable } from 'node:stream';
 import Transport from 'winston-transport';
 import { LogEntry } from 'shim/logger';
 import { transports } from 'winston';
+import { EOL } from 'node:os';
 
 import './logger';
 
@@ -77,7 +78,7 @@ describe('Logger', () => {
     const object = { test: 'test' };
     const string = 'test';
     const array = [1, 2, 3];
-    const expected = `${now.toISOString()} [MAIN] [DEBUG]: ${message} ${number} { test: 'test' } ${string} [ 1, 2, 3 ]\n`;
+    const expected = `${now.toISOString()} [MAIN] [DEBUG]: ${message} ${number} { test: 'test' } ${string} [ 1, 2, 3 ]${EOL}`;
 
     const data: unknown[] = [];
     const stream = new Writable({ write: (chunk) => data.push(chunk) });
@@ -105,7 +106,7 @@ describe('Logger', () => {
     // Arrange
     const now = new Date();
     const error = new Error('test error');
-    const expected = `${now.toISOString()} [MAIN] [ERROR]: ${error.stack}\n`;
+    const expected = `${now.toISOString()} [MAIN] [ERROR]: ${error.stack}${EOL}`;
 
     const data: unknown[] = [];
     const stream = new Writable({ write: (chunk) => data.push(chunk) });
@@ -134,7 +135,7 @@ describe('Logger', () => {
     const now = new Date();
     const message = 'Error was thrown:';
     const error = new Error('test error');
-    const expected = `${now.toISOString()} [MAIN] [ERROR]: ${message} ${error.stack}\n`;
+    const expected = `${now.toISOString()} [MAIN] [ERROR]: ${message} ${error.stack}${EOL}`;
 
     const data: unknown[] = [];
     const stream = new Writable({ write: (chunk) => data.push(chunk) });
