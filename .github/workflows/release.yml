@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - release
-      - feature/114-release-pipeline
 
 jobs:
   build_and_test:
