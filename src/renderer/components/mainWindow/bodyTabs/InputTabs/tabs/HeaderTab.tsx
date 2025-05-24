@@ -12,19 +12,38 @@ import {
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useCallback } from 'react';
 
 export const HeaderTab = () => {
-  const { addHeader, deleteHeader, clearHeaders, updateHeader } = useCollectionActions();
+  const { addHeader, deleteHeader, clearHeaders, updateHeader, setDraftFlag } =
+    useCollectionActions();
   const headers = useCollectionStore((state) => selectRequest(state).headers);
 
-  const handleAddHeader = addHeader;
+  const handleAddHeader = useCallback(() => {
+    addHeader();
+    setDraftFlag();
+  }, [addHeader, setDraftFlag]);
 
-  const handleDeleteHeader = deleteHeader;
+  const handleDeleteHeader = useCallback(
+    (index: number) => {
+      deleteHeader(index);
+      setDraftFlag();
+    },
+    [deleteHeader, setDraftFlag]
+  );
 
-  const deleteAllHeaders = clearHeaders;
+  const handleDeleteAllHeaders = useCallback(() => {
+    clearHeaders();
+    setDraftFlag();
+  }, [clearHeaders, setDraftFlag]);
 
-  const handleUpdateHeader = (index: number, updatedFields: Partial<TrufosHeader>) =>
-    updateHeader(index, updatedFields);
+  const handleUpdateHeader = useCallback(
+    (index: number, updatedFields: Partial<TrufosHeader>) => {
+      updateHeader(index, updatedFields);
+      setDraftFlag();
+    },
+    [updateHeader, setDraftFlag]
+  );
 
   return (
     <div className={'p-4 h-full relative'}>
@@ -43,7 +62,7 @@ export const HeaderTab = () => {
             className={'hover:bg-transparent gap-1 h-fit'}
             size={'sm'}
             variant={'ghost'}
-            onClick={deleteAllHeaders}
+            onClick={handleDeleteAllHeaders}
           >
             <DeleteIcon />
             Delete All
