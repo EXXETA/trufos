@@ -30,7 +30,7 @@ export function RequestWindow() {
   }
 
   return (
-    <div className={'flex flex-col flex-auto p-6'}>
+    <div className="flex flex-col h-full p-6">
       <MainTopBar />
       <MainBody />
     </div>
