@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
 import { Editor } from '@monaco-editor/react';
@@ -35,12 +35,7 @@ interface OutputTabsProps {
   className: string;
 }
 
-export function OutputTabs(props: OutputTabsProps) {
-  const [maxHeight, setMaxHeight] = useState<number | null>(null);
-
-  const tabsRef = useRef<HTMLDivElement>(null);
-
-  const { className } = props;
+export function OutputTabs({ className }: OutputTabsProps) {
   const { setResponseEditor } = useResponseActions();
   const editor = useResponseStore((state) => state.editor);
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
@@ -63,73 +58,50 @@ export function OutputTabs(props: OutputTabsProps) {
     }
   }, [response?.bodyFilePath, editor]);
 
-  const updateMaxHeight = () => {
-    const windowHeight = window.innerHeight;
-    const calculated = windowHeight - 88;
-
-    setMaxHeight(calculated);
-  };
-
-  useEffect(() => {
-    updateMaxHeight();
-
-    window.addEventListener('resize', updateMaxHeight);
-
-    return () => {
-      window.removeEventListener('resize', updateMaxHeight);
-    };
-  }, []);
-
   return (
-    <Tabs className={className} defaultValue="body" ref={tabsRef}>
-      <TabsList className={'flex justify-between items-center'}>
+    <Tabs className={className} defaultValue="body">
+      <TabsList className="flex justify-between items-center">
         <div className="flex">
           <TabsTrigger value="body">Response Body</TabsTrigger>
           <TabsTrigger value="header">Headers</TabsTrigger>
         </div>
-
         <ResponseStatus />
       </TabsList>
 
-      <TabsContent value="body" className={`pt-4`}>
+      <TabsContent value="body" className="pt-4">
         <Editor
-          height={`calc(${maxHeight}px - 108px)`}
+          className="max-w-[calc(100vw-23rem)] max-h-[calc(100vh-12rem)]"
           language={mimeType}
           theme="vs-dark" /* TODO: apply theme from settings */
-          options={{
-            ...RESPONSE_EDITOR_OPTIONS,
-          }}
-          onMount={(editor) => {
-            setResponseEditor(editor);
-          }}
+          options={RESPONSE_EDITOR_OPTIONS}
+          onMount={setResponseEditor}
         />
       </TabsContent>
 
-      <TabsContent value="header" className={`max-h-[calc(100vh-160px)] p-4`}>
+      <TabsContent value="header" className="p-4">
         {!headers ? (
-          <div className={'flex items-center justify-center w-full h-full text-center'}>
+          <div className="flex items-center justify-center w-full h-full text-center">
             <span>Please enter URL address and click Send to get a response</span>
           </div>
         ) : (
-          <div className="overflow-auto">
-            <Table className={`table-auto w-full`}>
+          // The Table exceeds the window size if no height is specified for some reason
+          <div className="h-0">
+            <Table className="table-auto w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-auto">Key</TableHead>
                   <TableHead className="w-full">Value</TableHead>
                 </TableRow>
               </TableHeader>
-
               <TableBody>
                 {headers &&
                   Object.keys(headers).map((key) => {
                     const value = headers[key];
-                    const valueToDisplay =
-                      value !== undefined ? (Array.isArray(value) ? value : [value]) : '';
+                    const valueToDisplay = Array.isArray(value) ? value.join(', ') : value;
                     return (
                       <TableRow key={key}>
                         <TableCell className="w-1/3">{key}</TableCell>
-                        <TableCell>{(valueToDisplay as string[]).join(', ')}</TableCell>{' '}
+                        <TableCell>{valueToDisplay}</TableCell>
                       </TableRow>
                     );
                   })}
