@@ -1,6 +1,6 @@
 ---
 title: Variables
-parent: Documentation
+parent: User Guide
 nav_order: 2
 ---
 
@@ -23,12 +23,12 @@ When writing `{{` in your request, the editor will show you a list of all availa
 can navigate through the list using the arrow keys and select a variable by pressing `Enter`. The
 variable will be inserted at the current cursor position.
 
-![Variable List](../assets/variable-list.png)
+![Variable List](../../assets/variable-list.png)
 
 A variables are highlighted in blue. When hovering over a variable, a tooltip will show you the
 variable name, its current value, and optionally a description.
 
-![Variable Tooltip](../assets/variable-tooltip.png)
+![Variable Tooltip](../../assets/variable-tooltip.png)
 
 ## System Variables
 
