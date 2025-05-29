@@ -1,7 +1,7 @@
 [![CI Pipeline](https://github.com/EXXETA/trufos/actions/workflows/ci.yml/badge.svg)](https://github.com/EXXETA/trufos/actions/workflows/ci.yml)
 ![GitHub contributors](https://img.shields.io/github/contributors/EXXETA/trufos)
+[![Discord](https://img.shields.io/discord/1328262093903892530?logo=discord&label=Discord&cacheSeconds=60)](https://discord.gg/sb4nfdevpW)
 ![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Frufus%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
-
 <h1 align="center">Trufos - The REST Utility, free and Open Source</h1>
 <p align="center">
   A REST client that is both easy to use, efficient, and extendable.
