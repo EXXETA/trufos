@@ -1,6 +1,6 @@
 // Disable no-unused-vars, broken for spread args
 /* eslint no-unused-vars: off */
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 const electronHandler = {
   ipcRenderer: {
@@ -13,6 +13,7 @@ const electronHandler = {
       ipcRenderer
     ) as typeof ipcRenderer.removeListener,
   },
+  getAbsoluteFilePath: (file: File) => webUtils.getPathForFile(file),
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);

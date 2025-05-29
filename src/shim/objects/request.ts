@@ -1,6 +1,6 @@
-import { RequestMethod } from './request-method';
 import { TrufosHeader } from './headers';
 import { TrufosQueryParam } from './query-param';
+import { RequestMethod } from './request-method';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 export const DRAFT_TEXT_BODY_FILE_NAME = '~' + TEXT_BODY_FILE_NAME;
@@ -35,6 +35,7 @@ export type TextBody = {
 export type FileBody = {
   type: RequestBodyType.FILE;
   filePath?: string;
+  fileName?: string;
   /** The mime type of the file content, e.g. "application/json". May include an encoding */
   mimeType?: string;
 };

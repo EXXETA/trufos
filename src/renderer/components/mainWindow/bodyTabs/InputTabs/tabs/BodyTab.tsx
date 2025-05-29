@@ -2,15 +2,13 @@ import { useCallback, useState } from 'react';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { RequestBodyType } from 'shim/objects/request';
 import { Divider } from '@/components/shared/Divider';
-import { Editor } from '@monaco-editor/react';
-import { editor } from 'monaco-editor';
-import { REQUEST_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import { Input } from '@/components/ui/input';
 import { Language } from '@/lib/monaco/language';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import BodyTabFileInput from './BodyTabFileInput';
+import BodyTabTextInput from './BodyTabTextInput';
 
 export const BodyTab = () => {
-  const { setRequestBody, setRequestEditor, setDraftFlag } = useCollectionActions();
+  const { setRequestBody } = useCollectionActions();
 
   const requestBody = useCollectionStore((state) => selectRequest(state).body);
   const [language, setLanguage] = useState(Language.JSON);
@@ -29,73 +27,20 @@ export const BodyTab = () => {
     [setRequestBody]
   );
 
-  const setRequestBodyFile = useCallback(
-    (file?: File) => {
-      if (file == null) return;
-      setRequestBody({
-        type: RequestBodyType.FILE,
-        filePath: file.path,
-        mimeType: file.type === '' ? undefined : file.type,
-      });
-    },
-    [setRequestBody]
-  );
-
-  const onEditorMount = useCallback(
-    (editor: editor.ICodeEditor) => {
-      setRequestEditor(editor);
-      editor.onDidChangeModelContent((e) => {
-        if (e.isFlush) return;
-        setDraftFlag();
-      });
-    },
-    [setRequestEditor, setDraftFlag]
-  );
-
-  const renderEditor = useCallback(() => {
-    return (
-      <Editor
-        theme="vs-dark" /* TODO: apply theme from settings */
-        options={REQUEST_EDITOR_OPTIONS}
-        language={language}
-        onMount={(editor) => {
-          onEditorMount(editor);
-        }}
-      />
-    );
-  }, [onEditorMount, language]);
-
-  const renderFileInput = useCallback(() => {
-    return (
-      <Input
-        onChange={(v) => setRequestBodyFile(v.target.files[0])}
-        placeholder="Select a file"
-        type="file"
-      />
-    );
-  }, [setRequestBodyFile]);
-
-  const renderSelectLanguage = useCallback(() => {
-    // if (requestBody?.type !== RequestBodyType.TEXT) return null;
-    return (
-      <SimpleSelect<Language>
-        value={language}
-        onValueChange={setLanguage}
-        items={[
-          [Language.JSON, 'JSON'],
-          [Language.XML, 'XML'],
-          [Language.TEXT, 'Plain'],
-        ]}
-      />
-    );
-  }, [language, setLanguage, requestBody?.type]);
-
   return (
-    <div className={'h-full relative'}>
-      <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
-        <div className={'flex justify-end'}>
-          {renderSelectLanguage()}
-          <SimpleSelect
+    <div className="h-full flex flex-col gap-4">
+      <div className="pt-2 px-4 space-y-2">
+        <div className="flex justify-end gap-2">
+          <SimpleSelect<Language>
+            value={language}
+            onValueChange={setLanguage}
+            items={[
+              [Language.JSON, 'JSON'],
+              [Language.XML, 'XML'],
+              [Language.TEXT, 'Plain'],
+            ]}
+          />
+          <SimpleSelect<RequestBodyType>
             value={requestBody?.type ?? RequestBodyType.TEXT}
             onValueChange={changeBodyType}
             items={[
@@ -104,13 +49,14 @@ export const BodyTab = () => {
             ]}
           />
         </div>
-
-        <Divider className={'mt-2'} />
+        <Divider />
       </div>
 
-      <div className="absolute top-[68px] left-0 bottom-0 right-0">
-        {requestBody?.type === RequestBodyType.FILE ? renderFileInput() : renderEditor()}
-      </div>
+      {requestBody?.type === RequestBodyType.FILE ? (
+        <BodyTabFileInput className="px-4 pb-2" />
+      ) : (
+        <BodyTabTextInput className="pr-4" language={language} />
+      )}
     </div>
   );
 };
