@@ -29,17 +29,8 @@ export const BodyTab = () => {
 
   return (
     <div className="h-full flex flex-col gap-4">
-      <div className="pt-2 px-4 space-y-2">
-        <div className="flex justify-end gap-2">
-          <SimpleSelect<Language>
-            value={language}
-            onValueChange={setLanguage}
-            items={[
-              [Language.JSON, 'JSON'],
-              [Language.XML, 'XML'],
-              [Language.TEXT, 'Plain'],
-            ]}
-          />
+      <div className="pt-4 px-4 space-y-2">
+        <div className="flex gap-2 px-2">
           <SimpleSelect<RequestBodyType>
             value={requestBody?.type ?? RequestBodyType.TEXT}
             onValueChange={changeBodyType}
@@ -48,6 +39,17 @@ export const BodyTab = () => {
               [RequestBodyType.FILE, 'File'],
             ]}
           />
+          {requestBody.type === RequestBodyType.TEXT && (
+            <SimpleSelect<Language>
+              value={language}
+              onValueChange={setLanguage}
+              items={[
+                [Language.JSON, 'JSON'],
+                [Language.XML, 'XML'],
+                [Language.TEXT, 'Plain'],
+              ]}
+            />
+          )}
         </div>
         <Divider />
       </div>
