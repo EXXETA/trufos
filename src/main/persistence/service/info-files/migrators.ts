@@ -3,9 +3,10 @@ import { AbstractInfoFileMigrator, VersionedObject } from './migrator';
 import { InfoFile, VERSION as LATEST_VERSION } from './latest';
 import { InfoFileMigrator as V1_0_1 } from './v1-0-1';
 import { InfoFileMigrator as V1_1_0 } from './v1-1-0';
+import { InfoFileMigrator as V1_2_0 } from './v1-2-0';
 
 // add new mappers here
-const MIGRATOR_ARRAY = [new V1_0_1(), new V1_1_0()];
+const MIGRATOR_ARRAY = [new V1_0_1(), new V1_1_0(), new V1_2_0()];
 
 const MIGRATORS = new Map<string, AbstractInfoFileMigrator<VersionedObject, VersionedObject>>(
   MIGRATOR_ARRAY.map((mapper) => [mapper.fromVersion, mapper])
