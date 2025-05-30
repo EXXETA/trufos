@@ -89,7 +89,7 @@ export function MainTopBar() {
   }, [saveRequest]);
 
   return (
-    <div className={cn('flex mb-[24px] gap-6')}>
+    <div className="flex mb-[24px] gap-6">
       <div className="flex w-full relative">
         <HttpMethodSelect
           selectedHttpMethod={selectedHttpMethod}

@@ -46,11 +46,11 @@ export const HeaderTab = () => {
   );
 
   return (
-    <div className={'p-4 h-full relative'}>
-      <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
-        <div className={'flex'}>
+    <div className="p-4 h-full relative">
+      <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
+        <div className="flex">
           <Button
-            className={'hover:bg-transparent gap-1 h-fit'}
+            className="hover:bg-transparent gap-1 h-fit"
             size={'sm'}
             variant={'ghost'}
             onClick={handleAddHeader}
@@ -59,7 +59,7 @@ export const HeaderTab = () => {
             Add Header
           </Button>
           <Button
-            className={'hover:bg-transparent gap-1 h-fit'}
+            className="hover:bg-transparent gap-1 h-fit"
             size={'sm'}
             variant={'ghost'}
             onClick={handleDeleteAllHeaders}
@@ -69,7 +69,7 @@ export const HeaderTab = () => {
           </Button>
         </div>
 
-        <Divider className={'mt-2'} />
+        <Divider className="mt-2" />
       </div>
 
       <div className="absolute top-[68px] left-[16px] bottom-[16px] right-[16px]">
@@ -108,25 +108,16 @@ export const HeaderTab = () => {
 
                 <TableCell className="w-16 text-right">
                   <div className="flex items-center justify-center gap-2">
-                    <div className={'relative h-4 z-10 cursor-pointer'}>
+                    <div className="relative h-4 z-10 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={header.isActive}
                         onChange={(e) => handleUpdateHeader(index, { isActive: e.target.checked })}
-                        className={cn(
-                          'form-checkbox h-4 w-4 appearance-none border rounded-[2px] ',
-                          header.isActive
-                            ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
-                            : 'border-[rgba(238,238,238,1)] bg-transparent'
-                        )}
+                        className="form-checkbox h-4 w-4 appearance-none border rounded-[2px] border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]"
                       />
 
                       {header.isActive && (
-                        <div
-                          className={
-                            'absolute left-0 top-0 h-4 w-4 flex items-center justify-center pointer-events-none rotate-6'
-                          }
-                        >
+                        <div className="absolute left-0 top-0 h-4 w-4 flex items-center justify-center pointer-events-none rotate-6">
                           <CheckedIcon
                             size={16}
                             viewBox={'0 0 16 16'}

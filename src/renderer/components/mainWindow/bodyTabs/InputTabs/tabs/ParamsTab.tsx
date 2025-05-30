@@ -134,11 +134,11 @@ export const ParamsTab = () => {
   };
 
   return (
-    <div className={'p-4 h-full relative'}>
-      <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
-        <div className={'flex'}>
+    <div className="p-4 h-full relative">
+      <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
+        <div className="flex">
           <Button
-            className={'gap-1 h-fit'}
+            className="gap-1 h-fit"
             size={'sm'}
             variant={'ghost'}
             onClick={handleAddQueryParam}
@@ -147,7 +147,7 @@ export const ParamsTab = () => {
             Add Query Param
           </Button>
           <Button
-            className={'gap-1 h-fit'}
+            className="gap-1 h-fit"
             size={'sm'}
             variant={'ghost'}
             onClick={handleDeleteAllParams}
@@ -157,7 +157,7 @@ export const ParamsTab = () => {
           </Button>
         </div>
 
-        <Divider className={'mt-2'} />
+        <Divider className="mt-2" />
       </div>
 
       <div className="absolute top-[68px] left-[16px] bottom-[16px] right-[16px]">
@@ -195,17 +195,12 @@ export const ParamsTab = () => {
 
                 <TableCell className="w-16 text-right">
                   <div className="flex items-center justify-center gap-2">
-                    <div className={'relative h-4 z-10 cursor-pointer'}>
+                    <div className="relative h-4 z-10 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={param?.isActive}
                         onChange={() => handleToggleQueryParam(index)}
-                        className={cn(
-                          'form-checkbox h-4 w-4 appearance-none border rounded-[2px]',
-                          param?.isActive
-                            ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
-                            : 'border-[rgba(238,238,238,1)] bg-transparent'
-                        )}
+                        className="form-checkbox h-4 w-4 appearance-none border rounded-[2px] border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]"
                       />
 
                       {param?.isActive && (

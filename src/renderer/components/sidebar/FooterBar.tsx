@@ -14,9 +14,9 @@ export function FooterBar() {
   }, []);
 
   return (
-    <SidebarFooter className={'mt-auto'}>
+    <SidebarFooter className="mt-auto">
       <Divider />
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         {/* Version text on the left */}
         <span className="text-xs text-gray-500">{appVersion ?? null}</span>
 

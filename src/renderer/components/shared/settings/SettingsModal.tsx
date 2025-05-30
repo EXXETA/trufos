@@ -57,7 +57,7 @@ export const SettingsModal = () => {
             />
           </TabsContent>
         </Tabs>
-        <DialogFooter className={'bottom-0'}>
+        <DialogFooter className="bottom-0">
           <Button
             className="mt-0 mr-2 mb-0"
             onClick={save}
