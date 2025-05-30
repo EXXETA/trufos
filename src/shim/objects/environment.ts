@@ -8,3 +8,5 @@ export type EnvironmentObject = {
   /** Variables that exist in the environment */
   variables: VariableMap;
 };
+
+export type EnvironmentObjectWithKey = EnvironmentObject & { key: string };
