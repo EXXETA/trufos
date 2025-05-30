@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import {
   CollectionInfoFile,
+  extractSecrets,
   FolderInfoFile,
   fromCollectionInfoFile,
   fromFolderInfoFile,
@@ -28,9 +29,12 @@ import { randomUUID } from 'node:crypto';
 import { migrateInfoFile } from './info-files/migrators';
 import { SemVer } from 'main/util/semver';
 import { SettingsService } from './settings-service';
+import { EOL } from 'node:os';
+import { SecretService } from './secret-service';
+import { assign } from 'main/util/object-util';
 
 /** Content of the .gitignore file for a collection */
-const COLLECTION_GITIGNORE = ['~request.json'].join('\n');
+const COLLECTION_GITIGNORE = ['~request.json', '~secrets.json'].join(EOL);
 
 function normalizeDirPath(dirPath: string) {
   dirPath = path.normalize(dirPath);
@@ -40,10 +44,12 @@ function normalizeDirPath(dirPath: string) {
   return dirPath;
 }
 
+const secretService = SecretService.instance;
+
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
  * to and from the file system. If you want to open a collection, you should use the
- * {@link EnvironmentService.changeCollection} which will call this service internally.
+ * {@link import('main/environment/service/environment-service').EnvironmentService.changeCollection} which will call this service internally.
  */
 export class PersistenceService {
   public static readonly instance = new PersistenceService();
@@ -166,10 +172,15 @@ export class PersistenceService {
     } else if (!(await exists(dirPath))) {
       await fs.mkdir(dirPath);
     }
+    
+    // remove secrets from variables and save them separately
+    await fs.writeFile(
+      path.join(dirPath, '~secrets.json'),
+      secretService.encrypt(JSON.stringify(extractSecrets(object)))
+    );
 
-    const infoFileContents = toInfoFile(object);
-    const infoFilePath = path.join(dirPath, fileName);
-    await fs.writeFile(infoFilePath, JSON.stringify(infoFileContents, null, 2));
+    // write the info file
+    await fs.writeFile(path.join(dirPath, fileName), JSON.stringify(toInfoFile(object), null, 2));
     this.idToPathMap.set(object.id, dirPath);
   }
 
@@ -316,8 +327,18 @@ export class PersistenceService {
       children: [],
     };
     await this.saveCollection(collection); // save collection file
-    await fs.writeFile(path.join(dirPath, '.gitignore'), COLLECTION_GITIGNORE); // create .gitignore
+    await this.createGitIgnore(dirPath); // create .gitignore file
     return collection;
+  }
+
+  /**
+   * Creates a collection .gitignore file in the specified directory path.
+   * @param dirPath the directory path where the .gitignore file should be created
+   */
+  public async createGitIgnore(dirPath: string) {
+    const filePath = path.join(dirPath, '.gitignore');
+    logger.info(`Creating .gitignore file at`, filePath);
+    await fs.writeFile(filePath, COLLECTION_GITIGNORE);
   }
 
   public loadCollection(dirPath: string, recursive: false): Promise<CollectionInfoFile>;
@@ -422,8 +443,18 @@ export class PersistenceService {
       );
     }
 
-    // potentially migrate the info file to latest version
-    return await migrateInfoFile(info, type);
+    // (potentially) migrate the info file to the latest version and add secrets
+    return assign(await migrateInfoFile(info, type, filePath), await this.loadSecrets(dirPath));
+  }
+
+  private async loadSecrets<T extends InfoFile>(dirPath: string): Promise<Partial<T>> {
+    const filePath = path.join(dirPath, '~secrets.json');
+    if (await exists(filePath)) {
+      logger.debug('Loading secrets from', filePath);
+      return JSON.parse(secretService.decrypt(await fs.readFile(filePath)));
+    } else {
+      return {};
+    }
   }
 
   private updatePathMapRecursively(child: Folder | TrufosRequest, newParentDirPath: string) {

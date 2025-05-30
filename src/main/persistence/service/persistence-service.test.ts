@@ -54,6 +54,7 @@ function getExampleRequest(parentId: string): TrufosRequest {
     parentId,
     method: RequestMethod.GET,
     queryParams: [],
+    variables: {},
     body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
   };
 }
