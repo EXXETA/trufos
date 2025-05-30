@@ -91,9 +91,9 @@ export const BodyTab = () => {
   }, [language, setLanguage, requestBody?.type]);
 
   return (
-    <div className={'h-full relative'}>
-      <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
-        <div className={'flex justify-end'}>
+    <div className="h-full relative">
+      <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
+        <div className="flex justify-end">
           {renderSelectLanguage()}
           <SimpleSelect
             value={requestBody?.type ?? RequestBodyType.TEXT}
@@ -105,7 +105,7 @@ export const BodyTab = () => {
           />
         </div>
 
-        <Divider className={'mt-2'} />
+        <Divider className="mt-2" />
       </div>
 
       <div className="absolute top-[68px] left-0 bottom-0 right-0">
