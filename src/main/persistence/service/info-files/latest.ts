@@ -22,7 +22,7 @@ export function toInfoFile(object: TrufosObject): InfoFile {
 
   switch (infoFile.type) {
     case 'request':
-      return omit(infoFile, 'type', 'parentId', 'draft');
+      return omit(infoFile, 'type', 'parentId', 'draft', 'queryParams');
     case 'collection':
       return omit(infoFile, 'type', 'dirPath', 'children');
     case 'folder':
@@ -55,5 +55,5 @@ export function fromRequestInfoFile(
   parentId: TrufosRequest['parentId'],
   draft: boolean
 ): TrufosRequest {
-  return Object.assign(infoFile, { type: 'request' as const, parentId, draft });
+  return Object.assign(infoFile, { type: 'request' as const, parentId, draft, queryParams: [] });
 }
