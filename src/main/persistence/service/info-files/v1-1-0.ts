@@ -33,10 +33,10 @@ export type CollectionInfoFile = InfoFileBase & {
 export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 
 /**
- * Migrates schema `v1.0.0` to `v1.0.1`.
+ * Migrates schema `v1.0.1` to `v1.1.0`.
  *
  * Changes:
- * - Adds an `id` property which will now be persisted.
+ * - Adds an `environment` property which will now be persisted.
  */
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
