@@ -24,3 +24,32 @@ export function pick<T, K extends keyof T>(object: T, ...properties: K[]) {
   }
   return result;
 }
+
+function isObject(value: unknown): value is object {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Merges the properties of the source object into the target object in a type-safe manner.
+ * If a property exists in both objects and is an object itself, it will recursively merge them.
+ * @param target The target object to modify.
+ * @param source The source object whose properties will be merged into the target.
+ * @returns The modified target object with properties from the source object.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function assign<T extends Record<any, any>, U extends Record<any, any>>(
+  target: T,
+  source: U
+): T & U {
+  if (!isObject(target) || !isObject(source)) {
+    return target;
+  }
+
+  for (const key in source) {
+    target[key] =
+      key in target && isObject(source[key]) && isObject(target[key])
+        ? assign(target[key], source[key])
+        : source[key];
+  }
+  return target;
+}

@@ -7,6 +7,8 @@ import { SemVer } from 'main/util/semver';
 import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-1-0';
 import { AbstractInfoFileMigrator } from './migrator';
 import { TrufosObjectType } from 'shim/objects';
+import { PersistenceService } from '../persistence-service';
+import { dirname } from 'node:path';
 
 export const VERSION = new SemVer(1, 2, 0);
 
@@ -42,7 +44,10 @@ export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: OldInfoFile, type: TrufosObjectType): Promise<InfoFile> {
+  async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
+    if (type === 'collection') {
+      await PersistenceService.instance.createGitIgnore(dirname(filePath));
+    }
     if (type === 'request') {
       return Object.assign(old, { version: VERSION.toString(), variables: {} });
     } else {
