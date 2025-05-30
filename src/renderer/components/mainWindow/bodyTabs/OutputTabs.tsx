@@ -70,7 +70,7 @@ export function OutputTabs({ className }: OutputTabsProps) {
 
       <TabsContent value="body" className="pt-4">
         <Editor
-          className="max-w-[calc(100vw-23rem)] max-h-[calc(100vh-12rem)]"
+          className="absolute h-full"
           language={mimeType}
           theme="vs-dark" /* TODO: apply theme from settings */
           options={RESPONSE_EDITOR_OPTIONS}

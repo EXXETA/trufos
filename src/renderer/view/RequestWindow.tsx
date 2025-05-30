@@ -30,7 +30,7 @@ export function RequestWindow() {
   }
 
   return (
-    <div className="flex flex-col h-full p-6">
+    <div className="grid grid-rows-[auto_1fr] p-6">
       <MainTopBar />
       <MainBody />
     </div>
