@@ -1,9 +1,9 @@
-import { Collection } from 'shim/objects/collection';
-import { RequestBody, TrufosRequest } from 'shim/objects/request';
-import { TrufosHeader } from 'shim/objects/headers';
 import { editor } from 'monaco-editor';
+import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
+import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
+import { RequestBody, TrufosRequest } from 'shim/objects/request';
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
@@ -41,6 +41,12 @@ export interface CollectionStateActions {
    * @param requestEditor The editor instance
    */
   setRequestEditor(requestEditor?: editor.ICodeEditor): void;
+
+  /**
+   * Format the text in the request editor.
+   * This will only work if the request editor is set and the request body type is text-based.
+   */
+  formatRequestEditorText(): Promise<void>;
 
   setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
 

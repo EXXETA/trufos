@@ -1,15 +1,15 @@
-import { editor } from 'monaco-editor';
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-import { RequestMethod } from 'shim/objects/request-method';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { Folder } from 'shim/objects/folder';
-import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
-import { Collection } from 'shim/objects/collection';
 import { isRequestInAParentFolder, setRequestTextBody } from '@/state/helper/collectionUtil';
 import { useActions } from '@/state/helper/util';
+import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
+import { editor } from 'monaco-editor';
+import { Collection } from 'shim/objects/collection';
+import { Folder } from 'shim/objects/folder';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { RequestMethod } from 'shim/objects/request-method';
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -134,6 +134,14 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         await setRequestTextBody(requestEditor, request);
       }
       set({ requestEditor });
+    },
+
+    formatRequestEditorText: async () => {
+      const state = get();
+      const requestEditor = state.requestEditor;
+      if (requestEditor) {
+        await requestEditor.getAction('editor.action.formatDocument').run();
+      }
     },
 
     setSelectedRequest: async (id) => {
