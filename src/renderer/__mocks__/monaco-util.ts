@@ -1,4 +1,5 @@
 import { editor, IPosition, IRange } from 'monaco-editor';
+import { EOL } from 'node:os';
 
 class MockModel implements Partial<editor.ITextModel> {
   constructor(private readonly lines: string[]) {}
@@ -63,6 +64,6 @@ class MockModel implements Partial<editor.ITextModel> {
  * @param json The JSON content of the model as object.
  */
 export function mockModel(json: object) {
-  const lines = JSON.stringify(json, null, 2).split('\n');
+  const lines = JSON.stringify(json, null, 2).split(EOL);
   return new MockModel(lines) as Partial<editor.ITextModel> as editor.ITextModel;
 }
