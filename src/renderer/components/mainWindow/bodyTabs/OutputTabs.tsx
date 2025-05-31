@@ -10,7 +10,7 @@ import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { Divider } from '@/components/shared/Divider';
 import { Button } from '@/components/ui/button';
 import { WandSparkles } from 'lucide-react';
-import MonacoEditor from './MonacoEditor';
+import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { cn } from '@/lib/utils';
 import { isFormattableLanguage } from '@/lib/monaco/language';
 
@@ -129,7 +129,6 @@ export function OutputTabs({ className }: OutputTabsProps) {
           <MonacoEditor
             className="absolute h-full"
             language={mimeType}
-            theme="vs-dark" /* TODO: apply theme from settings */
             options={RESPONSE_EDITOR_OPTIONS}
             onMount={setResponseEditor}
           />
@@ -151,15 +150,12 @@ export function OutputTabs({ className }: OutputTabsProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Object.entries(response.headers).map(([key, value]) => {
-                  const valueToDisplay = Array.isArray(value) ? value.join(', ') : value;
-                  return (
-                    <TableRow key={key}>
-                      <TableCell className="w-1/3">{key}</TableCell>
-                      <TableCell>{valueToDisplay}</TableCell>
-                    </TableRow>
-                  );
-                })}
+                {Object.entries(response.headers).map(([key, value]) => (
+                  <TableRow key={key}>
+                    <TableCell className="w-1/3">{key}</TableCell>
+                    <TableCell>{Array.isArray(value) ? value.join(', ') : value}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>

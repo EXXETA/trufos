@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useCollectionActions } from '@/state/collectionStore';
 import { editor } from 'monaco-editor';
 import { useCallback } from 'react';
-import MonacoEditor from '../../MonacoEditor';
+import MonacoEditor from '@/lib/monaco/MonacoEditor';
 
 interface BodyTabTextInputProps {
   language: Language;
@@ -29,7 +29,6 @@ export default function BodyTabTextInput({ language, className }: BodyTabTextInp
     <MonacoEditor
       height="100%"
       className={cn('absolute h-full', className)}
-      theme="vs-dark" /* TODO: apply theme from settings */
       options={REQUEST_EDITOR_OPTIONS}
       language={language}
       onMount={(editor) => {

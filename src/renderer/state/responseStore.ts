@@ -40,15 +40,15 @@ export const useResponseStore = create<ResponseState>()(
       const responseEditor = state.editor;
       if (!responseEditor) return;
 
-      responseEditor.updateOptions({ readOnly: false });
-      await responseEditor.getAction('editor.action.formatDocument').run();
-      responseEditor.updateOptions({ readOnly: true });
+      try {
+        responseEditor.updateOptions({ readOnly: false });
+        await responseEditor.getAction('editor.action.formatDocument').run();
+      } finally {
+        responseEditor.updateOptions({ readOnly: true });
+      }
 
       set((state) => {
-        state.responseInfoMap[requestId] = {
-          ...state.responseInfoMap[requestId],
-          formattedResponseBody: responseEditor.getValue(),
-        };
+        state.responseInfoMap[requestId].formattedResponseBody = state.editor.getValue();
       });
     },
   }))

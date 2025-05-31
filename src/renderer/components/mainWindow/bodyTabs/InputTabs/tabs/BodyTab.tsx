@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { RequestBodyType } from 'shim/objects/request';
 import { Divider } from '@/components/shared/Divider';
@@ -30,9 +30,7 @@ export const BodyTab = () => {
     [setRequestBody]
   );
 
-  const canFormatRequestBody = useMemo(() => {
-    return isFormattableLanguage(language);
-  }, [requestBody?.type, language]);
+  const canFormatRequestBody = isFormattableLanguage(language);
 
   return (
     <div className="h-full flex flex-col gap-4">
