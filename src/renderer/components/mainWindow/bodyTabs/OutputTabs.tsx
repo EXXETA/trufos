@@ -1,13 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
-import { Editor } from '@monaco-editor/react';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { HttpHeaders } from 'shim/headers';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { selectResponse, useResponseActions, useResponseStore } from '@/state/responseStore';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
+import { Divider } from '@/components/shared/Divider';
+import { Button } from '@/components/ui/button';
+import { WandSparkles } from 'lucide-react';
+import MonacoEditor from '@/lib/monaco/MonacoEditor';
+import { cn } from '@/lib/utils';
+import { isFormattableLanguage } from '@/lib/monaco/language';
 
 /**
  * Get the mime type from the content type.
@@ -36,27 +41,62 @@ interface OutputTabsProps {
 }
 
 export function OutputTabs({ className }: OutputTabsProps) {
-  const { setResponseEditor } = useResponseActions();
+  const { setResponseEditor, formatResponseEditorText } = useResponseActions();
   const editor = useResponseStore((state) => state.editor);
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
 
-  const headers = response?.headers;
+  const [editorLanguage, setEditorLanguage] = useState<string | undefined>();
 
-  const mimeType = getMimeType(getContentType(headers));
+  const mimeType = useMemo(() => {
+    const contentType = getContentType(response?.headers);
+    return getMimeType(contentType);
+  }, [response?.headers]);
 
   useEffect(() => {
-    if (editor == null) {
-      return;
-    } else if (response?.bodyFilePath == null) {
-      editor.setValue('');
-    } else {
-      editor.setValue('');
-      IpcPushStream.open(response.bodyFilePath)
-        .then((stream) => IpcPushStream.collect(stream))
-        .then((content) => editor.setValue(content));
+    if (!editor) return;
+
+    const updateEditorContent = async () => {
+      if (response?.bodyFilePath) {
+        editor.setValue('');
+        const stream = await IpcPushStream.open(response.bodyFilePath);
+        const content = await IpcPushStream.collect(stream);
+        editor.setValue(content);
+        if (response?.autoFormat) {
+          formatResponseEditorText(requestId);
+        }
+      } else {
+        editor.setValue('');
+      }
+    };
+
+    updateEditorContent();
+  }, [response, editor, requestId]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const model = editor.getModel();
+    if (model) {
+      setEditorLanguage(model.getLanguageId());
+
+      const disposable = model.onDidChangeLanguage((e) => {
+        setEditorLanguage(e.newLanguage);
+      });
+
+      return () => disposable.dispose();
     }
-  }, [response?.bodyFilePath, editor]);
+  }, [editor, mimeType]);
+
+  const canFormatResponseBody = useMemo(() => {
+    return response?.bodyFilePath && isFormattableLanguage(editorLanguage);
+  }, [response?.bodyFilePath, editorLanguage]);
+
+  const handleFormatResponseBody = useCallback(() => {
+    if (requestId && canFormatResponseBody) {
+      formatResponseEditorText(requestId);
+    }
+  }, [requestId, canFormatResponseBody, formatResponseEditorText]);
 
   return (
     <Tabs className={className} defaultValue="body">
@@ -68,23 +108,39 @@ export function OutputTabs({ className }: OutputTabsProps) {
         <ResponseStatus />
       </TabsList>
 
-      <TabsContent value="body" className="pt-4">
-        <Editor
-          className="absolute h-full"
-          language={mimeType}
-          theme="vs-dark" /* TODO: apply theme from settings */
-          options={RESPONSE_EDITOR_OPTIONS}
-          onMount={setResponseEditor}
-        />
+      <TabsContent value="body">
+        <div className="pt-2 h-full flex flex-col gap-4">
+          <div className="px-4 space-y-2">
+            <div className="flex justify-end px-2">
+              <Button
+                className={cn('gap-2 h-6', { 'opacity-50': !canFormatResponseBody })}
+                size="sm"
+                variant="ghost"
+                onClick={handleFormatResponseBody}
+                disabled={!canFormatResponseBody}
+              >
+                <WandSparkles size={16} />
+                Format
+              </Button>
+            </div>
+            <Divider />
+          </div>
+
+          <MonacoEditor
+            className="absolute h-full"
+            language={mimeType}
+            options={RESPONSE_EDITOR_OPTIONS}
+            onMount={setResponseEditor}
+          />
+        </div>
       </TabsContent>
 
       <TabsContent value="header" className="p-4">
-        {!headers ? (
+        {!response?.headers ? (
           <div className="flex items-center justify-center w-full h-full text-center">
             <span>Please enter URL address and click Send to get a response</span>
           </div>
         ) : (
-          // The Table exceeds the window size if no height is specified for some reason
           <div className="h-0">
             <Table className="table-auto w-full">
               <TableHeader>
@@ -94,17 +150,12 @@ export function OutputTabs({ className }: OutputTabsProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {headers &&
-                  Object.keys(headers).map((key) => {
-                    const value = headers[key];
-                    const valueToDisplay = Array.isArray(value) ? value.join(', ') : value;
-                    return (
-                      <TableRow key={key}>
-                        <TableCell className="w-1/3">{key}</TableCell>
-                        <TableCell>{valueToDisplay}</TableCell>
-                      </TableRow>
-                    );
-                  })}
+                {Object.entries(response.headers).map(([key, value]) => (
+                  <TableRow key={key}>
+                    <TableCell className="w-1/3">{key}</TableCell>
+                    <TableCell>{Array.isArray(value) ? value.join(', ') : value}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>

@@ -1,8 +1,8 @@
-import { TrufosResponse } from 'shim/objects/response';
+import { useActions } from '@/state/helper/util';
 import { editor } from 'monaco-editor';
+import { TrufosResponse } from 'shim/objects/response';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { useActions } from '@/state/helper/util';
 
 /** A map of requestId => response */
 type ResponseInfoMap = Record<string, TrufosResponse>;
@@ -13,10 +13,17 @@ interface ResponseState {
   addResponse: (requestId: string, response: TrufosResponse) => void;
   removeResponse: (requestId: string) => void;
   setResponseEditor: (editor: editor.ICodeEditor | undefined) => void;
+
+  /**
+   * Format the text in the response editor.
+   * This will only work if the response editor is set and the response body type is text-based.
+   * @param requestId The request ID of the request.
+   */
+  formatResponseEditorText(requestId: string): Promise<void>;
 }
 
 export const useResponseStore = create<ResponseState>()(
-  immer((set) => ({
+  immer((set, get) => ({
     responseInfoMap: {},
     editor: undefined,
     addResponse: (requestId, response) =>
@@ -28,6 +35,22 @@ export const useResponseStore = create<ResponseState>()(
         delete state.responseInfoMap[requestId];
       }),
     setResponseEditor: (responseEditor) => set({ editor: responseEditor }),
+    formatResponseEditorText: async (requestId) => {
+      const state = get();
+      const responseEditor = state.editor;
+      if (!responseEditor) return;
+
+      try {
+        responseEditor.updateOptions({ readOnly: false });
+        await responseEditor.getAction('editor.action.formatDocument').run();
+      } finally {
+        responseEditor.updateOptions({ readOnly: true });
+      }
+
+      set((state) => {
+        state.responseInfoMap[requestId].autoFormat = true;
+      });
+    },
   }))
 );
 
