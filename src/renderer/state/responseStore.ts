@@ -15,11 +15,11 @@ interface ResponseState {
   setResponseEditor: (editor: editor.ICodeEditor | undefined) => void;
 
   /**
-   * Format the text in the response editor and store the formatted response body in the response info map.
+   * Format the text in the response editor.
    * This will only work if the response editor is set and the response body type is text-based.
    * @param requestId The request ID of the request.
    */
-  formatResponseBody(requestId: string): Promise<void>;
+  formatResponseEditorText(requestId: string): Promise<void>;
 }
 
 export const useResponseStore = create<ResponseState>()(
@@ -35,7 +35,7 @@ export const useResponseStore = create<ResponseState>()(
         delete state.responseInfoMap[requestId];
       }),
     setResponseEditor: (responseEditor) => set({ editor: responseEditor }),
-    formatResponseBody: async (requestId) => {
+    formatResponseEditorText: async (requestId) => {
       const state = get();
       const responseEditor = state.editor;
       if (!responseEditor) return;
@@ -48,7 +48,7 @@ export const useResponseStore = create<ResponseState>()(
       }
 
       set((state) => {
-        state.responseInfoMap[requestId].formattedResponseBody = state.editor.getValue();
+        state.responseInfoMap[requestId].autoFormat = true;
       });
     },
   }))

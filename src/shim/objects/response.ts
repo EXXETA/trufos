@@ -4,7 +4,7 @@ export type TrufosResponse = {
   headers: HttpHeaders;
   metaInfo: MetaInfo;
   bodyFilePath?: string;
-  formattedResponseBody?: string;
+  autoFormat?: boolean;
 };
 
 export type MetaInfo = {

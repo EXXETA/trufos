@@ -41,7 +41,7 @@ interface OutputTabsProps {
 }
 
 export function OutputTabs({ className }: OutputTabsProps) {
-  const { setResponseEditor, formatResponseBody } = useResponseActions();
+  const { setResponseEditor, formatResponseEditorText } = useResponseActions();
   const editor = useResponseStore((state) => state.editor);
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
@@ -57,20 +57,21 @@ export function OutputTabs({ className }: OutputTabsProps) {
     if (!editor) return;
 
     const updateEditorContent = async () => {
-      if (response?.formattedResponseBody) {
-        editor.setValue(response.formattedResponseBody);
-      } else if (response?.bodyFilePath) {
+      if (response?.bodyFilePath) {
         editor.setValue('');
         const stream = await IpcPushStream.open(response.bodyFilePath);
         const content = await IpcPushStream.collect(stream);
         editor.setValue(content);
+        if (response?.autoFormat) {
+          formatResponseEditorText(requestId);
+        }
       } else {
         editor.setValue('');
       }
     };
 
     updateEditorContent();
-  }, [response, editor]);
+  }, [response, editor, requestId]);
 
   useEffect(() => {
     if (!editor) return;
@@ -88,15 +89,14 @@ export function OutputTabs({ className }: OutputTabsProps) {
   }, [editor, mimeType]);
 
   const canFormatResponseBody = useMemo(() => {
-    const hasContent = response?.formattedResponseBody || response?.bodyFilePath;
-    return hasContent && isFormattableLanguage(editorLanguage);
-  }, [response?.formattedResponseBody, response?.bodyFilePath, editorLanguage]);
+    return response?.bodyFilePath && isFormattableLanguage(editorLanguage);
+  }, [response?.bodyFilePath, editorLanguage]);
 
   const handleFormatResponseBody = useCallback(() => {
     if (requestId && canFormatResponseBody) {
-      formatResponseBody(requestId);
+      formatResponseEditorText(requestId);
     }
-  }, [requestId, canFormatResponseBody, formatResponseBody]);
+  }, [requestId, canFormatResponseBody, formatResponseEditorText]);
 
   return (
     <Tabs className={className} defaultValue="body">
