@@ -17,10 +17,10 @@ export function RequestWindow() {
 
   if (!requestSelected) {
     return (
-      <div className="flex flex-col flex-auto p-6 items-center justify-center">
+      <div className="flex flex-auto flex-col items-center justify-center p-6">
         <EmptyWildWest />
-        <span className="text-center mt-2">
-          <a className="mr-1 text-cyan-400 underline cursor-pointer" onClick={handleAddNewRequest}>
+        <span className="mt-2 text-center">
+          <a className="mr-1 cursor-pointer text-cyan-400 underline" onClick={handleAddNewRequest}>
             Create
           </a>
           or select a request to get started
@@ -30,7 +30,7 @@ export function RequestWindow() {
   }
 
   return (
-    <div className="flex flex-col h-full p-6">
+    <div className="flex h-full flex-col p-6">
       <MainTopBar />
       <MainBody />
     </div>

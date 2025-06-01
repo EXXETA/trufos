@@ -60,7 +60,7 @@ export function OutputTabs({ className }: OutputTabsProps) {
 
   return (
     <Tabs className={className} defaultValue="body">
-      <TabsList className="flex justify-between items-center">
+      <TabsList className="flex items-center justify-between">
         <div className="flex">
           <TabsTrigger value="body">Response Body</TabsTrigger>
           <TabsTrigger value="header">Headers</TabsTrigger>
@@ -70,7 +70,7 @@ export function OutputTabs({ className }: OutputTabsProps) {
 
       <TabsContent value="body" className="pt-4">
         <Editor
-          className="max-w-[calc(100vw-23rem)] max-h-[calc(100vh-12rem)]"
+          className="max-h-[calc(100vh-12rem)] max-w-[calc(100vw-23rem)]"
           language={mimeType}
           theme="vs-dark" /* TODO: apply theme from settings */
           options={RESPONSE_EDITOR_OPTIONS}
@@ -80,13 +80,13 @@ export function OutputTabs({ className }: OutputTabsProps) {
 
       <TabsContent value="header" className="p-4">
         {!headers ? (
-          <div className="flex items-center justify-center w-full h-full text-center">
+          <div className="flex h-full w-full items-center justify-center text-center">
             <span>Please enter URL address and click Send to get a response</span>
           </div>
         ) : (
           // The Table exceeds the window size if no height is specified for some reason
           <div className="h-0">
-            <Table className="table-auto w-full">
+            <Table className="w-full table-auto">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-auto">Key</TableHead>

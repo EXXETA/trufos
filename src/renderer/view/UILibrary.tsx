@@ -14,7 +14,7 @@ import {
 
 export function UILibrary() {
   return (
-    <div className="flex flex-col flex-wrap m-8 gap-8">
+    <div className="m-8 flex flex-col flex-wrap gap-8">
       <h1 className="self-center">Component Library</h1>
       <Button>Create New Request</Button>
       <Button variant="secondary">Send</Button>

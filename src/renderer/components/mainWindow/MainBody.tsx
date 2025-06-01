@@ -3,9 +3,9 @@ import { OutputTabs } from '@/components/mainWindow/bodyTabs/OutputTabs';
 
 export function MainBody() {
   return (
-    <div className="flex flex-col xl:flex-row h-full gap-6">
-      <InputTabs className="flex flex-col flex-1 min-h-0 min-w-0" />
-      <OutputTabs className="flex flex-col flex-1 min-h-0 min-w-0" />
+    <div className="flex h-full flex-col gap-6 xl:flex-row">
+      <InputTabs className="flex min-h-0 min-w-0 flex-1 flex-col" />
+      <OutputTabs className="flex min-h-0 min-w-0 flex-1 flex-col" />
     </div>
   );
 }

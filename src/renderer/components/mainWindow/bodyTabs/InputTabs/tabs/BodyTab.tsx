@@ -91,8 +91,8 @@ export const BodyTab = () => {
   }, [language, setLanguage, requestBody?.type]);
 
   return (
-    <div className="h-full relative">
-      <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
+    <div className="relative h-full">
+      <div className="absolute left-[16px] right-[16px] top-[16px] z-10">
         <div className="flex justify-end">
           {renderSelectLanguage()}
           <SimpleSelect
@@ -108,7 +108,7 @@ export const BodyTab = () => {
         <Divider className="mt-2" />
       </div>
 
-      <div className="absolute top-[68px] left-0 bottom-0 right-0">
+      <div className="absolute bottom-0 left-0 right-0 top-[68px]">
         {requestBody?.type === RequestBodyType.FILE ? renderFileInput() : renderEditor()}
       </div>
     </div>

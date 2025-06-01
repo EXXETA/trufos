@@ -85,10 +85,10 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
           </div>
           <DialogFooter className="bottom-0">
             <Button disabled={!isValid} variant={isValid ? 'default' : 'defaultDisable'}>
-              <span className="leading-4 font-bold">Save</span>
+              <span className="font-bold leading-4">Save</span>
             </Button>
             <Button type="reset" variant="destructive">
-              <span className="leading-4 font-bold">Cancel</span>
+              <span className="font-bold leading-4">Cancel</span>
             </Button>
           </DialogFooter>
         </form>

@@ -25,7 +25,7 @@ export function SimpleSelect<T extends string>(props: SimpleSelectProps<T>) {
       onValueChange={(value) => onValueChange(value as T)}
       onOpenChange={setIsOpen}
     >
-      <SelectTrigger className="w-[fit-content] h-[fit-content] p-0 " isOpen={isOpen}>
+      <SelectTrigger className="h-[fit-content] w-[fit-content] p-0" isOpen={isOpen}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
 

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className={`relative border rounded-[var(--radius)]`}>
+    <div className={`relative rounded-[var(--radius)] border`}>
       <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   )
@@ -60,7 +60,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      'h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&:not(:last-child)]:border-r border-border',
+      'h-12 border-border px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&:not(:last-child)]:border-r',
       className
     )}
     {...props}
@@ -75,7 +75,7 @@ const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      'p-4 align-middle break-all overflow-wrap break-word [&:has([role=checkbox])]:pr-0 [&:not(:last-child)]:border-r border-border',
+      'overflow-wrap break-word break-all border-border p-4 align-middle [&:has([role=checkbox])]:pr-0 [&:not(:last-child)]:border-r',
       className
     )}
     {...props}

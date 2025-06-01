@@ -8,7 +8,7 @@ interface SendButtonProps {
 
 export const SendButton: React.FC<SendButtonProps> = ({ onClick }) => (
   <Button className="gap-3 pl-[30px]" onClick={onClick} variant="secondary">
-    <span className="leading-4 font-bold">Send</span>
+    <span className="font-bold leading-4">Send</span>
 
     <ArrowForwardIcon />
   </Button>

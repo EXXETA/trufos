@@ -9,7 +9,7 @@ const Tabs = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Root
     ref={ref}
-    className={cn('flex flex-col bg-background rounded-md', className)}
+    className={cn('flex flex-col rounded-md bg-background', className)}
     {...props}
   />
 ));
@@ -34,20 +34,20 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      'inline-flex items-center justify-center whitespace-nowrap rounded-[24px] h-[36px] ' +
-        'px-3 py-1.5 ' +
-        'text-sm font-medium ring-offset-background transition-all focus-visible:outline-none ' +
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ' +
-        'disabled:pointer-events-none disabled:opacity-50 ' +
-        'hover:outline ' +
-        'hover:outline-2 ' +
-        'hover:outline-accent-primary ' +
-        'data-[state=active]:bg-accent-tertiary data-[state=active]:text-accent-primary ' +
-        'data-[state=active]:shadow-sm data-[state=active]:font-bold ' +
-        'data-[state=active]:active:outline ' +
-        'data-[state=active]:active:outline-2 ' +
-        'data-[state=active]:active:outline-accent-secondary ' +
-        'data-[state=active]:active:text-accent-secondary ',
+      'inline-flex h-[36px] items-center justify-center whitespace-nowrap rounded-[24px] ' +
+        'px-3 py-1.5' +
+        'text-sm font-medium ring-offset-background transition-all focus-visible:outline-none' +
+        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2' +
+        'disabled:pointer-events-none disabled:opacity-50' +
+        'hover:outline' +
+        'hover:outline-2' +
+        'hover:outline-accent-primary' +
+        'data-[state=active]:bg-accent-tertiary data-[state=active]:text-accent-primary' +
+        'data-[state=active]:font-bold data-[state=active]:shadow-sm' +
+        'data-[state=active]:active:outline' +
+        'data-[state=active]:active:outline-2' +
+        'data-[state=active]:active:outline-accent-secondary' +
+        'data-[state=active]:active:text-accent-secondary',
       className
     )}
     {...props}
@@ -62,7 +62,7 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      `overflow-y-auto flex-1 rounded-[24px] bg-card mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 tabs-scrollbar`,
+      `tabs-scrollbar mt-2 flex-1 overflow-y-auto rounded-[24px] bg-card ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`,
       className
     )}
     {...props}
