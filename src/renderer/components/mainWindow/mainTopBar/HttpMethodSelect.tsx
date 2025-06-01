@@ -53,7 +53,7 @@ export const HttpMethodSelect: FC<HttpMethodSelectProps> = ({
       open={isOpen}
     >
       <SelectTrigger
-        className={`border ${isOpen ? 'border-accent-primary rounded-tl-3xl rounded-bl-none' : 'border-border rounded-l-full'} min-w-[102px] p-[8px_8px_8px_16px] transition-colors duration-300 ease`}
+        className={`border ${isOpen ? 'rounded-bl-none rounded-tl-3xl border-accent-primary' : 'rounded-l-full border-border'} ease min-w-[102px] p-[8px_8px_8px_16px] transition-colors duration-300`}
         isOpen={isOpen}
       >
         <SelectValue ref={httpMethodSelectRef}>
@@ -61,7 +61,7 @@ export const HttpMethodSelect: FC<HttpMethodSelectProps> = ({
         </SelectValue>
       </SelectTrigger>
 
-      <SelectContent className="mt-0 max-h-full data-[side=bottom]:translate-y-0 data-[side=left]:-translate-x-0 data-[side=right]:translate-x-0 data-[side=top]:-translate-y-0 rounded-t-none">
+      <SelectContent className="mt-0 max-h-full rounded-t-none data-[side=bottom]:translate-y-0 data-[side=left]:-translate-x-0 data-[side=right]:translate-x-0 data-[side=top]:-translate-y-0">
         <SelectGroup>{renderItems()}</SelectGroup>
       </SelectContent>
     </Select>

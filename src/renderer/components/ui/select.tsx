@@ -23,7 +23,7 @@ const SelectTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       'flex h-10 items-center justify-between ' +
-        'text-text-primary ' +
+        'text-text-primary' +
         'text-sm placeholder:text-muted-foreground focus-visible:outline-none' +
         ' disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
       className
@@ -82,9 +82,9 @@ const SelectContent = React.forwardRef<
       ref={ref}
       className={cn(
         'relative z-50 max-h-96 ' +
-          'overflow-hidden rounded-md ' +
-          'border border-border ' +
-          'data-[state=open]:animate-in ' +
+          'overflow-hidden rounded-md' +
+          'border border-border' +
+          'data-[state=open]:animate-in' +
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0' +
           ' data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95' +
           ' data-[side=bottom]:slide-in-from-top-0 data-[side=left]:slide-in-from-right-0' +
@@ -133,8 +133,8 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       'relative flex w-full cursor-default select-none ' +
-        'hover:bg-border hover:cursor-pointer' +
-        'data-[highlighted]:bg-divider ' +
+        'hover:cursor-pointer hover:bg-border' +
+        'data-[highlighted]:bg-divider' +
         'items-center px-[16px] py-[12px] text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className
     )}

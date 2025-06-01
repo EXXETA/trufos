@@ -85,11 +85,11 @@ export const VariableEditor = memo<VariableEditorProps>(
     };
 
     return (
-      <div className="p-4 relative">
-        <div className="absolute top-4 right-4 left-4 z-10">
+      <div className="relative p-4">
+        <div className="absolute left-4 right-4 top-4 z-10">
           <div className="flex">
             <Button
-              className="hover:bg-transparent gap-1 h-fit"
+              className="h-fit gap-1 hover:bg-transparent"
               size="sm"
               variant="ghost"
               onClick={add}
@@ -100,8 +100,8 @@ export const VariableEditor = memo<VariableEditorProps>(
           <Divider className="mt-2" />
         </div>
 
-        <div className="absolute top-16 left-4 bottom-4 right-4">
-          <Table className="table-auto w-full">
+        <div className="absolute bottom-4 left-4 right-4 top-16">
+          <Table className="w-full table-auto">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-auto">Key</TableHead>
@@ -145,7 +145,7 @@ export const VariableEditor = memo<VariableEditorProps>(
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7] h-6 w-6"
+                        className="h-6 w-6 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
                         onClick={() => remove(index)}
                       >
                         <DeleteIcon />
