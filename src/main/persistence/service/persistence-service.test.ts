@@ -16,6 +16,7 @@ import { Readable } from 'node:stream';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { PersistenceService } from './persistence-service';
+import { VariableMap, VariableObject } from 'shim/objects/variables';
 
 const persistenceService = PersistenceService.instance;
 
@@ -482,6 +483,29 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(result).toEqual(collection);
+  });
+
+  it('loadCollection() without recursive flag should merge ~secrets.json with collection.json', async () => {
+    const collection = getExampleCollection();
+    const secretVariable: VariableObject = { value: '123', secret: true };
+    const plainVariable: VariableObject = { value: '321' };
+    const variables: VariableMap = { secret: secretVariable, plain: plainVariable };
+    collection.variables = structuredClone(variables);
+    collection.environments.dev = { variables: structuredClone(variables) };
+    await persistenceService.saveCollection(collection);
+
+    // Act
+    const result = await persistenceService.loadCollection(collection.dirPath, false);
+
+    // Assert
+    expect(result.variables).toEqual(variables);
+    expect(result.environments.dev.variables).toEqual(variables);
+    expect(
+      JSON.parse(await readFile(path.join(collection.dirPath, 'collection.json'), 'utf-8'))
+    ).not.toContain(secretVariable);
+    expect(
+      JSON.parse(await readFile(path.join(collection.dirPath, '~secrets.json'), 'utf-8'))
+    ).not.toContain(plainVariable);
   });
 });
 
