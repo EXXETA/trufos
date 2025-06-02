@@ -6,6 +6,7 @@ import { Collection, CollectionBase } from 'shim/objects/collection';
 import { VariableMap } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 import { SettingsService } from 'main/persistence/service/settings-service';
+import { EnvironmentMap } from 'shim/objects/environment';
 
 const persistenceService = PersistenceService.instance;
 const settingsService = SettingsService.instance;
@@ -64,6 +65,10 @@ export class EnvironmentService implements Initializable {
    */
   public setCollectionVariables(variables: VariableMap) {
     this.currentCollection.variables = variables;
+  }
+
+  public setEnvironmentVariables(environmentVariables: EnvironmentMap) {
+    this.currentCollection.environments = environmentVariables;
   }
 
   /**
