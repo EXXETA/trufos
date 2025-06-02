@@ -171,6 +171,8 @@ describe('PersistenceService', () => {
   it('saveRequest() should save the metadata of the request', async () => {
     // Arrange
     const request = getExampleRequest(collection.id);
+    request.variables['plain'] = { value: '321' };
+    request.variables['secret'] = { value: '123', secret: true };
     collection.children.push(request);
 
     await persistenceService.saveCollectionRecursive(collection);
@@ -192,6 +194,17 @@ describe('PersistenceService', () => {
     ) as RequestInfoFile;
     expect(newInfo.method).toBe(request.method);
     expect(newInfo).not.toEqual(oldInfo);
+    expect(Object.entries(newInfo.variables).length).toBe(1);
+    expect(newInfo.variables).toEqual(
+      Object.fromEntries(Object.entries(request.variables).filter(([, v]) => !v.secret))
+    );
+
+    const secrets = JSON.parse(
+      await readFile(path.join(collection.dirPath, request.title, '~secrets.json'), 'utf-8')
+    ) as Partial<RequestInfoFile>;
+    expect(secrets.variables).toEqual(
+      Object.fromEntries(Object.entries(request.variables).filter(([, v]) => v.secret))
+    );
   });
 
   it('saveCollection() should save the metadata of the collection', async () => {
@@ -470,4 +483,20 @@ describe('PersistenceService', () => {
     // Assert
     expect(result).toEqual(collection);
   });
+});
+
+it('createGitIgnore() should create a .gitignore file with the correct content', async () => {
+  // Arrange
+  const testDir = path.join(USER_DATA_DIR, 'test-gitignore');
+  await mkdir(testDir, { recursive: true });
+  const gitignorePath = path.join(testDir, '.gitignore');
+
+  // Act
+  await persistenceService.createGitIgnore(testDir);
+
+  // Assert
+  expect(await exists(gitignorePath)).toBe(true);
+  const content = await readFile(gitignorePath, 'utf-8');
+  expect(content).toContain('~request.json');
+  expect(content).toContain('~secrets.json');
 });
