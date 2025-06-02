@@ -172,7 +172,7 @@ export class PersistenceService {
     } else if (!(await exists(dirPath))) {
       await fs.mkdir(dirPath);
     }
-    
+
     // remove secrets from variables and save them separately
     await fs.writeFile(
       path.join(dirPath, '~secrets.json'),
