@@ -37,7 +37,6 @@ export function generateDefaultCollection(dirPath: string): Collection {
         method: RequestMethod.GET,
         headers: [],
         queryParams: [],
-        variables: {},
         body: {
           type: RequestBodyType.TEXT,
           mimeType: 'text/plain',
@@ -59,7 +58,6 @@ export function generateDefaultCollection(dirPath: string): Collection {
             method: RequestMethod.GET,
             headers: [],
             queryParams: [],
-            variables: {},
             body: {
               type: RequestBodyType.TEXT,
               mimeType: 'application/json',

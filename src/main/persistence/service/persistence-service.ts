@@ -174,10 +174,12 @@ export class PersistenceService {
     }
 
     // remove secrets from variables and save them separately
-    await fs.writeFile(
-      path.join(dirPath, '~secrets.json'),
-      secretService.encrypt(JSON.stringify(extractSecrets(object)))
-    );
+    if (isCollection(object)) {
+      await fs.writeFile(
+        path.join(dirPath, '~secrets.json'),
+        secretService.encrypt(JSON.stringify(extractSecrets(object)))
+      );
+    }
 
     // write the info file
     await fs.writeFile(path.join(dirPath, fileName), JSON.stringify(toInfoFile(object), null, 2));
@@ -341,9 +343,6 @@ export class PersistenceService {
     await fs.writeFile(filePath, COLLECTION_GITIGNORE);
   }
 
-  public loadCollection(dirPath: string, recursive: false): Promise<CollectionInfoFile>;
-  public loadCollection(dirPath: string, recursive?: true): Promise<Collection>;
-
   /**
    * Loads a collection and all of its children from the file system.
    * @param dirPath the directory path where the collection is located
@@ -354,13 +353,13 @@ export class PersistenceService {
     dirPath = normalizeDirPath(dirPath);
     logger.info('Loading collection at', dirPath);
     const type = 'collection' as const;
-    const info = await this.readInfoFile(dirPath, type);
-    if (!recursive) {
-      return info;
-    }
+    const info = assign(
+      await this.readInfoFile(dirPath, type),
+      await this.loadSecrets<CollectionInfoFile>(dirPath)
+    );
 
     this.idToPathMap.set(info.id, dirPath);
-    const children = await this.loadChildren(info.id, dirPath);
+    const children = recursive ? await this.loadChildren(info.id, dirPath) : [];
     return fromCollectionInfoFile(info, dirPath, children);
   }
 
@@ -443,8 +442,8 @@ export class PersistenceService {
       );
     }
 
-    // (potentially) migrate the info file to the latest version and add secrets
-    return assign(await migrateInfoFile(info, type, filePath), await this.loadSecrets(dirPath));
+    // potentially migrate the info file to the latest version
+    return await migrateInfoFile(info, type, filePath);
   }
 
   private async loadSecrets<T extends InfoFile>(dirPath: string): Promise<Partial<T>> {

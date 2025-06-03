@@ -104,12 +104,12 @@ export class MainEventService implements IEventService {
     await persistenceService.delete(object);
   }
 
-  async getActiveEnvironmentVariables(request?: TrufosRequest) {
-    return environmentService.getVariables(request);
+  async getActiveEnvironmentVariables() {
+    return environmentService.getVariables();
   }
 
-  async getVariable(key: string, request?: TrufosRequest) {
-    return environmentService.getVariable(key, request);
+  async getVariable(key: string) {
+    return environmentService.getVariable(key);
   }
 
   async setCollectionVariables(variables: VariableMap) {

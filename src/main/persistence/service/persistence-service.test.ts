@@ -10,7 +10,7 @@ import {
   TrufosRequest,
   TEXT_BODY_FILE_NAME,
 } from 'shim/objects/request';
-import { RequestInfoFile } from './info-files/latest';
+import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
 import { RequestMethod } from 'shim/objects/request-method';
 import { Readable } from 'node:stream';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
@@ -55,7 +55,6 @@ function getExampleRequest(parentId: string): TrufosRequest {
     parentId,
     method: RequestMethod.GET,
     queryParams: [],
-    variables: {},
     body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
   };
 }
@@ -172,12 +171,9 @@ describe('PersistenceService', () => {
   it('saveRequest() should save the metadata of the request', async () => {
     // Arrange
     const request = getExampleRequest(collection.id);
-    request.variables['plain'] = { value: '321' };
-    request.variables['secret'] = { value: '123', secret: true };
     collection.children.push(request);
 
     await persistenceService.saveCollectionRecursive(collection);
-
     const oldInfo = JSON.parse(
       await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
     ) as RequestInfoFile;
@@ -195,17 +191,6 @@ describe('PersistenceService', () => {
     ) as RequestInfoFile;
     expect(newInfo.method).toBe(request.method);
     expect(newInfo).not.toEqual(oldInfo);
-    expect(Object.entries(newInfo.variables).length).toBe(1);
-    expect(newInfo.variables).toEqual(
-      Object.fromEntries(Object.entries(request.variables).filter(([, v]) => !v.secret))
-    );
-
-    const secrets = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, '~secrets.json'), 'utf-8')
-    ) as Partial<RequestInfoFile>;
-    expect(secrets.variables).toEqual(
-      Object.fromEntries(Object.entries(request.variables).filter(([, v]) => v.secret))
-    );
   });
 
   it('saveCollection() should save the metadata of the collection', async () => {
@@ -214,6 +199,32 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(await exists(path.join(collection.dirPath, 'collection.json'))).toBe(true);
+  });
+
+  it('saveCollection() should store the secrets in ~secrets.json', async () => {
+    // Arrange
+    const secretVariable: VariableObject = { value: 'secret', secret: true };
+    const plainVariable: VariableObject = { value: 'plain' };
+    const variables: VariableMap = { secret: secretVariable, plain: plainVariable };
+    collection.variables = structuredClone(variables);
+    collection.environments.dev = { variables: structuredClone(variables) };
+
+    // Act
+    await persistenceService.saveCollection(collection);
+
+    // Assert
+    const info = JSON.parse(
+      await readFile(path.join(collection.dirPath, 'collection.json'), 'utf-8')
+    ) as CollectionInfoFile;
+    expect(info.variables).toEqual(
+      Object.fromEntries(Object.entries(variables).filter(([, v]) => !v.secret))
+    );
+    const secrets = JSON.parse(
+      await readFile(path.join(collection.dirPath, '~secrets.json'), 'utf-8')
+    ) as Partial<CollectionInfoFile>;
+    expect(secrets.variables).toEqual(
+      Object.fromEntries(Object.entries(variables).filter(([, v]) => v.secret))
+    );
   });
 
   it('saveRequest() should find an unused directory name', async () => {
@@ -466,7 +477,7 @@ describe('PersistenceService', () => {
     expect(result).toEqual(collection);
   });
 
-  it('loadCollection() without recursive flag should load the basic collection at the given directory', async () => {
+  it('loadCollection() without recursive flag should load the collection without children', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);
@@ -476,16 +487,11 @@ describe('PersistenceService', () => {
     // Act
     const result = await persistenceService.loadCollection(collection.dirPath, false);
 
-    // Arrange
-    delete collection.type;
-    delete collection.children;
-    delete collection.dirPath;
-
     // Assert
-    expect(result).toEqual(collection);
+    expect(result).toEqual(Object.assign(collection, { children: [] }));
   });
 
-  it('loadCollection() without recursive flag should merge ~secrets.json with collection.json', async () => {
+  it('loadCollection() should merge ~secrets.json with collection.json', async () => {
     const collection = getExampleCollection();
     const secretVariable: VariableObject = { value: '123', secret: true };
     const plainVariable: VariableObject = { value: '321' };

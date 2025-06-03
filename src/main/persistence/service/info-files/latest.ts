@@ -81,11 +81,8 @@ function extractSecretFromMap(variables: VariableMap) {
 export function extractSecrets<T extends TrufosObject>(object: T) {
   switch (object.type) {
     case 'folder':
-      return {} as Partial<Folder>;
     case 'request':
-      return {
-        variables: extractSecretFromMap(object.variables),
-      } as Partial<TrufosRequest>;
+      return {};
     case 'collection':
       return {
         variables: extractSecretFromMap(object.variables),
@@ -97,6 +94,6 @@ export function extractSecrets<T extends TrufosObject>(object: T) {
             },
           ])
         ),
-      } as Partial<Collection>;
+      };
   }
 }
