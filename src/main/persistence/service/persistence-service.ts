@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import {
   CollectionInfoFile,
+  extractSecrets,
   FolderInfoFile,
   fromCollectionInfoFile,
   fromFolderInfoFile,
@@ -28,9 +29,12 @@ import { randomUUID } from 'node:crypto';
 import { migrateInfoFile } from './info-files/migrators';
 import { SemVer } from 'main/util/semver';
 import { SettingsService } from './settings-service';
+import { EOL } from 'node:os';
+import { SecretService } from './secret-service';
+import { assign } from 'main/util/object-util';
 
 /** Content of the .gitignore file for a collection */
-const COLLECTION_GITIGNORE = ['~request.json'].join('\n');
+const COLLECTION_GITIGNORE = ['~request.json', '~secrets.json'].join(EOL);
 
 function normalizeDirPath(dirPath: string) {
   dirPath = path.normalize(dirPath);
@@ -40,10 +44,12 @@ function normalizeDirPath(dirPath: string) {
   return dirPath;
 }
 
+const secretService = SecretService.instance;
+
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
  * to and from the file system. If you want to open a collection, you should use the
- * {@link EnvironmentService.changeCollection} which will call this service internally.
+ * {@link import('main/environment/service/environment-service').EnvironmentService.changeCollection} which will call this service internally.
  */
 export class PersistenceService {
   public static readonly instance = new PersistenceService();
@@ -167,9 +173,16 @@ export class PersistenceService {
       await fs.mkdir(dirPath);
     }
 
-    const infoFileContents = toInfoFile(object);
-    const infoFilePath = path.join(dirPath, fileName);
-    await fs.writeFile(infoFilePath, JSON.stringify(infoFileContents, null, 2));
+    // remove secrets from variables and save them separately
+    if (isCollection(object)) {
+      await fs.writeFile(
+        path.join(dirPath, '~secrets.json'),
+        secretService.encrypt(JSON.stringify(extractSecrets(object)))
+      );
+    }
+
+    // write the info file
+    await fs.writeFile(path.join(dirPath, fileName), JSON.stringify(toInfoFile(object), null, 2));
     this.idToPathMap.set(object.id, dirPath);
   }
 
@@ -316,12 +329,19 @@ export class PersistenceService {
       children: [],
     };
     await this.saveCollection(collection); // save collection file
-    await fs.writeFile(path.join(dirPath, '.gitignore'), COLLECTION_GITIGNORE); // create .gitignore
+    await this.createGitIgnore(dirPath); // create .gitignore file
     return collection;
   }
 
-  public loadCollection(dirPath: string, recursive: false): Promise<CollectionInfoFile>;
-  public loadCollection(dirPath: string, recursive?: true): Promise<Collection>;
+  /**
+   * Creates a collection .gitignore file in the specified directory path.
+   * @param dirPath the directory path where the .gitignore file should be created
+   */
+  public async createGitIgnore(dirPath: string) {
+    const filePath = path.join(dirPath, '.gitignore');
+    logger.info(`Creating .gitignore file at`, filePath);
+    await fs.writeFile(filePath, COLLECTION_GITIGNORE);
+  }
 
   /**
    * Loads a collection and all of its children from the file system.
@@ -333,13 +353,13 @@ export class PersistenceService {
     dirPath = normalizeDirPath(dirPath);
     logger.info('Loading collection at', dirPath);
     const type = 'collection' as const;
-    const info = await this.readInfoFile(dirPath, type);
-    if (!recursive) {
-      return info;
-    }
+    const info = assign(
+      await this.readInfoFile(dirPath, type),
+      await this.loadSecrets<CollectionInfoFile>(dirPath)
+    );
 
     this.idToPathMap.set(info.id, dirPath);
-    const children = await this.loadChildren(info.id, dirPath);
+    const children = recursive ? await this.loadChildren(info.id, dirPath) : [];
     return fromCollectionInfoFile(info, dirPath, children);
   }
 
@@ -422,8 +442,18 @@ export class PersistenceService {
       );
     }
 
-    // potentially migrate the info file to latest version
-    return await migrateInfoFile(info, type);
+    // potentially migrate the info file to the latest version
+    return await migrateInfoFile(info, type, filePath);
+  }
+
+  private async loadSecrets<T extends InfoFile>(dirPath: string): Promise<Partial<T>> {
+    const filePath = path.join(dirPath, '~secrets.json');
+    if (await exists(filePath)) {
+      logger.debug('Loading secrets from', filePath);
+      return JSON.parse(secretService.decrypt(await fs.readFile(filePath)));
+    } else {
+      return {};
+    }
   }
 
   private updatePathMapRecursively(child: Folder | TrufosRequest, newParentDirPath: string) {

@@ -10,12 +10,13 @@ import {
   TrufosRequest,
   TEXT_BODY_FILE_NAME,
 } from 'shim/objects/request';
-import { RequestInfoFile } from './info-files/latest';
+import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
 import { RequestMethod } from 'shim/objects/request-method';
 import { Readable } from 'node:stream';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { PersistenceService } from './persistence-service';
+import { VariableMap, VariableObject } from 'shim/objects/variables';
 
 const persistenceService = PersistenceService.instance;
 
@@ -173,7 +174,6 @@ describe('PersistenceService', () => {
     collection.children.push(request);
 
     await persistenceService.saveCollectionRecursive(collection);
-
     const oldInfo = JSON.parse(
       await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
     ) as RequestInfoFile;
@@ -199,6 +199,32 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(await exists(path.join(collection.dirPath, 'collection.json'))).toBe(true);
+  });
+
+  it('saveCollection() should store the secrets in ~secrets.json', async () => {
+    // Arrange
+    const secretVariable: VariableObject = { value: 'secret', secret: true };
+    const plainVariable: VariableObject = { value: 'plain' };
+    const variables: VariableMap = { secret: secretVariable, plain: plainVariable };
+    collection.variables = structuredClone(variables);
+    collection.environments.dev = { variables: structuredClone(variables) };
+
+    // Act
+    await persistenceService.saveCollection(collection);
+
+    // Assert
+    const info = JSON.parse(
+      await readFile(path.join(collection.dirPath, 'collection.json'), 'utf-8')
+    ) as CollectionInfoFile;
+    expect(info.variables).toEqual(
+      Object.fromEntries(Object.entries(variables).filter(([, v]) => !v.secret))
+    );
+    const secrets = JSON.parse(
+      await readFile(path.join(collection.dirPath, '~secrets.json'), 'utf-8')
+    ) as Partial<CollectionInfoFile>;
+    expect(secrets.variables).toEqual(
+      Object.fromEntries(Object.entries(variables).filter(([, v]) => v.secret))
+    );
   });
 
   it('saveRequest() should find an unused directory name', async () => {
@@ -451,7 +477,7 @@ describe('PersistenceService', () => {
     expect(result).toEqual(collection);
   });
 
-  it('loadCollection() without recursive flag should load the basic collection at the given directory', async () => {
+  it('loadCollection() without recursive flag should load the collection without children', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);
@@ -461,12 +487,46 @@ describe('PersistenceService', () => {
     // Act
     const result = await persistenceService.loadCollection(collection.dirPath, false);
 
-    // Arrange
-    delete collection.type;
-    delete collection.children;
-    delete collection.dirPath;
+    // Assert
+    expect(result).toEqual(Object.assign(collection, { children: [] }));
+  });
+
+  it('loadCollection() should merge ~secrets.json with collection.json', async () => {
+    const collection = getExampleCollection();
+    const secretVariable: VariableObject = { value: '123', secret: true };
+    const plainVariable: VariableObject = { value: '321' };
+    const variables: VariableMap = { secret: secretVariable, plain: plainVariable };
+    collection.variables = structuredClone(variables);
+    collection.environments.dev = { variables: structuredClone(variables) };
+    await persistenceService.saveCollection(collection);
+
+    // Act
+    const result = await persistenceService.loadCollection(collection.dirPath, false);
 
     // Assert
-    expect(result).toEqual(collection);
+    expect(result.variables).toEqual(variables);
+    expect(result.environments.dev.variables).toEqual(variables);
+    expect(
+      JSON.parse(await readFile(path.join(collection.dirPath, 'collection.json'), 'utf-8'))
+    ).not.toContain(secretVariable);
+    expect(
+      JSON.parse(await readFile(path.join(collection.dirPath, '~secrets.json'), 'utf-8'))
+    ).not.toContain(plainVariable);
   });
+});
+
+it('createGitIgnore() should create a .gitignore file with the correct content', async () => {
+  // Arrange
+  const testDir = path.join(USER_DATA_DIR, 'test-gitignore');
+  await mkdir(testDir, { recursive: true });
+  const gitignorePath = path.join(testDir, '.gitignore');
+
+  // Act
+  await persistenceService.createGitIgnore(testDir);
+
+  // Assert
+  expect(await exists(gitignorePath)).toBe(true);
+  const content = await readFile(gitignorePath, 'utf-8');
+  expect(content).toContain('~request.json');
+  expect(content).toContain('~secrets.json');
 });
