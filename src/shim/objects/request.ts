@@ -1,7 +1,6 @@
 import { TrufosHeader } from './headers';
 import { TrufosQueryParam } from './query-param';
 import { RequestMethod } from './request-method';
-import { VariableMap } from './variables';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 export const DRAFT_TEXT_BODY_FILE_NAME = '~' + TEXT_BODY_FILE_NAME;
@@ -14,7 +13,6 @@ export type TrufosRequest = {
   method: RequestMethod;
   headers: TrufosHeader[];
   queryParams: TrufosQueryParam[];
-  variables: VariableMap;
   body: RequestBody;
   draft?: boolean;
 };

@@ -61,18 +61,15 @@ export interface IEventService {
   getAppVersion(): Promise<string>;
 
   /**
-   * Get all active environment variables. This includes system variables, collection variables, and request variables.
-   *
-   * @param request optionally, a request as context to get the variables for.
+   * @returns all active environment variables. This includes system variables and collection variables.
    */
-  getActiveEnvironmentVariables(request?: TrufosRequest): Promise<[string, VariableObject][]>;
+  getActiveEnvironmentVariables(): Promise<[string, VariableObject][]>;
 
   /**
    * Get a variable by its key.
    * @param key The key of the variable.
-   * @param request optionally, a request as context to get the variable for.
    */
-  getVariable(key: string, request?: TrufosRequest): Promise<VariableObject>;
+  getVariable(key: string): Promise<VariableObject>;
 
   /**
    * Replace all existing collection variables with the given ones.

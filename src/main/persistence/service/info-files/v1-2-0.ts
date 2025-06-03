@@ -45,13 +45,7 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
   public readonly fromVersion = OLD_VERSION.toString();
 
   async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
-    if (type === 'collection') {
-      await PersistenceService.instance.createGitIgnore(dirname(filePath));
-    }
-    if (type === 'request') {
-      return Object.assign(old, { version: VERSION.toString(), variables: {} });
-    } else {
-      return Object.assign(old, { version: VERSION.toString() });
-    }
+    if (type === 'collection') await PersistenceService.instance.createGitIgnore(dirname(filePath));
+    return Object.assign(old, { version: VERSION.toString() });
   }
 }

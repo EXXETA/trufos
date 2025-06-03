@@ -6,7 +6,6 @@ import { Collection, CollectionBase } from 'shim/objects/collection';
 import { VariableMap } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 import { SettingsService } from 'main/persistence/service/settings-service';
-import { TrufosRequest } from 'shim/objects/request';
 
 const persistenceService = PersistenceService.instance;
 const settingsService = SettingsService.instance;
@@ -148,32 +147,25 @@ export class EnvironmentService implements Initializable {
 
   /**
    * Returns all variables for the current state (e.g. collection variables). This also includes
-   * system variables. The hierarchy is remained as in {@link getVariable}.
-   *
-   * @param request optionally, a request as context to get the variables for. Collection variables
-   * are still included.
+   * system variables.
    */
-  public getVariables(request?: TrufosRequest) {
-    return Object.entries(request?.variables ?? {})
-      .concat(Object.entries(this.currentEnvironment?.variables ?? {}))
+  public getVariables() {
+    return Object.entries(this.currentEnvironment?.variables ?? {})
       .concat(Object.entries(this.currentCollection.variables))
       .concat(getSystemVariables());
   }
 
   /**
    * Returns the value of a variable. The hierarchy is as follows:
-   * 1. Request variables (if provided)
-   * 2. Environment variables
-   * 3. Collection variables
-   * 4. System variables
+   * 1. Environment variables
+   * 2. Collection variables
+   * 3. System variables
    *
    * @param key The key of the variable.
-   * @param request optionally, a request as context to get the variable for
    * @returns The value of the variable if it exists, otherwise undefined.
    */
-  public getVariable(key: string, request?: TrufosRequest) {
+  public getVariable(key: string) {
     return (
-      request?.variables[key] ??
       this.currentEnvironment?.variables[key] ??
       this.currentCollection.variables[key] ??
       getSystemVariable(key)
