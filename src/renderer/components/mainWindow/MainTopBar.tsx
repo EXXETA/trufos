@@ -63,6 +63,13 @@ export function MainTopBar() {
     [request, requestEditor]
   );
 
+  // useEffect to reset error state when URL and method are valid
+  useEffect(() => {
+    if (request?.url && request?.method) {
+      setHasError(false);
+    }
+  }, [request]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       //isSaveShortcut is true if save combination is recorded
