@@ -6,7 +6,7 @@ import { SidebarRequestList } from '@/components/sidebar/SidebarRequestList/Side
 
 export const Menubar = () => {
   return (
-    <div>
+    <div className="h-full">
       <Sidebar collapsible={'none'}>
         <SidebarHeaderBar />
         <SidebarRequestList />
