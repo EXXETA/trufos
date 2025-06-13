@@ -15,3 +15,5 @@ export type VariableObject = {
   /** If true, the variable is stored encrypted and hidden */
   secret?: boolean;
 };
+
+export type VariableObjectWithKey = VariableObject & { key: string };
