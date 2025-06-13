@@ -10,12 +10,18 @@ import {
   TrufosRequest,
   TEXT_BODY_FILE_NAME,
 } from 'shim/objects/request';
-import { RequestInfoFile } from './info-files/latest';
+import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
 import { RequestMethod } from 'shim/objects/request-method';
 import { Readable } from 'node:stream';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
-import { PersistenceService } from './persistence-service';
+import {
+  getInfoFileName,
+  HIDDEN_FILE_PREFIX,
+  PersistenceService,
+  SECRETS_FILE_NAME,
+} from './persistence-service';
+import { VariableMap, VariableObject } from 'shim/objects/variables';
 
 const persistenceService = PersistenceService.instance;
 
@@ -81,7 +87,7 @@ describe('PersistenceService', () => {
       'generateDefaultCollection'
     );
     await mkdir(collectionDirPath);
-    await writeFile(path.join(collectionDirPath, 'collection.json'), '');
+    await writeFile(path.join(collectionDirPath, getInfoFileName(collection.type)), '');
 
     // Act
     await persistenceService.createDefaultCollectionIfNotExists();
@@ -173,9 +179,11 @@ describe('PersistenceService', () => {
     collection.children.push(request);
 
     await persistenceService.saveCollectionRecursive(collection);
-
     const oldInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+      await readFile(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        'utf-8'
+      )
     ) as RequestInfoFile;
     request.method = RequestMethod.PUT;
 
@@ -187,7 +195,10 @@ describe('PersistenceService', () => {
 
     // Assert
     const newInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+      await readFile(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        'utf-8'
+      )
     ) as RequestInfoFile;
     expect(newInfo.method).toBe(request.method);
     expect(newInfo).not.toEqual(oldInfo);
@@ -198,7 +209,35 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollection(collection);
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, 'collection.json'))).toBe(true);
+    expect(await exists(path.join(collection.dirPath, getInfoFileName(collection.type)))).toBe(
+      true
+    );
+  });
+
+  it('saveCollection() should store the secrets in ~secrets.json.bin', async () => {
+    // Arrange
+    const secretVariable: VariableObject = { value: 'secret', secret: true };
+    const plainVariable: VariableObject = { value: 'plain' };
+    const variables: VariableMap = { secret: secretVariable, plain: plainVariable };
+    collection.variables = structuredClone(variables);
+    collection.environments.dev = { variables: structuredClone(variables) };
+
+    // Act
+    await persistenceService.saveCollection(collection);
+
+    // Assert
+    const info = JSON.parse(
+      await readFile(path.join(collection.dirPath, getInfoFileName(collection.type)), 'utf-8')
+    ) as CollectionInfoFile;
+    expect(info.variables).toEqual(
+      Object.fromEntries(Object.entries(variables).filter(([, v]) => !v.secret))
+    );
+    const secrets = JSON.parse(
+      await readFile(path.join(collection.dirPath, SECRETS_FILE_NAME), 'utf-8')
+    ) as Partial<CollectionInfoFile>;
+    expect(secrets.variables).toEqual(
+      Object.fromEntries(Object.entries(variables).filter(([, v]) => v.secret))
+    );
   });
 
   it('saveRequest() should find an unused directory name', async () => {
@@ -248,7 +287,11 @@ describe('PersistenceService', () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);
-    const folderInfoFilePath = path.join(collection.dirPath, folder.title, 'folder.json');
+    const folderInfoFilePath = path.join(
+      collection.dirPath,
+      folder.title,
+      getInfoFileName(folder.type)
+    );
 
     await persistenceService.saveCollectionRecursive(collection);
     await rm(folderInfoFilePath);
@@ -274,10 +317,16 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollectionRecursive(collection);
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, 'collection.json'))).toBe(true);
-    expect(await exists(path.join(collection.dirPath, folder.title, 'folder.json'))).toBe(true);
+    expect(await exists(path.join(collection.dirPath, getInfoFileName(collection.type)))).toBe(
+      true
+    );
     expect(
-      await exists(path.join(collection.dirPath, folder.title, request.title, 'request.json'))
+      await exists(path.join(collection.dirPath, folder.title, getInfoFileName(folder.type)))
+    ).toBe(true);
+    expect(
+      await exists(
+        path.join(collection.dirPath, folder.title, request.title, getInfoFileName(request.type))
+      )
     ).toBe(true);
   });
 
@@ -293,25 +342,46 @@ describe('PersistenceService', () => {
 
     await persistenceService.saveRequest(request);
     let originalInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+      await readFile(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        'utf-8'
+      )
     ) as RequestInfoFile;
     const draftInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, '~request.json'), 'utf-8')
+      await readFile(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true)),
+        'utf-8'
+      )
     ) as RequestInfoFile;
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
-    expect(await exists(path.join(collection.dirPath, request.title, '~request.json'))).toBe(true);
+    expect(
+      await exists(path.join(collection.dirPath, request.title, getInfoFileName(request.type)))
+    ).toBe(true);
+    expect(
+      await exists(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true))
+      )
+    ).toBe(true);
     expect(originalInfo).not.toEqual(draftInfo);
 
     // Act
     await persistenceService.saveChanges(request);
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
-    expect(await exists(path.join(collection.dirPath, request.title, '~request.json'))).toBe(false);
+    expect(
+      await exists(path.join(collection.dirPath, request.title, getInfoFileName(request.type)))
+    ).toBe(true);
+    expect(
+      await exists(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true))
+      )
+    ).toBe(false);
     originalInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+      await readFile(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        'utf-8'
+      )
     ) as RequestInfoFile;
     expect(originalInfo).toEqual(draftInfo);
   });
@@ -328,21 +398,39 @@ describe('PersistenceService', () => {
 
     await persistenceService.saveRequest(request);
     const oldInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+      await readFile(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        'utf-8'
+      )
     ) as RequestInfoFile;
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
-    expect(await exists(path.join(collection.dirPath, request.title, '~request.json'))).toBe(true);
+    expect(
+      await exists(path.join(collection.dirPath, request.title, getInfoFileName(request.type)))
+    ).toBe(true);
+    expect(
+      await exists(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true))
+      )
+    ).toBe(true);
 
     // Act
     await persistenceService.discardChanges(request);
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, request.title, 'request.json'))).toBe(true);
-    expect(await exists(path.join(collection.dirPath, request.title, '~request.json'))).toBe(false);
+    expect(
+      await exists(path.join(collection.dirPath, request.title, getInfoFileName(request.type)))
+    ).toBe(true);
+    expect(
+      await exists(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true))
+      )
+    ).toBe(false);
     const newInfo = JSON.parse(
-      await readFile(path.join(collection.dirPath, request.title, 'request.json'), 'utf-8')
+      await readFile(
+        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        'utf-8'
+      )
     ) as RequestInfoFile;
     expect(oldInfo).toEqual(newInfo);
   });
@@ -451,7 +539,7 @@ describe('PersistenceService', () => {
     expect(result).toEqual(collection);
   });
 
-  it('loadCollection() without recursive flag should load the basic collection at the given directory', async () => {
+  it('loadCollection() without recursive flag should load the collection without children', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);
@@ -461,12 +549,47 @@ describe('PersistenceService', () => {
     // Act
     const result = await persistenceService.loadCollection(collection.dirPath, false);
 
-    // Arrange
-    delete collection.type;
-    delete collection.children;
-    delete collection.dirPath;
+    // Assert
+    expect(result).toEqual(Object.assign(collection, { children: [] }));
+  });
+
+  it('loadCollection() should merge ~secrets.json.bin with collection.json', async () => {
+    const collection = getExampleCollection();
+    const secretVariable: VariableObject = { value: '123', secret: true };
+    const plainVariable: VariableObject = { value: '321' };
+    const variables: VariableMap = { secret: secretVariable, plain: plainVariable };
+    collection.variables = structuredClone(variables);
+    collection.environments.dev = { variables: structuredClone(variables) };
+    await persistenceService.saveCollection(collection);
+
+    // Act
+    const result = await persistenceService.loadCollection(collection.dirPath, false);
 
     // Assert
-    expect(result).toEqual(collection);
+    expect(result.variables).toEqual(variables);
+    expect(result.environments.dev.variables).toEqual(variables);
+    expect(
+      JSON.parse(
+        await readFile(path.join(collection.dirPath, getInfoFileName(collection.type)), 'utf-8')
+      )
+    ).not.toContain(secretVariable);
+    expect(
+      JSON.parse(await readFile(path.join(collection.dirPath, SECRETS_FILE_NAME), 'utf-8'))
+    ).not.toContain(plainVariable);
   });
+});
+
+it('createGitIgnore() should create a .gitignore file with the correct content', async () => {
+  // Arrange
+  const testDir = path.join(USER_DATA_DIR, 'test-gitignore');
+  await mkdir(testDir, { recursive: true });
+  const gitignorePath = path.join(testDir, '.gitignore');
+
+  // Act
+  await persistenceService.createGitIgnore(testDir);
+
+  // Assert
+  expect(await exists(gitignorePath)).toBe(true);
+  const content = await readFile(gitignorePath, 'utf-8');
+  expect(content).toContain(`${HIDDEN_FILE_PREFIX}*`);
 });

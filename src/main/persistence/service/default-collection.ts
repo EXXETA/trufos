@@ -36,6 +36,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
         url: 'https://github.com/EXXETA/trufos/raw/main/README.md',
         method: RequestMethod.GET,
         headers: [],
+        queryParams: [],
         body: {
           type: RequestBodyType.TEXT,
           mimeType: 'text/plain',
@@ -56,6 +57,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
             url: 'https://exxeta.com/',
             method: RequestMethod.GET,
             headers: [],
+            queryParams: [],
             body: {
               type: RequestBodyType.TEXT,
               mimeType: 'application/json',
