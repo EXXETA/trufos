@@ -60,13 +60,13 @@ export default function BodyTabFileInput({ className }: BodyTabFileInputProps) {
   const renderSelectedFile = useCallback(
     (requestBody: FileBody) => {
       return (
-        <div className="flex items-center justify-between border rounded-md p-4">
+        <div className="flex items-center justify-between rounded-md border p-4">
           <div className="flex items-center gap-4 overflow-hidden">
             <FileText className="flex-shrink-0" />
             <span className="block truncate">{requestBody.fileName}</span>
           </div>
           <button
-            className="text-red-500 hover:text-red-700 flex-shrink-0"
+            className="flex-shrink-0 text-red-500 hover:text-red-700"
             onClick={removeRequestBodyFile}
           >
             <X />
@@ -81,7 +81,7 @@ export default function BodyTabFileInput({ className }: BodyTabFileInputProps) {
     return (
       <div
         className={cn(
-          'w-full h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg gap-4',
+          'flex h-full w-full flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed',
           { 'border-primary': isDragging }
         )}
         onDragOver={handleDragOver}

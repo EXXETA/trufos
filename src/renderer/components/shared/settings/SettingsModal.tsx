@@ -39,7 +39,7 @@ export const SettingsModal = () => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && cancel()}>
       <DialogTrigger onClick={() => setOpen(true)}>
-        <FiSettings className="text-xl ml-2" />
+        <FiSettings className="ml-2 text-xl" />
       </DialogTrigger>
       <DialogContent style={{ minWidth: '100vh' }}>
         <DialogHeader className="mt-auto">
@@ -57,17 +57,17 @@ export const SettingsModal = () => {
             />
           </TabsContent>
         </Tabs>
-        <DialogFooter className={'bottom-0'}>
+        <DialogFooter className="bottom-0">
           <Button
-            className="mt-0 mr-2 mb-0"
+            className="mb-0 mr-2 mt-0"
             onClick={save}
             disabled={!isValid}
             variant={isValid ? 'default' : 'defaultDisable'}
           >
-            <span className="leading-4 font-bold">Save</span>
+            <span className="font-bold leading-4">Save</span>
           </Button>
-          <Button className="mt-0 mr-2 mb-0" onClick={cancel} variant="destructive">
-            <span className="leading-4 font-bold">Cancel</span>
+          <Button className="mb-0 mr-2 mt-0" onClick={cancel} variant="destructive">
+            <span className="font-bold leading-4">Cancel</span>
           </Button>
         </DialogFooter>
       </DialogContent>

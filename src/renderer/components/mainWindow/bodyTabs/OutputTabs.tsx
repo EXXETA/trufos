@@ -100,7 +100,7 @@ export function OutputTabs({ className }: OutputTabsProps) {
 
   return (
     <Tabs className={className} defaultValue="body">
-      <TabsList className="flex justify-between items-center">
+      <TabsList className="flex items-center justify-between">
         <div className="flex">
           <TabsTrigger value="body">Response Body</TabsTrigger>
           <TabsTrigger value="header">Headers</TabsTrigger>
@@ -109,11 +109,11 @@ export function OutputTabs({ className }: OutputTabsProps) {
       </TabsList>
 
       <TabsContent value="body">
-        <div className="pt-2 h-full flex flex-col gap-4">
-          <div className="px-4 space-y-2">
+        <div className="flex h-full flex-col gap-4 pt-2">
+          <div className="space-y-2 px-4">
             <div className="flex justify-end px-2">
               <Button
-                className={cn('gap-2 h-6', { 'opacity-50': !canFormatResponseBody })}
+                className={cn('h-6 gap-2', { 'opacity-50': !canFormatResponseBody })}
                 size="sm"
                 variant="ghost"
                 onClick={handleFormatResponseBody}
@@ -137,12 +137,12 @@ export function OutputTabs({ className }: OutputTabsProps) {
 
       <TabsContent value="header" className="p-4">
         {!response?.headers ? (
-          <div className="flex items-center justify-center w-full h-full text-center">
+          <div className="flex h-full w-full items-center justify-center text-center">
             <span>Please enter URL address and click Send to get a response</span>
           </div>
         ) : (
           <div className="h-0">
-            <Table className="table-auto w-full">
+            <Table className="w-full table-auto">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-auto">Key</TableHead>

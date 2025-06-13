@@ -22,7 +22,7 @@ export const SidebarHeaderBar = () => {
 
         <div className="flex w-full items-center gap-6">
           <Button className={buttonClassName} type="button" onClick={() => openModal('folder')}>
-            <div className="flex items-center h-6 w-6">
+            <div className="flex h-6 w-6 items-center">
               <FolderPlus size={24} color={'black'} />
             </div>
 
@@ -30,7 +30,7 @@ export const SidebarHeaderBar = () => {
           </Button>
 
           <Button className={buttonClassName} type="button" onClick={() => openModal('request')}>
-            <div className="flex items-center h-6 w-6">
+            <div className="flex h-6 w-6 items-center">
               <AddIcon size={24} color={'black'} />
             </div>
 
