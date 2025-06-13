@@ -23,7 +23,6 @@ export type RequestInfoFile = InfoFileBase & {
   method: RequestMethod;
   headers: TrufosHeader[];
   body: RequestBody;
-  variables: VariableMap;
 };
 
 export type FolderInfoFile = InfoFileBase;

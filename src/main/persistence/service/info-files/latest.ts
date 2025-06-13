@@ -63,7 +63,7 @@ export function fromRequestInfoFile(
  * Extracts secrets from the given variables map and removes them from the original map.
  * @param variables The variables map to extract secrets from.
  */
-function extractSecretFromMap(variables: VariableMap) {
+function extractSecretsFromMap(variables: VariableMap): VariableMap {
   const secrets: VariableMap = {};
   for (const [key, variable] of Object.entries(variables)) {
     if (variable.secret) {
@@ -75,25 +75,21 @@ function extractSecretFromMap(variables: VariableMap) {
 }
 
 /**
- * Extracts secrets from the given Trufos object and returns a partial object with secrets removed.
- * @param object The Trufos object from which to extract secrets. They will be removed from it.
+ * Extracts and removes all secrets from the given collection and returns a partial collection that
+ * contains all removed secrets. It's like splitting the secrets from the collection so that the given
+ * collection can be saved in plain text.
+ * @param collection The Trufos object from which to extract secrets. They will be removed from it.
  */
-export function extractSecrets<T extends TrufosObject>(object: T) {
-  switch (object.type) {
-    case 'folder':
-    case 'request':
-      return {};
-    case 'collection':
-      return {
-        variables: extractSecretFromMap(object.variables),
-        environments: Object.fromEntries(
-          Object.entries(object.environments).map(([key, value]) => [
-            key,
-            {
-              variables: extractSecretFromMap(value.variables),
-            },
-          ])
-        ),
-      };
-  }
+export function extractSecrets(collection: Collection): Partial<Collection> {
+  return {
+    variables: extractSecretsFromMap(collection.variables),
+    environments: Object.fromEntries(
+      Object.entries(collection.environments).map(([key, value]) => [
+        key,
+        {
+          variables: extractSecretsFromMap(value.variables),
+        },
+      ])
+    ),
+  };
 }

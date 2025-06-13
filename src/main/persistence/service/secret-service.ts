@@ -7,7 +7,7 @@ export class SecretService {
    * Encrypts a string using the SafeStorage API.
    * @param plain The string to encrypt.
    */
-  public encrypt(plain: string) {
+  public encrypt(plain: string): Buffer {
     return safeStorage.encryptString(plain);
   }
 
@@ -15,7 +15,7 @@ export class SecretService {
    * Decrypts a string using the SafeStorage API.
    * @param encrypted The encrypted bytes to decrypt.
    */
-  public decrypt(encrypted: Buffer) {
+  public decrypt(encrypted: Buffer): string {
     return safeStorage.decryptString(encrypted);
   }
 }
