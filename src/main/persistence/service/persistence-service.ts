@@ -33,8 +33,11 @@ import { EOL } from 'node:os';
 import { SecretService } from './secret-service';
 import { assign } from 'main/util/object-util';
 
+export const HIDDEN_FILE_PREFIX = '~';
+export const SECRETS_FILE_NAME = `${HIDDEN_FILE_PREFIX}secrets.json.bin`;
+
 /** Content of the .gitignore file for a collection */
-const COLLECTION_GITIGNORE = ['~request.json', '~secrets.json'].join(EOL);
+const COLLECTION_GITIGNORE = [`${HIDDEN_FILE_PREFIX}*`].join(EOL);
 
 function normalizeDirPath(dirPath: string) {
   dirPath = path.normalize(dirPath);
@@ -44,12 +47,16 @@ function normalizeDirPath(dirPath: string) {
   return dirPath;
 }
 
+export function getInfoFileName(type: TrufosObject['type'], draft = false) {
+  return `${draft ? HIDDEN_FILE_PREFIX : ''}${type}.json`;
+}
+
 const secretService = SecretService.instance;
 
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
  * to and from the file system. If you want to open a collection, you should use the
- * {@link import('main/environment/service/environment-service').EnvironmentService.changeCollection} which will call this service internally.
+ * {@link EnvironmentService.changeCollection} which will call this service internally.
  */
 export class PersistenceService {
   public static readonly instance = new PersistenceService();
@@ -61,7 +68,7 @@ export class PersistenceService {
    */
   public async createDefaultCollectionIfNotExists() {
     const dirPath = SettingsService.DEFAULT_COLLECTION_DIR;
-    if (!(await exists(path.join(dirPath, 'collection.json')))) {
+    if (!(await exists(path.join(dirPath, getInfoFileName('collection'))))) {
       logger.info('Creating default collection at', dirPath);
       const collection = generateDefaultCollection(dirPath);
       await this.saveCollectionRecursive(collection);
@@ -123,7 +130,7 @@ export class PersistenceService {
    */
   public async saveRequest(request: TrufosRequest, textBody?: string) {
     const dirPath = this.getOrCreateDirPath(request);
-    const infoFileName = `${request.draft ? '~' : ''}${request.type}.json`;
+    const infoFileName = getInfoFileName(request.type, request.draft);
     await this.saveInfoFile(request, dirPath, infoFileName);
 
     // save text body if provided
@@ -147,7 +154,7 @@ export class PersistenceService {
     await this.saveInfoFile(
       collection,
       this.getOrCreateDirPath(collection),
-      collection.type + '.json'
+      getInfoFileName(collection.type)
     );
   }
 
@@ -156,7 +163,7 @@ export class PersistenceService {
    * @param folder the folder to save
    */
   public async saveFolder(folder: Folder) {
-    await this.saveInfoFile(folder, this.getOrCreateDirPath(folder), folder.type + '.json');
+    await this.saveInfoFile(folder, this.getOrCreateDirPath(folder), getInfoFileName(folder.type));
   }
 
   /**
@@ -176,7 +183,7 @@ export class PersistenceService {
     // remove secrets from variables and save them separately
     if (isCollection(object)) {
       await fs.writeFile(
-        path.join(dirPath, '~secrets.json'),
+        path.join(dirPath, SECRETS_FILE_NAME),
         secretService.encrypt(JSON.stringify(extractSecrets(object)))
       );
     }
@@ -212,13 +219,12 @@ export class PersistenceService {
    */
   private async undraft(request: TrufosRequest) {
     request.draft = false;
-    const infoFileName = request.type + '.json';
     const dirPath = this.getOrCreateDirPath(request);
-    if (!(await exists(path.join(dirPath, '~' + infoFileName)))) {
+    if (!(await exists(path.join(dirPath, getInfoFileName(request.type, true))))) {
       return { draft: false };
     }
 
-    return { draft: true, dirPath, infoFileName };
+    return { draft: true, dirPath, infoFileName: getInfoFileName(request.type, request.draft) };
   }
 
   /**
@@ -232,7 +238,10 @@ export class PersistenceService {
     const { draft, dirPath, infoFileName } = await this.undraft(request);
     if (draft) {
       logger.info('Saving changes of request at', dirPath);
-      await fs.rename(path.join(dirPath, '~' + infoFileName), path.join(dirPath, infoFileName));
+      await fs.rename(
+        path.join(dirPath, HIDDEN_FILE_PREFIX + infoFileName),
+        path.join(dirPath, infoFileName)
+      );
       if (isRequest(request)) {
         const draftBodyFilePath = path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME);
         const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
@@ -252,14 +261,14 @@ export class PersistenceService {
    * @param request the request to discard the draft of
    */
   public async discardChanges(request: TrufosRequest) {
-    const { draft, dirPath, infoFileName } = await this.undraft(request);
+    const { draft, dirPath } = await this.undraft(request);
     if (!draft) {
       return request;
     }
     logger.info('Discarding changes of request at', dirPath);
 
     // delete draft files
-    await fs.unlink(path.join(dirPath, '~' + infoFileName));
+    await fs.unlink(path.join(dirPath, getInfoFileName(request.type, true)));
     if (isRequest(request) && (await exists(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME)))) {
       await fs.unlink(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME));
     }
@@ -353,10 +362,7 @@ export class PersistenceService {
     dirPath = normalizeDirPath(dirPath);
     logger.info('Loading collection at', dirPath);
     const type = 'collection' as const;
-    const info = assign(
-      await this.readInfoFile(dirPath, type),
-      await this.loadSecrets<CollectionInfoFile>(dirPath)
-    );
+    const info = assign(await this.readInfoFile(dirPath, type), await this.loadSecrets(dirPath));
 
     this.idToPathMap.set(info.id, dirPath);
     const children = recursive ? await this.loadChildren(info.id, dirPath) : [];
@@ -365,7 +371,7 @@ export class PersistenceService {
 
   private async loadRequest(parentId: string, dirPath: string): Promise<TrufosRequest> {
     const type = 'request' as const;
-    const draft = await exists(path.join(dirPath, '~' + type + '.json'));
+    const draft = await exists(path.join(dirPath, getInfoFileName(type, true)));
     const info = await this.readInfoFile(dirPath, type, draft);
     this.idToPathMap.set(info.id, dirPath);
 
@@ -408,12 +414,12 @@ export class PersistenceService {
     dirPath: string,
     type?: T['type']
   ): Promise<T> {
-    if (type === 'folder' || (await exists(path.join(dirPath, 'folder.json')))) {
+    if (type === 'folder' || (await exists(path.join(dirPath, getInfoFileName('folder'))))) {
       return (await this.loadFolder(parentId, dirPath)) as T;
     } else if (
       type === 'request' ||
-      (await exists(path.join(dirPath, 'request.json'))) ||
-      (await exists(path.join(dirPath, '~request.json')))
+      (await exists(path.join(dirPath, getInfoFileName('request')))) ||
+      (await exists(path.join(dirPath, getInfoFileName('request', true))))
     ) {
       return (await this.loadRequest(parentId, dirPath)) as T;
     }
@@ -432,7 +438,7 @@ export class PersistenceService {
     type: T['type'],
     draft = false
   ) {
-    const filePath = path.join(dirPath, `${draft ? '~' : ''}${type}.json`);
+    const filePath = path.join(dirPath, getInfoFileName(type, draft));
     const info = JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile;
 
     // check if the version is supported
@@ -446,8 +452,8 @@ export class PersistenceService {
     return await migrateInfoFile(info, type, filePath);
   }
 
-  private async loadSecrets<T extends InfoFile>(dirPath: string): Promise<Partial<T>> {
-    const filePath = path.join(dirPath, '~secrets.json');
+  private async loadSecrets(dirPath: string): Promise<Partial<CollectionInfoFile>> {
+    const filePath = path.join(dirPath, SECRETS_FILE_NAME);
     if (await exists(filePath)) {
       logger.debug('Loading secrets from', filePath);
       return JSON.parse(secretService.decrypt(await fs.readFile(filePath)));
