@@ -128,6 +128,12 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       updateRequest({ body });
     },
 
+    setRequestBodyMimeType(mimeType?: string) {
+      const { body } = selectRequest(get());
+      const { setRequestBody } = get();
+      setRequestBody({ ...body, mimeType });
+    },
+
     setRequestEditor: async (requestEditor) => {
       const request = selectRequest(get());
       if (request != null) {
@@ -291,6 +297,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         }
       });
     },
+
     renameFolder(id: Folder['id'], title: string) {
       set((state) => {
         const folder = selectFolder(state, id);

@@ -1,8 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { RequestBodyType } from 'shim/objects/request';
 import { Divider } from '@/components/shared/Divider';
-import { isFormattableLanguage, Language } from '@/lib/monaco/language';
+import {
+  isFormattableLanguage,
+  Language,
+  languageToMimeType,
+  mimeTypeToLanguage,
+} from '@/lib/monaco/language';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import BodyTabFileInput from './BodyTabFileInput';
 import BodyTabTextInput from './BodyTabTextInput';
@@ -11,10 +16,12 @@ import { WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const BodyTab = () => {
-  const { setRequestBody, formatRequestEditorText } = useCollectionActions();
+  const { setRequestBody, setRequestBodyMimeType, formatRequestEditorText } =
+    useCollectionActions();
 
   const requestBody = useCollectionStore((state) => selectRequest(state).body);
-  const [language, setLanguage] = useState(Language.JSON);
+  const language = mimeTypeToLanguage(requestBody.mimeType);
+  const canFormatRequestBody = isFormattableLanguage(language);
 
   const changeBodyType = useCallback(
     (type: RequestBodyType) => {
@@ -29,8 +36,6 @@ export const BodyTab = () => {
     },
     [setRequestBody]
   );
-
-  const canFormatRequestBody = isFormattableLanguage(language);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -48,7 +53,7 @@ export const BodyTab = () => {
             {requestBody.type === RequestBodyType.TEXT && (
               <SimpleSelect<Language>
                 value={language}
-                onValueChange={setLanguage}
+                onValueChange={(language) => setRequestBodyMimeType(languageToMimeType(language))}
                 items={[
                   [Language.JSON, 'JSON'],
                   [Language.XML, 'XML'],

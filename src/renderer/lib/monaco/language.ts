@@ -10,6 +10,36 @@ export enum Language {
   TEXT = 'plaintext',
 }
 
+const LANGUAGE_TO_MIME_TYPE_MAP: Record<Language, string> = {
+  [Language.JSON]: 'application/json',
+  [Language.XML]: 'application/xml',
+  [Language.TEXT]: 'text/plain',
+};
+
+const MIME_TYPE_TO_LANGUAGE_MAP: Record<string, Language> = Object.fromEntries(
+  Object.entries(LANGUAGE_TO_MIME_TYPE_MAP).map(([lang, mimeType]) => [mimeType, lang as Language])
+);
+
+/**
+ * Converts a language enum value to its corresponding MIME type.
+ *
+ * @param language The language enum value to convert.
+ * @return The corresponding MIME type as a string.
+ */
+export function languageToMimeType(language: Language): string {
+  return LANGUAGE_TO_MIME_TYPE_MAP[language];
+}
+
+/**
+ * Converts a MIME type string to its corresponding language enum value.
+ *
+ * @param mimeType The MIME type string to convert.
+ * @return The corresponding language enum value, or undefined if not found.
+ */
+export function mimeTypeToLanguage(mimeType: string): Language {
+  return MIME_TYPE_TO_LANGUAGE_MAP[mimeType];
+}
+
 const supportedLanguages = [Language.JSON, Language.XML, Language.TEXT];
 const formattableLanguages = new Set([Language.JSON, Language.XML]);
 
