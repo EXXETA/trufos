@@ -1,6 +1,6 @@
 import { Divider } from '@/components/shared/Divider';
 import { Button } from '@/components/ui/button';
-import { AddIcon, DeleteIcon } from '@/components/icons';
+import { AddIcon } from '@/components/icons';
 import {
   Table,
   TableBody,
@@ -12,6 +12,8 @@ import {
 import { VARIABLE_NAME_REGEX, VariableMap, VariableObject } from 'shim/objects/variables';
 import { memo, useEffect } from 'react';
 import { produce } from 'immer';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Trash2 } from 'lucide-react';
 
 export interface VariableEditorProps {
   variables: VariableObjectWithKey[];
@@ -85,78 +87,78 @@ export const VariableEditor = memo<VariableEditorProps>(
     };
 
     return (
-      <div className="relative p-4">
-        <div className="absolute left-4 right-4 top-4 z-10">
-          <div className="flex">
-            <Button
-              className="h-fit gap-1 hover:bg-transparent"
-              size="sm"
-              variant="ghost"
-              onClick={add}
-            >
-              <AddIcon /> Add Variable
-            </Button>
-          </div>
-          <Divider className="mt-2" />
-        </div>
+      <div className="p-4">
+        <Button
+          className="h-fit gap-1 hover:bg-transparent"
+          size="sm"
+          variant="ghost"
+          onClick={add}
+        >
+          <AddIcon /> Add Variable
+        </Button>
 
-        <div className="absolute bottom-4 left-4 right-4 top-16">
-          <Table className="w-full table-auto">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-auto">Key</TableHead>
-                <TableHead className="w-auto">Value</TableHead>
-                <TableHead className="w-full">Description</TableHead>
-                <TableHead className="w-16">{/* Action Column */}</TableHead>
+        <Divider className="mb-4" />
+
+        <Table className="w-full table-auto">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-1/5">Key</TableHead>
+              <TableHead className="w-1/4">Value</TableHead>
+              <TableHead className="w-auto">Description</TableHead>
+              <TableHead className="w-20">Secret</TableHead>
+              <TableHead className="w-16">{/* Action Column */}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {variables.map((variable, index) => (
+              <TableRow key={index}>
+                <TableCell className="break-all">
+                  <input
+                    type="text"
+                    value={variable.key}
+                    className={`w-full bg-transparent outline-none ${invalidVariableKeys.has(variable.key) ? 'text-danger' : ''}`}
+                    placeholder="Enter variable key"
+                    onChange={(e) => update(index, { key: e.target.value })}
+                  />
+                </TableCell>
+                <TableCell className="break-all">
+                  <input
+                    type="text"
+                    value={variable.value}
+                    className="w-full bg-transparent outline-none"
+                    placeholder="Enter variable value"
+                    onChange={(e) => update(index, { value: e.target.value })}
+                  />
+                </TableCell>
+                <TableCell className="break-all">
+                  <input
+                    type="text"
+                    value={variable.description}
+                    className="w-full bg-transparent outline-none"
+                    placeholder="Enter variable description"
+                    onChange={(e) => update(index, { description: e.target.value })}
+                  />
+                </TableCell>
+                <TableCell className="text-center">
+                  <Checkbox
+                    checked={variable.secret}
+                    onCheckedChange={(checked) => update(index, { secret: Boolean(checked) })}
+                  />
+                </TableCell>
+                <TableCell className="py-2 text-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-5 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
+                    onClick={() => remove(index)}
+                  >
+                    <Trash2 />
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {variables.map((variable, index) => (
-                <TableRow key={index}>
-                  <TableCell className="w-1/4 break-all">
-                    <input
-                      type="text"
-                      value={variable.key}
-                      className={`w-full bg-transparent outline-none ${invalidVariableKeys.has(variable.key) ? 'text-danger' : ''}`}
-                      placeholder="Enter variable key"
-                      onChange={(e) => update(index, { key: e.target.value })}
-                    />
-                  </TableCell>
-                  <TableCell className="w-1/4 break-all">
-                    <input
-                      type="text"
-                      value={variable.value}
-                      className="w-full bg-transparent outline-none"
-                      placeholder="Enter variable value"
-                      onChange={(e) => update(index, { value: e.target.value })}
-                    />
-                  </TableCell>
-                  <TableCell className="w-full break-all">
-                    <input
-                      type="text"
-                      value={variable.description}
-                      className="w-full bg-transparent outline-none"
-                      placeholder="Enter variable description"
-                      onChange={(e) => update(index, { description: e.target.value })}
-                    />
-                  </TableCell>
-                  <TableCell className="w-16 text-right">
-                    <div className="flex items-center justify-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
-                        onClick={() => remove(index)}
-                      >
-                        <DeleteIcon />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     );
   }
