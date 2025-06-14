@@ -69,9 +69,18 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       }
 
       // (re)set initial state
-      set({ collection, requests, folders, openFolders: new Set(), selectedRequestId: undefined });
-      initializeVariables(collection.variables);
-      console.info('Initialized collection:', get().collection);
+      set((state) => {
+        state.collection = collection;
+        state.requests = requests;
+        state.folders = folders;
+
+        if (state.collection.id !== collection.id) {
+          state.selectedRequestId = undefined;
+          state.openFolders = new Set();
+          initializeVariables(collection.variables);
+        }
+        console.info('Initialized collection:', collection);
+      });
     },
 
     changeCollection: async (collection: Collection) => {
@@ -179,6 +188,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         state.requests.delete(id);
       });
     },
+
     renameRequest(id: TrufosRequest['id'], title: string) {
       set((state) => {
         const request = selectRequest(state, id);
@@ -277,10 +287,11 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       });
 
       const collection = await eventService.loadCollection(true);
+      const { setFolderOpen, initialize } = get();
       if (parentId) {
-        get().setFolderOpen(parentId);
+        setFolderOpen(parentId);
       }
-      get().initialize(collection);
+      initialize(collection);
     },
 
     deleteFolder: async (id) => {
