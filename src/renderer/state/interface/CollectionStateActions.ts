@@ -37,6 +37,12 @@ export interface CollectionStateActions {
   setRequestBody(payload: RequestBody): void;
 
   /**
+   * Set the mime type of the text-based request body.
+   * @param mimeType The mime type to set, e.g. "application/json" or "text/plain"
+   */
+  setRequestBodyMimeType(mimeType?: string): void;
+
+  /**
    * Set the editor instance for text-based request bodies
    * @param requestEditor The editor instance
    */
