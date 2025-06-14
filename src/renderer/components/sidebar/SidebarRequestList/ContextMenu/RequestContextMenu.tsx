@@ -21,7 +21,7 @@ export const RequestContextMenu = ({ requestId }: RequestContextMenuProps) => {
       <DropdownMenuTrigger>
         <CiMenuKebab className="cursor-pointer hover:fill-gray-900" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className={'bg-background'}>
+      <DropdownMenuContent className="bg-background">
         <DropdownMenuItem
           onClick={handleMouseEvent(() => deleteRequest(requestId))}
           className="text-danger"

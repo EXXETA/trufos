@@ -33,10 +33,10 @@ export const BodyTab = () => {
   const canFormatRequestBody = isFormattableLanguage(language);
 
   return (
-    <div className="h-full flex flex-col gap-4">
-      <div className="pt-2 px-4 space-y-2">
+    <div className="flex h-full flex-col gap-4">
+      <div className="space-y-2 px-4 pt-2">
         <div className="flex justify-between px-2">
-          <div className="flex gap-2 px-2 items-center">
+          <div className="flex items-center gap-2 px-2">
             <SimpleSelect<RequestBodyType>
               value={requestBody?.type ?? RequestBodyType.TEXT}
               onValueChange={changeBodyType}
@@ -59,7 +59,7 @@ export const BodyTab = () => {
           </div>
           {requestBody?.type === RequestBodyType.TEXT && (
             <Button
-              className={cn('gap-2 h-6', { 'opacity-50': !canFormatRequestBody })}
+              className={cn('h-6 gap-2', { 'opacity-50': !canFormatRequestBody })}
               size="sm"
               variant="ghost"
               onClick={formatRequestEditorText}

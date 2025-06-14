@@ -134,11 +134,11 @@ export const ParamsTab = () => {
   };
 
   return (
-    <div className={'p-4 h-full relative'}>
-      <div className={'absolute top-[16px] right-[16px] left-[16px] z-10'}>
-        <div className={'flex'}>
+    <div className="relative h-full p-4">
+      <div className="absolute left-[16px] right-[16px] top-[16px] z-10">
+        <div className="flex">
           <Button
-            className={'gap-1 h-fit'}
+            className="h-fit gap-1"
             size={'sm'}
             variant={'ghost'}
             onClick={handleAddQueryParam}
@@ -147,7 +147,7 @@ export const ParamsTab = () => {
             Add Query Param
           </Button>
           <Button
-            className={'gap-1 h-fit'}
+            className="h-fit gap-1"
             size={'sm'}
             variant={'ghost'}
             onClick={handleDeleteAllParams}
@@ -157,11 +157,11 @@ export const ParamsTab = () => {
           </Button>
         </div>
 
-        <Divider className={'mt-2'} />
+        <Divider className="mt-2" />
       </div>
 
-      <div className="absolute top-[68px] left-[16px] bottom-[16px] right-[16px]">
-        <Table className="table-auto w-full">
+      <div className="absolute bottom-[16px] left-[16px] right-[16px] top-[68px]">
+        <Table className="w-full table-auto">
           <TableHeader>
             <TableRow>
               <TableHead className="w-auto">Key</TableHead>
@@ -195,13 +195,13 @@ export const ParamsTab = () => {
 
                 <TableCell className="w-16 text-right">
                   <div className="flex items-center justify-center gap-2">
-                    <div className={'relative h-4 z-10 cursor-pointer'}>
+                    <div className="relative z-10 h-4 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={param?.isActive}
                         onChange={() => handleToggleQueryParam(index)}
                         className={cn(
-                          'form-checkbox h-4 w-4 appearance-none border rounded-[2px]',
+                          'form-checkbox h-4 w-4 appearance-none rounded-[2px] border',
                           param?.isActive
                             ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
                             : 'border-[rgba(238,238,238,1)] bg-transparent'
@@ -211,7 +211,7 @@ export const ParamsTab = () => {
                       {param?.isActive && (
                         <div
                           className={
-                            'absolute left-0 top-0 h-4 w-4 flex items-center justify-center pointer-events-none rotate-6'
+                            'pointer-events-none absolute left-0 top-0 flex h-4 w-4 rotate-6 items-center justify-center'
                           }
                         >
                           <CheckedIcon
@@ -226,7 +226,7 @@ export const ParamsTab = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7] h-6 w-6"
+                      className="h-6 w-6 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
                       onClick={() => handleDeleteQueryParam(index)}
                     >
                       <DeleteIcon />

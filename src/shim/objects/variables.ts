@@ -11,4 +11,7 @@ export type VariableObject = {
 
   /** A description of the variable. */
   description?: string;
+
+  /** If true, the variable is stored encrypted and hidden */
+  secret?: boolean;
 };

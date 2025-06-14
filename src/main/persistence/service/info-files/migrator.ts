@@ -21,6 +21,7 @@ export abstract class AbstractInfoFileMigrator<
    * Migrates the given info file to the implementation's schema.
    * @param old The info file to migrate.
    * @param type The type of the info file.
+   * @param filePath The path to the info file.
    */
-  abstract migrate(old: I, type: TrufosObjectType): Promise<O>;
+  abstract migrate(old: I, type: TrufosObjectType, filePath: string): Promise<O>;
 }
