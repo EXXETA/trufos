@@ -15,7 +15,7 @@ export const App = () => {
   const [minRequestWindowSize, setMinRequestWindowSize] = useState(0);
 
   useEffect(() => {
-    const updateMinSidebarSize = () => {
+    const updateMinResizableSizes = () => {
       const minSidebarSize = (MIN_SIDEBAR_PIXELS / window.innerWidth) * 100;
       const minRequestWindowSize = (MIN_REQUEST_WINDOW_PIXELS / window.innerWidth) * 100;
 
@@ -23,11 +23,11 @@ export const App = () => {
       setMinRequestWindowSize(minRequestWindowSize);
     };
 
-    updateMinSidebarSize();
-    window.addEventListener('resize', updateMinSidebarSize);
+    updateMinResizableSizes();
+    window.addEventListener('resize', updateMinResizableSizes);
 
     return () => {
-      window.removeEventListener('resize', updateMinSidebarSize);
+      window.removeEventListener('resize', updateMinResizableSizes);
     };
   }, []);
 
