@@ -13,7 +13,8 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCallback, useEffect, useState } from 'react';
 import { CollectionBase } from 'shim/objects/collection';
-import { FolderOpen, FolderPlus } from 'lucide-react';
+import { FolderOpen, FolderPlus, FileDown } from 'lucide-react';
+import { ImportModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/ImportModal';
 
 const eventService = RendererEventService.instance;
 
@@ -21,6 +22,7 @@ export default function CollectionDropdown() {
   const { changeCollection } = useCollectionActions();
   const collection = useCollectionStore((state) => state.collection);
   const [collections, setCollections] = useState<CollectionBase[]>([]);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const loadCollections = useCallback(async () => {
     setCollections(await eventService.listCollections());
@@ -84,29 +86,37 @@ export default function CollectionDropdown() {
   );
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline">Switch Collection</Button>
-      </DropdownMenuTrigger>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline">Switch Collection</Button>
+        </DropdownMenuTrigger>
 
-      <DropdownMenuContent>
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={createCollection}>
-            <FolderPlus />
-            <span>New Collection</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={openCollection}>
-            <FolderOpen />
-            <span>Open Collection</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        <DropdownMenuContent>
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={createCollection}>
+              <FolderPlus />
+              <span>New Collection</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={openCollection}>
+              <FolderOpen />
+              <span>Open Collection</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setImportModalOpen(true)}>
+              <FileDown />
+              <span>Import</span>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        <DropdownMenuRadioGroup value={collection.dirPath} onValueChange={loadCollection}>
-          {renderCollectionList()}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuRadioGroup value={collection.dirPath} onValueChange={loadCollection}>
+            {renderCollectionList()}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ImportModal isOpen={importModalOpen} setOpen={setImportModalOpen} />
+    </>
   );
 }

@@ -59,4 +59,5 @@ export class RendererEventService implements IEventService {
   closeCollection = createEventMethod('closeCollection');
   showOpenDialog = createEventMethod('showOpenDialog');
   listCollections = createEventMethod('listCollections');
+  importCollection = createEventMethod('importCollection');
 }

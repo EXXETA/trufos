@@ -12,14 +12,16 @@ import { RequestMethod } from 'shim/objects/request-method';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { exists } from 'main/util/fs-util';
-import { InternalError, InternalErrorType } from 'main/error/internal-error';
 import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
+import { CollectionType } from 'shim/objects/collection';
 
 /**
  * An importer for Postman collections. It will import the collection and all of its variables,
  * folders and requests. It imports using the DFS algorithm.
  */
 export class PostmanImporter implements CollectionImporter {
+  public readonly type = CollectionType.Postman;
+
   public async importCollection(srcFilePath: string, targetDirPath: string) {
     // read Postman collection
     const json = JSON.parse(await fs.readFile(srcFilePath, 'utf8')) as CollectionDefinition;
@@ -39,16 +41,17 @@ export class PostmanImporter implements CollectionImporter {
     logger.info('Loaded', variablesArray.length, 'collection variables');
 
     // create collection directory
-    const dirName = path.basename(targetDirPath);
-    const dirPath = path.join(targetDirPath, dirName);
-    if (await exists(dirPath)) {
-      throw new InternalError(
-        InternalErrorType.COLLECTION_LOAD_ERROR,
-        `Directory "${dirPath}" already exists`
-      );
-    } else {
-      await fs.mkdir(dirPath);
+    const collectionName = postmanCollection.name || path.basename(srcFilePath, '.json');
+    let dirPath = path.join(targetDirPath, `${collectionName}-imported`);
+
+    // Ensure unique directory name
+    let counter = 1;
+    while (await exists(dirPath)) {
+      dirPath = path.join(targetDirPath, `${collectionName}-imported-${counter}`);
+      counter++;
     }
+
+    await fs.mkdir(dirPath, { recursive: true });
 
     const variables: Record<string, VariableObject> = {};
     variablesArray.forEach(([key, val]) => (variables[key] = val));
@@ -131,6 +134,12 @@ export class PostmanImporter implements CollectionImporter {
         value: header.value,
         isActive: !header.disabled,
       })),
+      queryParams:
+        request.url.query?.all().map((param) => ({
+          key: param.key,
+          value: param.value,
+          isActive: !param.disabled,
+        })) || [],
       body: bodyInfo,
     };
 

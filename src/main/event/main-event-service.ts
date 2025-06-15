@@ -8,6 +8,8 @@ import { TrufosObject } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { VariableMap } from 'shim/objects/variables';
 import { Folder } from 'shim/objects/folder';
+import { ImportService } from 'main/import/service/import-service';
+import { CollectionType } from 'shim/objects/collection';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -141,5 +143,14 @@ export class MainEventService implements IEventService {
 
   async showOpenDialog(options: Electron.OpenDialogOptions) {
     return await dialog.showOpenDialog(options);
+  }
+
+  async importCollection(srcFilePath: string, targetDirPath: string, type: CollectionType) {
+    const collection = await ImportService.instance.importCollection(
+      srcFilePath,
+      targetDirPath,
+      type
+    );
+    return await environmentService.changeCollection(collection);
   }
 }

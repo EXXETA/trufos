@@ -3,6 +3,12 @@ import { TrufosRequest } from './request';
 import { VariableMap } from './variables';
 import { EnvironmentMap } from './environment';
 
+export enum CollectionType {
+  Trufos = 'Trufos',
+  Postman = 'Postman',
+  Bruno = 'Bruno',
+}
+
 /** Minimal information about a collection. */
 export type CollectionBase = {
   id: string;

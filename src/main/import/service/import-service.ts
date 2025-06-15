@@ -2,10 +2,21 @@ import { InternalError, InternalErrorType } from 'main/error/internal-error';
 import { Collection } from 'shim/objects/collection';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { PostmanImporter } from './postman-importer';
-
-export type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
+import { BrunoImporter } from './bruno-importer';
+import { CollectionType } from 'shim/objects/collection';
 
 export interface CollectionImporter {
+  /**
+   * The type of collection this importer handles.
+   */
+  get type(): CollectionType;
+
+  /**
+   * Imports a collection from the specified source file path to the target directory path.
+   * @param srcFilePath - The path to the source file containing the collection data.
+   * @param targetDirPath - The path to the target directory where the collection will be imported.
+   * @returns A promise that resolves to the imported collection.
+   */
   importCollection(srcFilePath: string, targetDirPath: string): Promise<Collection>;
 }
 
@@ -15,19 +26,20 @@ export class ImportService {
   public static readonly instance = new ImportService();
 
   static {
-    ImportService.instance.registerImporter('Postman', new PostmanImporter());
+    ImportService.instance.registerImporter(new PostmanImporter());
+    ImportService.instance.registerImporter(new BrunoImporter());
   }
 
-  private readonly importers: Map<ImportStrategy, CollectionImporter> = new Map();
+  private readonly importers: Map<CollectionType, CollectionImporter> = new Map();
 
-  public registerImporter(strategy: ImportStrategy, importer: CollectionImporter) {
-    this.importers.set(strategy, importer);
+  public registerImporter(importer: CollectionImporter) {
+    this.importers.set(importer.type, importer);
   }
 
   public async importCollection(
     srcFilePath: string,
     targetDirPath: string,
-    strategy: ImportStrategy
+    strategy: CollectionType
   ) {
     const importer = this.importers.get(strategy);
     if (importer === undefined) {
