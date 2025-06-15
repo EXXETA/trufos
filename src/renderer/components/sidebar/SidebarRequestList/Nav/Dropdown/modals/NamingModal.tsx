@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,7 @@ import {
 import { TrufosRequest } from 'shim/objects/request';
 import { Folder } from 'shim/objects/folder';
 import { Button } from '@/components/ui/button';
-import { useCollectionActions, useCollectionStore, selectFolder } from '@/state/collectionStore';
+import { useCollectionActions } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
 
 export interface NamingModalProps {
@@ -20,25 +20,10 @@ export interface NamingModalProps {
 }
 
 export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: NamingModalProps) => {
-  const [isValid, setValid] = useState(false);
   const [name, setName] = useState(createType ? '' : trufosObject.title);
   const { renameFolder, renameRequest, addNewRequest, addNewFolder } = useCollectionActions();
-  const siblingTitles: string[] = [];
-  if (createType !== null && trufosObject.type !== 'request') {
-    siblingTitles.push(...trufosObject.children.map((parent) => parent.title));
-  } else if (trufosObject.type !== 'collection') {
-    const parent = useCollectionStore((state) => selectFolder(state, trufosObject.parentId));
-    if (parent) {
-      siblingTitles.push(...parent.children.map((child) => child.title));
-    } else {
-      const collection = useCollectionStore((state) => state.collection);
-      if (collection.id === trufosObject.parentId) {
-        siblingTitles.push(...collection.children.map((child) => child.title));
-      }
-    }
-  }
 
-  const save = async () => {
+  const handleSave = async () => {
     if (createType) {
       if (createType === 'folder') {
         addNewFolder(name, trufosObject.id);
@@ -55,17 +40,15 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
     setOpen(false);
   };
 
-  const title = createType
-    ? `Create a new ${createType.charAt(0).toUpperCase() + createType.slice(1)}`
-    : `Rename the ${trufosObject.type.charAt(0).toUpperCase() + trufosObject.type.slice(1)}`;
+  const title = useMemo(() => {
+    return createType
+      ? `Create a new ${createType.charAt(0).toUpperCase() + createType.slice(1)}`
+      : `Rename the ${trufosObject.type.charAt(0).toUpperCase() + trufosObject.type.slice(1)}`;
+  }, [createType, trufosObject.type]);
 
-  useEffect(() => {
-    setValid(
-      name.trim().length > 0 &&
-        name !== (createType ? '' : trufosObject.title) &&
-        siblingTitles.indexOf(name) === -1
-    );
-  }, [name]);
+  const isValid = useMemo(() => {
+    return name.trim().length > 0 && name !== (createType ? '' : trufosObject.title);
+  }, [name, createType, trufosObject.title]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && setOpen(false)}>
@@ -73,7 +56,7 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={() => save()} onReset={() => setOpen(false)}>
+        <form onSubmit={handleSave} onReset={() => setOpen(false)}>
           <div className="p-4">
             <input
               type="text"
