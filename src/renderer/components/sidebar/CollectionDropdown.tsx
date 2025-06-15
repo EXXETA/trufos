@@ -16,7 +16,6 @@ import { CollectionBase } from 'shim/objects/collection';
 import { FolderOpen, FolderPlus } from 'lucide-react';
 
 const eventService = RendererEventService.instance;
-const COLLECTION_FILE_NAME = 'collection.json';
 
 export default function CollectionDropdown() {
   const { changeCollection } = useCollectionActions();
@@ -42,11 +41,12 @@ export default function CollectionDropdown() {
   const openCollection = useCallback(async () => {
     try {
       const result = await eventService.showOpenDialog({
-        properties: ['openFile'],
-        filters: [{ name: 'Collection', extensions: [COLLECTION_FILE_NAME] }],
+        title: 'Open Collection Directory',
+        buttonLabel: 'Open',
+        properties: ['openDirectory'],
       });
       if (!result.canceled && result.filePaths.length > 0) {
-        await loadCollection(result.filePaths[0].slice(0, -COLLECTION_FILE_NAME.length));
+        await loadCollection(result.filePaths[0]);
       }
       await loadCollections();
     } catch (e) {
@@ -56,7 +56,11 @@ export default function CollectionDropdown() {
 
   const createCollection = useCallback(async () => {
     try {
-      const result = await eventService.showOpenDialog({ properties: ['openDirectory'] });
+      const result = await eventService.showOpenDialog({
+        title: 'Create New Collection Directory',
+        buttonLabel: 'Create',
+        properties: ['openDirectory', 'createDirectory'],
+      });
       if (!result.canceled && result.filePaths.length > 0) {
         console.info('Creating collection at', result.filePaths[0]);
         changeCollection(
