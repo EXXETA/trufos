@@ -1,8 +1,8 @@
 import { TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
-import { Collection, CollectionBase } from './objects/collection';
-import { TrufosObject } from './objects';
-import { VariableMap, VariableObject } from './objects/variables';
+import { Collection, CollectionBase, CollectionType } from 'shim/objects/collection';
+import { TrufosObject } from 'shim/objects';
+import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { Folder } from 'shim/objects/folder';
 
 export interface IEventService {
@@ -112,4 +112,16 @@ export interface IEventService {
    * Open a folder dialog and return the selected directory path.
    */
   showOpenDialog(options: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue>;
+
+  /**
+   * Import a collection from a file using the specified import strategy.
+   * @param srcFilePath The path to the source file to import.
+   * @param targetDirPath The directory path where the collection should be created.
+   * @param type The type of the collection to import (e.g. 'Postman' or 'Bruno').
+   */
+  importCollection(
+    srcFilePath: string,
+    targetDirPath: string,
+    type: CollectionType
+  ): Promise<Collection>;
 }
