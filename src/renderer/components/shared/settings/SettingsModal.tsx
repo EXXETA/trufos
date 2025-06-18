@@ -14,8 +14,7 @@ import {
 } from '@/components/shared/settings/VariableTab/VariableEditor';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import * as React from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { selectVariables, useVariableActions, useVariableStore } from '@/state/variableStore';
 
 export const SettingsModal = () => {
@@ -24,6 +23,10 @@ export const SettingsModal = () => {
   const [editorVariables, setEditorVariables] = useState(variableMapToArray(variables));
   const [isValid, setValid] = useState(false);
   const [isOpen, setOpen] = useState(false);
+
+  useEffect(() => {
+    setEditorVariables(variableMapToArray(variables));
+  }, [variables]);
 
   const save = async () => {
     console.info('Saving variables:', editorVariables);
