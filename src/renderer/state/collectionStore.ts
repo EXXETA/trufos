@@ -73,11 +73,11 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         state.collection = collection;
         state.requests = requests;
         state.folders = folders;
+        initializeVariables(collection.variables);
 
         if (state.collection.id !== collection.id) {
           state.selectedRequestId = undefined;
           state.openFolders = new Set();
-          initializeVariables(collection.variables);
         }
         console.info('Initialized collection:', collection);
       });
