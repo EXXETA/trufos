@@ -1,3 +1,4 @@
+import { AuthenticationInformation } from './auth';
 import { TrufosHeader } from './headers';
 import { TrufosQueryParam } from './query-param';
 import { RequestMethod } from './request-method';
@@ -15,6 +16,7 @@ export type TrufosRequest = {
   queryParams: TrufosQueryParam[];
   body: RequestBody;
   draft?: boolean;
+  auth?: AuthenticationInformation;
 };
 
 export type RequestBody = TextBody | FileBody;
