@@ -12,9 +12,14 @@ import {
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { HEADER_VALUES, COMMON_HEADERS } from '@/constants/index';
+import { Command, CommandItem, CommandList, CommandGroup } from '@/components/ui/command';
 
 export const HeaderTab = () => {
+  const [activeHeaderKeyIndex, setActiveHeaderKeyIndex] = useState<number | null>(null);
+  const [activeHeaderValueIndex, setActiveHeaderValueIndex] = useState<number | null>(null);
+
   const { addHeader, deleteHeader, clearHeaders, updateHeader, setDraftFlag } =
     useCollectionActions();
   const headers = useCollectionStore((state) => selectRequest(state).headers);
@@ -87,23 +92,111 @@ export const HeaderTab = () => {
               <TableRow key={index}>
                 {/* Editable key field */}
                 <TableCell className="w-1/3 break-all">
-                  <input
+                  {/* <input
                     type="text"
                     value={header.key}
                     onChange={(e) => handleUpdateHeader(index, { key: e.target.value })}
                     className="w-full bg-transparent outline-none"
                     placeholder="Enter header key"
-                  />
+                  /> */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={header.key}
+                      onChange={(e) => {
+                        handleUpdateHeader(index, { key: e.target.value });
+                        setActiveHeaderKeyIndex(index); // manage showing only for this row
+                      }}
+                      className="w-full bg-transparent outline-none"
+                      placeholder="Enter header value"
+                      onFocus={() => setActiveHeaderKeyIndex(index)}
+                      onBlur={() => setTimeout(() => setActiveHeaderKeyIndex(null), 200)} // delay to allow click
+                    />
+
+                    {activeHeaderKeyIndex === index &&
+                      (COMMON_HEADERS || []).filter((val) =>
+                        val.toLowerCase().startsWith(header.key.toLowerCase())
+                      ).length > 0 && (
+                        <div className="absolute z-50 mt-1 w-full">
+                          <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-[#111] text-white shadow-md">
+                            <CommandList>
+                              <CommandGroup>
+                                {(COMMON_HEADERS || [])
+                                  .filter((val) =>
+                                    val.toLowerCase().startsWith(header.key.toLowerCase())
+                                  )
+                                  .map((val) => (
+                                    <CommandItem
+                                      key={val}
+                                      value={val}
+                                      onSelect={() => {
+                                        handleUpdateHeader(index, { key: val });
+                                        setActiveHeaderKeyIndex(null);
+                                      }}
+                                    >
+                                      {val}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </div>
+                      )}
+                  </div>
                 </TableCell>
 
                 <TableCell className="w-full break-all">
-                  <input
+                  {/* <input
                     type="text"
                     value={header.value}
                     onChange={(e) => handleUpdateHeader(index, { value: e.target.value })}
                     className="w-full bg-transparent outline-none"
                     placeholder="Enter header value"
-                  />
+                  /> */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={header.value}
+                      onChange={(e) => {
+                        handleUpdateHeader(index, { value: e.target.value });
+                        setActiveHeaderValueIndex(index); // manage showing only for this row
+                      }}
+                      className="w-full bg-transparent outline-none"
+                      placeholder="Enter header value"
+                      onFocus={() => setActiveHeaderValueIndex(index)}
+                      onBlur={() => setTimeout(() => setActiveHeaderValueIndex(null), 200)} // delay to allow click
+                    />
+
+                    {activeHeaderValueIndex === index &&
+                      (HEADER_VALUES[header.key] || []).filter((val) =>
+                        val.toLowerCase().startsWith(header.value.toLowerCase())
+                      ).length > 0 && (
+                        <div className="absolute z-50 mt-1 w-full">
+                          <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-[#111] text-white shadow-md">
+                            <CommandList>
+                              <CommandGroup>
+                                {(HEADER_VALUES[header.key] || [])
+                                  .filter((val) =>
+                                    val.toLowerCase().startsWith(header.value.toLowerCase())
+                                  )
+                                  .map((val) => (
+                                    <CommandItem
+                                      key={val}
+                                      value={val}
+                                      onSelect={() => {
+                                        handleUpdateHeader(index, { value: val });
+                                        setActiveHeaderValueIndex(null);
+                                      }}
+                                    >
+                                      {val}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </div>
+                      )}
+                  </div>
                 </TableCell>
 
                 <TableCell className="w-16 text-right">
