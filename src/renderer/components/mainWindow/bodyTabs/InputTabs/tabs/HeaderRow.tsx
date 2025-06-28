@@ -6,6 +6,7 @@ import { HEADER_VALUES, COMMON_HEADERS } from '@/constants/index';
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TableCell, TableRow } from '@/components/ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 type Props = {
   header: TrufosHeader;
@@ -15,8 +16,8 @@ type Props = {
 };
 
 export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeader }: Props) => {
-  const [activeHeaderKeyIndex, setActiveHeaderKeyIndex] = useState<number | null>(null);
-  const [activeHeaderValueIndex, setActiveHeaderValueIndex] = useState<number | null>(null);
+  const [isKeyPopoverOpen, setIsKeyPopoverOpen] = useState(false);
+  const [isValuePopoverOpen, setIsValuePopoverOpen] = useState(false);
 
   const filteredHeaderKeys = useMemo(() => {
     return (COMMON_HEADERS || []).filter((val) =>
@@ -33,81 +34,109 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
   return (
     <TableRow>
       <TableCell className="w-1/3 break-all">
-        <div className="relative">
-          <input
-            type="text"
-            value={header.key}
-            onChange={(e) => {
-              handleUpdateHeader(index, { key: e.target.value });
-              setActiveHeaderKeyIndex(index);
-            }}
-            className="w-full bg-transparent outline-none"
-            placeholder="Enter header key"
-            onFocus={() => setActiveHeaderKeyIndex(index)}
-            onBlur={() => setTimeout(() => setActiveHeaderKeyIndex(null), 200)}
-          />
-          {activeHeaderKeyIndex === index && filteredHeaderKeys.length > 0 && (
-            <div className="absolute z-50 mt-1 w-full">
-              <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-[#111] text-white shadow-md">
-                <CommandList>
-                  <CommandGroup>
-                    {filteredHeaderKeys.map((val) => (
-                      <CommandItem
-                        key={val}
-                        value={val}
-                        onSelect={() => {
-                          handleUpdateHeader(index, { key: val });
-                          setActiveHeaderKeyIndex(null);
-                        }}
-                      >
-                        {val}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
+        <Popover
+          open={isKeyPopoverOpen && filteredHeaderKeys.length > 0}
+          onOpenChange={setIsKeyPopoverOpen}
+        >
+          <PopoverTrigger asChild>
+            <div className="w-full">
+              <input
+                type="text"
+                value={header.key}
+                onChange={(e) => {
+                  handleUpdateHeader(index, { key: e.target.value });
+                  setIsKeyPopoverOpen(true);
+                }}
+                className="w-full bg-transparent outline-none"
+                placeholder="Enter header key"
+                onFocus={() => setIsKeyPopoverOpen(true)}
+                onBlur={(e) => {
+                  // Don't close if focus is moving to the popover
+                  if (!e.relatedTarget?.closest('[data-radix-popper-content-wrapper]')) {
+                    setIsKeyPopoverOpen(false);
+                  }
+                }}
+              />
             </div>
-          )}
-        </div>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-auto p-0"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            onInteractOutside={() => setIsKeyPopoverOpen(false)}
+          >
+            <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-[#111] text-white shadow-md">
+              <CommandList>
+                <CommandGroup>
+                  {filteredHeaderKeys.map((val) => (
+                    <CommandItem
+                      key={val}
+                      value={val}
+                      onSelect={() => {
+                        handleUpdateHeader(index, { key: val });
+                        setIsKeyPopoverOpen(false);
+                      }}
+                    >
+                      {val}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </TableCell>
 
       <TableCell className="w-full break-all">
-        <div className="relative">
-          <input
-            type="text"
-            value={header.value}
-            onChange={(e) => {
-              handleUpdateHeader(index, { value: e.target.value });
-              setActiveHeaderValueIndex(index);
-            }}
-            className="w-full bg-transparent outline-none"
-            placeholder="Enter header value"
-            onFocus={() => setActiveHeaderValueIndex(index)}
-            onBlur={() => setTimeout(() => setActiveHeaderValueIndex(null), 200)}
-          />
-          {activeHeaderValueIndex === index && filteredHeaderValues.length > 0 && (
-            <div className="absolute z-50 mt-1 w-full">
-              <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-[#111] text-white shadow-md">
-                <CommandList>
-                  <CommandGroup>
-                    {filteredHeaderValues.map((val) => (
-                      <CommandItem
-                        key={val}
-                        value={val}
-                        onSelect={() => {
-                          handleUpdateHeader(index, { value: val });
-                          setActiveHeaderValueIndex(null);
-                        }}
-                      >
-                        {val}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
+        <Popover
+          open={isValuePopoverOpen && filteredHeaderValues.length > 0}
+          onOpenChange={setIsValuePopoverOpen}
+        >
+          <PopoverTrigger asChild>
+            <div className="w-full">
+              <input
+                type="text"
+                value={header.value}
+                onChange={(e) => {
+                  handleUpdateHeader(index, { value: e.target.value });
+                  setIsValuePopoverOpen(true);
+                }}
+                className="w-full bg-transparent outline-none"
+                placeholder="Enter header value"
+                onFocus={() => setIsValuePopoverOpen(true)}
+                onBlur={(e) => {
+                  // Don't close if focus is moving to the popover
+                  if (!e.relatedTarget?.closest('[data-radix-popper-content-wrapper]')) {
+                    setIsValuePopoverOpen(false);
+                  }
+                }}
+              />
             </div>
-          )}
-        </div>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-auto p-0"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            onInteractOutside={() => setIsValuePopoverOpen(false)}
+          >
+            <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-[#111] text-white shadow-md">
+              <CommandList>
+                <CommandGroup>
+                  {filteredHeaderValues.map((val) => (
+                    <CommandItem
+                      key={val}
+                      value={val}
+                      onSelect={() => {
+                        handleUpdateHeader(index, { value: val });
+                        setIsValuePopoverOpen(false);
+                      }}
+                    >
+                      {val}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </TableCell>
 
       <TableCell className="w-16 text-right">
