@@ -1,20 +1,20 @@
-export enum AuthenticationType {
+export enum AuthorizationType {
   BEARER = 'bearer',
   BASIC = 'basic',
   INHERIT = 'inherit',
 }
 
-export type BearerAuthenticationInformation = {
-  type: AuthenticationType.BEARER;
+export type BearerAuthorizationInformation = {
+  type: AuthorizationType.BEARER;
   token: string;
 };
 
-export type BasicAuthenticationInformation = {
-  type: AuthenticationType.BASIC;
+export type BasicAuthorizationInformation = {
+  type: AuthorizationType.BASIC;
   username: string;
   password: string;
 };
 
 export type AuthorizationInformation =
-  | BearerAuthenticationInformation
-  | BasicAuthenticationInformation;
+  | BearerAuthorizationInformation
+  | BasicAuthorizationInformation;

@@ -1,7 +1,7 @@
 import AuthStrategy from './auth-strategy';
-import { BearerAuthenticationInformation } from 'shim/objects/auth';
+import { BearerAuthorizationInformation } from 'shim/objects/auth';
 
-export default class BearerAuthStrategy extends AuthStrategy<BearerAuthenticationInformation> {
+export default class BearerAuthStrategy extends AuthStrategy<BearerAuthorizationInformation> {
   async getAuthHeader() {
     return `Bearer ${this.authInfo.token}`;
   }

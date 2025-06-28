@@ -11,6 +11,7 @@ import { PersistenceService } from 'main/persistence/service/persistence-service
 import { TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { createAuthStrategy } from '../authentication/auth-strategy-factory';
+import { DisplayableError } from '@/error/DisplayableError';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -39,8 +40,17 @@ export class HttpService {
     // set authorization header if the request has authentication information
     let authorization: string = null;
     if (request.auth != null) {
-      logger.debug('Generating authentication header');
-      authorization = await createAuthStrategy(request.auth).getAuthHeader();
+      try {
+        logger.debug('Generating authentication header');
+        authorization = await createAuthStrategy(request.auth).getAuthHeader();
+      } catch (e) {
+        logger.error('Failed to generate authentication header:', e);
+        throw new DisplayableError(
+          'Please check your authentication settings and try again',
+          'Failed to generate authentication header',
+          e
+        );
+      }
     }
 
     // measure duration of the request
