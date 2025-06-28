@@ -37,11 +37,11 @@ export class HttpService {
     logger.info('Sending request:', request);
 
     // set authorization header if the request has authentication information
-    let authorization: string = null;
+    let authorization: string | undefined;
     if (request.auth != null) {
       try {
         logger.debug('Generating authentication header');
-        authorization = await createAuthStrategy(request.auth).getAuthHeader();
+        authorization = await environmentService.getAuthorizationHeader(request.auth);
       } catch (e) {
         logger.error('Failed to generate authentication header:', e);
         throw new Error('Please check your authentication settings and try again');

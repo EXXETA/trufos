@@ -27,7 +27,7 @@ const collection: Partial<Collection> = {
 
 describe('EnvironmentService', () => {
   beforeEach(() => {
-    environmentService.currentCollection = structuredClone(collection) as Collection;
+    environmentService.changeCollection(structuredClone(collection as Collection));
     environmentService.currentEnvironmentKey = environmentKey;
   });
 

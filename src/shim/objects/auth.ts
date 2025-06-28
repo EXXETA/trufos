@@ -15,6 +15,11 @@ export type BasicAuthorizationInformation = {
   password: string;
 };
 
+export type InheritAuthorizationInformation = {
+  type: AuthorizationType.INHERIT;
+};
+
 export type AuthorizationInformation =
+  | InheritAuthorizationInformation
   | BearerAuthorizationInformation
   | BasicAuthorizationInformation;
