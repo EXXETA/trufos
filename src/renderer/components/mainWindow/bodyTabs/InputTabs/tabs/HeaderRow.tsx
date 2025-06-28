@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Command, CommandItem, CommandList, CommandGroup } from '@/components/ui/command';
 import { Button } from '@/components/ui/button';
 import { CheckedIcon, DeleteIcon } from '@/components/icons';
-import { HEADER_VALUES, COMMON_HEADERS } from '@/constants/index';
+import { HEADER_VALUES, COMMON_HEADERS } from '@/constants';
 import { cn } from '@/lib/utils';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TableCell, TableRow } from '@/components/ui/table';
@@ -19,17 +19,18 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
   const [isKeyPopoverOpen, setIsKeyPopoverOpen] = useState(false);
   const [isValuePopoverOpen, setIsValuePopoverOpen] = useState(false);
 
-  const filteredHeaderKeys = useMemo(() => {
-    return (COMMON_HEADERS || []).filter((val) =>
-      val.toLowerCase().startsWith(header.key.toLowerCase())
-    );
-  }, [header.key]);
+  const filteredHeaderKeys = useMemo(
+    () => COMMON_HEADERS.filter((val) => val.toLowerCase().startsWith(header.key.toLowerCase())),
+    [header.key]
+  );
 
-  const filteredHeaderValues = useMemo(() => {
-    return (HEADER_VALUES[header.key] || []).filter((val) =>
-      val.toLowerCase().startsWith(header.value.toLowerCase())
-    );
-  }, [header.key, header.value]);
+  const filteredHeaderValues = useMemo(
+    () =>
+      (HEADER_VALUES[header.key] ?? []).filter((val) =>
+        val.toLowerCase().startsWith(header.value.toLowerCase())
+      ),
+    [header.key, header.value]
+  );
 
   return (
     <TableRow>
@@ -49,13 +50,6 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
                 }}
                 className="w-full bg-transparent outline-none"
                 placeholder="Enter header key"
-                onFocus={() => setIsKeyPopoverOpen(true)}
-                onBlur={(e) => {
-                  // Don't close if focus is moving to the popover
-                  if (!e.relatedTarget?.closest('[data-radix-popper-content-wrapper]')) {
-                    setIsKeyPopoverOpen(false);
-                  }
-                }}
               />
             </div>
           </PopoverTrigger>
@@ -102,13 +96,6 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
                 }}
                 className="w-full bg-transparent outline-none"
                 placeholder="Enter header value"
-                onFocus={() => setIsValuePopoverOpen(true)}
-                onBlur={(e) => {
-                  // Don't close if focus is moving to the popover
-                  if (!e.relatedTarget?.closest('[data-radix-popper-content-wrapper]')) {
-                    setIsValuePopoverOpen(false);
-                  }
-                }}
               />
             </div>
           </PopoverTrigger>
