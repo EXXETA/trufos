@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assign } from './object-util';
+import { assign, split } from './object-util';
 
 describe('assign()', () => {
   it('should merge shallow properties', () => {
@@ -39,5 +39,28 @@ describe('assign()', () => {
     const source = { a: 1 };
     const result = assign({}, source);
     expect(result).toEqual(source);
+  });
+});
+
+describe('split()', () => {
+  it('should split specified properties and remove them from the original object', () => {
+    const obj = { a: 1, b: 2, c: 3 };
+    const result = split(obj, 'a', 'c');
+    expect(result).toEqual({ a: 1, c: 3 });
+    expect(obj).toEqual({ b: 2 });
+  });
+
+  it('should return an empty object if no properties are specified', () => {
+    const obj = { a: 1, b: 2 };
+    const result = split(obj);
+    expect(result).toEqual({});
+    expect(obj).toEqual({ a: 1, b: 2 });
+  });
+
+  it('should not fail if a property does not exist', () => {
+    const obj = { a: 1 } as { a: number; b?: number };
+    const result = split(obj, 'b');
+    expect(result).toEqual({});
+    expect(obj).toEqual({ a: 1 });
   });
 });

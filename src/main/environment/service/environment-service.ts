@@ -188,7 +188,7 @@ export class EnvironmentService implements Initializable {
    * Returns the authorization header for the given object. If the object has an
    * authorization type of `INHERIT`, it will recursively get the authorization header from the
    * current collection.
-   * @param object The object to get the authorization header for. This can be a Collection or a TrufosRequest.
+   * @param auth The authorization information to get the header for.
    * @returns The authorization header as a string, or undefined if no authorization is set.
    */
   public async getAuthorizationHeader(

@@ -1,5 +1,5 @@
 import { TrufosObject } from 'shim/objects';
-import { omit } from 'main/util/object-util';
+import { omit, split } from 'main/util/object-util';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
@@ -75,21 +75,29 @@ function extractSecretsFromMap(variables: VariableMap): VariableMap {
 }
 
 /**
- * Extracts and removes all secrets from the given collection and returns a partial collection that
- * contains all removed secrets. It's like splitting the secrets from the collection so that the given
- * collection can be saved in plain text.
- * @param collection The Trufos object from which to extract secrets. They will be removed from it.
+ * Extracts and removes all secrets from the given trufos object and returns the partial object that
+ * contains all removed secrets. It's like splitting the secrets from the object so that it can be saved in plain text.
+ * @param object The Trufos object from which to extract secrets. They will be removed from it.
+ * @return A partial Trufos object containing the secrets that were removed.
  */
-export function extractSecrets(collection: Collection): Partial<Collection> {
-  return {
-    variables: extractSecretsFromMap(collection.variables),
-    environments: Object.fromEntries(
-      Object.entries(collection.environments).map(([key, value]) => [
-        key,
-        {
-          variables: extractSecretsFromMap(value.variables),
-        },
-      ])
-    ),
-  };
+export function extractSecrets(object: TrufosObject): Partial<TrufosObject> {
+  switch (object.type) {
+    case 'collection':
+      return {
+        variables: extractSecretsFromMap(object.variables),
+        environments: Object.fromEntries(
+          Object.entries(object.environments).map(([key, value]) => [
+            key,
+            {
+              variables: extractSecretsFromMap(value.variables),
+            },
+          ])
+        ),
+        ...split(object, 'auth'),
+      };
+    case 'request':
+      return split(object, 'auth');
+    case 'folder':
+      return {};
+  }
 }
