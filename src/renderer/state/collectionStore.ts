@@ -209,7 +209,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
     addHeader: () =>
       set((state) => {
-        selectHeaders(state).push({ key: '', value: '', isActive: false });
+        selectHeaders(state).push({ key: '', value: '', isActive: true });
       }),
 
     updateHeader: (index, updatedHeader) =>
