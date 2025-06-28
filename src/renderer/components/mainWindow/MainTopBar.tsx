@@ -10,12 +10,14 @@ import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
+import { ArrowRight, Loader2 } from 'lucide-react';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 export function MainTopBar() {
   const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { updateRequest } = useCollectionActions();
   const { addResponse } = useResponseActions();
@@ -41,10 +43,15 @@ export function MainTopBar() {
         throw new Error('Missing URL or HTTP method');
       }
 
-      await eventService.saveRequest(request, requestEditor?.getValue());
+      try {
+        setIsLoading(true);
+        await eventService.saveRequest(request, requestEditor?.getValue());
 
-      const response = await httpService.sendRequest(request);
-      addResponse(request.id, response);
+        const response = await httpService.sendRequest(request);
+        addResponse(request.id, response);
+      } finally {
+        setIsLoading(false);
+      }
     }),
     [request, requestEditor, addResponse]
   );
@@ -101,7 +108,9 @@ export function MainTopBar() {
         <SaveButton isDisabled={!request?.draft} onClick={saveRequest} />
       </div>
 
-      <SendButton onClick={sendRequest} />
+      <SendButton onClick={sendRequest} disabled={isLoading}>
+        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
+      </SendButton>
     </div>
   );
 }
