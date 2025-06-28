@@ -10,6 +10,7 @@ import { TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
+import { createAuthStrategy } from '../authentication/auth-strategy-factory';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -35,17 +36,24 @@ export class HttpService {
   public async fetchAsync(request: TrufosRequest) {
     logger.info('Sending request:', request);
 
-    const now = getSteadyTimestamp();
-    const body = await this.readBody(request);
+    // set authorization header if the request has authentication information
+    let authorization: string = null;
+    if (request.auth != null) {
+      logger.debug('Generating authentication header');
+      authorization = await createAuthStrategy(request.auth).getAuthHeader();
+    }
 
+    // measure duration of the request
+    const now = getSteadyTimestamp();
     const responseData = await undici.request(request.url, {
       dispatcher: this._dispatcher,
       method: request.method,
       headers: {
         ['content-type']: this.getContentType(request),
+        ['authorization']: authorization,
         ...this.trufosHeadersToUndiciHeaders(request.headers),
       },
-      body: body,
+      body: await this.readBody(request),
     });
 
     const duration = getDurationFromNow(now);

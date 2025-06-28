@@ -15,6 +15,6 @@ export type BasicAuthenticationInformation = {
   password: string;
 };
 
-export type AuthenticationInformation =
+export type AuthorizationInformation =
   | BearerAuthenticationInformation
   | BasicAuthenticationInformation;

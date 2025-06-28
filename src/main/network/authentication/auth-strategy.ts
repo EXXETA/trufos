@@ -1,10 +1,10 @@
-import { AuthenticationInformation } from 'shim/objects/auth';
+import { AuthorizationInformation } from 'shim/objects/auth';
 
-export default abstract class AuthStrategy<T extends AuthenticationInformation> {
-  constructor(public readonly authInfo: T) {}
+export default abstract class AuthStrategy<T extends AuthorizationInformation> {
+  constructor(private readonly authInfo: T) {}
 
   /**
-   * Get the authentication header for the request.
+   * Get the authorization header for the request.
    */
   abstract getAuthHeader(): Promise<string>;
 }
