@@ -4,6 +4,8 @@ import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { RequestBody, TrufosRequest } from 'shim/objects/request';
+import { AuthorizationInformation } from 'shim/objects/auth';
+import { TrufosObject } from 'shim/objects';
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
@@ -137,27 +139,37 @@ export interface CollectionStateActions {
 
   /**
    * Rename the folder title
-   * @param id
-   * @param title
+   * @param id the folder id
+   * @param title the new title of the folder
    */
   renameFolder(id: Folder['id'], title: string): void;
 
   /** For functionality of the sidebar */
   /**
    * needed for rerendering of th sidebar
-   * @param id
+   * @param id the folder id
    */
-  isFolderOpen(id: string): boolean;
+  isFolderOpen(id: Folder['id']): boolean;
 
   /**
    * must be set manually that the rendering of the sidebar open the folders correctly
-   * @param id
+   * @param id the folder id
    */
-  setFolderOpen(id: string): void;
+  setFolderOpen(id: Folder['id']): void;
 
   /**
-   * needed for rerendering of th sidebar
-   * @param id
+   * needed for rerendering of the sidebar
+   * @param id the folder id
    */
-  setFolderClose(id: string): void;
+  setFolderClose(id: Folder['id']): void;
+
+  /**
+   * Update the authorization information of the given object.
+   * @param object The object for which the authorization information should be updated.
+   * @param updatedFields The fields to update in the authorization information.
+   */
+  updateAuthorization<T extends Collection | TrufosRequest>(
+    object: T,
+    updatedFields: Partial<T['auth']>
+  ): void;
 }

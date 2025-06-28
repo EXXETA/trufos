@@ -4,6 +4,7 @@ import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab';
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';
 import { ParamsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ParamsTab';
+import { AuthorizationTab } from './tabs/AuthorizationTab';
 
 interface InputTabsProps {
   className: string;
@@ -27,7 +28,7 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
         <TabsTrigger value="headers">
           {activeRowCount === 0 ? 'Headers' : `Headers (${activeRowCount})`}
         </TabsTrigger>
-        {/*<TabsTrigger value="authorization">Auth</TabsTrigger>*/}
+        <TabsTrigger value="authorization">Auth</TabsTrigger>
       </TabsList>
 
       <TabsContent value="body">
@@ -42,7 +43,9 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
         <HeaderTab />
       </TabsContent>
 
-      <TabsContent value="authorization">Change your authorization here.</TabsContent>
+      <TabsContent value="authorization">
+        <AuthorizationTab />
+      </TabsContent>
     </Tabs>
   );
 }

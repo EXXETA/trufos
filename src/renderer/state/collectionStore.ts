@@ -4,6 +4,7 @@ import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
 import { editor } from 'monaco-editor';
+import { isCollection, isRequest } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
@@ -327,21 +328,39 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       eventService.saveFolder(folder);
     },
 
-    isFolderOpen: (id: string) => {
-      const state = get();
-      return state.openFolders.has(id);
-    },
+    isFolderOpen: (id) => get().openFolders.has(id),
 
-    setFolderOpen: (id: string) => {
+    setFolderOpen: (id) => {
       set((state) => {
         state.openFolders.add(id);
       });
     },
 
-    setFolderClose: (id: string) => {
+    setFolderClose: (id) => {
       set((state) => {
         state.openFolders.delete(id);
       });
+    },
+
+    updateAuthorization: (object, updatedFields) => {
+      if (isCollection(object)) {
+        set((state) => {
+          state.collection.auth = {
+            ...state.collection.auth,
+            ...updatedFields,
+          };
+        });
+      } else if (isRequest(object)) {
+        set((state) => {
+          const request = selectRequest(state, object.id);
+          if (request) {
+            request.auth = {
+              ...request.auth,
+              ...updatedFields,
+            };
+          }
+        });
+      }
     },
   }))
 );
