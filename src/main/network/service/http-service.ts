@@ -11,7 +11,6 @@ import { PersistenceService } from 'main/persistence/service/persistence-service
 import { TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { createAuthStrategy } from '../authentication/auth-strategy-factory';
-import { DisplayableError } from '@/error/DisplayableError';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -45,11 +44,7 @@ export class HttpService {
         authorization = await createAuthStrategy(request.auth).getAuthHeader();
       } catch (e) {
         logger.error('Failed to generate authentication header:', e);
-        throw new DisplayableError(
-          'Please check your authentication settings and try again',
-          'Failed to generate authentication header',
-          e
-        );
+        throw new Error('Please check your authentication settings and try again');
       }
     }
 
@@ -136,9 +131,10 @@ export class HttpService {
   private trufosHeadersToUndiciHeaders(trufosHeaders: TrufosHeader[]) {
     const headers: Record<string, string[]> = {};
     for (const header of trufosHeaders) {
-      if (header.isActive && header.value != null) {
-        if (!Reflect.has(headers, header.key)) headers[header.key] = [];
-        headers[header.key].push(header.value);
+      if (header.isActive) {
+        const key = header.key.toLowerCase();
+        if (!Reflect.has(headers, key)) headers[key] = [];
+        headers[key].push(header.value);
       }
     }
     return headers;
