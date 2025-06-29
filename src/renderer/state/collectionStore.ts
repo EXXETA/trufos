@@ -353,6 +353,10 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         } else {
           object.auth = { ...object.auth, ...updatedFields };
         }
+
+        if (isRequest(object)) {
+          object.draft = true;
+        }
       });
     },
   }))

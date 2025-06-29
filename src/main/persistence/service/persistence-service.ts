@@ -257,18 +257,28 @@ export class PersistenceService {
         path.join(dirPath, HIDDEN_FILE_PREFIX + infoFileName),
         path.join(dirPath, infoFileName)
       );
-      if (isRequest(request)) {
-        const draftBodyFilePath = path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME);
-        const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
-        if (await exists(draftBodyFilePath)) {
-          await fs.rename(draftBodyFilePath, bodyFilePath);
-        } else if (await exists(bodyFilePath)) {
-          await fs.unlink(bodyFilePath);
-        }
-      }
+
+      this.moveDraftFileToOriginal(
+        path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME),
+        path.join(dirPath, TEXT_BODY_FILE_NAME)
+      );
+      this.moveDraftFileToOriginal(
+        path.join(dirPath, getSecretsFileName(true)),
+        path.join(dirPath, getSecretsFileName())
+      );
     }
 
     return request;
+  }
+
+  private async moveDraftFileToOriginal(draftFilePath: string, originalFilePath: string) {
+    if (await exists(draftFilePath)) {
+      logger.info('Moving draft file to original file', draftFilePath, '->', originalFilePath);
+      await fs.rename(draftFilePath, originalFilePath);
+    } else if (await exists(originalFilePath)) {
+      logger.warn('Draft file does not exist, but original file exists. Deleting original file.');
+      await fs.unlink(originalFilePath);
+    }
   }
 
   /**
