@@ -4,7 +4,8 @@ import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
 import { editor } from 'monaco-editor';
-import { isCollection, isRequest } from 'shim/objects';
+import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
+import { AuthorizationInformation } from 'shim/objects/auth';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
@@ -343,24 +344,16 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     },
 
     updateAuthorization: (object, updatedFields) => {
-      if (isCollection(object)) {
-        set((state) => {
-          state.collection.auth = {
-            ...state.collection.auth,
-            ...updatedFields,
-          };
-        });
-      } else if (isRequest(object)) {
-        set((state) => {
-          const request = selectRequest(state, object.id);
-          if (request) {
-            request.auth = {
-              ...request.auth,
-              ...updatedFields,
-            };
-          }
-        });
-      }
+      set((state) => {
+        object = selectObject(state, object);
+        if (updatedFields == null) {
+          delete object.auth;
+        } else if (object.auth == null) {
+          object.auth = updatedFields as AuthorizationInformation;
+        } else {
+          object.auth = { ...object.auth, ...updatedFields };
+        }
+      });
     },
   }))
 );
@@ -371,6 +364,13 @@ const selectParent = (state: CollectionState, parentId: string) => {
 };
 const selectHeaders = (state: CollectionState) => selectRequest(state)?.headers;
 const selectQueryParams = (state: CollectionState) => selectRequest(state)?.queryParams;
+const selectObject = <T extends TrufosObject>(state: CollectionState, object: T) =>
+  isCollection(object)
+    ? (state.collection as T)
+    : isRequest(object)
+      ? (selectRequest(state, object.id) as T)
+      : (selectFolder(state, object.id) as T);
+
 export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) =>
   state.requests.get(requestId ?? state.selectedRequestId);
 export const selectFolder = (state: CollectionState, folderId: Folder['id']) =>

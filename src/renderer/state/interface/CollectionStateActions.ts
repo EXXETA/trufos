@@ -166,10 +166,10 @@ export interface CollectionStateActions {
   /**
    * Update the authorization information of the given object.
    * @param object The object for which the authorization information should be updated.
-   * @param updatedFields The fields to update in the authorization information.
+   * @param updatedFields The fields to update in the authorization information. If null, the authorization information will be cleared.
    */
   updateAuthorization<T extends Collection | TrufosRequest>(
     object: T,
-    updatedFields: Partial<T['auth']>
+    updatedFields?: Partial<T['auth']> | null
   ): void;
 }
