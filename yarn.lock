@@ -7199,6 +7199,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jose@npm:^6.0.11":
+  version: 6.0.11
+  resolution: "jose@npm:6.0.11"
+  checksum: 10c0/d290be4532174e7a53730b7fb84c74327531172bd403b196c592b312b73eedb7489949837bfe831fdbd280799bfc5ba778bc807495a73eda08ae6c49414f405a
+  languageName: node
+  linkType: hard
+
 "js-tokens@npm:^4.0.0":
   version: 4.0.0
   resolution: "js-tokens@npm:4.0.0"
@@ -8314,6 +8321,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"oauth4webapi@npm:^3.5.4":
+  version: 3.5.5
+  resolution: "oauth4webapi@npm:3.5.5"
+  checksum: 10c0/3ab9bcfa0d13818b350c1046012bf7fe43f50ea44c49ad107300f5c3b3e8b914f6f862d3d2419336f7362efc09fc7f73252b8214ce3710b2c4e9f96314d1aac3
+  languageName: node
+  linkType: hard
+
 "object-assign@npm:^4.0.1":
   version: 4.1.1
   resolution: "object-assign@npm:4.1.1"
@@ -8424,6 +8438,16 @@ __metadata:
   dependencies:
     mimic-fn: "npm:^2.1.0"
   checksum: 10c0/ffcef6fbb2692c3c40749f31ea2e22677a876daea92959b8a80b521d95cca7a668c884d8b2045d1d8ee7d56796aa405c405462af112a1477594cc63531baeb8f
+  languageName: node
+  linkType: hard
+
+"openid-client@npm:^6.6.2":
+  version: 6.6.2
+  resolution: "openid-client@npm:6.6.2"
+  dependencies:
+    jose: "npm:^6.0.11"
+    oauth4webapi: "npm:^3.5.4"
+  checksum: 10c0/1b479494cedbd23d512805bc53248b65633637cbb071a322e93e48948d0979a0ccb93ec740fe5ae14b4fc2a3e954bbc2a119ed12faaf862e231fc9fadb8f26f7
   languageName: node
   linkType: hard
 
@@ -10836,6 +10860,7 @@ __metadata:
     monaco-editor: "npm:^0.52.2"
     next-themes: "npm:^0.4.6"
     node-loader: "npm:^2.1.0"
+    openid-client: "npm:^6.6.2"
     postcss: "npm:^8.5.6"
     postcss-loader: "npm:^8.1.1"
     postman-collection: "npm:^5.0.2"
