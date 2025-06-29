@@ -4,7 +4,7 @@ import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab';
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';
 import { ParamsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ParamsTab';
-import { AuthorizationTab } from './tabs/AuthorizationTab';
+import { AuthorizationTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/AuthorizationTab/AuthorizationTab';
 
 interface InputTabsProps {
   className: string;
