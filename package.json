@@ -90,6 +90,7 @@
     "lucide-react": "^0.511.0",
     "mime-types": "^2.1.35",
     "monaco-editor": "^0.52.2",
+    "openid-client": "^6.6.1",
     "postcss-loader": "^8.1.1",
     "postman-collection": "^5.0.2",
     "prettier-plugin-tailwindcss": "^0.6.12",
