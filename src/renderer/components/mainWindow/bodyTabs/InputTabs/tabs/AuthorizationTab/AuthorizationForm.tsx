@@ -53,11 +53,6 @@ export type FormFieldConfig =
 
 export type FormComponentConfiguration = Record<string, FormFieldConfig>;
 
-// Helper function to create form configurations with type safety
-export function createFormConfig<T extends FormComponentConfiguration>(config: T): T {
-  return config;
-}
-
 export interface AuthorizationFormProps {
   config: FormComponentConfiguration;
   auth: AuthorizationInformation;

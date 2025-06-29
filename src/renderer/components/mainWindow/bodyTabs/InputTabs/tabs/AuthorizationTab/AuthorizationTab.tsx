@@ -66,7 +66,7 @@ export const AuthorizationTab = () => {
   const { updateAuthorization } = useCollectionActions();
   const request = useCollectionStore(selectRequest);
   const auth = useCollectionStore((state) => selectRequest(state).auth);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isTypeSelectOpen, setTypeSelectOpen] = useState(false);
 
   const type = auth?.type ?? AUTHORIZATION_NONE;
 
@@ -81,12 +81,12 @@ export const AuthorizationTab = () => {
           <Select
             value={type}
             onValueChange={handleAuthTypeChange}
-            open={isOpen}
-            onOpenChange={setIsOpen}
+            open={isTypeSelectOpen}
+            onOpenChange={setTypeSelectOpen}
           >
             <SelectTrigger
               className="w-full rounded-md border border-border bg-background-primary px-3 py-2"
-              isOpen={isOpen}
+              isOpen={isTypeSelectOpen}
             >
               <SelectValue placeholder="Select authorization type">
                 {LABELS[auth?.type] ?? 'None'}

@@ -133,12 +133,10 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
               type="checkbox"
               checked={header.isActive}
               onChange={(e) => handleUpdateHeader(index, { isActive: e.target.checked })}
-              className={cn(
-                'form-checkbox h-4 w-4 appearance-none rounded-[2px] border',
-                header.isActive
-                  ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
-                  : 'border-[rgba(238,238,238,1)] bg-transparent'
-              )}
+              className={cn('form-checkbox h-4 w-4 appearance-none rounded-[2px] border', {
+                'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]': header.isActive,
+                'border-[rgba(238,238,238,1)] bg-transparent': !header.isActive,
+              })}
             />
             {header.isActive && (
               <div className="pointer-events-none absolute left-0 top-0 flex h-4 w-4 rotate-6 items-center justify-center">
