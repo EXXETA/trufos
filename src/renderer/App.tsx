@@ -6,6 +6,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useEffect, useState } from 'react';
+import { Toaster } from 'sonner';
 
 const MIN_SIDEBAR_PIXELS = 300;
 const MIN_REQUEST_WINDOW_PIXELS = 500;
@@ -32,18 +33,21 @@ export const App = () => {
   }, []);
 
   return (
-    <TooltipProvider delayDuration={750}>
-      <SidebarProvider className="grid">
-        <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-          <ResizablePanel defaultSize={minSidebarSize} minSize={minSidebarSize}>
-            <Menubar />
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel minSize={minRequestWindowSize}>
-            <RequestWindow />
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </SidebarProvider>
-    </TooltipProvider>
+    <>
+      <Toaster />
+      <TooltipProvider delayDuration={750}>
+        <SidebarProvider className="grid">
+          <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+            <ResizablePanel defaultSize={minSidebarSize} minSize={minSidebarSize}>
+              <Menubar />
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel minSize={minRequestWindowSize}>
+              <RequestWindow />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </SidebarProvider>
+      </TooltipProvider>
+    </>
   );
 };
