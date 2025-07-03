@@ -52,7 +52,6 @@ export function MainTopBar() {
         addResponse(request.id, response);
       } catch (error) {
         handleError(error);
-        console.error('sendRequest failed:', error);
       } finally {
         setIsLoading(false);
       }
