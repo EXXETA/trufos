@@ -13,4 +13,7 @@ export default defineConfig({
     environment: 'node',
     setupFiles: path.join(__dirname, '__mocks__', 'index.ts'),
   },
+  build: {
+    sourcemap: true,
+  },
 });

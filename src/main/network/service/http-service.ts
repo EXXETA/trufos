@@ -35,17 +35,29 @@ export class HttpService {
   public async fetchAsync(request: TrufosRequest) {
     logger.info('Sending request:', request);
 
-    const now = getSteadyTimestamp();
-    const body = await this.readBody(request);
+    // set authorization header if the request has authentication information
+    let authorization: string | undefined;
+    if (request.auth != null) {
+      try {
+        logger.debug('Generating authentication header');
+        authorization = await environmentService.getAuthorizationHeader(request.auth);
+      } catch (e) {
+        logger.error('Failed to generate authentication header:', e);
+        throw new Error('Please check your authentication settings and try again');
+      }
+    }
 
+    // measure duration of the request
+    const now = getSteadyTimestamp();
     const responseData = await undici.request(request.url, {
       dispatcher: this._dispatcher,
       method: request.method,
       headers: {
         ['content-type']: this.getContentType(request),
+        ['authorization']: authorization,
         ...this.trufosHeadersToUndiciHeaders(request.headers),
       },
-      body: body,
+      body: await this.readBody(request),
     });
 
     const duration = getDurationFromNow(now);
@@ -118,9 +130,10 @@ export class HttpService {
   private trufosHeadersToUndiciHeaders(trufosHeaders: TrufosHeader[]) {
     const headers: Record<string, string[]> = {};
     for (const header of trufosHeaders) {
-      if (header.isActive && header.value != null) {
-        if (!Reflect.has(headers, header.key)) headers[header.key] = [];
-        headers[header.key].push(header.value);
+      if (header.isActive) {
+        const key = header.key.toLowerCase();
+        if (!Reflect.has(headers, key)) headers[key] = [];
+        headers[key].push(header.value);
       }
     }
     return headers;

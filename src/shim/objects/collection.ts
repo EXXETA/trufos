@@ -2,6 +2,7 @@ import { Folder } from './folder';
 import { TrufosRequest } from './request';
 import { VariableMap } from './variables';
 import { EnvironmentMap } from './environment';
+import { AuthorizationInformation, InheritAuthorizationInformation } from './auth';
 
 /** Minimal information about a collection. */
 export type CollectionBase = {
@@ -15,5 +16,6 @@ export type Collection = CollectionBase & {
   type: 'collection';
   variables: VariableMap;
   environments: EnvironmentMap;
+  auth?: Exclude<AuthorizationInformation, InheritAuthorizationInformation>;
   children: (Folder | TrufosRequest)[];
 };
