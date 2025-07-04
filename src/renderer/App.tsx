@@ -6,7 +6,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useEffect, useState } from 'react';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 
 const MIN_SIDEBAR_PIXELS = 300;
 const MIN_REQUEST_WINDOW_PIXELS = 500;
