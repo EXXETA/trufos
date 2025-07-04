@@ -25,6 +25,25 @@ export function pick<T, K extends keyof T>(object: T, ...properties: K[]) {
   return result;
 }
 
+/**
+ * Splits the given object into two parts: one containing the specified properties and the other
+ * containing the rest. The specified properties are removed from the original object.
+ * @param object The source object.
+ * @param properties The properties to split out.
+ * @returns An object containing the specified properties.
+ */
+export function split<T extends object, K extends keyof T>(object: T, ...properties: K[]) {
+  const result = {} as Pick<T, K>;
+  for (const property of properties) {
+    const value = object[property];
+    if (value !== undefined) {
+      result[property] = value;
+      delete object[property];
+    }
+  }
+  return result;
+}
+
 function isObject(value: unknown): value is object {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }

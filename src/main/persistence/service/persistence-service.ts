@@ -34,7 +34,6 @@ import { SecretService } from './secret-service';
 import { assign } from 'main/util/object-util';
 
 export const HIDDEN_FILE_PREFIX = '~';
-export const SECRETS_FILE_NAME = `${HIDDEN_FILE_PREFIX}secrets.json.bin`;
 
 /** Content of the .gitignore file for a collection */
 const COLLECTION_GITIGNORE = [`${HIDDEN_FILE_PREFIX}*`].join(EOL);
@@ -49,6 +48,10 @@ function normalizeDirPath(dirPath: string) {
 
 export function getInfoFileName(type: TrufosObject['type'], draft = false) {
   return `${draft ? HIDDEN_FILE_PREFIX : ''}${type}.json`;
+}
+
+export function getSecretsFileName(draft = false) {
+  return `${draft ? HIDDEN_FILE_PREFIX : ''}${HIDDEN_FILE_PREFIX}secrets.json.bin`;
 }
 
 const secretService = SecretService.instance;
@@ -181,16 +184,28 @@ export class PersistenceService {
     }
 
     // remove secrets from variables and save them separately
-    if (isCollection(object)) {
-      await fs.writeFile(
-        path.join(dirPath, SECRETS_FILE_NAME),
-        secretService.encrypt(JSON.stringify(extractSecrets(object)))
-      );
-    }
+    await this.saveSecrets(object, dirPath);
 
     // write the info file
     await fs.writeFile(path.join(dirPath, fileName), JSON.stringify(toInfoFile(object), null, 2));
     this.idToPathMap.set(object.id, dirPath);
+  }
+
+  /**
+   * Removes secrets from the given trufos object and saves them to a separate file.
+   * @param object the trufos object to extract secrets from
+   * @param dirPath the directory path where the secrets should be saved
+   */
+  private async saveSecrets(object: TrufosObject, dirPath: string) {
+    const filePath = path.join(dirPath, getSecretsFileName(isRequest(object) && object.draft));
+    const secrets = extractSecrets(object);
+    if (Object.keys(secrets).length > 0) {
+      logger.debug(`Saving secrets for ${object.type} with ID [${object.id}]`);
+      await fs.writeFile(filePath, secretService.encrypt(JSON.stringify(secrets)));
+    } else if (await exists(filePath)) {
+      logger.debug(`Removing secrets file for ${object.type} with ID [${object.id}]`);
+      await fs.unlink(filePath);
+    }
   }
 
   /**
@@ -242,18 +257,28 @@ export class PersistenceService {
         path.join(dirPath, HIDDEN_FILE_PREFIX + infoFileName),
         path.join(dirPath, infoFileName)
       );
-      if (isRequest(request)) {
-        const draftBodyFilePath = path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME);
-        const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
-        if (await exists(draftBodyFilePath)) {
-          await fs.rename(draftBodyFilePath, bodyFilePath);
-        } else if (await exists(bodyFilePath)) {
-          await fs.unlink(bodyFilePath);
-        }
-      }
+
+      this.moveDraftFileToOriginal(
+        path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME),
+        path.join(dirPath, TEXT_BODY_FILE_NAME)
+      );
+      this.moveDraftFileToOriginal(
+        path.join(dirPath, getSecretsFileName(true)),
+        path.join(dirPath, getSecretsFileName())
+      );
     }
 
     return request;
+  }
+
+  private async moveDraftFileToOriginal(draftFilePath: string, originalFilePath: string) {
+    if (await exists(draftFilePath)) {
+      logger.info('Moving draft file to original file', draftFilePath, '->', originalFilePath);
+      await fs.rename(draftFilePath, originalFilePath);
+    } else if (await exists(originalFilePath)) {
+      logger.warn('Draft file does not exist, but original file exists. Deleting original file.');
+      await fs.unlink(originalFilePath);
+    }
   }
 
   /**
@@ -362,7 +387,7 @@ export class PersistenceService {
     dirPath = normalizeDirPath(dirPath);
     logger.info('Loading collection at', dirPath);
     const type = 'collection' as const;
-    const info = assign(await this.readInfoFile(dirPath, type), await this.loadSecrets(dirPath));
+    const info = await this.readInfoFile(dirPath, type);
 
     this.idToPathMap.set(info.id, dirPath);
     const children = recursive ? await this.loadChildren(info.id, dirPath) : [];
@@ -439,7 +464,10 @@ export class PersistenceService {
     draft = false
   ) {
     const filePath = path.join(dirPath, getInfoFileName(type, draft));
-    const info = JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile;
+    const info = assign(
+      JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile,
+      await this.loadSecrets(dirPath, draft)
+    );
 
     // check if the version is supported
     if (SemVer.parse(info.version).isNewerThan(VERSION)) {
@@ -452,8 +480,8 @@ export class PersistenceService {
     return await migrateInfoFile(info, type, filePath);
   }
 
-  private async loadSecrets(dirPath: string): Promise<Partial<CollectionInfoFile>> {
-    const filePath = path.join(dirPath, SECRETS_FILE_NAME);
+  private async loadSecrets(dirPath: string, draft = false): Promise<Partial<InfoFile>> {
+    const filePath = path.join(dirPath, getSecretsFileName(draft));
     if (await exists(filePath)) {
       logger.debug('Loading secrets from', filePath);
       return JSON.parse(secretService.decrypt(await fs.readFile(filePath)));

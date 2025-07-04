@@ -6,6 +6,10 @@ import { Collection, CollectionBase } from 'shim/objects/collection';
 import { VariableMap } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 import { SettingsService } from 'main/persistence/service/settings-service';
+import { isCollection, TrufosObject } from 'shim/objects';
+import { TrufosRequest } from 'shim/objects/request';
+import { AuthorizationInformation, AuthorizationType } from 'shim/objects/auth';
+import { createAuthStrategy } from 'main/network/authentication/auth-strategy-factory';
 
 const persistenceService = PersistenceService.instance;
 const settingsService = SettingsService.instance;
@@ -19,7 +23,9 @@ export class EnvironmentService implements Initializable {
   public static readonly instance: EnvironmentService = new EnvironmentService();
 
   /** The current collection that is being used. */
-  public currentCollection: Collection;
+  public get currentCollection() {
+    return this._currentCollection;
+  }
 
   /** The key of the current environment in the current collection. */
   public currentEnvironmentKey?: string;
@@ -29,6 +35,8 @@ export class EnvironmentService implements Initializable {
     if (this.currentEnvironmentKey == null) return;
     return this.currentCollection.environments[this.currentEnvironmentKey];
   }
+
+  private _currentCollection: Collection;
 
   /**
    * Initializes the environment service by loading the last used collection. If that fails, the
@@ -40,7 +48,7 @@ export class EnvironmentService implements Initializable {
 
     const collectionDir = settings.collections[settings.currentCollectionIndex];
     try {
-      this.currentCollection = await persistenceService.loadCollection(collectionDir);
+      await this.changeCollection(collectionDir);
     } catch (e) {
       logger.error(`Failed to load collection at ${collectionDir}:`, e);
       logger.info('Loading default collection instead.');
@@ -73,7 +81,7 @@ export class EnvironmentService implements Initializable {
    */
   public async changeCollection(collection: Collection | string) {
     // load collection
-    this.currentCollection =
+    this._currentCollection =
       typeof collection === 'string'
         ? await persistenceService.loadCollection(collection)
         : collection;
@@ -174,5 +182,24 @@ export class EnvironmentService implements Initializable {
 
   private getVariableValue(key: string) {
     return this.getVariable(key)?.value;
+  }
+
+  /**
+   * Returns the authorization header for the given object. If the object has an
+   * authorization type of `INHERIT`, it will recursively get the authorization header from the
+   * current collection.
+   * @param auth The authorization information to get the header for.
+   * @returns The authorization header as a string, or undefined if no authorization is set.
+   */
+  public async getAuthorizationHeader(
+    auth?: AuthorizationInformation
+  ): Promise<string | undefined> {
+    if (auth == null) {
+      return;
+    } else if (auth.type === AuthorizationType.INHERIT) {
+      return this.getAuthorizationHeader(this.currentCollection.auth);
+    } else {
+      return await createAuthStrategy(auth).getAuthHeader();
+    }
   }
 }

@@ -17,9 +17,9 @@ import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import {
   getInfoFileName,
+  getSecretsFileName,
   HIDDEN_FILE_PREFIX,
   PersistenceService,
-  SECRETS_FILE_NAME,
 } from './persistence-service';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
 
@@ -233,7 +233,7 @@ describe('PersistenceService', () => {
       Object.fromEntries(Object.entries(variables).filter(([, v]) => !v.secret))
     );
     const secrets = JSON.parse(
-      await readFile(path.join(collection.dirPath, SECRETS_FILE_NAME), 'utf-8')
+      await readFile(path.join(collection.dirPath, getSecretsFileName()), 'utf-8')
     ) as Partial<CollectionInfoFile>;
     expect(secrets.variables).toEqual(
       Object.fromEntries(Object.entries(variables).filter(([, v]) => v.secret))
@@ -574,7 +574,7 @@ describe('PersistenceService', () => {
       )
     ).not.toContain(secretVariable);
     expect(
-      JSON.parse(await readFile(path.join(collection.dirPath, SECRETS_FILE_NAME), 'utf-8'))
+      JSON.parse(await readFile(path.join(collection.dirPath, getSecretsFileName()), 'utf-8'))
     ).not.toContain(plainVariable);
   });
 });
