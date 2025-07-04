@@ -3,7 +3,7 @@ run-name: Pull Request Validator
 
 on:
   pull_request:
-    types: [ opened, synchronize, reopened, ready_for_review ]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   cpr:
@@ -15,5 +15,5 @@ jobs:
         with:
           access_token: ${{ secrets.GITHUB_TOKEN }}
           commit_pattern: '.*#[0-9]+.*'
-          branch_pattern: '(feature|fix)\/.*'
+          branch_pattern: '(feature|fix|chore)\/.*'
           title_pattern: ''

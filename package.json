@@ -10,8 +10,8 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
-    "prettier": "npx prettier --write '**/*.{ts,tsx}'",
-    "prettier-check": "npx prettier --check '**/*.{ts,tsx}'",
+    "prettier": "yarn dlx prettier --write '**/*.{ts,tsx}'",
+    "prettier-check": "yarn dlx prettier --check '**/*.{ts,tsx}'",
     "test": "vitest run"
   },
   "devDependencies": {
@@ -107,5 +107,6 @@
     "winston": "^3.17.0",
     "xml-formatter": "^3.6.6",
     "zustand": "^5.0.3"
-  }
+  },
+  "packageManager": "yarn@4.9.2"
 }
