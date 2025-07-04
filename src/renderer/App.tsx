@@ -32,20 +32,18 @@ export const App = () => {
   }, []);
 
   return (
-    <>
-      <TooltipProvider delayDuration={750}>
-        <SidebarProvider className="grid">
-          <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-            <ResizablePanel defaultSize={minSidebarSize} minSize={minSidebarSize}>
-              <Menubar />
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel minSize={minRequestWindowSize}>
-              <RequestWindow />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </SidebarProvider>
-      </TooltipProvider>
-    </>
+    <TooltipProvider delayDuration={750}>
+      <SidebarProvider className="grid">
+        <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+          <ResizablePanel defaultSize={minSidebarSize} minSize={minSidebarSize}>
+            <Menubar />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel minSize={minRequestWindowSize}>
+            <RequestWindow />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </SidebarProvider>
+    </TooltipProvider>
   );
 };
