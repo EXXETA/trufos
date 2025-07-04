@@ -147,9 +147,9 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
     setRequestEditor: async (requestEditor) => {
       const request = selectRequest(get());
-      if (request != null) {
-        await setRequestTextBody(requestEditor, request);
-      }
+      // if (request != null) {
+      //   await setRequestTextBody(requestEditor, request);
+      // }
       set({ requestEditor });
     },
 
