@@ -5310,16 +5310,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron@npm:^35.7.0":
-  version: 35.7.0
-  resolution: "electron@npm:35.7.0"
+"electron@npm:^37.2.0":
+  version: 37.2.0
+  resolution: "electron@npm:37.2.0"
   dependencies:
     "@electron/get": "npm:^2.0.0"
     "@types/node": "npm:^22.7.7"
     extract-zip: "npm:^2.0.1"
   bin:
     electron: cli.js
-  checksum: 10c0/fe5717345dbd5ab391f246656d156cf956149f5df7a3908e2647d9972ebf3061d6dc70932c1bc6c4ffc67a0c35cfa9f8881463eb2a9a25d64863d860d93caaa2
+  checksum: 10c0/1c300f1fc41e683119f37d81ba874d12c867bf607a8c2fabbcb14dfa04b83ca81094f6f5119825441ed5eabab2a9cbed1e37102c528d6ec90b2cc55d6819e990
   languageName: node
   linkType: hard
 
@@ -11368,7 +11368,7 @@ __metadata:
     clsx: "npm:^2.1.1"
     cmdk: "npm:^1.1.1"
     css-loader: "npm:^7.1.2"
-    electron: "npm:^35.7.0"
+    electron: "npm:^37.2.0"
     electron-devtools-installer: "npm:^4.0.0"
     electron-squirrel-startup: "npm:^1.0.1"
     eslint: "npm:^9.30.1"
