@@ -10835,7 +10835,7 @@ __metadata:
     ts-loader: "npm:^9.5.1"
     ts-node: "npm:^10.9.2"
     typescript: "npm:5.8.2"
-    undici: "npm:^7.5.0"
+    undici: "npm:^7.11.0"
     vite: "npm:^6.3.5"
     vitest: "npm:^3.2.4"
     winston: "npm:^3.17.0"
@@ -11058,10 +11058,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici@npm:^7.5.0":
-  version: 7.5.0
-  resolution: "undici@npm:7.5.0"
-  checksum: 10c0/07e1c984ff1d83516c02a716bb81abfa05087201e511c78147822073440365d2b8e875876804fb4e45857c11c412b46599c961f52aa5bdd2df481fa823e8b629
+"undici@npm:^7.11.0":
+  version: 7.11.0
+  resolution: "undici@npm:7.11.0"
+  checksum: 10c0/e5dd3cc2acae9c8333f97a78d4e91108957367fa7e69918e3a5cbd84702cb453cf7de3f8c2a33bcf808850d78ead70f3bd62900a70d969912e9fed8842bbfc11
   languageName: node
   linkType: hard
 
