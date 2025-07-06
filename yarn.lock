@@ -10038,10 +10038,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tailwind-merge@npm:^2.5.4":
-  version: 2.6.0
-  resolution: "tailwind-merge@npm:2.6.0"
-  checksum: 10c0/fc8a5535524de9f4dacf1c16ab298581c7bb757d68a95faaf28942b1c555a619bba9d4c6726fe83986e44973b315410c1a5226e5354c30ba82353bd6d2288fa5
+"tailwind-merge@npm:^3.3.1":
+  version: 3.3.1
+  resolution: "tailwind-merge@npm:3.3.1"
+  checksum: 10c0/b84c6a78d4669fa12bf5ab8f0cdc4400a3ce0a7c006511af4af4be70bb664a27466dbe13ee9e3b31f50ddf6c51d380e8192ce0ec9effce23ca729d71a9f63818
   languageName: node
   linkType: hard
 
@@ -10411,7 +10411,7 @@ __metadata:
     react-resizable-panels: "npm:^3.0.2"
     sonner: "npm:^2.0.6"
     style-loader: "npm:^4.0.0"
-    tailwind-merge: "npm:^2.5.4"
+    tailwind-merge: "npm:^3.3.1"
     tailwindcss: "npm:^3.4.14"
     tailwindcss-animate: "npm:^1.0.7"
     template-replace-stream: "npm:^2.1.2"
