@@ -2,6 +2,7 @@
 ![GitHub contributors](https://img.shields.io/github/contributors/EXXETA/trufos)
 [![Discord](https://img.shields.io/discord/1328262093903892530?logo=discord&label=Discord&cacheSeconds=60)](https://discord.gg/sb4nfdevpW)
 ![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Frufus%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
+
 <h1 align="center">Trufos - The REST Utility, free and Open Source</h1>
 <p align="center">
   A REST client that is both easy to use, efficient, and extendable.
@@ -28,8 +29,8 @@ please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 ## Requirements
 
 As Trufos is an Electron application, it can run on Windows, macOS, and Linux without any issues. If
-you want to develop or build this software yourself, you will need Node.js version 22 and
-a recent yarn version.
+you want to develop or build this software yourself, you will need Node.js version 22. We use **yarn**
+and not NPM in this project as it can better handle peer dependencies. **Do not install dependencies with NPM!**
 
 ### Local Development
 
@@ -42,9 +43,9 @@ a recent yarn version.
 1. Run `yarn install` to install all dependencies
 2. Run `yarn run make` to build the application for your platform
 3. The built application will be in the `out/make` directory
-    - Windows: a `Setup.exe` file
-    - macOS: a `.dmg` file
-    - Linux: currently a ZIP file (`.deb` file is planned)
+   - Windows: a `Setup.exe` file
+   - macOS: a `.dmg` file
+   - Linux: currently a ZIP file (`.deb` file is planned)
 
 ## Usage
 
@@ -63,10 +64,10 @@ Here’s a simple example of how to add and utilize an endpoint:
 
 ## FAQ
 
-* Where can I find the saved Requests?
-* The saved requests are in this folder:
-    * Mac: `~/Library/Application\ Support/Trufos/default-collection`
-    * Windows: `C:\Users\USERNAME\AppData\Roaming\Trufos\default-collection`
+- Where can I find the saved Requests?
+- The saved requests are in this folder:
+  - Mac: `~/Library/Application\ Support/Trufos/default-collection`
+  - Windows: `C:\Users\USERNAME\AppData\Roaming\Trufos\default-collection`
 
 ## Contributing
 
