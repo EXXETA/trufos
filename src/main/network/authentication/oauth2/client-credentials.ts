@@ -9,6 +9,8 @@ export default class ClientCredentialsAuthorizationStrategy extends OAuth2AuthSt
       this.authInfo.clientId,
       this.authInfo.clientSecret
     );
-    this.authInfo.tokens = await clientCredentialsGrant(config);
+    this.authInfo.tokens = await clientCredentialsGrant(config, {
+      scope: this.authInfo.scope,
+    });
   }
 }
