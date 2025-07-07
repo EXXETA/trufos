@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AuthorizationInformation } from 'shim/objects/auth';
 
 export interface BaseFieldConfig {
   label: string;
@@ -53,28 +52,28 @@ export type FormFieldConfig =
 
 export type FormComponentConfiguration = Record<string, FormFieldConfig>;
 
-export interface AuthorizationFormProps {
+export interface FormProps<T extends Record<string, any>> {
   config: FormComponentConfiguration;
-  auth: AuthorizationInformation;
-  onAuthorizationChanged: (delta: Partial<AuthorizationInformation>) => void;
+  form: T;
+  onFormChanged: (delta: Partial<T>) => void;
   className?: string;
 }
 
-export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
+export const ModularForm = <T extends Record<string, any>>({
   config,
   className,
-  auth,
-  onAuthorizationChanged,
-}) => {
-  const [visibility, setVisibility] = React.useState<{ [key: string]: boolean }>({});
+  form,
+  onFormChanged,
+}: FormProps<T>) => {
+  const [visibility, setVisibility] = React.useState<{ [K in keyof T]: boolean }>({});
   const toggleVisibility = (key: string) => {
     setVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-  const renderField = (key: string, fieldConfig: FormFieldConfig) => {
+  const renderField = (key: keyof T, fieldConfig: FormFieldConfig) => {
     switch (fieldConfig.type) {
       case 'label':
         return (
-          <div key={key} className={fieldConfig.className}>
+          <div key={key as string} className={fieldConfig.className}>
             <p className="text-sm text-text-primary">{fieldConfig.text}</p>
           </div>
         );
@@ -83,12 +82,12 @@ export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
       case 'email': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key} className="space-y-2">
+          <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <Input
               type={fieldConfig.type}
-              value={auth[key as keyof AuthorizationInformation]}
-              onChange={(e) => onAuthorizationChanged({ [key]: e.target.value })}
+              value={form[key]}
+              onChange={(e) => onFormChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
               className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
             />
@@ -99,13 +98,13 @@ export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
       case 'password': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key} className="space-y-2">
+          <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <div className="relative w-full">
               <Input
                 type={visibility[key] ? 'text' : 'password'}
-                value={auth[key as keyof AuthorizationInformation]}
-                onChange={(e) => onAuthorizationChanged({ [key]: e.target.value })}
+                value={form[key]}
+                onChange={(e) => onFormChanged({ [key]: e.target.value } as Partial<T>)}
                 placeholder={placeholder}
                 className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
               />
@@ -124,12 +123,12 @@ export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
       case 'number': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key} className="space-y-2">
+          <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <Input
               type="number"
-              value={auth[key as keyof AuthorizationInformation]}
-              onChange={(e) => onAuthorizationChanged({ [key]: e.target.valueAsNumber ?? 0 })}
+              value={form[key]}
+              onChange={(e) => onFormChanged({ [key]: e.target.valueAsNumber ?? 0 } as Partial<T>)}
               placeholder={placeholder}
               className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
             />
@@ -140,11 +139,11 @@ export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
       case 'select': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key} className="space-y-2">
+          <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <Select
-              value={auth[key as keyof AuthorizationInformation]}
-              onValueChange={(value) => onAuthorizationChanged({ [key]: value })}
+              value={form[key]}
+              onValueChange={(value) => onFormChanged({ [key]: value } as Partial<T>)}
             >
               <SelectTrigger className="w-full rounded-md border border-border bg-background-primary px-3 py-2">
                 <SelectValue placeholder={placeholder ?? `Select ${label.toLowerCase()}`} />
@@ -164,14 +163,19 @@ export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
       case 'checkbox': {
         const { label } = fieldConfig;
         return (
-          <div key={key} className="flex items-center space-x-2">
+          <div key={key as string} className="flex items-center space-x-2">
             <Checkbox
-              id={key}
-              checked={auth[key as keyof AuthorizationInformation] as unknown as boolean} // TODO: fix type casting once there's a boolean field in authorization
-              onCheckedChange={(checked) => onAuthorizationChanged({ [key]: checked === true })}
+              id={key as string}
+              checked={form[key] as unknown as boolean} // TODO: fix type casting once there's a boolean field in authorization
+              onCheckedChange={(checked) =>
+                onFormChanged({ [key]: checked === true } as Partial<T>)
+              }
               className="h-4 w-4"
             />
-            <label htmlFor={key} className="cursor-pointer text-sm font-medium text-text-primary">
+            <label
+              htmlFor={key as string}
+              className="cursor-pointer text-sm font-medium text-text-primary"
+            >
               {label}
             </label>
           </div>
@@ -181,11 +185,11 @@ export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
       case 'textarea': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key} className="space-y-2">
+          <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <textarea
-              value={auth[key as keyof AuthorizationInformation]}
-              onChange={(e) => onAuthorizationChanged({ [key]: e.target.value })}
+              value={form[key]}
+              onChange={(e) => onFormChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
               rows={fieldConfig.rows ?? 3}
               className="resize-vertical w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
