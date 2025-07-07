@@ -3,7 +3,7 @@ import OAuth2AuthStrategy from './strategy';
 import { clientCredentialsGrant, discovery } from 'openid-client';
 
 export default class ClientCredentialsAuthorizationStrategy extends OAuth2AuthStrategy<OAuth2ClientCrentialsAuthorizationInformation> {
-  protected async getToken(): Promise<void> {
+  protected async getToken() {
     const config = await discovery(
       new URL(this.authInfo.tokenUrl),
       this.authInfo.clientId,
