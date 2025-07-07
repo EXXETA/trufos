@@ -8,5 +8,5 @@ export default abstract class OAuth2AuthStrategy<
     return `Bearer ${this.authInfo.tokens.access_token}`;
   }
 
-  protected abstract getToken(): Promise<void>;
+  protected abstract getTokens(): Promise<void>;
 }
