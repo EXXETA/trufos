@@ -8,6 +8,11 @@ import {
   BasicAuthorizationInformation,
   BearerAuthorizationInformation,
 } from 'shim/objects/auth';
+import {
+  OAuth2ClientCrentialsAuthorizationInformation,
+  OAuth2Method,
+} from 'shim/objects/auth/oauth2';
+import ClientCredentialsAuthorizationStrategy from './oauth2/client-credentials';
 
 describe('createAuthStrategy()', () => {
   it('should create a BasicAuthStrategy for basic authentication', () => {
@@ -31,5 +36,17 @@ describe('createAuthStrategy()', () => {
     expect(() => createAuthStrategy(auth as unknown as AuthorizationInformation)).toThrow(
       'Unsupported authentication type: unsupported'
     );
+  });
+
+  it('should create ClientCredentialsAuthorizationStrategy for OAuth2 client credentials', () => {
+    const auth: OAuth2ClientCrentialsAuthorizationInformation = {
+      type: AuthorizationType.OAUTH2,
+      method: OAuth2Method.CLIENT_CREDENTIALS,
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      tokenUrl: 'https://example.com/oauth2/token',
+    };
+    const strategy = createAuthStrategy(auth);
+    expect(strategy).toBeInstanceOf(ClientCredentialsAuthorizationStrategy);
   });
 });
