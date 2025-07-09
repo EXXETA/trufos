@@ -21,6 +21,7 @@ export type BasicAuthorizationInformation = {
 export type InheritAuthorizationInformation = {
   type: AuthorizationType.INHERIT;
 };
+
 export type AuthorizationInformation =
   | InheritAuthorizationInformation
   | BearerAuthorizationInformation
