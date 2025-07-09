@@ -1,5 +1,5 @@
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { AuthorizationType } from 'shim/objects/auth';
+import { AuthorizationInformation, AuthorizationType } from 'shim/objects/auth';
 import {
   Select,
   SelectContent,
@@ -9,26 +9,26 @@ import {
 } from '@/components/ui/select';
 import { useMemo, useState } from 'react';
 import { ModularForm, FormComponentConfiguration } from './ModularForm';
-import { OAuth2Method } from 'shim/objects/auth/oauth2';
+import { OAuth2AuthorizationInformation, OAuth2Method } from 'shim/objects/auth/oauth2';
 
 const AUTHORIZATION_NONE = 'none' as const;
 type AuthorizationTypeOrNone = AuthorizationType | typeof AUTHORIZATION_NONE;
 
-const INITIAL_AUTHORIZATION = Object.fromEntries(
-  [
-    { type: AuthorizationType.INHERIT },
-    { type: AuthorizationType.BEARER, token: '' },
-    { type: AuthorizationType.BASIC, username: '', password: '' },
-    {
-      type: AuthorizationType.OAUTH2,
-      method: OAuth2Method.CLIENT_CREDENTIALS,
-      clientId: '',
-      clientSecret: '',
-      tokenUrl: '',
-      scope: '',
-    },
-  ].map((auth) => [auth.type, auth])
-);
+const INITIAL_AUTHORIZATION: { [K in AuthorizationTypeOrNone]: AuthorizationInformation } = {
+  [AUTHORIZATION_NONE]: undefined,
+  [AuthorizationType.INHERIT]: { type: AuthorizationType.INHERIT },
+  [AuthorizationType.BEARER]: { type: AuthorizationType.BEARER, token: '' },
+  [AuthorizationType.BASIC]: { type: AuthorizationType.BASIC, username: '', password: '' },
+  [AuthorizationType.OAUTH2]: {
+    type: AuthorizationType.OAUTH2,
+    method: OAuth2Method.CLIENT_CREDENTIALS,
+    issuer: '',
+    tokenUrl: '',
+    clientId: '',
+    clientSecret: '',
+    scope: '',
+  },
+};
 
 const LABELS: { [K in AuthorizationTypeOrNone]: string } = {
   [AUTHORIZATION_NONE]: 'None',
@@ -89,6 +89,11 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
       label: 'Client ID',
       placeholder: 'Enter client ID',
     },
+    issuer: {
+      type: 'text',
+      label: 'Issuer',
+      placeholder: 'Enter issuer URL',
+    },
     clientSecret: {
       type: 'password',
       label: 'Client Secret',
@@ -131,9 +136,9 @@ export const AuthorizationTab = () => {
       form = FORMS[type];
     }
     return [type, form];
-  }, [auth]);
+  }, [auth?.type, (auth as OAuth2AuthorizationInformation)?.method]);
 
-  const handleAuthTypeChange = (value: string) =>
+  const handleAuthTypeChange = (value: AuthorizationTypeOrNone) =>
     updateAuthorization(request, INITIAL_AUTHORIZATION[value]);
 
   return (
