@@ -11,7 +11,6 @@ export type OAuth2ClientCrentialsAuthorizationInformation = {
   method: OAuth2Method.CLIENT_CREDENTIALS;
   clientId: string;
   clientSecret: string;
-  issuer: string;
   tokenUrl: string;
   scope: string;
   tokens?: TokenEndpointResponse;
