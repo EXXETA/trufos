@@ -161,82 +161,84 @@ export const ParamsTab = () => {
       </div>
 
       <div className="absolute bottom-[16px] left-[16px] right-[16px] top-[68px]">
-        <Table className="w-full table-auto">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-auto">Key</TableHead>
-              <TableHead className="w-full">Value</TableHead>
-              <TableHead className="w-16">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {queryParams?.map((param, index) => (
-              <TableRow key={index}>
-                <TableCell className="w-1/3 break-all">
-                  <input
-                    type="text"
-                    value={param?.key}
-                    onChange={(e) => handleUpdateQueryParam(index, 'key', e.target.value)}
-                    className="w-full bg-transparent outline-none"
-                    placeholder="Enter param key"
-                  />
-                </TableCell>
-
-                <TableCell className="w-full break-all">
-                  <input
-                    type="text"
-                    value={param?.value}
-                    onChange={(e) => handleUpdateQueryParam(index, 'value', e.target.value)}
-                    className="w-full bg-transparent outline-none"
-                    placeholder="Enter param value"
-                  />
-                </TableCell>
-
-                <TableCell className="w-16 text-right">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="relative z-10 h-4 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={param?.isActive}
-                        onChange={() => handleToggleQueryParam(index)}
-                        className={cn(
-                          'form-checkbox h-4 w-4 appearance-none rounded-[2px] border',
-                          param?.isActive
-                            ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
-                            : 'border-[rgba(238,238,238,1)] bg-transparent'
-                        )}
-                      />
-
-                      {param?.isActive && (
-                        <div
-                          className={
-                            'pointer-events-none absolute left-0 top-0 flex h-4 w-4 rotate-6 items-center justify-center'
-                          }
-                        >
-                          <CheckedIcon
-                            size={16}
-                            viewBox={'0 0 16 16'}
-                            color={'rgba(107,194,224,1)'}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
-                      onClick={() => handleDeleteQueryParam(index)}
-                    >
-                      <DeleteIcon />
-                    </Button>
-                  </div>
-                </TableCell>
+        <div className="pb-4">
+          <Table className="w-full table-auto">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-auto">Key</TableHead>
+                <TableHead className="w-full">Value</TableHead>
+                <TableHead className="w-16">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+
+            <TableBody>
+              {queryParams?.map((param, index) => (
+                <TableRow key={index}>
+                  <TableCell className="w-1/3 break-all">
+                    <input
+                      type="text"
+                      value={param?.key}
+                      onChange={(e) => handleUpdateQueryParam(index, 'key', e.target.value)}
+                      className="w-full bg-transparent outline-none"
+                      placeholder="Enter param key"
+                    />
+                  </TableCell>
+
+                  <TableCell className="w-full break-all">
+                    <input
+                      type="text"
+                      value={param?.value}
+                      onChange={(e) => handleUpdateQueryParam(index, 'value', e.target.value)}
+                      className="w-full bg-transparent outline-none"
+                      placeholder="Enter param value"
+                    />
+                  </TableCell>
+
+                  <TableCell className="w-16 text-right">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="relative z-10 h-4 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={param?.isActive}
+                          onChange={() => handleToggleQueryParam(index)}
+                          className={cn(
+                            'form-checkbox h-4 w-4 appearance-none rounded-[2px] border',
+                            param?.isActive
+                              ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
+                              : 'border-[rgba(238,238,238,1)] bg-transparent'
+                          )}
+                        />
+
+                        {param?.isActive && (
+                          <div
+                            className={
+                              'pointer-events-none absolute left-0 top-0 flex h-4 w-4 rotate-6 items-center justify-center'
+                            }
+                          >
+                            <CheckedIcon
+                              size={16}
+                              viewBox={'0 0 16 16'}
+                              color={'rgba(107,194,224,1)'}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
+                        onClick={() => handleDeleteQueryParam(index)}
+                      >
+                        <DeleteIcon />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );

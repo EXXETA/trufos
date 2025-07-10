@@ -66,27 +66,29 @@ export const HeaderTab = () => {
       </div>
 
       <div className="absolute bottom-[16px] left-[16px] right-[16px] top-[68px]">
-        <Table className="w-full table-auto">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-auto">Key</TableHead>
-              <TableHead className="w-full">Value</TableHead>
-              <TableHead className="w-16"> {/* Action Column */} </TableHead>
-            </TableRow>
-          </TableHeader>
+        <div className="pb-4">
+          <Table className="w-full table-auto">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-auto">Key</TableHead>
+                <TableHead className="w-full">Value</TableHead>
+                <TableHead className="w-16"> {/* Action Column */} </TableHead>
+              </TableRow>
+            </TableHeader>
 
-          <TableBody>
-            {headers.map((header, index) => (
-              <HeaderRow
-                key={index}
-                index={index}
-                header={header}
-                handleUpdateHeader={handleUpdateHeader}
-                handleDeleteHeader={handleDeleteHeader}
-              />
-            ))}
-          </TableBody>
-        </Table>
+            <TableBody>
+              {headers.map((header, index) => (
+                <HeaderRow
+                  key={index}
+                  index={index}
+                  header={header}
+                  handleUpdateHeader={handleUpdateHeader}
+                  handleDeleteHeader={handleDeleteHeader}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
