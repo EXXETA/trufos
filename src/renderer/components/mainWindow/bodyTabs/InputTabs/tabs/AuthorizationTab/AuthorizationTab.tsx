@@ -9,7 +9,11 @@ import {
 } from '@/components/ui/select';
 import { useMemo, useState } from 'react';
 import { ModularForm, FormComponentConfiguration } from './ModularForm';
-import { OAuth2AuthorizationInformation, OAuth2Method } from 'shim/objects/auth/oauth2';
+import {
+  OAuth2AuthorizationInformation,
+  OAuth2ClientAuthenticationMethod,
+  OAuth2Method,
+} from 'shim/objects/auth/oauth2';
 
 const AUTHORIZATION_NONE = 'none' as const;
 type AuthorizationTypeOrNone = AuthorizationType | typeof AUTHORIZATION_NONE;
@@ -22,11 +26,11 @@ const INITIAL_AUTHORIZATION: { [K in AuthorizationTypeOrNone]: AuthorizationInfo
   [AuthorizationType.OAUTH2]: {
     type: AuthorizationType.OAUTH2,
     method: OAuth2Method.CLIENT_CREDENTIALS,
-    issuer: '',
     tokenUrl: '',
     clientId: '',
     clientSecret: '',
     scope: '',
+    clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
   },
 };
 
@@ -89,11 +93,6 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
       label: 'Client ID',
       placeholder: 'Enter client ID',
     },
-    issuer: {
-      type: 'text',
-      label: 'Issuer',
-      placeholder: 'Enter issuer URL',
-    },
     clientSecret: {
       type: 'password',
       label: 'Client Secret',
@@ -108,6 +107,20 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
       type: 'text',
       label: 'Scope',
       placeholder: 'Enter scopes (optional, space-separated)',
+    },
+    clientAuthenticationMethod: {
+      type: 'select',
+      label: 'Client Authentication Method',
+      options: [
+        {
+          value: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
+          label: 'Send Credentials as Basic Auth Header',
+        },
+        {
+          value: OAuth2ClientAuthenticationMethod.REQUEST_BODY,
+          label: 'Send Credentials in Request Body',
+        },
+      ],
     },
   },
   [OAuth2Method.AUTHORIZATION_CODE]: {
