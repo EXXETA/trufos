@@ -7,7 +7,8 @@ import {
 import { describe, expect, it } from 'vitest';
 import ClientCredentialsAuthorizationStrategy from './client-credentials';
 
-describe('ClientCredentialsAuthorizationStrategy', () => {
+// skipped in CI because it relies on third party service. Test this locally
+describe.skip('ClientCredentialsAuthorizationStrategy', () => {
   it('should be able to authorize using manually defined client credentials', async () => {
     // Arrange
     const auth: OAuth2ClientCrentialsAuthorizationInformation = {
