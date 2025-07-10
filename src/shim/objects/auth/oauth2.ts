@@ -6,6 +6,11 @@ export enum OAuth2Method {
   AUTHORIZATION_CODE = 'authorization-code',
 }
 
+export enum OAuth2ClientAuthenticationMethod {
+  BASIC_AUTH = 'basic-auth',
+  REQUEST_BODY = 'request-body',
+}
+
 export type OAuth2ClientCrentialsAuthorizationInformation = {
   type: AuthorizationType.OAUTH2;
   method: OAuth2Method.CLIENT_CREDENTIALS;
@@ -13,6 +18,9 @@ export type OAuth2ClientCrentialsAuthorizationInformation = {
   clientSecret: string;
   tokenUrl: string;
   scope: string;
+  clientAuthenticationMethod: OAuth2ClientAuthenticationMethod;
+
+  // not configurable
   tokens?: TokenEndpointResponse;
 };
 

@@ -1,5 +1,6 @@
 import { AuthorizationType } from 'shim/objects/auth';
 import {
+  OAuth2ClientAuthenticationMethod,
   OAuth2ClientCrentialsAuthorizationInformation,
   OAuth2Method,
 } from 'shim/objects/auth/oauth2';
@@ -16,6 +17,7 @@ describe('ClientCredentialsAuthorizationStrategy', () => {
       clientId: 'demo-backend-client',
       clientSecret: 'MJlO3binatD9jk1',
       scope: 'read write',
+      clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
     };
     const strategy = new ClientCredentialsAuthorizationStrategy(auth);
 
