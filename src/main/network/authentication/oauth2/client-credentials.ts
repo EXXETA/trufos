@@ -1,6 +1,11 @@
 import { OAuth2ClientCrentialsAuthorizationInformation } from 'shim/objects/auth/oauth2';
 import OAuth2AuthStrategy from './strategy';
-import { clientCredentialsGrant } from 'openid-client';
+import {
+  clientCredentialsGrant,
+  ClientSecretBasic,
+  Configuration,
+  customFetch,
+} from 'openid-client';
 
 export default class ClientCredentialsAuthorizationStrategy extends OAuth2AuthStrategy<OAuth2ClientCrentialsAuthorizationInformation> {
   protected async getTokens() {
@@ -8,8 +13,18 @@ export default class ClientCredentialsAuthorizationStrategy extends OAuth2AuthSt
     if (this.authInfo.scope != null && this.authInfo.scope !== '') {
       parameters.scope = this.authInfo.scope;
     }
-    const { configuration } = this;
-    logger.info(configuration.serverMetadata().token_endpoint);
-    this.authInfo.tokens = await clientCredentialsGrant(configuration, parameters);
+
+    const config = new Configuration(
+      {
+        issuer: new URL(this.authInfo.tokenUrl).origin,
+        token_endpoint: this.authInfo.tokenUrl,
+        client_id: this.authInfo.clientId,
+      },
+      this.authInfo.clientId,
+      this.authInfo.clientSecret,
+      ClientSecretBasic(this.authInfo.clientSecret)
+    );
+    config[customFetch] = this.fetch;
+    this.authInfo.tokens = await clientCredentialsGrant(config, parameters);
   }
 }

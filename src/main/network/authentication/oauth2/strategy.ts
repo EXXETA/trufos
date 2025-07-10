@@ -1,6 +1,6 @@
 import { OAuth2AuthorizationInformation } from 'shim/objects/auth/oauth2';
 import AuthStrategy from '../auth-strategy';
-import { Configuration, discovery } from 'openid-client';
+import { Configuration, customFetch, CustomFetchOptions, discovery } from 'openid-client';
 
 export default abstract class OAuth2AuthStrategy<
   T extends OAuth2AuthorizationInformation,
@@ -11,20 +11,6 @@ export default abstract class OAuth2AuthStrategy<
   }
 
   protected abstract getTokens(): Promise<void>;
-
-  /**
-   * Get the OpenID Connect configuration for the OAuth2 client. Can be discovered instead.
-   */
-  protected get configuration() {
-    return new Configuration(
-      {
-        issuer: this.authInfo.issuer,
-        token_endpoint: this.authInfo.tokenUrl,
-        client_id: this.authInfo.clientId,
-      },
-      this.authInfo.clientId
-    );
-  }
 
   /**
    * Discover the OpenID Connect configuration from the server URL and set the token URL and issuer.
@@ -40,6 +26,10 @@ export default abstract class OAuth2AuthStrategy<
     }
 
     this.authInfo.tokenUrl = metadata.token_endpoint;
-    this.authInfo.issuer = metadata.issuer;
+  }
+
+  protected async fetch(url: string, options: CustomFetchOptions): Promise<Response> {
+    console.log('Fetching URL:', url, options);
+    return await fetch(url, options as RequestInit);
   }
 }
