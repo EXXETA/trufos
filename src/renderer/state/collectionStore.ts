@@ -4,7 +4,7 @@ import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
 import { editor } from 'monaco-editor';
-import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
+import { isCollection, isRequest, TrufosObject } from 'shim/objects';
 import { AuthorizationInformation } from 'shim/objects/auth';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -14,19 +14,18 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
 const eventService = RendererEventService.instance;
-eventService.on('before-close', async () => {
-  console.info('Saving currently opened request before closing');
+eventService.on('before-close', saveRequestBody);
+
+async function saveRequestBody(requestBody?: string) {
+  console.info('Saving current request body');
   const state = useCollectionStore.getState();
   const request = selectRequest(state);
   if (request != null && request.draft) {
     console.debug(`Saving request with ID ${request.id}`);
-    await eventService.saveRequest(
-      request,
-      useCollectionStore.getState().requestEditor?.getValue()
-    );
+    await eventService.saveRequest(request, requestBody ?? state.requestEditor?.getValue());
   }
   eventService.emit('ready-to-close');
-});
+}
 
 interface CollectionState {
   /** The currently selected collection */
@@ -146,11 +145,19 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     },
 
     setRequestEditor: async (requestEditor) => {
-      const request = selectRequest(get());
-      if (request != null) {
-        await setRequestTextBody(requestEditor, request);
-      }
       set({ requestEditor });
+      if (requestEditor == null) {
+        const { requestEditor: previousRequestEditor } = get();
+        if (previousRequestEditor != null) {
+          await saveRequestBody(previousRequestEditor.getValue());
+          previousRequestEditor.dispose();
+        }
+      } else {
+        const request = selectRequest(get());
+        if (request != null) {
+          await setRequestTextBody(requestEditor, request);
+        }
+      }
     },
 
     formatRequestEditorText: async () => {

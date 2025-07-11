@@ -21,6 +21,10 @@ export default function BodyTabTextInput({ language, className }: BodyTabTextInp
         if (e.isFlush) return;
         setDraftFlag();
       });
+
+      return () => {
+        setRequestEditor();
+      };
     },
     [setRequestEditor, setDraftFlag]
   );
