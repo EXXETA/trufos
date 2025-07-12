@@ -156,38 +156,35 @@ export const AuthorizationTab = () => {
 
   return (
     <div className="relative h-full p-4">
-      <div className="absolute left-[16px] right-[16px] top-[16px] z-10 pb-4">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-text-primary">Authorization Type</label>
-            <Select
-              value={type}
-              onValueChange={handleAuthTypeChange}
-              open={isTypeSelectOpen}
-              onOpenChange={setTypeSelectOpen}
-            >
-              <SelectTrigger
-                className="w-full rounded-md border border-border bg-background-primary px-3 py-2"
-                isOpen={isTypeSelectOpen}
-              >
-                <SelectValue placeholder="Select authorization type">{LABELS[type]}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(LABELS).map(([value, label]: [AuthorizationTypeOrNone, string]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="absolute left-[16px] right-[16px] top-[16px] z-10 space-y-4 pb-4">
+        <label className="text-sm font-medium text-text-primary">Authorization Type</label>
+        <Select
+          value={type}
+          onValueChange={handleAuthTypeChange}
+          open={isTypeSelectOpen}
+          onOpenChange={setTypeSelectOpen}
+        >
+          <SelectTrigger
+            className="w-full rounded-md border border-border bg-background-primary px-3 py-2"
+            isOpen={isTypeSelectOpen}
+          >
+            <SelectValue placeholder="Select authorization type">{LABELS[type]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(LABELS).map(([value, label]: [AuthorizationTypeOrNone, string]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <ModularForm
-            config={form}
-            form={auth}
-            onFormChanged={(delta) => updateAuthorization(request, delta)}
-          />
-        </div>
+        <ModularForm
+          config={form}
+          form={auth}
+          onFormChanged={(delta) => updateAuthorization(request, delta)}
+        />
       </div>
-    </div>);
+    </div>
+  );
 };
