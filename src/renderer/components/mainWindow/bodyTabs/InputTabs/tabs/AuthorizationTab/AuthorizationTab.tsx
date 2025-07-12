@@ -75,30 +75,32 @@ export const AuthorizationTab = () => {
 
   return (
     <div className="relative h-full p-4">
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Authorization Type</label>
-          <Select
-            value={type}
-            onValueChange={handleAuthTypeChange}
-            open={isTypeSelectOpen}
-            onOpenChange={setTypeSelectOpen}
-          >
-            <SelectTrigger
-              className="w-full rounded-md border border-border bg-background-primary px-3 py-2"
-              isOpen={isTypeSelectOpen}
+      <div className="absolute left-[16px] right-[16px] top-[16px] z-10 pb-4">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">Authorization Type</label>
+            <Select
+              value={type}
+              onValueChange={handleAuthTypeChange}
+              open={isTypeSelectOpen}
+              onOpenChange={setTypeSelectOpen}
             >
-              <SelectValue placeholder="Select authorization type">
-                {LABELS[auth?.type] ?? 'None'}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={AUTHORIZATION_NONE}>None</SelectItem>
-              <SelectItem value={AuthorizationType.INHERIT}>Inherit from collection</SelectItem>
-              <SelectItem value={AuthorizationType.BEARER}>Bearer Token</SelectItem>
-              <SelectItem value={AuthorizationType.BASIC}>Basic Auth</SelectItem>
-            </SelectContent>
-          </Select>
+              <SelectTrigger
+                className="w-full rounded-md border border-border bg-background-primary px-3 py-2"
+                isOpen={isTypeSelectOpen}
+              >
+                <SelectValue placeholder="Select authorization type">
+                  {LABELS[auth?.type] ?? 'None'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={AUTHORIZATION_NONE}>None</SelectItem>
+                <SelectItem value={AuthorizationType.INHERIT}>Inherit from collection</SelectItem>
+                <SelectItem value={AuthorizationType.BEARER}>Bearer Token</SelectItem>
+                <SelectItem value={AuthorizationType.BASIC}>Basic Auth</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <AuthorizationForm
