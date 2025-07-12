@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 export interface BaseFieldConfig {
   label: string;
@@ -177,7 +178,7 @@ export const ModularForm = <T extends Record<string, any>>({
   };
 
   return (
-    <div className={`space-y-4 ${className ?? ''}`}>
+    <div className={cn('space-y-4', className)}>
       {Object.entries(config).map(([key, fieldConfig]) => renderField(key, fieldConfig))}
     </div>
   );
