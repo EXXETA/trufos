@@ -66,6 +66,10 @@ export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
   auth,
   onAuthorizationChanged,
 }) => {
+  const [visibility, setVisibility] = React.useState<{ [key: string]: boolean }>({});
+  const toggleVisibility = (key: string) => {
+    setVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
   const renderField = (key: string, fieldConfig: FormFieldConfig) => {
     switch (fieldConfig.type) {
       case 'label':
@@ -76,7 +80,6 @@ export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
         );
 
       case 'text':
-      case 'password':
       case 'email': {
         const { label, placeholder } = fieldConfig;
         return (
@@ -89,6 +92,31 @@ export const AuthorizationForm: React.FC<AuthorizationFormProps> = ({
               placeholder={placeholder}
               className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
             />
+          </div>
+        );
+      }
+
+      case 'password': {
+        const { label, placeholder } = fieldConfig;
+        return (
+          <div key={key} className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">{label}</label>
+            <div className="relative w-full">
+              <Input
+                type={visibility[key] ? 'text' : 'password'}
+                value={auth[key as keyof AuthorizationInformation]}
+                onChange={(e) => onAuthorizationChanged({ [key]: e.target.value })}
+                placeholder={placeholder}
+                className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+              <button
+                type="button"
+                onClick={() => toggleVisibility(key)}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-sm text-text-secondary hover:text-text-primary"
+              >
+                {visibility[key] ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
         );
       }
