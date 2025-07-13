@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -53,22 +53,22 @@ export type FormFieldConfig =
 
 export type FormComponentConfiguration = Record<string, FormFieldConfig>;
 
-export interface FormProps<T extends Record<string, any>> {
+export interface FormProps<T extends Record<string, never>> {
   config: FormComponentConfiguration;
   form: T;
   onFormChanged: (delta: Partial<T>) => void;
   className?: string;
 }
 
-export const ModularForm = <T extends Record<string, any>>({
+export const ModularForm = <T extends Record<string, never>>({
   config,
   className,
   form,
   onFormChanged,
 }: FormProps<T>) => {
-  const [visibility, setVisibility] = React.useState<{ [K in keyof T]: boolean }>({});
-  const toggleVisibility = (key: string) => {
-    setVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
+  const [visible, setVisible] = useState<Partial<{ [K in keyof T]: boolean }>>({});
+  const toggleVisibility = (key: keyof T) => {
+    setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
   };
   const renderField = (key: keyof T, fieldConfig: FormFieldConfig) => {
     switch (fieldConfig.type) {
@@ -103,7 +103,7 @@ export const ModularForm = <T extends Record<string, any>>({
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <div className="relative w-full">
               <Input
-                type={visibility[key] ? 'text' : 'password'}
+                type={visible[key] ? 'text' : 'password'}
                 value={form[key]}
                 onChange={(e) => onFormChanged({ [key]: e.target.value } as Partial<T>)}
                 placeholder={placeholder}
@@ -114,7 +114,7 @@ export const ModularForm = <T extends Record<string, any>>({
                 onClick={() => toggleVisibility(key)}
                 className="absolute inset-y-0 right-0 flex items-center px-3 text-sm text-text-secondary hover:text-text-primary"
               >
-                {visibility[key] ? 'Hide' : 'Show'}
+                {visible[key] ? 'Hide' : 'Show'}
               </button>
             </div>
           </div>
