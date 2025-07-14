@@ -32,6 +32,7 @@ export default function BodyTabTextInput({ language, className }: BodyTabTextInp
       options={REQUEST_EDITOR_OPTIONS}
       language={language}
       onMount={onEditorMount}
+      onWillUnmount={setRequestEditor}
     />
   );
 }

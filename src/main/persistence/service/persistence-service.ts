@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
+import { createReadStream, ReadStream } from 'node:fs';
 import {
   CollectionInfoFile,
   extractSecrets,
@@ -20,7 +20,6 @@ import {
   RequestBodyType,
   TrufosRequest,
   TEXT_BODY_FILE_NAME,
-  TextBody,
 } from 'shim/objects/request';
 import { exists } from 'main/util/fs-util';
 import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
@@ -131,21 +130,37 @@ export class PersistenceService {
    * @param request the request to be saved
    * @param textBody OPTIONAL: the text body of the request
    */
-  public async saveRequest(request: TrufosRequest, textBody?: string) {
+  public async saveRequest(request: TrufosRequest, textBody?: string | ReadStream) {
     const dirPath = this.getOrCreateDirPath(request);
     const infoFileName = getInfoFileName(request.type, request.draft);
-    await this.saveInfoFile(request, dirPath, infoFileName);
+    const bodyFilePath = path.join(
+      dirPath,
+      request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME
+    );
 
-    // save text body if provided
-    if (textBody != null) {
-      const body = request.body as TextBody;
-      body.type = RequestBodyType.TEXT; // enforce type
-      delete body.text; // only present once, if imported collection
-      const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
-      await fs.writeFile(path.join(dirPath, fileName), textBody);
-    } else if (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME))) {
-      await fs.unlink(path.join(dirPath, TEXT_BODY_FILE_NAME));
+    if (request.body.type === RequestBodyType.TEXT) {
+      delete request.body.text; // only present if imported collection, make sure to remove it
+
+      // check if this just became a draft and is saved for the first time
+      if (
+        request.draft &&
+        textBody == null &&
+        !(await exists(path.join(dirPath, infoFileName))) &&
+        (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME)))
+      ) {
+        logger.debug('Copying original text body file to draft file for request', request.id);
+        textBody = createReadStream(path.join(dirPath, TEXT_BODY_FILE_NAME));
+      }
+
+      // save the text body to the file system
+      logger.info('Saving text body for request', request.id);
+      await fs.writeFile(bodyFilePath, textBody ?? '');
+    } else if (await exists(bodyFilePath)) {
+      await fs.unlink(bodyFilePath);
     }
+
+    // save the request info file
+    await this.saveInfoFile(request, dirPath, infoFileName);
     return request;
   }
 
@@ -337,13 +352,9 @@ export class PersistenceService {
       if (await exists(filePath)) {
         logger.debug(`Opening text body file at ${filePath}`);
         return createReadStream(filePath, encoding);
-      } else if (request.draft && (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME)))) {
-        logger.warn(
-          `Text body file does not exist for draft request ${request.id}. Falling back to original text body.`
-        );
-        return createReadStream(path.join(dirPath, TEXT_BODY_FILE_NAME), encoding);
       } else {
         logger.warn('Text body file does not exist for request', request.id);
+        return ReadStream.from([]);
       }
     }
   }
