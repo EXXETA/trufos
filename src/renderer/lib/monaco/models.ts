@@ -1,13 +1,13 @@
-import * as monaco from 'monaco-editor';
+import { editor, Uri } from 'monaco-editor';
 
-export const REQUEST_MODEL = monaco.editor.createModel(
+export const REQUEST_MODEL = editor.createModel(
   '',
   undefined,
-  monaco.Uri.parse('inmemory://request-editor')
+  Uri.parse('inmemory://request-editor')
 );
 
-export const RESPONSE_MODEL = monaco.editor.createModel(
+export const RESPONSE_MODEL = editor.createModel(
   '',
   undefined,
-  monaco.Uri.parse('inmemory://response-editor')
+  Uri.parse('inmemory://response-editor')
 );
