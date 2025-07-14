@@ -113,11 +113,10 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
       set((state) => {
         state.requests.set(request.id, request);
-        state.selectedRequestId = request.id;
-        const parent = selectParent(state, request.parentId);
-        parent.children.push(request);
+        selectParent(state, request.parentId).children.push(request);
       });
-      get().setFolderOpen(parentId);
+
+      get().setSelectedRequest(request.id);
     },
 
     updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) =>
