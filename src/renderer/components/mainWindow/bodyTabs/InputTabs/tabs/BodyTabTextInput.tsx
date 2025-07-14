@@ -31,9 +31,7 @@ export default function BodyTabTextInput({ language, className }: BodyTabTextInp
       className={cn('absolute h-full', className)}
       options={REQUEST_EDITOR_OPTIONS}
       language={language}
-      onMount={(editor) => {
-        onEditorMount(editor);
-      }}
+      onMount={onEditorMount}
     />
   );
 }

@@ -332,12 +332,19 @@ export class PersistenceService {
     logger.info('Loading text body of request', request.id);
     if (request.body.type === RequestBodyType.TEXT) {
       const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
-      const filePath = path.join(this.getOrCreateDirPath(request), fileName);
+      const dirPath = this.getOrCreateDirPath(request);
+      const filePath = path.join(dirPath, fileName);
       if (await exists(filePath)) {
         logger.debug(`Opening text body file at ${filePath}`);
         return createReadStream(filePath, encoding);
+      } else if (request.draft && (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME)))) {
+        logger.warn(
+          `Text body file does not exist for draft request ${request.id}. Falling back to original text body.`
+        );
+        return createReadStream(path.join(dirPath, TEXT_BODY_FILE_NAME), encoding);
+      } else {
+        logger.warn('Text body file does not exist for request', request.id);
       }
-      logger.warn('Text body file does not exist for request', request.id);
     }
   }
 

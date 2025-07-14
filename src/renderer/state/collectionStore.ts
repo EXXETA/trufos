@@ -4,7 +4,7 @@ import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
 import { editor } from 'monaco-editor';
-import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
+import { isCollection, isRequest, TrufosObject } from 'shim/objects';
 import { AuthorizationInformation } from 'shim/objects/auth';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -20,10 +20,7 @@ eventService.on('before-close', async () => {
   const request = selectRequest(state);
   if (request != null && request.draft) {
     console.debug(`Saving request with ID ${request.id}`);
-    await eventService.saveRequest(
-      request,
-      useCollectionStore.getState().requestEditor?.getValue()
-    );
+    await eventService.saveRequest(request, state.requestEditor?.getValue());
   }
   eventService.emit('ready-to-close');
 });
