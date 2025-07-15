@@ -3,8 +3,8 @@ import { Language } from '@/lib/monaco/language';
 import { cn } from '@/lib/utils';
 import { useCollectionActions } from '@/state/collectionStore';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
-import { useCallback } from 'react';
-import { editor } from 'monaco-editor';
+import { useEffect } from 'react';
+import { REQUEST_MODEL } from '@/lib/monaco/models';
 
 interface BodyTabTextInputProps {
   language: Language;
@@ -14,10 +14,15 @@ interface BodyTabTextInputProps {
 export default function BodyTabTextInput({ language, className }: BodyTabTextInputProps) {
   const { setRequestEditor, setDraftFlag } = useCollectionActions();
 
-  const onChange = useCallback((value: string | undefined, e: editor.IModelContentChangedEvent) => {
-    if (e.isFlush) return; // ignore initial load events
-    setDraftFlag();
-  }, []);
+  // using this instead of onChange() event to avoid receiving the whole editor content
+  useEffect(
+    () =>
+      REQUEST_MODEL.onDidChangeContent((e) => {
+        if (e.isFlush) return; // ignore initial load events
+        setDraftFlag();
+      }).dispose,
+    []
+  );
 
   return (
     <MonacoEditor
@@ -26,7 +31,6 @@ export default function BodyTabTextInput({ language, className }: BodyTabTextInp
       options={REQUEST_EDITOR_OPTIONS}
       language={language}
       onMount={setRequestEditor}
-      onChange={onChange}
     />
   );
 }
