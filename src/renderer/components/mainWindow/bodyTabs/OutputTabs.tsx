@@ -1,6 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { HttpHeaders } from 'shim/headers';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
@@ -13,6 +20,7 @@ import { WandSparkles } from 'lucide-react';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { cn } from '@/lib/utils';
 import { isFormattableLanguage } from '@/lib/monaco/language';
+import { RESPONSE_MODEL } from '@/lib/monaco/models';
 
 /**
  * Get the mime type from the content type.
@@ -54,39 +62,31 @@ export function OutputTabs({ className }: OutputTabsProps) {
   }, [response?.headers]);
 
   useEffect(() => {
-    if (!editor) return;
-
     const updateEditorContent = async () => {
-      if (response?.bodyFilePath) {
-        editor.setValue('');
+      RESPONSE_MODEL.setValue('');
+      if (response?.bodyFilePath != null) {
         const stream = await IpcPushStream.open(response.bodyFilePath);
         const content = await IpcPushStream.collect(stream);
-        editor.setValue(content);
+        RESPONSE_MODEL.setValue(content);
         if (response?.autoFormat) {
           formatResponseEditorText(requestId);
         }
-      } else {
-        editor.setValue('');
       }
     };
 
     updateEditorContent();
-  }, [response, editor, requestId]);
+  }, [response, requestId]);
 
   useEffect(() => {
     if (!editor) return;
 
-    const model = editor.getModel();
-    if (model) {
-      setEditorLanguage(model.getLanguageId());
+    setEditorLanguage(RESPONSE_MODEL.getLanguageId());
+    const disposable = RESPONSE_MODEL.onDidChangeLanguage((e) => {
+      setEditorLanguage(e.newLanguage);
+    });
 
-      const disposable = model.onDidChangeLanguage((e) => {
-        setEditorLanguage(e.newLanguage);
-      });
-
-      return () => disposable.dispose();
-    }
-  }, [editor, mimeType]);
+    return () => disposable.dispose();
+  }, [mimeType]);
 
   const canFormatResponseBody = useMemo(() => {
     return response?.bodyFilePath && isFormattableLanguage(editorLanguage);

@@ -1,3 +1,4 @@
+import { REQUEST_MODEL, RESPONSE_MODEL } from '@/lib/monaco/models';
 import { editor } from 'monaco-editor';
 
 export const DEFAULT_MONACO_OPTIONS: Partial<editor.IStandaloneEditorConstructionOptions> = {
@@ -15,11 +16,13 @@ export const DEFAULT_MONACO_OPTIONS: Partial<editor.IStandaloneEditorConstructio
 
 export const REQUEST_EDITOR_OPTIONS: Partial<editor.IStandaloneEditorConstructionOptions> = {
   ...DEFAULT_MONACO_OPTIONS,
+  model: REQUEST_MODEL,
   'semanticHighlighting.enabled': true, // needed for template variable syntax highlighting
 };
 
 export const RESPONSE_EDITOR_OPTIONS: Partial<editor.IStandaloneEditorConstructionOptions> = {
   ...DEFAULT_MONACO_OPTIONS,
+  model: RESPONSE_MODEL,
   readOnly: true,
 };
 

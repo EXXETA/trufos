@@ -6,12 +6,12 @@ import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
 import { UrlInput } from './mainTopBar/UrlInput';
 import { SendButton } from './mainTopBar/SendButton';
 import { SaveButton } from './mainTopBar/SaveButton';
-import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { handleError } from '@/error/errorHandler';
+import { REQUEST_MODEL } from '@/lib/monaco/models';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -22,7 +22,6 @@ export function MainTopBar() {
 
   const { updateRequest } = useCollectionActions();
   const { addResponse } = useResponseActions();
-  const requestEditor = useCollectionStore((state) => state.requestEditor);
   const request = useCollectionStore(selectRequest);
   const selectedHttpMethod = request?.method;
   const url = request?.url;
@@ -46,7 +45,7 @@ export function MainTopBar() {
 
       try {
         setIsLoading(true);
-        await eventService.saveRequest(request, requestEditor?.getValue());
+        await eventService.saveRequest(request, REQUEST_MODEL.getValue());
 
         const response = await httpService.sendRequest(request);
         addResponse(request.id, response);
@@ -56,7 +55,7 @@ export function MainTopBar() {
         setIsLoading(false);
       }
     }),
-    [request, requestEditor, addResponse]
+    [request, addResponse]
   );
 
   const saveRequest = useCallback(
@@ -65,12 +64,12 @@ export function MainTopBar() {
 
       // save request draft with the current editor content
       console.info('Saving request:', request);
-      await eventService.saveRequest(request, requestEditor?.getValue());
+      await eventService.saveRequest(request, REQUEST_MODEL.getValue());
 
       // override existing request with the saved draft
       updateRequest(await eventService.saveChanges(request), true);
     }),
-    [request, requestEditor]
+    [request]
   );
 
   // useEffect to reset error state when URL and method are valid

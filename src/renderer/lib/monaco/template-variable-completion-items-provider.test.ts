@@ -24,6 +24,12 @@ vi.mock('monaco-editor', () => ({
       Invoke: 3,
     },
   },
+  editor: {
+    createModel: vi.fn(),
+  },
+  Uri: {
+    parse: vi.fn(),
+  },
 }));
 
 const completionItemsProvider = new TemplateVariableCompletionItemsProvider();

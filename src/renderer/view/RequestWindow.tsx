@@ -10,7 +10,7 @@ export function RequestWindow() {
   const handleAddNewRequest = useCallback(
     (event: MouseEvent) => {
       event.stopPropagation();
-      addNewRequest('');
+      addNewRequest();
     },
     [addNewRequest]
   );

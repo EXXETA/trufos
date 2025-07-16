@@ -1,10 +1,11 @@
+import { REQUEST_MODEL } from '@/lib/monaco/models';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { isRequestInAParentFolder, setRequestTextBody } from '@/state/helper/collectionUtil';
 import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
 import { editor } from 'monaco-editor';
-import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
+import { isCollection, isRequest, TrufosObject } from 'shim/objects';
 import { AuthorizationInformation } from 'shim/objects/auth';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -15,17 +16,18 @@ import { immer } from 'zustand/middleware/immer';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
-  console.info('Saving currently opened request before closing');
-  const state = useCollectionStore.getState();
-  const request = selectRequest(state);
-  if (request != null && request.draft) {
-    console.debug(`Saving request with ID ${request.id}`);
-    await eventService.saveRequest(
-      request,
-      useCollectionStore.getState().requestEditor?.getValue()
-    );
+  try {
+    console.info('Saving current request body');
+    const request = selectRequest(useCollectionStore.getState());
+    if (request != null && request.draft) {
+      console.debug(`Saving request with ID ${request.id}`);
+      await eventService.saveRequest(request, REQUEST_MODEL.getValue());
+    }
+  } catch (error) {
+    console.error('Error while saving request before closing:', error);
+  } finally {
+    eventService.emit('ready-to-close');
   }
-  eventService.emit('ready-to-close');
 });
 
 interface CollectionState {
@@ -111,11 +113,10 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
       set((state) => {
         state.requests.set(request.id, request);
-        state.selectedRequestId = request.id;
-        const parent = selectParent(state, request.parentId);
-        parent.children.push(request);
+        selectParent(state, request.parentId).children.push(request);
       });
-      get().setFolderOpen(parentId);
+
+      get().setSelectedRequest(request.id);
     },
 
     updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) =>
@@ -145,36 +146,29 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       setRequestBody({ ...body, mimeType });
     },
 
-    setRequestEditor: async (requestEditor) => {
-      const request = selectRequest(get());
-      if (request != null) {
-        await setRequestTextBody(requestEditor, request);
-      }
-      set({ requestEditor });
-    },
+    setRequestEditor: (requestEditor) => set({ requestEditor }),
 
     formatRequestEditorText: async () => {
-      const state = get();
-      const requestEditor = state.requestEditor;
-      if (requestEditor) {
+      const { requestEditor } = get();
+      if (requestEditor != null) {
         await requestEditor.getAction('editor.action.formatDocument').run();
       }
     },
 
     setSelectedRequest: async (id) => {
       const state = get();
-      const { selectedRequestId, requestEditor, requests } = state;
+      const { selectedRequestId, requests } = state;
+      const oldRequest = selectRequest(state);
       if (selectedRequestId === id) return;
 
       // save current request body and load new request body
-      if (requestEditor != null) {
-        const oldRequest = selectRequest(state);
-        if (oldRequest != null) {
-          await eventService.saveRequest(oldRequest, requestEditor.getValue());
-        }
-        if (id != null) {
-          await setRequestTextBody(requestEditor, requests.get(id));
-        }
+      if (oldRequest != null) {
+        await eventService.saveRequest(oldRequest, REQUEST_MODEL.getValue());
+      }
+      if (id != null) {
+        await setRequestTextBody(requests.get(id));
+      } else {
+        REQUEST_MODEL.setValue('');
       }
       set({ selectedRequestId: id });
     },

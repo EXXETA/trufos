@@ -2,9 +2,9 @@ import { REQUEST_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-sett
 import { Language } from '@/lib/monaco/language';
 import { cn } from '@/lib/utils';
 import { useCollectionActions } from '@/state/collectionStore';
-import { editor } from 'monaco-editor';
-import { useCallback } from 'react';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
+import { useEffect } from 'react';
+import { REQUEST_MODEL } from '@/lib/monaco/models';
 
 interface BodyTabTextInputProps {
   language: Language;
@@ -14,15 +14,14 @@ interface BodyTabTextInputProps {
 export default function BodyTabTextInput({ language, className }: BodyTabTextInputProps) {
   const { setRequestEditor, setDraftFlag } = useCollectionActions();
 
-  const onEditorMount = useCallback(
-    (editor: editor.ICodeEditor) => {
-      setRequestEditor(editor);
-      editor.onDidChangeModelContent((e) => {
-        if (e.isFlush) return;
+  // using this instead of onChange() event to avoid receiving the whole editor content
+  useEffect(
+    () =>
+      REQUEST_MODEL.onDidChangeContent((e) => {
+        if (e.isFlush) return; // ignore initial load events
         setDraftFlag();
-      });
-    },
-    [setRequestEditor, setDraftFlag]
+      }).dispose,
+    []
   );
 
   return (
@@ -31,9 +30,7 @@ export default function BodyTabTextInput({ language, className }: BodyTabTextInp
       className={cn('absolute h-full', className)}
       options={REQUEST_EDITOR_OPTIONS}
       language={language}
-      onMount={(editor) => {
-        onEditorMount(editor);
-      }}
+      onMount={setRequestEditor}
     />
   );
 }
