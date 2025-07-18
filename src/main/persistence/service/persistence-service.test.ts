@@ -1,27 +1,27 @@
-import { Collection } from 'shim/objects/collection';
-import path from 'node:path';
-import { generateDefaultCollection } from './default-collection';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { Folder } from 'shim/objects/folder';
+import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { Readable } from 'node:stream';
+import { Collection } from 'shim/objects/collection';
+import { Folder } from 'shim/objects/folder';
 import {
   DRAFT_TEXT_BODY_FILE_NAME,
   RequestBodyType,
-  TrufosRequest,
   TEXT_BODY_FILE_NAME,
+  TrufosRequest,
 } from 'shim/objects/request';
-import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
 import { RequestMethod } from 'shim/objects/request-method';
-import { Readable } from 'node:stream';
-import { vi, describe, it, beforeEach, expect } from 'vitest';
-import { exists, USER_DATA_DIR } from 'main/util/fs-util';
+import { VariableMap, VariableObject } from 'shim/objects/variables';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateDefaultCollection } from './default-collection';
+import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
 import {
   getInfoFileName,
   getSecretsFileName,
   HIDDEN_FILE_PREFIX,
   PersistenceService,
 } from './persistence-service';
-import { VariableMap, VariableObject } from 'shim/objects/variables';
 
 const persistenceService = PersistenceService.instance;
 
@@ -47,6 +47,21 @@ function getExampleFolder(parentId: string): Folder {
     children: [],
     parentId,
   };
+}
+
+function getExampleFolderWithChildren(parentId: string): Folder {
+  const folder = getExampleFolder(parentId);
+
+  const childFolder = getExampleFolder(folder.id);
+  const childFolderRequest = getExampleRequest(childFolder.id);
+  childFolder.children.push(childFolderRequest);
+
+  const childRequest = getExampleRequest(folder.id);
+
+  folder.children.push(childFolder);
+  folder.children.push(childRequest);
+
+  return folder;
 }
 
 function getExampleRequest(parentId: string): TrufosRequest {
@@ -304,6 +319,57 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(await exists(folderInfoFilePath)).toBe(true);
+  });
+
+  it("saveFolder() should save the folder's children recursively", async () => {
+    // Arrange
+    const folder = getExampleFolderWithChildren(collection.id);
+    collection.children.push(folder);
+    const folderInfoFilePath = path.join(
+      collection.dirPath,
+      folder.title,
+      getInfoFileName(folder.type)
+    );
+    const childRequestFilePath = path.join(
+      collection.dirPath,
+      folder.title,
+      folder.children[1].title,
+      getInfoFileName('request')
+    );
+    const childFolderInfoFilePath = path.join(
+      collection.dirPath,
+      folder.title,
+      folder.children[0].title,
+      getInfoFileName('folder')
+    );
+    const childFolderRequestInfoFilePath = path.join(
+      collection.dirPath,
+      folder.title,
+      folder.children[0].title,
+      (folder.children[0] as Folder).children[0].title,
+      getInfoFileName('request')
+    );
+
+    await persistenceService.saveCollectionRecursive(collection);
+    await rm(folderInfoFilePath);
+    await rm(childRequestFilePath);
+    await rm(childFolderInfoFilePath);
+    await rm(childFolderRequestInfoFilePath);
+
+    // Assert
+    expect(await exists(folderInfoFilePath)).toBe(false);
+    expect(await exists(childRequestFilePath)).toBe(false);
+    expect(await exists(childFolderInfoFilePath)).toBe(false);
+    expect(await exists(childFolderRequestInfoFilePath)).toBe(false);
+
+    // Act
+    await persistenceService.saveFolder(folder, true);
+
+    // Assert
+    expect(await exists(folderInfoFilePath)).toBe(true);
+    expect(await exists(childRequestFilePath)).toBe(true);
+    expect(await exists(childFolderInfoFilePath)).toBe(true);
+    expect(await exists(childFolderRequestInfoFilePath)).toBe(true);
   });
 
   it('saveCollectionRecursive() should save the collection and its children', async () => {

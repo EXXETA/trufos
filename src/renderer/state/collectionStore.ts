@@ -1,6 +1,11 @@
 import { REQUEST_MODEL } from '@/lib/monaco/models';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { isRequestInAParentFolder, setRequestTextBody } from '@/state/helper/collectionUtil';
+import {
+  copyFolder,
+  copyTrufosRequest,
+  isRequestInAParentFolder,
+  setRequestTextBody,
+} from '@/state/helper/collectionUtil';
 import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
@@ -203,6 +208,20 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       eventService.saveRequest(request);
     },
 
+    copyRequest: async (id) => {
+      const request = selectRequest(get(), id);
+      if (request === null) return;
+
+      const requestCopy = copyTrufosRequest(request);
+      const savedRequest = await eventService.saveRequest(requestCopy);
+
+      set((state) => {
+        state.requests.set(savedRequest.id, savedRequest);
+        const parent = selectParent(state, request.parentId);
+        parent.children.push(savedRequest);
+      });
+    },
+
     addHeader: () =>
       set((state) => {
         selectHeaders(state).push({ key: '', value: '', isActive: true });
@@ -321,6 +340,18 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       });
       const folder = selectFolder(get(), id);
       eventService.saveFolder(folder);
+    },
+
+    copyFolder: async (id) => {
+      const folder = selectFolder(get(), id);
+      if (folder === null) return;
+
+      const folderCopy = copyFolder(folder);
+      await eventService.saveFolder(folderCopy, true);
+
+      const collection = await eventService.loadCollection(true);
+      const { initialize } = get();
+      initialize(collection);
     },
 
     isFolderOpen: (id) => get().openFolders.has(id),

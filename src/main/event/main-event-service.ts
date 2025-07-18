@@ -1,13 +1,13 @@
-import './stream-events';
-import { IEventService } from 'shim/event-service';
-import { HttpService } from 'main/network/service/http-service';
-import { app, ipcMain, dialog } from 'electron';
-import { TrufosRequest } from 'shim/objects/request';
-import { PersistenceService } from '../persistence/service/persistence-service';
-import { TrufosObject } from 'shim/objects';
+import { app, dialog, ipcMain } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { VariableMap } from 'shim/objects/variables';
+import { HttpService } from 'main/network/service/http-service';
+import { IEventService } from 'shim/event-service';
+import { TrufosObject } from 'shim/objects';
 import { Folder } from 'shim/objects/folder';
+import { TrufosRequest } from 'shim/objects/request';
+import { VariableMap } from 'shim/objects/variables';
+import { PersistenceService } from '../persistence/service/persistence-service';
+import './stream-events';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -121,8 +121,8 @@ export class MainEventService implements IEventService {
     environmentService.currentEnvironmentKey = key;
   }
 
-  async saveFolder(folder: Folder) {
-    await persistenceService.saveFolder(folder);
+  async saveFolder(folder: Folder, recursive: boolean = false) {
+    await persistenceService.saveFolder(folder, recursive);
   }
 
   async openCollection(dirPath: string) {

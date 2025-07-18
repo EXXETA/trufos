@@ -1,6 +1,22 @@
-import path from 'node:path';
-import fs from 'node:fs/promises';
+import { exists } from 'main/util/fs-util';
+import { assign } from 'main/util/object-util';
+import { SemVer } from 'main/util/semver';
+import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
+import fs from 'node:fs/promises';
+import { EOL } from 'node:os';
+import path from 'node:path';
+import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
+import { Collection } from 'shim/objects/collection';
+import { Folder } from 'shim/objects/folder';
+import {
+  DRAFT_TEXT_BODY_FILE_NAME,
+  RequestBodyType,
+  TEXT_BODY_FILE_NAME,
+  TextBody,
+  TrufosRequest,
+} from 'shim/objects/request';
+import { generateDefaultCollection } from './default-collection';
 import {
   CollectionInfoFile,
   extractSecrets,
@@ -13,25 +29,9 @@ import {
   toInfoFile,
   VERSION,
 } from './info-files/latest';
-import { Collection } from 'shim/objects/collection';
-import { Folder } from 'shim/objects/folder';
-import {
-  DRAFT_TEXT_BODY_FILE_NAME,
-  RequestBodyType,
-  TrufosRequest,
-  TEXT_BODY_FILE_NAME,
-  TextBody,
-} from 'shim/objects/request';
-import { exists } from 'main/util/fs-util';
-import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
-import { generateDefaultCollection } from './default-collection';
-import { randomUUID } from 'node:crypto';
 import { migrateInfoFile } from './info-files/migrators';
-import { SemVer } from 'main/util/semver';
-import { SettingsService } from './settings-service';
-import { EOL } from 'node:os';
 import { SecretService } from './secret-service';
-import { assign } from 'main/util/object-util';
+import { SettingsService } from './settings-service';
 
 export const HIDDEN_FILE_PREFIX = '~';
 
@@ -163,10 +163,21 @@ export class PersistenceService {
 
   /**
    * Saves the given folder to the file system.
-   * @param folder the folder to save
+   * @param folder The folder to save.
+   * @param recursive Whether to also save all children of the folder recursively. Defaults to false.
    */
-  public async saveFolder(folder: Folder) {
+  public async saveFolder(folder: Folder, recursive: boolean = false) {
     await this.saveInfoFile(folder, this.getOrCreateDirPath(folder), getInfoFileName(folder.type));
+
+    if (recursive) {
+      for (const child of folder.children) {
+        if (isRequest(child)) {
+          await this.saveRequest(child);
+        } else if (isFolder(child)) {
+          await this.saveFolder(child, true);
+        }
+      }
+    }
   }
 
   /**

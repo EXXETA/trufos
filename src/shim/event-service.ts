@@ -1,9 +1,9 @@
+import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
-import { Collection, CollectionBase } from './objects/collection';
 import { TrufosObject } from './objects';
+import { Collection, CollectionBase } from './objects/collection';
 import { VariableMap, VariableObject } from './objects/variables';
-import { Folder } from 'shim/objects/folder';
 
 export interface IEventService {
   /**
@@ -86,8 +86,9 @@ export interface IEventService {
   /**
    * Save the folder to the file system.
    * @param folder The folder to save.
+   * @param recursive Whether to also save all children of the folder recursively. Defaults to false.
    */
-  saveFolder(folder: Folder): void;
+  saveFolder(folder: Folder, recursive?: boolean): void;
 
   /**
    * Open an existing collection at the given directory path.

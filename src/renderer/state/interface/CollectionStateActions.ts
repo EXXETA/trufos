@@ -68,6 +68,13 @@ export interface CollectionStateActions {
   renameRequest(id: TrufosRequest['id'], title: string): void;
 
   /**
+   * Copy a request.
+   *
+   * @param id The id of the request to copy.
+   */
+  copyRequest(id: TrufosRequest['id']): void;
+
+  /**
    * Add a new header to the currently selected request
    */
   addHeader(): void;
@@ -143,6 +150,13 @@ export interface CollectionStateActions {
    * @param title the new title of the folder
    */
   renameFolder(id: Folder['id'], title: string): void;
+
+  /**
+   * Copy a folder with all its children.
+   *
+   * @param id The id of the folder to copy.
+   */
+  copyFolder(id: Folder['id']): void;
 
   /** For functionality of the sidebar */
   /**
