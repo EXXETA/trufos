@@ -1,26 +1,30 @@
 import { useCollectionStore } from '@/state/collectionStore';
-import {
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarRail,
-} from '@/components/ui/sidebar';
-import { renderChildren } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
+import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
+import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
+import { TrufosRequest } from '../../../../shim/objects/request';
+import { Folder } from '../../../../shim/objects/folder';
+import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
+
+/**
+ * Render the children of a folder or collection
+ * @param children The children to render
+ */
+export function renderChildren(children: (TrufosRequest | Folder)[]) {
+  return children.map((child) => {
+    if (child.type === 'request') {
+      return <NavRequest key={child.id} requestId={child.id} />;
+    } else if (child.type === 'folder') {
+      return <NavFolder key={child.id} folderId={child.id} />;
+    }
+  });
+}
 
 export const SidebarRequestList = () => {
   const children = useCollectionStore((state) => state.collection.children);
 
   return (
-    <div>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>{renderChildren(children)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-      <SidebarRail />
-    </div>
+    <SidebarContent className={'tabs-scrollbar max-h-[calc(100vh-157px)] overflow-y-auto'}>
+      <SidebarMenu className="gap-0">{renderChildren(children)}</SidebarMenu>
+    </SidebarContent>
   );
 };

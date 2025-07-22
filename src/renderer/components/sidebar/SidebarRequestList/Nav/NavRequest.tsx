@@ -1,5 +1,5 @@
 import { TrufosRequest } from 'shim/objects/request';
-import { SidebarMenuItem, SidebarMenuSubButton, SidebarMenuSubItem } from '@/components/ui/sidebar';
+import { SidebarMenuItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { RequestView } from '@/components/sidebar/SidebarRequestList/Nav/RequestView';
 import { useCollectionStore } from '@/state/collectionStore';
 
@@ -9,13 +9,12 @@ interface NavRequestProps {
 
 export const NavRequest = ({ requestId }: NavRequestProps) => {
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
+
   return (
-    <SidebarMenuSubItem>
+    <SidebarMenuItem className={'overflow-x-hidden hover:[background-color:#333333]'}>
       <SidebarMenuSubButton asChild isActive={requestId === selectedRequestId}>
-        <SidebarMenuItem>
-          <RequestView requestId={requestId} />
-        </SidebarMenuItem>
+        <RequestView requestId={requestId} />
       </SidebarMenuSubButton>
-    </SidebarMenuSubItem>
+    </SidebarMenuItem>
   );
 };

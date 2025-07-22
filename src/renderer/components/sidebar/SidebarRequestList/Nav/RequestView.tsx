@@ -18,17 +18,19 @@ export const RequestView = ({ requestId }: SidebarRequestListProps) => {
       className={cn(
         'sidebar-request-list-item',
         'cursor-pointer',
-        'flex-row',
-        'justify-between',
-        'inline-flex',
-        'py-2',
+        'flex',
+        'py-3.5',
         'px-6',
         'gap-2'
       )}
       onClick={handleMouseEvent(() => setSelectedRequest(requestId))}
     >
-      <div className={cn('font-bold', httpMethodColor(request.method))}>{request.method}</div>
-      <p>{request.title ?? request.url}</p>
+      <div className={cn('text-xs font-bold leading-3', httpMethodColor(request.method))}>
+        {request.method}
+      </div>
+
+      <p className="text-xs leading-3">{request.title ?? request.url}</p>
+
       <RequestDropdown request={request} />
     </span>
   );
