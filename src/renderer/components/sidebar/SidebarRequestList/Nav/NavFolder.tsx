@@ -1,29 +1,14 @@
 import { Folder } from 'shim/objects/folder';
-import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
-import React from 'react';
-import { SidebarMenuSub, SidebarMenuSubButton } from '@/components/ui/sidebar';
+import { SidebarGroup, SidebarMenuSub, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FaRegFolderClosed, FaRegFolderOpen } from 'react-icons/fa6';
 import { FolderDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/FolderDropdown';
 import { selectFolder, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { TrufosRequest } from 'shim/objects/request';
+import { renderChildren } from '@/components/sidebar/SidebarRequestList/SidebarRequestList';
+import { cn } from '@/lib/utils';
+import { FolderIcon, SmallArrow } from '@/components/icons';
 
 interface NavFolderProps {
   folderId: Folder['id'];
-}
-
-/**
- * Render the children of a folder or collection
- * @param children The children to render
- */
-export function renderChildren(children: (TrufosRequest | Folder)[]) {
-  return children.map((child) => {
-    if (child.type === 'request') {
-      return <NavRequest key={child.id} requestId={child.id} />;
-    } else if (child.type === 'folder') {
-      return <NavFolder key={child.id} folderId={child.id} />;
-    }
-  });
 }
 
 export const NavFolder = ({ folderId }: NavFolderProps) => {
@@ -40,16 +25,54 @@ export const NavFolder = ({ folderId }: NavFolderProps) => {
       onOpenChange={(open) => (open ? setFolderOpen(folderId) : setFolderClose(folderId))}
       className="group/collapsible"
     >
-      <SidebarMenuSub>
+      <SidebarGroup className={cn('overflow-x-hidden p-0')}>
         <CollapsibleTrigger asChild>
-          <SidebarMenuSubButton>
-            {isFolderOpen ? <FaRegFolderOpen /> : <FaRegFolderClosed />}
-            <span>{folder.title}</span>
+          <SidebarMenuSubButton
+            className={cn(
+              'sidebar-request-list-item',
+              'flex',
+              'items-center',
+              'py-2',
+              'px-5',
+              'cursor-pointer',
+              'gap-1',
+              'hover:[background-color:#333333]'
+            )}
+          >
+            <div
+              className={cn(
+                'h-6 w-6',
+                'transition-transform duration-300 ease-in-out',
+                isFolderOpen ? 'rotate-0' : 'rotate-[270deg]'
+              )}
+            >
+              <SmallArrow size={24} />
+            </div>
+
+            <div className="flex items-center gap-1">
+              <FolderIcon size={16} />
+
+              <span>{folder.title}</span>
+            </div>
+
             <FolderDropdown folder={folder} />
           </SidebarMenuSubButton>
         </CollapsibleTrigger>
-        <CollapsibleContent>{renderChildren(children)}</CollapsibleContent>
-      </SidebarMenuSub>
+
+        <CollapsibleContent>
+          <SidebarMenuSub
+            className={cn(
+              'p-0'
+              // TODO: provide decent animation
+              // 'overflow-hidden transition-all duration-300 ease-in-out',
+              // 'data-[state=open]:animate-in',
+              // 'data-[state=closed]:animate-out'
+            )}
+          >
+            {renderChildren(children)}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarGroup>
     </Collapsible>
   );
 };

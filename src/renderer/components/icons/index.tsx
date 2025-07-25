@@ -75,3 +75,18 @@ export const GithubIcon = svgToIcon(
   ),
   { viewBox: '0 0 24 24' }
 );
+
+export const FolderIcon = svgToIcon(
+  () => (
+    <path
+      fill="none"
+      stroke="#eee"
+      strokeLinejoin="round"
+      strokeLinecap="butt"
+      strokeMiterlimit="4"
+      strokeWidth="1.3333"
+      d="M6.667 5.333h5.333l4 4h9.333c0.707 0 1.385 0.281 1.885 0.781s0.781 1.179 0.781 1.885v10.667c0 0.707-0.281 1.385-0.781 1.885s-1.179 0.781-1.885 0.781h-18.667c-0.707 0-1.385-0.281-1.885-0.781s-0.781-1.179-0.781-1.885v-14.667c0-0.707 0.281-1.385 0.781-1.885s1.179-0.781 1.885-0.781z"
+    ></path>
+  ),
+  { viewBox: '0 0 32 32' }
+);

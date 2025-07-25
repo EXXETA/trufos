@@ -6,12 +6,10 @@ import { SidebarRequestList } from '@/components/sidebar/SidebarRequestList/Side
 
 export const Menubar = () => {
   return (
-    <div className="h-full">
-      <Sidebar collapsible={'none'}>
-        <SidebarHeaderBar />
-        <SidebarRequestList />
-        <FooterBar />
-      </Sidebar>
-    </div>
+    <Sidebar className={'flex h-screen flex-col'} collapsible={'none'}>
+      <SidebarHeaderBar />
+      <SidebarRequestList />
+      <FooterBar />
+    </Sidebar>
   );
 };

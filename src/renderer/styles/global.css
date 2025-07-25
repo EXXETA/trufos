@@ -10,23 +10,23 @@
 }
 
 .http-method-color-get {
-  color: #97E87F;
+  color: #93f176;
 }
 
 .http-method-color-put {
-  color: #6AC8E7;
+  color: #37abff;
 }
 
 .http-method-color-post {
-  color: #8CA5FF;
+  color: #9f72fe;
 }
 
 .http-method-color-delete {
-  color: #E36873;
+  color: #ee5c99;
 }
 
 .http-method-color-patch {
-  color: #EBBA6B;
+  color: #efa349;
 }
 
 /* Tabs scrollbar styles */
@@ -62,8 +62,8 @@ body {
 }
 
 .sidebar-request-list-item {
-  color: #999999;
-  font-size: 14px;
+  color: #bbbbbb;
+  font-size: 12px;
 }
 
 .sidebar-request-list-item.selected {
