@@ -1,8 +1,8 @@
 import { useCollectionStore } from '@/state/collectionStore';
 import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
 import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
-import { TrufosRequest } from '../../../../shim/objects/request';
-import { Folder } from '../../../../shim/objects/folder';
+import { TrufosRequest } from 'shim/objects/request';
+import { Folder } from 'shim/objects/folder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
 
 /**
@@ -23,7 +23,7 @@ export const SidebarRequestList = () => {
   const children = useCollectionStore((state) => state.collection.children);
 
   return (
-    <SidebarContent className={'tabs-scrollbar max-h-[calc(100vh-157px)] overflow-y-auto'}>
+    <SidebarContent className={'tabs-scrollbar flex-1 overflow-y-auto'}>
       <SidebarMenu className="gap-0">{renderChildren(children)}</SidebarMenu>
     </SidebarContent>
   );
