@@ -53,14 +53,14 @@ export type FormFieldConfig =
 
 export type FormComponentConfiguration = Record<string, FormFieldConfig>;
 
-export interface FormProps<T extends Record<string, never>> {
+export interface FormProps<T extends Record<string, any>> {
   config: FormComponentConfiguration;
   form: T;
   onFormChanged: (delta: Partial<T>) => void;
   className?: string;
 }
 
-export const ModularForm = <T extends Record<string, never>>({
+export const ModularForm = <T extends Record<string, any>>({
   config,
   className,
   form,
