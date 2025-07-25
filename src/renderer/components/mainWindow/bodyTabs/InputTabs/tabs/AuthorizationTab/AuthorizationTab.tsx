@@ -13,6 +13,7 @@ import {
   OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
+  OAuth2PKCECodeChallengeMethod,
 } from 'shim/objects/auth/oauth2';
 
 const AUTHORIZATION_NONE = 'none' as const;
@@ -81,6 +82,7 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
       options: [
         { value: OAuth2Method.CLIENT_CREDENTIALS, label: 'Client Credentials' },
         { value: OAuth2Method.AUTHORIZATION_CODE, label: 'Authorization Code' },
+        { value: OAuth2Method.AUTHORIZATION_CODE_PKCE, label: 'Authorization Code with PKCE' },
       ],
     },
   },
@@ -124,9 +126,124 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
     },
   },
   [OAuth2Method.AUTHORIZATION_CODE]: {
-    description: {
-      type: 'label',
-      text: 'OAuth 2.0 Authorization Code flow is not yet implemented.',
+    clientId: {
+      type: 'text',
+      label: 'Client ID',
+      placeholder: 'Enter client ID',
+    },
+    clientSecret: {
+      type: 'password',
+      label: 'Client Secret',
+      placeholder: 'Enter client secret',
+    },
+    authorizationUrl: {
+      type: 'text',
+      label: 'Authorization URL',
+      placeholder: 'Enter authorization URL',
+    },
+    tokenUrl: {
+      type: 'text',
+      label: 'Token URL',
+      placeholder: 'Enter token URL',
+    },
+    redirectUri: {
+      type: 'text',
+      label: 'Redirect URI',
+      placeholder: 'Enter redirect URI',
+    },
+    scope: {
+      type: 'text',
+      label: 'Scope',
+      placeholder: 'Enter scopes (optional, space-separated)',
+    },
+    clientAuthenticationMethod: {
+      type: 'select',
+      label: 'Client Authentication Method',
+      options: [
+        {
+          value: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
+          label: 'Send Credentials as Basic Auth Header',
+        },
+        {
+          value: OAuth2ClientAuthenticationMethod.REQUEST_BODY,
+          label: 'Send Credentials in Request Body',
+        },
+      ],
+    },
+    state: {
+      type: 'text',
+      label: 'State',
+      placeholder: 'Enter state (optional, will be generated if empty)',
+    },
+  },
+  [OAuth2Method.AUTHORIZATION_CODE_PKCE]: {
+    clientId: {
+      type: 'text',
+      label: 'Client ID',
+      placeholder: 'Enter client ID',
+    },
+    clientSecret: {
+      type: 'password',
+      label: 'Client Secret',
+      placeholder: 'Enter client secret (optional for PKCE)',
+    },
+    authorizationUrl: {
+      type: 'text',
+      label: 'Authorization URL',
+      placeholder: 'Enter authorization URL',
+    },
+    tokenUrl: {
+      type: 'text',
+      label: 'Token URL',
+      placeholder: 'Enter token URL',
+    },
+    redirectUri: {
+      type: 'text',
+      label: 'Redirect URI',
+      placeholder: 'Enter redirect URI',
+    },
+    scope: {
+      type: 'text',
+      label: 'Scope',
+      placeholder: 'Enter scopes (optional, space-separated)',
+    },
+    clientAuthenticationMethod: {
+      type: 'select',
+      label: 'Client Authentication Method',
+      options: [
+        {
+          value: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
+          label: 'Send Credentials as Basic Auth Header',
+        },
+        {
+          value: OAuth2ClientAuthenticationMethod.REQUEST_BODY,
+          label: 'Send Credentials in Request Body',
+        },
+      ],
+    },
+    codeChallengeMethod: {
+      type: 'select',
+      label: 'Code Challenge Method',
+      options: [
+        {
+          value: OAuth2PKCECodeChallengeMethod.S256,
+          label: 'S256 (Recommended)',
+        },
+        {
+          value: OAuth2PKCECodeChallengeMethod.PLAIN,
+          label: 'Plain',
+        },
+      ],
+    },
+    codeVerifier: {
+      type: 'text',
+      label: 'Code Verifier',
+      placeholder: 'Enter code verifier (optional, will be generated if empty)',
+    },
+    state: {
+      type: 'text',
+      label: 'State',
+      placeholder: 'Enter state (optional, will be generated if empty)',
     },
   },
 };
