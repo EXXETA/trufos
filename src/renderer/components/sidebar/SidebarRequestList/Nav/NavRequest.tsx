@@ -9,9 +9,12 @@ interface NavRequestProps {
 
 export const NavRequest = ({ requestId }: NavRequestProps) => {
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
+  const isHighlighted = selectedRequestId === requestId;
 
   return (
-    <SidebarMenuItem className={'overflow-x-hidden hover:bg-divider'}>
+    <SidebarMenuItem
+      className={`overflow-x-hidden hover:bg-divider ${isHighlighted && 'bg-divider'}`}
+    >
       <SidebarMenuSubButton asChild isActive={requestId === selectedRequestId}>
         <RequestView requestId={requestId} />
       </SidebarMenuSubButton>
