@@ -141,11 +141,6 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
       label: 'Authorization URL',
       placeholder: 'Enter authorization URL',
     },
-    tokenUrl: {
-      type: 'text',
-      label: 'Token URL',
-      placeholder: 'Enter token URL',
-    },
     redirectUri: {
       type: 'text',
       label: 'Redirect URI',
@@ -191,11 +186,6 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
       type: 'text',
       label: 'Authorization URL',
       placeholder: 'Enter authorization URL',
-    },
-    tokenUrl: {
-      type: 'text',
-      label: 'Token URL',
-      placeholder: 'Enter token URL',
     },
     redirectUri: {
       type: 'text',

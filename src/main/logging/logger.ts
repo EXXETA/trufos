@@ -25,7 +25,6 @@ declare global {
 
 class SplatFormat implements Format {
   transform(info: TransformableInfoExtended) {
-    console.log(info);
     if (info instanceof Error) {
       info.message = info.stack ?? info.message;
       return info;
