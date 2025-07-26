@@ -4,5 +4,6 @@ export interface LogEntry {
   level: LogLevel;
   message: string;
   process: 'renderer' | 'main';
+  isSecret?: boolean;
   splat: unknown[];
 }
