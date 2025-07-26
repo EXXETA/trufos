@@ -12,43 +12,42 @@ export enum OAuth2ClientAuthenticationMethod {
   REQUEST_BODY = 'request-body',
 }
 
-export type Oauth2BaseAuthorizationInformation = {
+export interface Oauth2BaseAuthorizationInformation<T extends OAuth2Method> {
   type: AuthorizationType.OAUTH2;
-  method: OAuth2Method;
+  method: T;
   clientId: string;
   clientSecret: string;
-  tokenUrl: string;
   scope: string;
   clientAuthenticationMethod: OAuth2ClientAuthenticationMethod;
 
   // not configurable
   tokens?: TokenEndpointResponse;
-};
+}
 
-export type OAuth2ClientCrentialsAuthorizationInformation = Oauth2BaseAuthorizationInformation & {
-  method: OAuth2Method.CLIENT_CREDENTIALS;
-};
+export interface OAuth2ClientCrentialsAuthorizationInformation
+  extends Oauth2BaseAuthorizationInformation<OAuth2Method.CLIENT_CREDENTIALS> {
+  tokenUrl: string;
+}
 
-export type OAuth2ClientAuthorizationCodeFlowInformation = Oauth2BaseAuthorizationInformation & {
-  method: OAuth2Method.AUTHORIZATION_CODE;
+export interface OAuth2ClientAuthorizationCodeFlowInformation<
+  T extends OAuth2Method = OAuth2Method.AUTHORIZATION_CODE,
+> extends Oauth2BaseAuthorizationInformation<T> {
   authorizationUrl: string;
   redirectUri: string;
   state?: string; // generated if not provided
-};
+}
 
 export enum OAuth2PKCECodeChallengeMethod {
   S256 = 'S256',
   PLAIN = 'plain',
 }
 
-export type OAuth2ClientAuthorizationCodeFlowPKCEInformation =
-  OAuth2ClientAuthorizationCodeFlowInformation & {
-    method: OAuth2Method.AUTHORIZATION_CODE_PKCE;
-    authorizationUrl: string;
-    redirectUri: string;
-    codeChallengeMethod: OAuth2PKCECodeChallengeMethod;
-    codeVerifier?: string; // generated if not provided
-  };
+export interface OAuth2ClientAuthorizationCodeFlowPKCEInformation
+  extends OAuth2ClientAuthorizationCodeFlowInformation<OAuth2Method.AUTHORIZATION_CODE_PKCE> {
+  method: OAuth2Method.AUTHORIZATION_CODE_PKCE;
+  codeChallengeMethod: OAuth2PKCECodeChallengeMethod;
+  codeVerifier?: string; // generated if not provided
+}
 
 export type OAuth2AuthorizationInformation =
   | OAuth2ClientCrentialsAuthorizationInformation

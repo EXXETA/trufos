@@ -9,10 +9,7 @@ export default class AuthCodeFlowAuthorizationStrategy extends OAuth2AuthStrateg
     let redirectUrl: URL | undefined;
 
     // Create the browser window.
-    const window = new BrowserWindow({
-      frame: false,
-      titleBarStyle: 'hidden',
-    });
+    const window = new BrowserWindow({ titleBarStyle: 'hidden' });
 
     // intercept the callback URL to get the auth code
     window.webContents.session.webRequest.onBeforeRequest(
