@@ -1,6 +1,7 @@
 import {
   OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
+  OAuth2Method,
 } from 'shim/objects/auth/oauth2';
 import AuthStrategy from '../auth-strategy';
 import {
@@ -8,8 +9,10 @@ import {
   ClientSecretBasic,
   ClientSecretPost,
   Configuration,
+  customFetch,
   discovery,
 } from 'openid-client';
+import Undici, { RequestInit } from 'undici';
 
 export default abstract class OAuth2AuthStrategy<
   T extends OAuth2AuthorizationInformation,
@@ -41,12 +44,17 @@ export default abstract class OAuth2AuthStrategy<
         break;
     }
 
-    // prepare confiugration
+    // prepare configuration
     return new Configuration(
       {
-        issuer: new URL(this.authInfo.tokenUrl).origin,
+        // @ts-expect-error one of these is defined
+        issuer: new URL(this.authInfo.tokenUrl ?? this.authInfo.authorizationUrl).origin,
+        // @ts-expect-error may be undefined
+        authorization_endpoint: this.authInfo.authorizationUrl,
+        // @ts-expect-error may be undefined
         token_endpoint: this.authInfo.tokenUrl,
         client_id: this.authInfo.clientId,
+        [customFetch]: this.fetch,
       },
       this.authInfo.clientId,
       this.authInfo.clientSecret,
@@ -67,6 +75,20 @@ export default abstract class OAuth2AuthStrategy<
       );
     }
 
-    this.authInfo.tokenUrl = metadata.token_endpoint;
+    if (this.authInfo.method === OAuth2Method.CLIENT_CREDENTIALS) {
+      this.authInfo.tokenUrl = metadata.token_endpoint;
+    } else {
+      this.authInfo.authorizationUrl = metadata.authorization_endpoint ?? '';
+      this.authInfo.redirectUri = this.authInfo.redirectUri;
+    }
+  }
+
+  private fetch(url: string, init?: RequestInit) {
+    logger.secret.info('OAuth request', {
+      url,
+      headers: init?.headers,
+      body: init?.body,
+    });
+    return Undici.fetch(url, init);
   }
 }
