@@ -17,16 +17,19 @@ export function FooterBar() {
     <SidebarFooter className="mt-auto">
       <Divider />
       <div className="flex items-center justify-between">
-        {/* Version text on the left */}
-        <span className="text-xs text-gray-500">{appVersion ?? null}</span>
+        {/* Settings and icon on the left */}
+        <div className="flex items-center gap-2">
+          <SettingsModal />
+          <span className="text-xs text-gray-500">Settings</span>
+        </div>
 
-        <div className="flex items-center gap-1">
-          {/* Icons on the right */}
+        <div className="flex items-center gap-2">
+          {/* Icons and version on the right */}
+          <span className="text-xs text-gray-500">{appVersion ?? null}</span>
           {/* GitHub Icon */}
           <a href="https://github.com/EXXETA/trufos" target="_blank" rel="noopener noreferrer">
             <GithubIcon /> {/* Adjust the size as needed */}
           </a>
-          <SettingsModal />
         </div>
       </div>
     </SidebarFooter>
