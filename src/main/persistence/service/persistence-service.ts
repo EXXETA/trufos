@@ -178,6 +178,13 @@ export class PersistenceService {
       await fs.copyFile(originalTextBodyPath, path.join(requestCopyDirPath, TEXT_BODY_FILE_NAME));
     }
 
+    const secretsFileName = getSecretsFileName();
+    const secretsFilePath = path.join(requestDirPath, secretsFileName);
+
+    if (await exists(secretsFilePath)) {
+      await fs.copyFile(secretsFilePath, path.join(requestCopyDirPath, secretsFileName));
+    }
+
     return requestCopy;
   }
 

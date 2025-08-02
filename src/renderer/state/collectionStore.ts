@@ -207,13 +207,11 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       const request = selectRequest(get(), id);
       if (request === null) return;
 
-      const copiedRequest = await eventService.copyRequest(request);
+      await eventService.copyRequest(request);
 
-      set((state) => {
-        state.requests.set(copiedRequest.id, copiedRequest);
-        const parent = selectParent(state, request.parentId);
-        parent.children.push(copiedRequest);
-      });
+      const collection = await eventService.loadCollection(true);
+      const { initialize } = get();
+      initialize(collection);
     },
 
     addHeader: () =>
