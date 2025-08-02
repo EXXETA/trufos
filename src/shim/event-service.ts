@@ -36,6 +36,14 @@ export interface IEventService {
   saveRequest(request: TrufosRequest, textBody?: string): Promise<TrufosRequest>;
 
   /**
+   * Copies the given request and returns the copied request.
+   * If the request has a non-draft request body, it is copied as well.
+   *
+   * @param request The request to copy.
+   */
+  copyRequest(request: TrufosRequest): Promise<TrufosRequest>;
+
+  /**
    * Save changes of the given trufos request to the file system.
    * @param request The request to save.
    * @returns The saved request.
@@ -86,9 +94,16 @@ export interface IEventService {
   /**
    * Save the folder to the file system.
    * @param folder The folder to save.
-   * @param recursive Whether to also save all children of the folder recursively. Defaults to false.
    */
-  saveFolder(folder: Folder, recursive?: boolean): void;
+  saveFolder(folder: Folder): void;
+
+  /**
+   * Copies the given folder and all its children and returns the copied folder.
+   * If any child has a non-draft request body, it is copied as well.
+   *
+   * @param folder The folder to copy.
+   */
+  copyFolder(folder: Folder): Promise<Folder>;
 
   /**
    * Open an existing collection at the given directory path.

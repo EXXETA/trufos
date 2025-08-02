@@ -88,6 +88,10 @@ export class MainEventService implements IEventService {
     return await persistenceService.saveRequest(request, textBody);
   }
 
+  async copyRequest(request: TrufosRequest): Promise<TrufosRequest> {
+    return await persistenceService.copyRequest(request);
+  }
+
   async saveChanges(request: TrufosRequest) {
     return await persistenceService.saveChanges(request);
   }
@@ -121,8 +125,12 @@ export class MainEventService implements IEventService {
     environmentService.currentEnvironmentKey = key;
   }
 
-  async saveFolder(folder: Folder, recursive: boolean = false) {
-    await persistenceService.saveFolder(folder, recursive);
+  async saveFolder(folder: Folder) {
+    await persistenceService.saveFolder(folder);
+  }
+
+  async copyFolder(folder: Folder): Promise<Folder> {
+    return await persistenceService.copyFolder(folder);
   }
 
   async openCollection(dirPath: string) {

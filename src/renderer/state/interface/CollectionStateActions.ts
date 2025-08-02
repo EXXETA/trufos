@@ -4,8 +4,6 @@ import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { RequestBody, TrufosRequest } from 'shim/objects/request';
-import { AuthorizationInformation } from 'shim/objects/auth';
-import { TrufosObject } from 'shim/objects';
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;

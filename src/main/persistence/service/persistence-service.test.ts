@@ -321,40 +321,38 @@ describe('PersistenceService', () => {
     expect(await exists(folderInfoFilePath)).toBe(true);
   });
 
-  it("saveFolder() should save the folder's children recursively", async () => {
+  it('copyFolder() should copy the folder and its children recursively', async () => {
     // Arrange
     const folder = getExampleFolderWithChildren(collection.id);
+    const copiedFolderTitle = `${folder.title}-copy`;
     collection.children.push(folder);
+
     const folderInfoFilePath = path.join(
       collection.dirPath,
-      folder.title,
+      copiedFolderTitle,
       getInfoFileName(folder.type)
     );
     const childRequestFilePath = path.join(
       collection.dirPath,
-      folder.title,
+      copiedFolderTitle,
       folder.children[1].title,
       getInfoFileName('request')
     );
     const childFolderInfoFilePath = path.join(
       collection.dirPath,
-      folder.title,
+      copiedFolderTitle,
       folder.children[0].title,
       getInfoFileName('folder')
     );
     const childFolderRequestInfoFilePath = path.join(
       collection.dirPath,
-      folder.title,
+      copiedFolderTitle,
       folder.children[0].title,
       (folder.children[0] as Folder).children[0].title,
       getInfoFileName('request')
     );
 
     await persistenceService.saveCollectionRecursive(collection);
-    await rm(folderInfoFilePath);
-    await rm(childRequestFilePath);
-    await rm(childFolderInfoFilePath);
-    await rm(childFolderRequestInfoFilePath);
 
     // Assert
     expect(await exists(folderInfoFilePath)).toBe(false);
@@ -363,13 +361,74 @@ describe('PersistenceService', () => {
     expect(await exists(childFolderRequestInfoFilePath)).toBe(false);
 
     // Act
-    await persistenceService.saveFolder(folder, true);
+    const copiedFolder = await persistenceService.copyFolder(folder);
 
     // Assert
+    expect(copiedFolder.title).toBe(`${folder.title} (Copy)`);
+    expect(copiedFolder.id).not.toBe(folder.id);
+    expect(copiedFolder.parentId).toBe(collection.id);
+
     expect(await exists(folderInfoFilePath)).toBe(true);
     expect(await exists(childRequestFilePath)).toBe(true);
     expect(await exists(childFolderInfoFilePath)).toBe(true);
     expect(await exists(childFolderRequestInfoFilePath)).toBe(true);
+  });
+
+  it('copyRequest() should copy the request and its text body', async () => {
+    // Arrange
+    const textBody = 'example request body';
+    const request = getExampleRequest(collection.id);
+    const copiedRequestTitle = `${request.title}-copy`;
+
+    collection.children.push(request);
+
+    const requestInfoFilePath = path.join(
+      collection.dirPath,
+      request.title,
+      getInfoFileName(request.type)
+    );
+    const copiedRequestInfoFilePath = path.join(
+      collection.dirPath,
+      copiedRequestTitle,
+      getInfoFileName(request.type)
+    );
+    const requestTextBodyFilePath = path.join(
+      collection.dirPath,
+      request.title,
+      TEXT_BODY_FILE_NAME
+    );
+    const copiedRequestTextBodyFilePath = path.join(
+      collection.dirPath,
+      copiedRequestTitle,
+      TEXT_BODY_FILE_NAME
+    );
+
+    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveRequest(request, textBody);
+
+    // Assert
+    expect(await exists(requestInfoFilePath)).toBe(true);
+    expect(await exists(requestTextBodyFilePath)).toBe(true);
+    expect(await exists(copiedRequestInfoFilePath)).toBe(false);
+    expect(await exists(copiedRequestTextBodyFilePath)).toBe(false);
+
+    // Act
+    const copiedRequest = await persistenceService.copyRequest(request);
+
+    // Assert
+    expect(copiedRequest.title).toBe(`${request.title} (Copy)`);
+    expect(copiedRequest.id).not.toBe(request.id);
+    expect(copiedRequest.parentId).toBe(collection.id);
+    expect(copiedRequest.draft).toBe(false);
+
+    expect(await exists(copiedRequestInfoFilePath)).toBe(true);
+    expect(await exists(copiedRequestTextBodyFilePath)).toBe(true);
+
+    // Verify the text body content is the same
+    const originalTextBodyStream = await persistenceService.loadTextBodyOfRequest(request);
+    const copiedTextBodyStream = await persistenceService.loadTextBodyOfRequest(copiedRequest);
+    expect(await streamToString(originalTextBodyStream)).toBe(textBody);
+    expect(await streamToString(copiedTextBodyStream)).toBe(textBody);
   });
 
   it('saveCollectionRecursive() should save the collection and its children', async () => {

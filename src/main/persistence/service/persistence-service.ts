@@ -150,6 +150,38 @@ export class PersistenceService {
   }
 
   /**
+   * Creates a copy of the given request and saves it to the file system with a new ID.
+   *
+   * @param request the request to copy.
+   * @param addCopySuffix whether to add a '(Copy)' suffix to the request title.
+   * @param newParentId the ID of the new parent folder.
+   * @returns the copied request.
+   */
+  public async copyRequest(
+    request: TrufosRequest,
+    addCopySuffix: boolean = true,
+    newParentId?: string
+  ) {
+    const requestCopy = structuredClone(request);
+    requestCopy.id = randomUUID();
+    requestCopy.title = addCopySuffix ? `${request.title} (Copy)` : request.title;
+    requestCopy.parentId = newParentId ?? request.parentId;
+    requestCopy.draft = false;
+
+    await this.saveRequest(requestCopy);
+
+    const requestDirPath = this.getOrCreateDirPath(request);
+    const requestCopyDirPath = this.getOrCreateDirPath(requestCopy);
+    const originalTextBodyPath = path.join(requestDirPath, TEXT_BODY_FILE_NAME);
+
+    if (await exists(originalTextBodyPath)) {
+      await fs.copyFile(originalTextBodyPath, path.join(requestCopyDirPath, TEXT_BODY_FILE_NAME));
+    }
+
+    return requestCopy;
+  }
+
+  /**
    * Saves the given collection to the file system. This is not recursive.
    * @param collection the collection to save
    */
@@ -164,20 +196,37 @@ export class PersistenceService {
   /**
    * Saves the given folder to the file system.
    * @param folder The folder to save.
-   * @param recursive Whether to also save all children of the folder recursively. Defaults to false.
    */
-  public async saveFolder(folder: Folder, recursive: boolean = false) {
+  public async saveFolder(folder: Folder) {
     await this.saveInfoFile(folder, this.getOrCreateDirPath(folder), getInfoFileName(folder.type));
+  }
 
-    if (recursive) {
-      for (const child of folder.children) {
-        if (isRequest(child)) {
-          await this.saveRequest(child);
-        } else if (isFolder(child)) {
-          await this.saveFolder(child, true);
-        }
+  /**
+   * Creates a copy of the given folder and all its children and saves them to the file system.
+   * The copied folder and all its children will have new IDs.
+   *
+   * @param folder the folder to copy.
+   * @param addCopySuffix whether to add a '(Copy)' suffix to the folder title. Defaults to true.
+   * @param newParentId the ID of the new parent folder. Defaults to the current parent ID.
+   * @returns the copied folder.
+   */
+  public async copyFolder(folder: Folder, addCopySuffix: boolean = true, newParentId?: string) {
+    const folderCopy = structuredClone(folder);
+    folderCopy.id = randomUUID();
+    folderCopy.title = addCopySuffix ? `${folder.title} (Copy)` : folder.title;
+    folderCopy.parentId = newParentId ?? folder.parentId;
+
+    await this.saveFolder(folderCopy);
+
+    for (const child of folder.children) {
+      if (isFolder(child)) {
+        await this.copyFolder(child, false, folderCopy.id);
+      } else {
+        await this.copyRequest(child, false, folderCopy.id);
       }
     }
+
+    return folderCopy;
   }
 
   /**
