@@ -1,5 +1,5 @@
-import { IEventService } from 'shim/event-service';
 import { MainProcessError } from '@/error/MainProcessError';
+import { IEventService } from 'shim/event-service';
 
 /**
  * Creates a method that sends an IPC event to the main process and returns the result. If the
@@ -43,6 +43,7 @@ export class RendererEventService implements IEventService {
   }
 
   saveRequest = createEventMethod('saveRequest');
+  copyRequest = createEventMethod('copyRequest');
   sendRequest = createEventMethod('sendRequest');
   getAppVersion = createEventMethod('getAppVersion');
   loadCollection = createEventMethod('loadCollection');
@@ -53,6 +54,7 @@ export class RendererEventService implements IEventService {
   getVariable = createEventMethod('getVariable');
   setCollectionVariables = createEventMethod('setCollectionVariables');
   saveFolder = createEventMethod('saveFolder');
+  copyFolder = createEventMethod('copyFolder');
   selectEnvironment = createEventMethod('selectEnvironment');
   openCollection = createEventMethod('openCollection');
   createCollection = createEventMethod('createCollection');

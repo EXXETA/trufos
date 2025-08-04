@@ -203,6 +203,17 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       eventService.saveRequest(request);
     },
 
+    copyRequest: async (id) => {
+      const request = selectRequest(get(), id);
+      if (request === null) return;
+
+      await eventService.copyRequest(request);
+
+      const collection = await eventService.loadCollection(true);
+      const { initialize } = get();
+      initialize(collection);
+    },
+
     addHeader: () =>
       set((state) => {
         selectHeaders(state).push({ key: '', value: '', isActive: true });
@@ -321,6 +332,17 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       });
       const folder = selectFolder(get(), id);
       eventService.saveFolder(folder);
+    },
+
+    copyFolder: async (id) => {
+      const folder = selectFolder(get(), id);
+      if (folder === null) return;
+
+      await eventService.copyFolder(folder);
+
+      const collection = await eventService.loadCollection(true);
+      const { initialize } = get();
+      initialize(collection);
     },
 
     isFolderOpen: (id) => get().openFolders.has(id),

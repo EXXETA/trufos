@@ -1,27 +1,27 @@
-import { Collection } from 'shim/objects/collection';
-import path from 'node:path';
-import { generateDefaultCollection } from './default-collection';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { Folder } from 'shim/objects/folder';
+import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { Readable } from 'node:stream';
+import { Collection } from 'shim/objects/collection';
+import { Folder } from 'shim/objects/folder';
 import {
   DRAFT_TEXT_BODY_FILE_NAME,
   RequestBodyType,
-  TrufosRequest,
   TEXT_BODY_FILE_NAME,
+  TrufosRequest,
 } from 'shim/objects/request';
-import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
 import { RequestMethod } from 'shim/objects/request-method';
-import { Readable } from 'node:stream';
-import { vi, describe, it, beforeEach, expect } from 'vitest';
-import { exists, USER_DATA_DIR } from 'main/util/fs-util';
+import { VariableMap, VariableObject } from 'shim/objects/variables';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateDefaultCollection } from './default-collection';
+import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
 import {
   getInfoFileName,
   getSecretsFileName,
   HIDDEN_FILE_PREFIX,
   PersistenceService,
 } from './persistence-service';
-import { VariableMap, VariableObject } from 'shim/objects/variables';
 
 const persistenceService = PersistenceService.instance;
 
@@ -47,6 +47,21 @@ function getExampleFolder(parentId: string): Folder {
     children: [],
     parentId,
   };
+}
+
+function getExampleFolderWithChildren(parentId: string): Folder {
+  const folder = getExampleFolder(parentId);
+
+  const childFolder = getExampleFolder(folder.id);
+  const childFolderRequest = getExampleRequest(childFolder.id);
+  childFolder.children.push(childFolderRequest);
+
+  const childRequest = getExampleRequest(folder.id);
+
+  folder.children.push(childFolder);
+  folder.children.push(childRequest);
+
+  return folder;
 }
 
 function getExampleRequest(parentId: string): TrufosRequest {
@@ -304,6 +319,116 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(await exists(folderInfoFilePath)).toBe(true);
+  });
+
+  it('copyFolder() should copy the folder and its children recursively', async () => {
+    // Arrange
+    const folder = getExampleFolderWithChildren(collection.id);
+    const copiedFolderTitle = `${folder.title}-copy`;
+    collection.children.push(folder);
+
+    const folderInfoFilePath = path.join(
+      collection.dirPath,
+      copiedFolderTitle,
+      getInfoFileName(folder.type)
+    );
+    const childRequestFilePath = path.join(
+      collection.dirPath,
+      copiedFolderTitle,
+      folder.children[1].title,
+      getInfoFileName('request')
+    );
+    const childFolderInfoFilePath = path.join(
+      collection.dirPath,
+      copiedFolderTitle,
+      folder.children[0].title,
+      getInfoFileName('folder')
+    );
+    const childFolderRequestInfoFilePath = path.join(
+      collection.dirPath,
+      copiedFolderTitle,
+      folder.children[0].title,
+      (folder.children[0] as Folder).children[0].title,
+      getInfoFileName('request')
+    );
+
+    await persistenceService.saveCollectionRecursive(collection);
+
+    // Assert
+    expect(await exists(folderInfoFilePath)).toBe(false);
+    expect(await exists(childRequestFilePath)).toBe(false);
+    expect(await exists(childFolderInfoFilePath)).toBe(false);
+    expect(await exists(childFolderRequestInfoFilePath)).toBe(false);
+
+    // Act
+    const copiedFolder = await persistenceService.copyFolder(folder);
+
+    // Assert
+    expect(copiedFolder.title).toBe(`${folder.title} (Copy)`);
+    expect(copiedFolder.id).not.toBe(folder.id);
+    expect(copiedFolder.parentId).toBe(collection.id);
+
+    expect(await exists(folderInfoFilePath)).toBe(true);
+    expect(await exists(childRequestFilePath)).toBe(true);
+    expect(await exists(childFolderInfoFilePath)).toBe(true);
+    expect(await exists(childFolderRequestInfoFilePath)).toBe(true);
+  });
+
+  it('copyRequest() should copy the request and its text body', async () => {
+    // Arrange
+    const textBody = 'example request body';
+    const request = getExampleRequest(collection.id);
+    const copiedRequestTitle = `${request.title}-copy`;
+
+    collection.children.push(request);
+
+    const requestInfoFilePath = path.join(
+      collection.dirPath,
+      request.title,
+      getInfoFileName(request.type)
+    );
+    const copiedRequestInfoFilePath = path.join(
+      collection.dirPath,
+      copiedRequestTitle,
+      getInfoFileName(request.type)
+    );
+    const requestTextBodyFilePath = path.join(
+      collection.dirPath,
+      request.title,
+      TEXT_BODY_FILE_NAME
+    );
+    const copiedRequestTextBodyFilePath = path.join(
+      collection.dirPath,
+      copiedRequestTitle,
+      TEXT_BODY_FILE_NAME
+    );
+
+    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveRequest(request, textBody);
+
+    // Assert
+    expect(await exists(requestInfoFilePath)).toBe(true);
+    expect(await exists(requestTextBodyFilePath)).toBe(true);
+    expect(await exists(copiedRequestInfoFilePath)).toBe(false);
+    expect(await exists(copiedRequestTextBodyFilePath)).toBe(false);
+
+    // Act
+    const copiedRequest = await persistenceService.copyRequest(request);
+
+    // Assert
+    expect(copiedRequest.title).toBe(`${request.title} (Copy)`);
+    expect(copiedRequest.id).not.toBe(request.id);
+    expect(copiedRequest.parentId).toBe(collection.id);
+    expect(copiedRequest.draft).toBe(false);
+
+    expect(await exists(copiedRequestInfoFilePath)).toBe(true);
+    expect(await exists(copiedRequestTextBodyFilePath)).toBe(true);
+
+    // Verify the text body content is the same
+    const originalTextBodyStream = await persistenceService.loadTextBodyOfRequest(request);
+    const copiedTextBodyStream = await persistenceService.loadTextBodyOfRequest(copiedRequest);
+    expect(await streamToString(originalTextBodyStream)).toBe(textBody);
+    expect(await streamToString(copiedTextBodyStream)).toBe(textBody);
   });
 
   it('saveCollectionRecursive() should save the collection and its children', async () => {

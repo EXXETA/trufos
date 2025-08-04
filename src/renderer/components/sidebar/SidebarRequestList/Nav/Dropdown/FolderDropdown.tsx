@@ -18,7 +18,7 @@ export interface FolderDropdownProps {
 }
 
 export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
-  const { deleteFolder } = useCollectionActions();
+  const { copyFolder, deleteFolder } = useCollectionActions();
   const [renameModalIsOpen, setRenameModalIsOpen] = useState(false);
   const [isCreateModal, setIsCreateModal] = useState<null | 'folder' | 'request'>(null);
 
@@ -51,6 +51,10 @@ export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
 
           <DropdownMenuItem onClick={handleMouseEvent(() => openModal(null))}>
             Rename Folder
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={handleMouseEvent(() => copyFolder(folder.id))}>
+            Copy Folder
           </DropdownMenuItem>
 
           <DropdownMenuItem
