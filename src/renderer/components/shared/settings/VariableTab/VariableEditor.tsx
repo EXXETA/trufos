@@ -87,9 +87,9 @@ export const VariableEditor = memo<VariableEditorProps>(
     };
 
     return (
-      <div className="p-4">
+      <>
         <Button
-          className="h-fit gap-1 hover:bg-transparent"
+          className="h-fit gap-1 pl-0 hover:bg-transparent"
           size="sm"
           variant="ghost"
           onClick={add}
@@ -159,7 +159,7 @@ export const VariableEditor = memo<VariableEditorProps>(
             ))}
           </TableBody>
         </Table>
-      </div>
+      </>
     );
   }
 );

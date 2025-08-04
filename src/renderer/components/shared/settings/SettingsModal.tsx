@@ -53,7 +53,9 @@ export const SettingsModal = () => {
             </DialogHeader>
 
             <TabsList className={'mb-4 bg-card'}>
-              <TabsTrigger value="variables">Variables</TabsTrigger>
+              <TabsTrigger value="variables" className={'!font-light'}>
+                Variables
+              </TabsTrigger>
             </TabsList>
           </div>
 
