@@ -44,15 +44,23 @@ export const SettingsModal = () => {
       <DialogTrigger onClick={() => setOpen(true)}>
         <FiSettings className="ml-2 text-xl" />
       </DialogTrigger>
-      <DialogContent className="max-w-4xl px-4 lg:max-w-5xl">
-        <DialogHeader className="mt-auto">
-          <DialogTitle>Settings</DialogTitle>
-        </DialogHeader>
+
+      <DialogContent className={'max-w-4xl p-4 lg:max-w-5xl'}>
         <Tabs defaultValue="variables" className="h-[calc(50vh)]">
-          <TabsList>
-            <TabsTrigger value="variables">Variables</TabsTrigger>
-          </TabsList>
-          <TabsContent value="variables" className="max-h-[50vh] overflow-y-auto">
+          <div className="-mx-4 -mt-4 flex flex-col gap-4 overflow-hidden rounded-t-lg bg-card px-4 pt-4">
+            <DialogHeader className="mt-auto">
+              <DialogTitle className={'font-bold'}>Collection Settings</DialogTitle>
+            </DialogHeader>
+
+            <TabsList className={'mb-4 bg-card'}>
+              <TabsTrigger value="variables">Variables</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent
+            value="variables"
+            className="mt-4 max-h-[50vh] overflow-y-auto !rounded-none !bg-transparent"
+          >
             <VariableEditor
               variables={editorVariables}
               onValidChange={setValid}
@@ -60,6 +68,7 @@ export const SettingsModal = () => {
             />
           </TabsContent>
         </Tabs>
+
         <DialogFooter>
           <Button
             className="mr-2"
@@ -68,9 +77,6 @@ export const SettingsModal = () => {
             variant={isValid ? 'default' : 'defaultDisable'}
           >
             <span className="font-bold leading-4">Save</span>
-          </Button>
-          <Button className="mr-2" onClick={cancel} variant="destructive">
-            <span className="font-bold leading-4">Cancel</span>
           </Button>
         </DialogFooter>
       </DialogContent>
