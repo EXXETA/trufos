@@ -20,15 +20,24 @@ export function FooterBar() {
         {/* Settings and icon on the left */}
         <div className="flex items-center gap-2">
           <SettingsModal />
-          <span className="text-xs text-gray-500">Settings</span>
+          <span className="flex-shrink-0 whitespace-pre text-[12px] font-medium normal-case leading-[1.2] tracking-[0px] text-[#BBBBBB] no-underline">
+            Settings
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Icons and version on the right */}
-          <span className="text-xs text-gray-500">{appVersion ?? null}</span>
+          <span className="flex h-[15px] w-[26px] flex-shrink-0 items-center self-center whitespace-pre text-[12px] font-medium normal-case leading-[1.2] text-[#BBBBBB] no-underline">
+            {appVersion ?? null}
+          </span>
           {/* GitHub Icon */}
-          <a href="https://github.com/EXXETA/trufos" target="_blank" rel="noopener noreferrer">
-            <GithubIcon /> {/* Adjust the size as needed */}
+          <a
+            href="https://github.com/EXXETA/trufos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative h-[24px] w-[24px] flex-shrink-0"
+          >
+            <GithubIcon className="absolute left-0 top-0 h-full w-full text-[#BBBBBB]" />
           </a>
         </div>
       </div>
