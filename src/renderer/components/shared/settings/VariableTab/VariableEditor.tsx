@@ -21,7 +21,7 @@ export interface VariableEditorProps {
   onVariablesChange?: (variables: VariableObjectWithKey[]) => void;
 }
 
-type VariableObjectWithKey = VariableObject & { key: string };
+export type VariableObjectWithKey = VariableObject & { key: string };
 
 export function variableMapToArray(map: VariableMap) {
   return Object.entries(map).map<VariableObjectWithKey>(([key, variable]) => ({

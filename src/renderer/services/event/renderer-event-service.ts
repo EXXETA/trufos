@@ -53,6 +53,7 @@ export class RendererEventService implements IEventService {
   getActiveEnvironmentVariables = createEventMethod('getActiveEnvironmentVariables');
   getVariable = createEventMethod('getVariable');
   setCollectionVariables = createEventMethod('setCollectionVariables');
+  setEnvironmentVariables = createEventMethod('setEnvironmentVariables');
   saveFolder = createEventMethod('saveFolder');
   copyFolder = createEventMethod('copyFolder');
   selectEnvironment = createEventMethod('selectEnvironment');

@@ -6,10 +6,9 @@ import { Collection, CollectionBase } from 'shim/objects/collection';
 import { VariableMap } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 import { SettingsService } from 'main/persistence/service/settings-service';
-import { isCollection, TrufosObject } from 'shim/objects';
-import { TrufosRequest } from 'shim/objects/request';
 import { AuthorizationInformation, AuthorizationType } from 'shim/objects/auth';
 import { createAuthStrategy } from 'main/network/authentication/auth-strategy-factory';
+import { EnvironmentMap } from '../../../shim/objects/environment';
 
 const persistenceService = PersistenceService.instance;
 const settingsService = SettingsService.instance;
@@ -72,6 +71,10 @@ export class EnvironmentService implements Initializable {
    */
   public setCollectionVariables(variables: VariableMap) {
     this.currentCollection.variables = variables;
+  }
+
+  public setEnvironmentVariables(environmentVariables: EnvironmentMap) {
+    this.currentCollection.environments = environmentVariables;
   }
 
   /**

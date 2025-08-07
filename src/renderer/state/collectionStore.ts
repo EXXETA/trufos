@@ -4,6 +4,7 @@ import { isRequestInAParentFolder, setRequestTextBody } from '@/state/helper/col
 import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
+import { useEnvironmentStore } from '@/state/environmentStore';
 import { editor } from 'monaco-editor';
 import { isCollection, isRequest, TrufosObject } from 'shim/objects';
 import { AuthorizationInformation } from 'shim/objects/auth';
@@ -60,6 +61,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       const requests = new Map<TrufosRequest['id'], TrufosRequest>();
       const folders = new Map<Folder['id'], Folder>();
       const { initialize: initializeVariables } = useVariableStore.getState();
+      const { initialize: initializeEnvironments } = useEnvironmentStore.getState();
 
       const stack = [...collection.children];
       while (stack.length > 0) {
@@ -78,6 +80,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         state.requests = requests;
         state.folders = folders;
         initializeVariables(collection.variables);
+        initializeEnvironments(collection.environments);
 
         if (state.collection.id !== collection.id) {
           state.selectedRequestId = undefined;
@@ -119,7 +122,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       get().setSelectedRequest(request.id);
     },
 
-    updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) =>
+    updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) => {
       set((state) => {
         const request = selectRequest(state);
         if (request == null) return;
@@ -133,7 +136,8 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
             ...updatedRequest,
           });
         }
-      }),
+      });
+    },
 
     setRequestBody: (body) => {
       const { updateRequest } = get();
