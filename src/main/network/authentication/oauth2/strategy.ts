@@ -48,8 +48,8 @@ export default abstract class OAuth2AuthStrategy<
     const config = new Configuration(
       {
         issuer: this.authInfo.issuerUrl,
-        // @ts-expect-error may be undefined
-        authorization_endpoint: this.authInfo.authorizationUrl,
+        authorization_endpoint:
+          'authorizationUrl' in this.authInfo ? this.authInfo.authorizationUrl : undefined,
         token_endpoint: this.authInfo.tokenUrl,
         client_id: this.authInfo.clientId,
       },

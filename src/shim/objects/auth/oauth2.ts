@@ -21,7 +21,6 @@ export interface Oauth2BaseAuthorizationInformation<T extends OAuth2Method> {
   tokenUrl: string;
   scope: string;
   clientAuthenticationMethod: OAuth2ClientAuthenticationMethod;
-  cache?: boolean; // whether to keep browser session cache
 
   // not configurable
   tokens?: TokenEndpointResponse;
@@ -36,6 +35,7 @@ export interface OAuth2ClientAuthorizationCodeFlowInformation<
   authorizationUrl: string;
   callbackUrl: string;
   state?: string; // generated if not provided
+  cache?: boolean; // whether to keep browser session cache
 }
 
 export enum OAuth2PKCECodeChallengeMethod {
