@@ -45,21 +45,24 @@ export default abstract class OAuth2AuthStrategy<
     }
 
     // prepare configuration
-    return new Configuration(
+    const config = new Configuration(
       {
-        // @ts-expect-error one of these is defined
-        issuer: new URL(this.authInfo.tokenUrl ?? this.authInfo.authorizationUrl).origin,
+        issuer: this.authInfo.issuerUrl,
         // @ts-expect-error may be undefined
         authorization_endpoint: this.authInfo.authorizationUrl,
-        // @ts-expect-error may be undefined
         token_endpoint: this.authInfo.tokenUrl,
         client_id: this.authInfo.clientId,
-        [customFetch]: this.fetch,
       },
       this.authInfo.clientId,
       this.authInfo.clientSecret,
       clientAuth
     );
+
+    // @ts-expect-error type mismatch, but it actually works
+    config[customFetch] = this.fetch;
+
+    // done
+    return config;
   }
 
   /**
@@ -79,7 +82,7 @@ export default abstract class OAuth2AuthStrategy<
       this.authInfo.tokenUrl = metadata.token_endpoint;
     } else {
       this.authInfo.authorizationUrl = metadata.authorization_endpoint ?? '';
-      this.authInfo.redirectUri = this.authInfo.redirectUri;
+      this.authInfo.callbackUrl = this.authInfo.callbackUrl;
     }
   }
 
