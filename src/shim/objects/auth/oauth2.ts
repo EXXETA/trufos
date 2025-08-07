@@ -15,25 +15,26 @@ export enum OAuth2ClientAuthenticationMethod {
 export interface Oauth2BaseAuthorizationInformation<T extends OAuth2Method> {
   type: AuthorizationType.OAUTH2;
   method: T;
+  issuerUrl: string;
   clientId: string;
   clientSecret: string;
+  tokenUrl: string;
   scope: string;
   clientAuthenticationMethod: OAuth2ClientAuthenticationMethod;
+  cache?: boolean; // whether to keep browser session cache
 
   // not configurable
   tokens?: TokenEndpointResponse;
 }
 
 export interface OAuth2ClientCrentialsAuthorizationInformation
-  extends Oauth2BaseAuthorizationInformation<OAuth2Method.CLIENT_CREDENTIALS> {
-  tokenUrl: string;
-}
+  extends Oauth2BaseAuthorizationInformation<OAuth2Method.CLIENT_CREDENTIALS> {}
 
 export interface OAuth2ClientAuthorizationCodeFlowInformation<
   T extends OAuth2Method = OAuth2Method.AUTHORIZATION_CODE,
 > extends Oauth2BaseAuthorizationInformation<T> {
   authorizationUrl: string;
-  redirectUri: string;
+  callbackUrl: string;
   state?: string; // generated if not provided
 }
 

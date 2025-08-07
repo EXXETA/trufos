@@ -3,29 +3,31 @@ import OAuth2AuthStrategy from './strategy';
 import { authorizationCodeGrant, buildAuthorizationUrl, randomState } from 'openid-client';
 import { BrowserWindow } from 'electron';
 import { once } from 'node:events';
+import { RequestMethod } from 'shim/objects/request-method';
 
 export default class AuthCodeFlowAuthorizationStrategy extends OAuth2AuthStrategy<OAuth2ClientAuthorizationCodeFlowInformation> {
-  private async getAuthorizationCode(url: URL, callbackUrl: string) {
+  private async getCurrentUrl(authorizationUrl: URL, callbackUrl: string) {
     let redirectUrl: URL | undefined;
 
-    // Create the browser window.
+    // create the browser window.
     const window = new BrowserWindow({ titleBarStyle: 'hidden' });
+    const { session } = window.webContents;
+    if (this.authInfo.cache !== true) {
+      session.clearStorageData();
+    }
 
     // intercept the callback URL to get the auth code
-    window.webContents.session.webRequest.onBeforeRequest(
-      { urls: [callbackUrl + '*'] },
-      (details, callback) => {
-        if (details.method.toUpperCase() === 'GET') {
-          logger.info('Completed auth code login');
-          callback({ cancel: true });
-          redirectUrl = URL.parse(details.url);
-          window.close();
-        }
+    session.webRequest.onBeforeRequest({ urls: [callbackUrl + '?*'] }, (details, callback) => {
+      if (details.method.toUpperCase() === RequestMethod.GET) {
+        logger.secret.info(`Completed auth code login with redirect URL: ${details.url}`);
+        callback({ cancel: true });
+        redirectUrl = URL.parse(details.url);
+        window.close();
       }
-    );
+    });
 
-    logger.info(`Opening window with authorization URL: ${url}`);
-    window.loadURL(url.toString());
+    logger.secret.info(`Opening window with authorization URL: ${authorizationUrl}`);
+    window.loadURL(authorizationUrl.toString());
     await once(window, 'close');
     return redirectUrl;
   }
@@ -34,18 +36,18 @@ export default class AuthCodeFlowAuthorizationStrategy extends OAuth2AuthStrateg
     // prepare the authorization URL and state
     const configuration = this.getConfiguration();
     const parameters = this.getParameters();
-    parameters.redirect_uri = this.authInfo.redirectUri;
+    parameters.redirect_uri = this.authInfo.callbackUrl;
     parameters.state = this.authInfo.state ?? randomState();
-    const url = buildAuthorizationUrl(configuration, parameters);
+    const authorizationUrl = buildAuthorizationUrl(configuration, parameters);
 
     // open browser window to get the authorization code
-    const authCode = await this.getAuthorizationCode(url, parameters.redirect_uri);
-    if (!authCode) {
+    const codeUrl = await this.getCurrentUrl(authorizationUrl, parameters.redirect_uri);
+    if (codeUrl == null) {
       throw new Error('Authorization code not received');
     }
 
     // exchange the authorization code for tokens
-    this.authInfo.tokens = await authorizationCodeGrant(configuration, authCode, {
+    this.authInfo.tokens = await authorizationCodeGrant(configuration, codeUrl, {
       expectedState: parameters.state,
     });
   }

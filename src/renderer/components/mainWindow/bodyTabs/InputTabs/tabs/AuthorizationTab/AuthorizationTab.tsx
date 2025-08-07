@@ -27,6 +27,7 @@ const INITIAL_AUTHORIZATION: { [K in AuthorizationTypeOrNone]: AuthorizationInfo
   [AuthorizationType.OAUTH2]: {
     type: AuthorizationType.OAUTH2,
     method: OAuth2Method.CLIENT_CREDENTIALS,
+    issuerUrl: '',
     tokenUrl: '',
     clientId: '',
     clientSecret: '',
@@ -88,28 +89,36 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
   },
 };
 
+const OAUTH2_BASE_FORM: FormComponentConfiguration = {
+  clientId: {
+    type: 'text',
+    label: 'Client ID',
+    placeholder: 'Enter client ID',
+  },
+  clientSecret: {
+    type: 'password',
+    label: 'Client Secret',
+    placeholder: 'Enter client secret',
+  },
+  issuerUrl: {
+    type: 'text',
+    label: 'Issuer URL',
+    placeholder: 'Enter issuer URL (e.g., https://example.com)',
+  },
+  tokenUrl: {
+    type: 'text',
+    label: 'Token URL',
+    placeholder: 'Enter token URL',
+  },
+  scope: {
+    type: 'text',
+    label: 'Scope',
+    placeholder: 'Enter scopes (optional, space-separated)',
+  },
+};
+
 const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
   [OAuth2Method.CLIENT_CREDENTIALS]: {
-    clientId: {
-      type: 'text',
-      label: 'Client ID',
-      placeholder: 'Enter client ID',
-    },
-    clientSecret: {
-      type: 'password',
-      label: 'Client Secret',
-      placeholder: 'Enter client secret',
-    },
-    tokenUrl: {
-      type: 'text',
-      label: 'Token URL',
-      placeholder: 'Enter token URL',
-    },
-    scope: {
-      type: 'text',
-      label: 'Scope',
-      placeholder: 'Enter scopes (optional, space-separated)',
-    },
     clientAuthenticationMethod: {
       type: 'select',
       label: 'Client Authentication Method',
@@ -126,30 +135,16 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
     },
   },
   [OAuth2Method.AUTHORIZATION_CODE]: {
-    clientId: {
-      type: 'text',
-      label: 'Client ID',
-      placeholder: 'Enter client ID',
-    },
-    clientSecret: {
-      type: 'password',
-      label: 'Client Secret',
-      placeholder: 'Enter client secret',
-    },
+    ...OAUTH2_BASE_FORM,
     authorizationUrl: {
       type: 'text',
       label: 'Authorization URL',
       placeholder: 'Enter authorization URL',
     },
-    redirectUri: {
+    callbackUrl: {
       type: 'text',
-      label: 'Redirect URI',
-      placeholder: 'Enter redirect URI',
-    },
-    scope: {
-      type: 'text',
-      label: 'Scope',
-      placeholder: 'Enter scopes (optional, space-separated)',
+      label: 'Callback URL',
+      placeholder: 'Enter callback URL (redirect URI)',
     },
     clientAuthenticationMethod: {
       type: 'select',
@@ -170,32 +165,22 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
       label: 'State',
       placeholder: 'Enter state (optional, will be generated if empty)',
     },
+    cache: {
+      type: 'checkbox',
+      label: 'Keep Browser Session Cache',
+    },
   },
   [OAuth2Method.AUTHORIZATION_CODE_PKCE]: {
-    clientId: {
-      type: 'text',
-      label: 'Client ID',
-      placeholder: 'Enter client ID',
-    },
-    clientSecret: {
-      type: 'password',
-      label: 'Client Secret',
-      placeholder: 'Enter client secret (optional for PKCE)',
-    },
+    ...OAUTH2_BASE_FORM,
     authorizationUrl: {
       type: 'text',
       label: 'Authorization URL',
       placeholder: 'Enter authorization URL',
     },
-    redirectUri: {
+    callbackUrl: {
       type: 'text',
-      label: 'Redirect URI',
-      placeholder: 'Enter redirect URI',
-    },
-    scope: {
-      type: 'text',
-      label: 'Scope',
-      placeholder: 'Enter scopes (optional, space-separated)',
+      label: 'Callback URL',
+      placeholder: 'Enter callback URL (redirect URI)',
     },
     clientAuthenticationMethod: {
       type: 'select',
@@ -234,6 +219,10 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
       type: 'text',
       label: 'State',
       placeholder: 'Enter state (optional, will be generated if empty)',
+    },
+    cache: {
+      type: 'checkbox',
+      label: 'Keep Browser Session Cache',
     },
   },
 };
