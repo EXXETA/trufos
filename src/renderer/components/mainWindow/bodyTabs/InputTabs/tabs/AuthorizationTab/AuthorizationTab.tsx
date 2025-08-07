@@ -103,62 +103,49 @@ const OAUTH2_BASE_FORM: FormComponentConfiguration = {
   issuerUrl: {
     type: 'text',
     label: 'Issuer URL',
-    placeholder: 'Enter issuer URL (e.g., https://example.com)',
+    placeholder: 'https://example.com/oauth2/issuer',
   },
   tokenUrl: {
     type: 'text',
     label: 'Token URL',
-    placeholder: 'Enter token URL',
+    placeholder: 'https://example.com/oauth2/token',
   },
   scope: {
     type: 'text',
     label: 'Scope',
-    placeholder: 'Enter scopes (optional, space-separated)',
+    placeholder: '(optional, space-separated)',
+  },
+  clientAuthenticationMethod: {
+    type: 'select',
+    label: 'Client Authentication Method',
+    options: [
+      {
+        value: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
+        label: 'Send Credentials as Basic Auth Header',
+      },
+      {
+        value: OAuth2ClientAuthenticationMethod.REQUEST_BODY,
+        label: 'Send Credentials in Request Body',
+      },
+    ],
   },
 };
 
 const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
   [OAuth2Method.CLIENT_CREDENTIALS]: {
-    clientAuthenticationMethod: {
-      type: 'select',
-      label: 'Client Authentication Method',
-      options: [
-        {
-          value: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
-          label: 'Send Credentials as Basic Auth Header',
-        },
-        {
-          value: OAuth2ClientAuthenticationMethod.REQUEST_BODY,
-          label: 'Send Credentials in Request Body',
-        },
-      ],
-    },
+    ...OAUTH2_BASE_FORM,
   },
   [OAuth2Method.AUTHORIZATION_CODE]: {
     ...OAUTH2_BASE_FORM,
     authorizationUrl: {
       type: 'text',
       label: 'Authorization URL',
-      placeholder: 'Enter authorization URL',
+      placeholder: 'https://example.com/oauth2/authorize',
     },
     callbackUrl: {
       type: 'text',
       label: 'Callback URL',
-      placeholder: 'Enter callback URL (redirect URI)',
-    },
-    clientAuthenticationMethod: {
-      type: 'select',
-      label: 'Client Authentication Method',
-      options: [
-        {
-          value: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
-          label: 'Send Credentials as Basic Auth Header',
-        },
-        {
-          value: OAuth2ClientAuthenticationMethod.REQUEST_BODY,
-          label: 'Send Credentials in Request Body',
-        },
-      ],
+      placeholder: 'https://example.com/oauth2/callback',
     },
     state: {
       type: 'text',
@@ -175,26 +162,12 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
     authorizationUrl: {
       type: 'text',
       label: 'Authorization URL',
-      placeholder: 'Enter authorization URL',
+      placeholder: 'https://example.com/oauth2/authorize',
     },
     callbackUrl: {
       type: 'text',
       label: 'Callback URL',
-      placeholder: 'Enter callback URL (redirect URI)',
-    },
-    clientAuthenticationMethod: {
-      type: 'select',
-      label: 'Client Authentication Method',
-      options: [
-        {
-          value: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
-          label: 'Send Credentials as Basic Auth Header',
-        },
-        {
-          value: OAuth2ClientAuthenticationMethod.REQUEST_BODY,
-          label: 'Send Credentials in Request Body',
-        },
-      ],
+      placeholder: 'https://example.com/oauth2/callback',
     },
     codeChallengeMethod: {
       type: 'select',

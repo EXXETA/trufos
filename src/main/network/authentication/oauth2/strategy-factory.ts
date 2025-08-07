@@ -8,6 +8,8 @@ export function createOAuth2Strategy(auth: OAuth2AuthorizationInformation) {
       return new ClientCredentialsAuthorizationStrategy(auth);
     case OAuth2Method.AUTHORIZATION_CODE:
       return new AuthCodeFlowAuthorizationStrategy(auth);
+    case OAuth2Method.AUTHORIZATION_CODE_PKCE:
+      return new AuthCodeFlowAuthorizationStrategy(auth);
     default:
       // @ts-expect-error should never happen
       throw new Error(`Unsupported OAuth2 method: ${auth.method}`);
