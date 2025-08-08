@@ -32,7 +32,7 @@ export default class AuthCodeFlowAuthorizationStrategy<
     let redirectUrl: URL | undefined;
 
     // create the browser window.
-    const window = new BrowserWindow({ titleBarStyle: 'hidden' });
+    const window = new BrowserWindow({ title: 'OAuth2 Auth Code Flow' });
     const { session } = window.webContents;
     if (this.authInfo.cache !== true) {
       session.clearStorageData();
