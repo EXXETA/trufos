@@ -7,7 +7,6 @@ import {
   variableArrayToMap,
   VariableEditor,
   variableMapToArray,
-  VariableObjectWithKey,
 } from '@/components/shared/settings/VariableTab/VariableEditor';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -16,6 +15,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { VariableObjectWithKey } from 'shim/objects/variables';
+import { cn } from '@/lib/utils';
 
 export interface EnvironmentEditorProps {
   environments: EnvironmentMap;
@@ -153,7 +154,7 @@ export const EnvironmentEditor = ({
   return (
     <div className="flex h-full">
       {/* Left Environment Sidebar */}
-      <div className="flex w-80 flex-col border-r bg-sidebar">
+      <div className="bg-backgrund flex w-80 flex-col border-r">
         {/* Header */}
         <div className="flex-shrink-0 border-b">
           <div className="flex flex-col gap-4 p-4">
@@ -200,11 +201,11 @@ export const EnvironmentEditor = ({
               {environmentKeys.map((key) => (
                 <div
                   key={key}
-                  className={`group flex w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground ${
-                    selectedEnvironment === key
-                      ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
-                      : ''
-                  }`}
+                  className={cn(
+                    'group flex w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground',
+                    selectedEnvironment === key &&
+                      'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
+                  )}
                   onClick={() => onEnvironmentSelect?.(key)}
                 >
                   <div className="min-w-0 flex-1">

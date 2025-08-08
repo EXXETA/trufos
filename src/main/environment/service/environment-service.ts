@@ -8,7 +8,7 @@ import { getSystemVariable, getSystemVariables } from './system-variable';
 import { SettingsService } from 'main/persistence/service/settings-service';
 import { AuthorizationInformation, AuthorizationType } from 'shim/objects/auth';
 import { createAuthStrategy } from 'main/network/authentication/auth-strategy-factory';
-import { EnvironmentMap } from '../../../shim/objects/environment';
+import { EnvironmentMap } from 'shim/objects/environment';
 
 const persistenceService = PersistenceService.instance;
 const settingsService = SettingsService.instance;
