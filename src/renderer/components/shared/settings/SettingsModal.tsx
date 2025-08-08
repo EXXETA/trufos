@@ -7,11 +7,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { FiSettings } from 'react-icons/fi';
-import {
-  variableArrayToMap,
-  VariableEditor,
-  variableMapToArray,
-} from '@/components/shared/settings/VariableTab/VariableEditor';
+import { VariableEditor } from '@/components/shared/settings/VariableTab/VariableEditor';
 import { EnvironmentEditor } from '@/components/shared/settings/EnvironmentTab/EnvironmentEditor';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -23,6 +19,7 @@ import {
   useEnvironmentActions,
   useEnvironmentStore,
 } from '@/state/environmentStore';
+import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
 
 export const SettingsModal = () => {
   const { setVariables } = useVariableActions();

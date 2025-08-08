@@ -3,11 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Check, X, MoreVertical, Copy, Trash2, Edit } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { EnvironmentMap } from 'shim/objects/environment';
-import {
-  variableArrayToMap,
-  VariableEditor,
-  variableMapToArray,
-} from '@/components/shared/settings/VariableTab/VariableEditor';
+import { VariableEditor } from '@/components/shared/settings/VariableTab/VariableEditor';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
@@ -17,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { VariableObjectWithKey } from 'shim/objects/variables';
 import { cn } from '@/lib/utils';
+import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
 
 export interface EnvironmentEditorProps {
   environments: EnvironmentMap;
