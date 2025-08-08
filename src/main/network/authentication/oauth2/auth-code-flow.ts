@@ -60,11 +60,11 @@ export default class AuthCodeFlowAuthorizationStrategy<
 
     // prepare the authorization URL and state
     parameters.redirect_uri = this.authInfo.callbackUrl;
-    parameters.state = this.authInfo.state ?? randomState();
+    parameters.state = this.authInfo.state?.trim() || randomState();
 
     // if PKCE is used, generate code verifier and challenge
     if (isPKCEConfig(this.authInfo)) {
-      this.authInfo.codeVerifier ??= randomPKCECodeVerifier();
+      this.authInfo.codeVerifier = this.authInfo.codeVerifier?.trim() || randomPKCECodeVerifier();
       parameters.code_challenge = await calculatePKCECodeChallenge(this.authInfo.codeVerifier);
       parameters.code_challenge_method = this.authInfo.codeChallengeMethod;
     }
