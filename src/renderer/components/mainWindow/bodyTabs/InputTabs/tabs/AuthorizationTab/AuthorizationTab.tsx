@@ -20,38 +20,32 @@ const LABELS: { [K in AuthorizationTypeOrNone]: string } = {
   [AuthorizationType.OAUTH2]: 'OAuth 2.0',
 };
 
+const BASE_FORM = {
+  type: {
+    type: 'select' as const,
+    label: 'Authorization Type',
+    options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
+    defaultValue: AUTHORIZATION_NONE,
+  },
+};
+
 const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
   [AUTHORIZATION_NONE]: {
-    type: {
-      type: 'select',
-      label: 'Authorization Type',
-      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
-      defaultValue: AUTHORIZATION_NONE,
-    },
+    ...BASE_FORM,
     description: {
       type: 'label',
       text: 'No authorization will be applied to this request.',
     },
   },
   [AuthorizationType.INHERIT]: {
-    type: {
-      type: 'select',
-      label: 'Authorization Type',
-      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
-      defaultValue: AuthorizationType.INHERIT,
-    },
+    ...BASE_FORM,
     description: {
       type: 'label',
       text: 'This request will inherit authorization settings from the collection.',
     },
   },
   [AuthorizationType.BEARER]: {
-    type: {
-      type: 'select',
-      label: 'Authorization Type',
-      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
-      defaultValue: AuthorizationType.BEARER,
-    },
+    ...BASE_FORM,
     token: {
       type: 'text',
       label: 'Token',
@@ -59,12 +53,7 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
     },
   },
   [AuthorizationType.BASIC]: {
-    type: {
-      type: 'select',
-      label: 'Authorization Type',
-      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
-      defaultValue: AuthorizationType.BASIC,
-    },
+    ...BASE_FORM,
     username: {
       type: 'text',
       label: 'Username',
@@ -77,12 +66,7 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
     },
   },
   [AuthorizationType.OAUTH2]: {
-    type: {
-      type: 'select',
-      label: 'Authorization Type',
-      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
-      defaultValue: AuthorizationType.OAUTH2,
-    },
+    ...BASE_FORM,
     method: {
       type: 'select',
       label: 'OAuth 2.0 Method',
