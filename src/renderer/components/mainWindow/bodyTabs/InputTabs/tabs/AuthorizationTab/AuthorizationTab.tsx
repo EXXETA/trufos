@@ -1,13 +1,6 @@
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { AuthorizationInformation, AuthorizationType } from 'shim/objects/auth';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ModularForm, FormComponentConfiguration } from './ModularForm';
 import {
   OAuth2AuthorizationInformation,
@@ -19,23 +12,6 @@ import {
 const AUTHORIZATION_NONE = 'none' as const;
 type AuthorizationTypeOrNone = AuthorizationType | typeof AUTHORIZATION_NONE;
 
-const INITIAL_AUTHORIZATION: { [K in AuthorizationTypeOrNone]: AuthorizationInformation } = {
-  [AUTHORIZATION_NONE]: undefined,
-  [AuthorizationType.INHERIT]: { type: AuthorizationType.INHERIT },
-  [AuthorizationType.BEARER]: { type: AuthorizationType.BEARER, token: '' },
-  [AuthorizationType.BASIC]: { type: AuthorizationType.BASIC, username: '', password: '' },
-  [AuthorizationType.OAUTH2]: {
-    type: AuthorizationType.OAUTH2,
-    method: OAuth2Method.CLIENT_CREDENTIALS,
-    issuerUrl: '',
-    tokenUrl: '',
-    clientId: '',
-    clientSecret: '',
-    scope: '',
-    clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
-  },
-};
-
 const LABELS: { [K in AuthorizationTypeOrNone]: string } = {
   [AUTHORIZATION_NONE]: 'None',
   [AuthorizationType.INHERIT]: 'Inherit from collection',
@@ -46,18 +22,36 @@ const LABELS: { [K in AuthorizationTypeOrNone]: string } = {
 
 const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
   [AUTHORIZATION_NONE]: {
+    type: {
+      type: 'select',
+      label: 'Authorization Type',
+      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
+      defaultValue: AUTHORIZATION_NONE,
+    },
     description: {
       type: 'label',
       text: 'No authorization will be applied to this request.',
     },
   },
   [AuthorizationType.INHERIT]: {
+    type: {
+      type: 'select',
+      label: 'Authorization Type',
+      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
+      defaultValue: AuthorizationType.INHERIT,
+    },
     description: {
       type: 'label',
       text: 'This request will inherit authorization settings from the collection.',
     },
   },
   [AuthorizationType.BEARER]: {
+    type: {
+      type: 'select',
+      label: 'Authorization Type',
+      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
+      defaultValue: AuthorizationType.BEARER,
+    },
     token: {
       type: 'text',
       label: 'Token',
@@ -65,6 +59,12 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
     },
   },
   [AuthorizationType.BASIC]: {
+    type: {
+      type: 'select',
+      label: 'Authorization Type',
+      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
+      defaultValue: AuthorizationType.BASIC,
+    },
     username: {
       type: 'text',
       label: 'Username',
@@ -77,6 +77,12 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
     },
   },
   [AuthorizationType.OAUTH2]: {
+    type: {
+      type: 'select',
+      label: 'Authorization Type',
+      options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
+      defaultValue: AuthorizationType.OAUTH2,
+    },
     method: {
       type: 'select',
       label: 'OAuth 2.0 Method',
@@ -85,6 +91,7 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
         { value: OAuth2Method.AUTHORIZATION_CODE, label: 'Authorization Code' },
         { value: OAuth2Method.AUTHORIZATION_CODE_PKCE, label: 'Authorization Code with PKCE' },
       ],
+      defaultValue: OAuth2Method.CLIENT_CREDENTIALS,
     },
   },
 };
@@ -128,6 +135,7 @@ const OAUTH2_BASE_FORM: FormComponentConfiguration = {
         label: 'Send Credentials in Request Body',
       },
     ],
+    defaultValue: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
   },
 };
 
@@ -155,6 +163,7 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
     cache: {
       type: 'checkbox',
       label: 'Keep Browser Session Cache',
+      defaultValue: true,
     },
   },
   [OAuth2Method.AUTHORIZATION_CODE_PKCE]: {
@@ -182,6 +191,7 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
           label: 'Plain',
         },
       ],
+      defaultValue: OAuth2PKCECodeChallengeMethod.S256,
     },
     codeVerifier: {
       type: 'text',
@@ -196,6 +206,7 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
     cache: {
       type: 'checkbox',
       label: 'Keep Browser Session Cache',
+      defaultValue: true,
     },
   },
 };
@@ -204,7 +215,6 @@ export const AuthorizationTab = () => {
   const { updateAuthorization } = useCollectionActions();
   const request = useCollectionStore(selectRequest);
   const auth = useCollectionStore((state) => selectRequest(state).auth);
-  const [isTypeSelectOpen, setTypeSelectOpen] = useState(false);
 
   const [type, form] = useMemo(() => {
     const type = auth?.type ?? AUTHORIZATION_NONE;
@@ -220,38 +230,15 @@ export const AuthorizationTab = () => {
     return [type, form];
   }, [auth?.type, (auth as OAuth2AuthorizationInformation)?.method]);
 
-  const handleAuthTypeChange = (value: AuthorizationTypeOrNone) =>
-    updateAuthorization(request, INITIAL_AUTHORIZATION[value]);
-
   return (
     <div className="relative h-full p-4">
       <div className="absolute left-[16px] right-[16px] top-[16px] z-10 space-y-4 pb-4">
-        <label className="text-sm font-medium text-text-primary">Authorization Type</label>
-        <Select
-          value={type}
-          onValueChange={handleAuthTypeChange}
-          open={isTypeSelectOpen}
-          onOpenChange={setTypeSelectOpen}
-        >
-          <SelectTrigger
-            className="w-full rounded-md border border-border bg-background-primary px-3 py-2"
-            isOpen={isTypeSelectOpen}
-          >
-            <SelectValue placeholder="Select authorization type">{LABELS[type]}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(LABELS).map(([value, label]: [AuthorizationTypeOrNone, string]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <ModularForm
           config={form}
-          form={auth}
-          onFormChanged={(delta) => updateAuthorization(request, delta)}
+          data={{ ...auth, type }}
+          onDataChanged={(
+            delta: Partial<AuthorizationInformation> | { type: typeof AUTHORIZATION_NONE }
+          ) => updateAuthorization(request, delta.type === AUTHORIZATION_NONE ? null : delta)}
         />
       </div>
     </div>

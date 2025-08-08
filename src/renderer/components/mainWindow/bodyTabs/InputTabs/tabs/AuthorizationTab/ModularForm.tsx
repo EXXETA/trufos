@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -10,29 +10,30 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-export interface BaseFieldConfig {
+export interface BaseFieldConfig<T> {
   label: string;
   placeholder?: string;
+  defaultValue?: T;
 }
 
-export interface TextFieldConfig extends BaseFieldConfig {
+export interface TextFieldConfig extends BaseFieldConfig<string> {
   type: 'text' | 'password' | 'email';
 }
 
-export interface NumberFieldConfig extends BaseFieldConfig {
+export interface NumberFieldConfig extends BaseFieldConfig<number> {
   type: 'number';
 }
 
-export interface SelectFieldConfig extends BaseFieldConfig {
+export interface SelectFieldConfig extends BaseFieldConfig<string> {
   type: 'select';
   options: Array<{ value: string; label: string }>;
 }
 
-export interface CheckboxFieldConfig extends BaseFieldConfig {
+export interface CheckboxFieldConfig extends BaseFieldConfig<boolean> {
   type: 'checkbox';
 }
 
-export interface TextareaFieldConfig extends BaseFieldConfig {
+export interface TextareaFieldConfig extends BaseFieldConfig<string> {
   type: 'textarea';
   rows?: number;
 }
@@ -55,21 +56,34 @@ export type FormComponentConfiguration = Record<string, FormFieldConfig>;
 
 export interface FormProps<T extends Record<string, any>> {
   config: FormComponentConfiguration;
-  form: T;
-  onFormChanged: (delta: Partial<T>) => void;
+  data: T;
+  onDataChanged: (delta: Partial<T>) => void;
   className?: string;
 }
 
 export const ModularForm = <T extends Record<string, any>>({
   config,
   className,
-  form,
-  onFormChanged,
+  data,
+  onDataChanged,
 }: FormProps<T>) => {
   const [visible, setVisible] = useState<Partial<{ [K in keyof T]: boolean }>>({});
   const toggleVisibility = (key: keyof T) => {
     setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
+  const getValue = useCallback(
+    <V,>(key: keyof T, defaultValue: V) => {
+      if (data[key] == null) {
+        onDataChanged({ [key]: defaultValue } as Partial<T>);
+        return defaultValue;
+      } else {
+        return data[key] as V;
+      }
+    },
+    [data, onDataChanged]
+  );
+
   const renderField = (key: keyof T, fieldConfig: FormFieldConfig) => {
     switch (fieldConfig.type) {
       case 'label':
@@ -81,14 +95,14 @@ export const ModularForm = <T extends Record<string, any>>({
 
       case 'text':
       case 'email': {
-        const { label, placeholder } = fieldConfig;
+        const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <Input
               type={fieldConfig.type}
-              value={form[key]}
-              onChange={(e) => onFormChanged({ [key]: e.target.value } as Partial<T>)}
+              value={getValue(key, defaultValue ?? '')}
+              onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
               className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
             />
@@ -97,15 +111,15 @@ export const ModularForm = <T extends Record<string, any>>({
       }
 
       case 'password': {
-        const { label, placeholder } = fieldConfig;
+        const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <div className="relative w-full">
               <Input
                 type={visible[key] ? 'text' : 'password'}
-                value={form[key]}
-                onChange={(e) => onFormChanged({ [key]: e.target.value } as Partial<T>)}
+                value={getValue(key, defaultValue ?? '')}
+                onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
                 placeholder={placeholder}
                 className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
               />
@@ -122,14 +136,14 @@ export const ModularForm = <T extends Record<string, any>>({
       }
 
       case 'number': {
-        const { label, placeholder } = fieldConfig;
+        const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <Input
               type="number"
-              value={form[key]}
-              onChange={(e) => onFormChanged({ [key]: e.target.valueAsNumber ?? 0 } as Partial<T>)}
+              value={getValue(key, defaultValue ?? 0)}
+              onChange={(e) => onDataChanged({ [key]: e.target.valueAsNumber ?? 0 } as Partial<T>)}
               placeholder={placeholder}
               className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
             />
@@ -138,13 +152,13 @@ export const ModularForm = <T extends Record<string, any>>({
       }
 
       case 'select': {
-        const { label, placeholder } = fieldConfig;
+        const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <Select
-              value={form[key]}
-              onValueChange={(value) => onFormChanged({ [key]: value } as Partial<T>)}
+              value={getValue(key, defaultValue ?? fieldConfig.options[0].value)}
+              onValueChange={(value) => onDataChanged({ [key]: value } as Partial<T>)}
             >
               <SelectTrigger className="w-full rounded-md border border-border bg-background-primary px-3 py-2">
                 <SelectValue placeholder={placeholder ?? `Select ${label.toLowerCase()}`} />
@@ -162,14 +176,14 @@ export const ModularForm = <T extends Record<string, any>>({
       }
 
       case 'checkbox': {
-        const { label } = fieldConfig;
+        const { label, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="flex items-center space-x-2">
             <Checkbox
               id={key as string}
-              checked={form[key] as unknown as boolean} // TODO: fix type casting once there's a boolean field in authorization
+              checked={getValue(key, defaultValue ?? true)}
               onCheckedChange={(checked) =>
-                onFormChanged({ [key]: checked === true } as Partial<T>)
+                onDataChanged({ [key]: checked === true } as Partial<T>)
               }
               className="h-4 w-4"
             />
@@ -184,13 +198,13 @@ export const ModularForm = <T extends Record<string, any>>({
       }
 
       case 'textarea': {
-        const { label, placeholder } = fieldConfig;
+        const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
             <textarea
-              value={form[key]}
-              onChange={(e) => onFormChanged({ [key]: e.target.value } as Partial<T>)}
+              value={getValue(key, defaultValue ?? '')}
+              onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
               rows={fieldConfig.rows ?? 3}
               className="resize-vertical w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
