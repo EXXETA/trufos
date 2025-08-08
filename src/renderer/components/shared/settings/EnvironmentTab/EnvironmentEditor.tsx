@@ -161,7 +161,7 @@ export const EnvironmentEditor = ({
 
             <div className="relative">
               <Input
-                placeholder="Environment name..."
+                placeholder="new environment"
                 value={newEnvironmentName}
                 onChange={(e) => setNewEnvironmentName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addEnvironment()}
