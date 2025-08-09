@@ -14,6 +14,7 @@ import { memo, useEffect } from 'react';
 import { produce } from 'immer';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2 } from 'lucide-react';
+import { SecretInput } from '@/components/ui/secret-input';
 
 export interface VariableEditorProps {
   variables: VariableObjectWithKey[];
@@ -52,7 +53,7 @@ export const VariableEditor = memo<VariableEditorProps>(
       if (invalidVariableKeys.has('')) return;
       onVariablesChange(
         produce(variables, (variables) => {
-          variables.push({ key: '', value: '' });
+          variables.push({ key: '', value: '', description: '', secret: false });
         })
       );
     };
@@ -109,10 +110,9 @@ export const VariableEditor = memo<VariableEditorProps>(
                   />
                 </TableCell>
                 <TableCell className="break-all">
-                  <input
-                    type="text"
+                  <SecretInput
+                    secret={variable.secret}
                     value={variable.value}
-                    className="w-full bg-transparent outline-none"
                     placeholder="Enter variable value"
                     onChange={(e) => update(index, { value: e.target.value })}
                   />
