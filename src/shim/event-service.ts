@@ -4,6 +4,7 @@ import { TrufosResponse } from 'shim/objects/response';
 import { TrufosObject } from './objects';
 import { Collection, CollectionBase } from './objects/collection';
 import { VariableMap, VariableObject } from './objects/variables';
+import { EnvironmentMap } from './objects/environment';
 
 export interface IEventService {
   /**
@@ -84,6 +85,12 @@ export interface IEventService {
    * @param variables The variables of the Collection to set.
    */
   setCollectionVariables(variables: VariableMap): void;
+
+  /**
+   * Replace all existing environment variables with the given ones.
+   * @param environmentVariables
+   */
+  setEnvironmentVariables(environmentVariables: EnvironmentMap): void;
 
   /**
    * Select an environment by its key.

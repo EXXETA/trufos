@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { VARIABLE_NAME_REGEX, VariableMap, VariableObject } from 'shim/objects/variables';
+import { VARIABLE_NAME_REGEX, VariableObjectWithKey } from 'shim/objects/variables';
 import { memo, useEffect } from 'react';
 import { produce } from 'immer';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,19 +19,6 @@ export interface VariableEditorProps {
   variables: VariableObjectWithKey[];
   onValidChange?: (valid: boolean) => void;
   onVariablesChange?: (variables: VariableObjectWithKey[]) => void;
-}
-
-type VariableObjectWithKey = VariableObject & { key: string };
-
-export function variableMapToArray(map: VariableMap) {
-  return Object.entries(map).map<VariableObjectWithKey>(([key, variable]) => ({
-    key,
-    ...variable,
-  }));
-}
-
-export function variableArrayToMap(array: VariableObjectWithKey[]) {
-  return Object.fromEntries<VariableObject>(array.map(({ key, ...variable }) => [key, variable]));
 }
 
 function getInvalidVariableKeys(variables: VariableObjectWithKey[]) {
