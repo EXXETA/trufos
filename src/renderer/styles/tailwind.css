@@ -37,6 +37,7 @@
 @layer base {
   /* Light theme moved under .light class so dark becomes default */
   .light {
+    /* Standard shadcn variables for light mode */
     --background: 0 0% 100%;
     --foreground: 222.2 47.4% 11.2%;
 
@@ -69,11 +70,36 @@
 
     --ring: 215 20.2% 65.1%;
 
+    --divider: 214.3 31.8% 91.4%;
+
     --radius: 0.5rem;
 
-    width: 100vw;
-    height: 100vh;
+    /* Custom light mode variables */
+    --accent-primary: #1e40af;
+    --accent-secondary: #3b82f6;
+    --accent-tertiary: #dbeafe;
 
+    --background-primary: #ffffff;
+    --background-secondary: #f8fafc;
+    --background-tertiary: #f1f5f9;
+
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+
+    /* HTTP method colors for light mode */
+    --http-get: #059669;
+    --http-put: #0284c7;
+    --http-post: #7c3aed;
+    --http-delete: #dc2626;
+    --http-patch: #ea580c;
+    --disabled: #94a3b8;
+
+    /* State colors for light mode */
+    --success: #16a34a;
+    --error: #dc2626;
+    --warning: #d97706;
+
+    /* Sidebar colors for light mode */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -154,9 +180,6 @@
     --muted: 0 0% 20%;
     --muted-foreground: 0 0% 100%;
 
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
-
     --popover: 224 71% 4%;
     --popover-foreground: 215 20.2% 65.1%;
 
@@ -172,8 +195,8 @@
     --secondary: 196.5 44.44% 17.65%;
     --secondary-foreground: 195 94% 72%;
 
-    --tertiary: 195.21 85.54% 48.82%;
-    --tertiary-foreground: 0 0% 13%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
@@ -182,8 +205,32 @@
 
     --divider: 0 0% 20%;
 
-    --radius: 0.5rem;
+    /* Custom dark mode variables */
+    --accent-primary: #75D9FB;
+    --accent-secondary: #12B1E7;
+    --accent-tertiary: #193641;
 
+    --background-primary: #111111;
+    --background-secondary: #1F1F1F;
+    --background-tertiary: transparent;
+
+    --text-primary: #EEEEEE;
+    --text-secondary: #BBBBBB;
+
+    /* HTTP method colors for dark mode */
+    --http-get: #93F176;
+    --http-put: #37ABFF;
+    --http-post: #9F72FE;
+    --http-delete: #EE5C99;
+    --http-patch: #EFA349;
+    --disabled: #444444;
+
+    /* State colors for dark mode */
+    --success: #2BB361;
+    --error: #BD5151;
+    --warning: #F9AA2D;
+
+    /* Sidebar colors for dark mode */
     --sidebar-background: 240 5.9% 10%;
 
     --sidebar-foreground: 240 4.8% 95.9%;

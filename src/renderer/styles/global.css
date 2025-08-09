@@ -1,6 +1,6 @@
 /* Add the following to your global CSS file */
 
-/* Colors */
+/* Colors - now using CSS variables for theming */
 .success {
   color: var(--success);
 }
@@ -29,7 +29,7 @@
   color: var(--http-patch);
 }
 
-/* Tabs scrollbar styles */
+/* Tabs scrollbar styles - now theme-aware */
 .tabs-scrollbar::-webkit-scrollbar {
   width: 8px; /* Width of the scrollbar */
 }
