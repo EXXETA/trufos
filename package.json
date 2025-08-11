@@ -106,7 +106,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
     "template-replace-stream": "^2.1.2",
-    "tmp": "^0.2.4",
+    "tmp": "^0.2.5",
     "undici": "^7.13.0",
     "winston": "^3.17.0",
     "xml-formatter": "^3.6.6",
