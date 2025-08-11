@@ -1,6 +1,18 @@
-import { OAuth2AuthorizationInformation } from 'shim/objects/auth/oauth2';
+import {
+  OAuth2AuthorizationInformation,
+  OAuth2ClientAuthenticationMethod,
+  OAuth2Method,
+} from 'shim/objects/auth/oauth2';
 import AuthStrategy from '../auth-strategy';
-import { Configuration, customFetch, CustomFetchOptions, discovery } from 'openid-client';
+import {
+  ClientAuth,
+  ClientSecretBasic,
+  ClientSecretPost,
+  Configuration,
+  customFetch,
+  discovery,
+} from 'openid-client';
+import Undici, { RequestInit } from 'undici';
 
 export default abstract class OAuth2AuthStrategy<
   T extends OAuth2AuthorizationInformation,
@@ -11,6 +23,47 @@ export default abstract class OAuth2AuthStrategy<
   }
 
   protected abstract getTokens(): Promise<void>;
+
+  protected getParameters() {
+    const parameters: Record<string, string> = {};
+    if (this.authInfo.scope != null && this.authInfo.scope !== '') {
+      parameters.scope = this.authInfo.scope;
+    }
+    return parameters;
+  }
+
+  protected getConfiguration() {
+    // set client authentication method
+    let clientAuth: ClientAuth | undefined;
+    switch (this.authInfo.clientAuthenticationMethod) {
+      case OAuth2ClientAuthenticationMethod.BASIC_AUTH:
+        clientAuth = ClientSecretBasic(this.authInfo.clientSecret);
+        break;
+      case OAuth2ClientAuthenticationMethod.REQUEST_BODY:
+        clientAuth = ClientSecretPost(this.authInfo.clientSecret);
+        break;
+    }
+
+    // prepare configuration
+    const config = new Configuration(
+      {
+        issuer: this.authInfo.issuerUrl,
+        authorization_endpoint:
+          'authorizationUrl' in this.authInfo ? this.authInfo.authorizationUrl : undefined,
+        token_endpoint: this.authInfo.tokenUrl,
+        client_id: this.authInfo.clientId,
+      },
+      this.authInfo.clientId,
+      this.authInfo.clientSecret,
+      clientAuth
+    );
+
+    // @ts-expect-error type mismatch, but it actually works
+    config[customFetch] = this.fetch;
+
+    // done
+    return config;
+  }
 
   /**
    * Discover the OpenID Connect configuration from the server URL and set the token URL and issuer.
@@ -25,11 +78,20 @@ export default abstract class OAuth2AuthStrategy<
       );
     }
 
-    this.authInfo.tokenUrl = metadata.token_endpoint;
+    if (this.authInfo.method === OAuth2Method.CLIENT_CREDENTIALS) {
+      this.authInfo.tokenUrl = metadata.token_endpoint;
+    } else {
+      this.authInfo.authorizationUrl = metadata.authorization_endpoint ?? '';
+      this.authInfo.callbackUrl = this.authInfo.callbackUrl;
+    }
   }
 
-  protected async fetch(url: string, options: CustomFetchOptions): Promise<Response> {
-    console.log('Fetching URL:', url, options);
-    return await fetch(url, options as RequestInit);
+  private fetch(url: string, init?: RequestInit) {
+    logger.secret.info('OAuth request', {
+      url,
+      headers: init?.headers,
+      body: init?.body,
+    });
+    return Undici.fetch(url, init);
   }
 }
