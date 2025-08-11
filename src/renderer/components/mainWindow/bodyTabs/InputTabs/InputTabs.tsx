@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab';
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';
@@ -8,10 +8,15 @@ import { AuthorizationTab } from '@/components/mainWindow/bodyTabs/InputTabs/tab
 
 interface InputTabsProps {
   className: string;
+  activeTab?: number;
+  onTabChange?: (tabIndex: number) => void;
 }
 
+const TAB_VALUES = ['body', 'queryParams', 'headers', 'authorization'];
+
 export function InputTabs(props: Readonly<InputTabsProps>) {
-  const { className } = props;
+  const { className, activeTab, onTabChange } = props;
+  const [currentTab, setCurrentTab] = useState('body');
 
   const headers = useCollectionStore((state) => selectRequest(state).headers);
 
@@ -20,8 +25,23 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
     [headers]
   );
 
+  // Handle programmatic tab changes
+  useEffect(() => {
+    if (activeTab !== undefined && TAB_VALUES[activeTab]) {
+      setCurrentTab(TAB_VALUES[activeTab]);
+    }
+  }, [activeTab]);
+
+  const handleTabChange = (value: string) => {
+    setCurrentTab(value);
+    const tabIndex = TAB_VALUES.indexOf(value);
+    if (tabIndex !== -1) {
+      onTabChange?.(tabIndex);
+    }
+  };
+
   return (
-    <Tabs className={className} defaultValue="body">
+    <Tabs className={className} value={currentTab} onValueChange={handleTabChange}>
       <TabsList>
         <TabsTrigger value="body">Body</TabsTrigger>
         <TabsTrigger value="queryParams">Params</TabsTrigger>
