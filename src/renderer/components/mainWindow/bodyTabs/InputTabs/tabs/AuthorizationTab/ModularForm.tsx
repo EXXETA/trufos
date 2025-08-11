@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { SecretInput } from '@/components/ui/secret-input';
 
 export interface BaseFieldConfig<T> {
   label: string;
@@ -67,11 +68,6 @@ export const ModularForm = <T extends Record<string, any>>({
   data,
   onDataChanged,
 }: FormProps<T>) => {
-  const [visible, setVisible] = useState<Partial<{ [K in keyof T]: boolean }>>({});
-  const toggleVisibility = (key: keyof T) => {
-    setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const getValue = useCallback(
     <V,>(key: keyof T, defaultValue: V) => {
       if (data[key] == null) {
@@ -115,22 +111,12 @@ export const ModularForm = <T extends Record<string, any>>({
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-sm font-medium text-text-primary">{label}</label>
-            <div className="relative w-full">
-              <Input
-                type={visible[key] ? 'text' : 'password'}
-                value={getValue(key, defaultValue ?? '')}
-                onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
-                placeholder={placeholder}
-                className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-              <button
-                type="button"
-                onClick={() => toggleVisibility(key)}
-                className="absolute inset-y-0 right-0 flex items-center px-3 text-sm text-text-secondary hover:text-text-primary"
-              >
-                {visible[key] ? 'Hide' : 'Show'}
-              </button>
-            </div>
+            <SecretInput
+              value={getValue(key, defaultValue ?? '')}
+              onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
+              placeholder={placeholder}
+              className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
           </div>
         );
       }

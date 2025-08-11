@@ -15,6 +15,7 @@ import { produce } from 'immer';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2 } from 'lucide-react';
 import { SecretInput } from '@/components/ui/secret-input';
+import { cn } from '@/lib/utils';
 
 export interface VariableEditorProps {
   variables: VariableObjectWithKey[];
@@ -104,7 +105,9 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <input
                     type="text"
                     value={variable.key}
-                    className={`w-full bg-transparent outline-none ${invalidVariableKeys.has(variable.key) ? 'text-danger' : ''}`}
+                    className={cn('w-full bg-transparent outline-none', {
+                      'text-danger': invalidVariableKeys.has(variable.key),
+                    })}
                     placeholder="Enter variable key"
                     onChange={(e) => update(index, { key: e.target.value })}
                   />
@@ -113,6 +116,9 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <SecretInput
                     secret={variable.secret}
                     value={variable.value}
+                    className={cn('w-full border-none bg-transparent outline-none', {
+                      'text-danger': invalidVariableKeys.has(variable.key),
+                    })}
                     placeholder="Enter variable value"
                     onChange={(e) => update(index, { value: e.target.value })}
                   />
