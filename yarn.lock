@@ -2973,12 +2973,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:^19.1.9":
-  version: 19.1.9
-  resolution: "@types/react@npm:19.1.9"
+"@types/react@npm:^19.1.10":
+  version: 19.1.10
+  resolution: "@types/react@npm:19.1.10"
   dependencies:
     csstype: "npm:^3.0.2"
-  checksum: 10c0/b418da4aaf18fbc6df4f1b7096dda7ee152d697cac00d729ffd855b2b44a3a9cfb2ecb017ed20979ea3a7d98a5ce5fcf01ac1a3614d4a3e4d7069a0c45e49b0f
+  checksum: 10c0/fb583deacd0a815e2775dc1b9f764532d8cacb748ddd2c2914805a46c257ce6c237b4078f44009692074db212ab61a390301c6470f07f5aa5bfdeb78a2acfda1
   languageName: node
   linkType: hard
 
@@ -7496,12 +7496,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:^0.537.0":
-  version: 0.537.0
-  resolution: "lucide-react@npm:0.537.0"
+"lucide-react@npm:^0.539.0":
+  version: 0.539.0
+  resolution: "lucide-react@npm:0.539.0"
   peerDependencies:
     react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/d53f159533227ffe64a2e4097c366c5fd483498c02b9cb5c8f5d3badf7f9e02fda2cdb8ccd48ad8431100f2f9bed31811a8d29c150836c1ce9989c30453fad7c
+  checksum: 10c0/ae85244dc23a78c51cc5f829ee09321cf68201333ab3d5614ed73cda77a4cd12284d3630a5a2167a39e31e02811056336de76a597c6874b28bb9984baf876494
   languageName: node
   linkType: hard
 
@@ -10657,7 +10657,7 @@ __metadata:
     "@types/mime-types": "npm:^3.0.1"
     "@types/node": "npm:^22.17.0"
     "@types/postman-collection": "npm:^3.5.11"
-    "@types/react": "npm:^19.1.9"
+    "@types/react": "npm:^19.1.10"
     "@types/react-dom": "npm:^19.1.7"
     "@types/tmp": "npm:^0.2.6"
     "@types/uuid": "npm:^10.0.0"
@@ -10679,7 +10679,7 @@ __metadata:
     globals: "npm:^16.3.0"
     immer: "npm:^10.1.1"
     jsdom: "npm:^26.1.0"
-    lucide-react: "npm:^0.537.0"
+    lucide-react: "npm:^0.539.0"
     memfs: "npm:^4.36.0"
     mime-types: "npm:^3.0.1"
     monaco-editor: "npm:^0.52.2"
