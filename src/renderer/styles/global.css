@@ -1,35 +1,35 @@
 /* Add the following to your global CSS file */
 
-/* Colors */
+/* Colors - now using CSS variables for theming */
 .success {
-  color: #2BB361;
+  color: var(--success);
 }
 
 .error {
-  color: #CA464E;
+  color: var(--error);
 }
 
 .http-method-color-get {
-  color: #93f176;
+  color: var(--http-get);
 }
 
 .http-method-color-put {
-  color: #37abff;
+  color: var(--http-put);
 }
 
 .http-method-color-post {
-  color: #9f72fe;
+  color: var(--http-post);
 }
 
 .http-method-color-delete {
-  color: #ee5c99;
+  color: var(--http-delete);
 }
 
 .http-method-color-patch {
-  color: #efa349;
+  color: var(--http-patch);
 }
 
-/* Tabs scrollbar styles */
+/* Tabs scrollbar styles - now theme-aware */
 .tabs-scrollbar::-webkit-scrollbar {
   width: 8px; /* Width of the scrollbar */
 }
@@ -39,16 +39,16 @@
 }
 
 .tabs-scrollbar::-webkit-scrollbar-thumb {
-  background: #333333; /* Color of the scrollbar thumb */
+  background: hsl(var(--muted)); /* Color of the scrollbar thumb */
   border-radius: 4px; /* Rounded corners for the thumb */
 }
 
 .tabs-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.5); /* Darker color on hover */
+  background: hsl(var(--border)); /* Darker color on hover */
 }
 
 .scrollbar > .slider {
-  background: #333;
+  background: hsl(var(--muted));
   border-radius: 4px;
 }
 
@@ -57,22 +57,22 @@
 
 body {
   font-family: "Lato", sans-serif;
-  color: #EEEEEE;
+  color: var(--text-primary);
   font-weight: 400;
 }
 
 .sidebar-request-list-item {
-  color: #bbbbbb;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .sidebar-request-list-item.selected {
-  background-color: #333333;
-  color: #EEEEEE;
+  background-color: hsl(var(--sidebar-accent));
+  color: var(--text-primary);
 }
 
 .sidebar-item.selected {
-  background: #007bff; /* Background color for selected item */
-  color: white;        /* Text color for selected item */
-  font-weight: bold;   /* Optional: make text bold */
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-weight: bold;
 }
