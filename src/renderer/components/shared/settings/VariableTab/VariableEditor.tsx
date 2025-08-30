@@ -9,29 +9,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { VARIABLE_NAME_REGEX, VariableMap, VariableObject } from 'shim/objects/variables';
+import { VARIABLE_NAME_REGEX, VariableObjectWithKey } from 'shim/objects/variables';
 import { memo, useEffect } from 'react';
 import { produce } from 'immer';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2 } from 'lucide-react';
+import { SecretInput } from '@/components/ui/secret-input';
+import { cn } from '@/lib/utils';
 
 export interface VariableEditorProps {
   variables: VariableObjectWithKey[];
   onValidChange?: (valid: boolean) => void;
   onVariablesChange?: (variables: VariableObjectWithKey[]) => void;
-}
-
-type VariableObjectWithKey = VariableObject & { key: string };
-
-export function variableMapToArray(map: VariableMap) {
-  return Object.entries(map).map<VariableObjectWithKey>(([key, variable]) => ({
-    key,
-    ...variable,
-  }));
-}
-
-export function variableArrayToMap(array: VariableObjectWithKey[]) {
-  return Object.fromEntries<VariableObject>(array.map(({ key, ...variable }) => [key, variable]));
 }
 
 function getInvalidVariableKeys(variables: VariableObjectWithKey[]) {
@@ -65,7 +54,7 @@ export const VariableEditor = memo<VariableEditorProps>(
       if (invalidVariableKeys.has('')) return;
       onVariablesChange(
         produce(variables, (variables) => {
-          variables.push({ key: '', value: '' });
+          variables.push({ key: '', value: '', description: '', secret: false });
         })
       );
     };
@@ -87,9 +76,9 @@ export const VariableEditor = memo<VariableEditorProps>(
     };
 
     return (
-      <div className="p-4">
+      <>
         <Button
-          className="h-fit gap-1 hover:bg-transparent"
+          className="h-fit gap-1 pl-0 hover:bg-transparent"
           size="sm"
           variant="ghost"
           onClick={add}
@@ -116,16 +105,20 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <input
                     type="text"
                     value={variable.key}
-                    className={`w-full bg-transparent outline-none ${invalidVariableKeys.has(variable.key) ? 'text-danger' : ''}`}
+                    className={cn('w-full bg-transparent outline-none', {
+                      'text-danger': invalidVariableKeys.has(variable.key),
+                    })}
                     placeholder="Enter variable key"
                     onChange={(e) => update(index, { key: e.target.value })}
                   />
                 </TableCell>
                 <TableCell className="break-all">
-                  <input
-                    type="text"
+                  <SecretInput
+                    secret={variable.secret}
                     value={variable.value}
-                    className="w-full bg-transparent outline-none"
+                    className={cn('w-full border-none bg-transparent outline-none', {
+                      'text-danger': invalidVariableKeys.has(variable.key),
+                    })}
                     placeholder="Enter variable value"
                     onChange={(e) => update(index, { value: e.target.value })}
                   />
@@ -159,7 +152,7 @@ export const VariableEditor = memo<VariableEditorProps>(
             ))}
           </TableBody>
         </Table>
-      </div>
+      </>
     );
   }
 );

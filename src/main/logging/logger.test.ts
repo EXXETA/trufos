@@ -134,7 +134,7 @@ describe('Logger', () => {
     // Arrange
     const now = new Date();
     const message = 'Error was thrown:';
-    const error = new Error('test error');
+    const error = new Error('test\nerror');
     const expected = `${now.toISOString()} [MAIN] [ERROR]: ${message} ${error.stack}${EOL}`;
 
     const data: unknown[] = [];
@@ -157,5 +157,20 @@ describe('Logger', () => {
       vi.useRealTimers();
       logger.remove(transport);
     }
+  });
+
+  it('should filter secret logs from file transport but allow in memory transport', () => {
+    // Arrange
+    const secretMessage = 'Secret data';
+    const secretData = { token: 'abc123', apiKey: 'secret-key' };
+
+    // Act
+    logger.secret.info(secretMessage, secretData);
+
+    // Assert
+    expect(memoryTransport.logs).toHaveLength(1);
+    const logEntry = memoryTransport.logs[0] as LogEntry;
+    expect(logEntry.message).toBe(`${secretMessage} { token: 'abc123', apiKey: 'secret-key' }`);
+    expect(logEntry.isSecret).toBe(true);
   });
 });

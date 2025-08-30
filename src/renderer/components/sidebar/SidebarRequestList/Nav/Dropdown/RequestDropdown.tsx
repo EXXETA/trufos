@@ -18,7 +18,7 @@ export interface RequestDropdownProps {
 }
 
 export const RequestDropdown = ({ request }: RequestDropdownProps) => {
-  const { deleteRequest } = useCollectionActions();
+  const { copyRequest, deleteRequest } = useCollectionActions();
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const [renameModalIsOpen, setRenameModalIsOpen] = useState(false);
 
@@ -41,6 +41,10 @@ export const RequestDropdown = ({ request }: RequestDropdownProps) => {
         <DropdownMenuContent className="w-48 rounded-lg" side="right" align="start">
           <DropdownMenuItem onClick={handleMouseEvent(() => setRenameModalIsOpen(true))}>
             Rename Request
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={handleMouseEvent(() => copyRequest(request.id))}>
+            Copy Request
           </DropdownMenuItem>
 
           <DropdownMenuItem

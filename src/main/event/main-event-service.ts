@@ -1,13 +1,14 @@
-import './stream-events';
-import { IEventService } from 'shim/event-service';
-import { HttpService } from 'main/network/service/http-service';
-import { app, ipcMain, dialog } from 'electron';
-import { TrufosRequest } from 'shim/objects/request';
-import { PersistenceService } from '../persistence/service/persistence-service';
-import { TrufosObject } from 'shim/objects';
+import { app, dialog, ipcMain } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { VariableMap } from 'shim/objects/variables';
+import { HttpService } from 'main/network/service/http-service';
+import { IEventService } from 'shim/event-service';
+import { TrufosObject } from 'shim/objects';
 import { Folder } from 'shim/objects/folder';
+import { TrufosRequest } from 'shim/objects/request';
+import { VariableMap } from 'shim/objects/variables';
+import { PersistenceService } from '../persistence/service/persistence-service';
+import './stream-events';
+import { EnvironmentMap } from 'shim/objects/environment';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -88,6 +89,10 @@ export class MainEventService implements IEventService {
     return await persistenceService.saveRequest(request, textBody);
   }
 
+  async copyRequest(request: TrufosRequest): Promise<TrufosRequest> {
+    return await persistenceService.copyRequest(request);
+  }
+
   async saveChanges(request: TrufosRequest) {
     return await persistenceService.saveChanges(request);
   }
@@ -117,12 +122,21 @@ export class MainEventService implements IEventService {
     await persistenceService.saveCollection(environmentService.currentCollection);
   }
 
+  async setEnvironmentVariables(environmentVariables: EnvironmentMap) {
+    environmentService.setEnvironmentVariables(environmentVariables);
+    await persistenceService.saveCollection(environmentService.currentCollection);
+  }
+
   async selectEnvironment(key: string) {
     environmentService.currentEnvironmentKey = key;
   }
 
   async saveFolder(folder: Folder) {
     await persistenceService.saveFolder(folder);
+  }
+
+  async copyFolder(folder: Folder): Promise<Folder> {
+    return await persistenceService.copyFolder(folder);
   }
 
   async openCollection(dirPath: string) {

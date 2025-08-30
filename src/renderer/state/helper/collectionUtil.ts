@@ -1,7 +1,7 @@
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { IpcPushStream } from '@/lib/ipc-stream';
-import { Folder } from 'shim/objects/folder';
 import { REQUEST_MODEL } from '@/lib/monaco/models';
+import { Folder } from 'shim/objects/folder';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 
 export async function setRequestTextBody(request: TrufosRequest) {
   if (request.body?.type === RequestBodyType.TEXT) {

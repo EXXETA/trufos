@@ -1,9 +1,10 @@
+import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
-import { Collection, CollectionBase } from './objects/collection';
 import { TrufosObject } from './objects';
+import { Collection, CollectionBase } from './objects/collection';
 import { VariableMap, VariableObject } from './objects/variables';
-import { Folder } from 'shim/objects/folder';
+import { EnvironmentMap } from './objects/environment';
 
 export interface IEventService {
   /**
@@ -34,6 +35,14 @@ export interface IEventService {
    * @param textBody OPTIONAL: The text body of the request.
    */
   saveRequest(request: TrufosRequest, textBody?: string): Promise<TrufosRequest>;
+
+  /**
+   * Copies the given request and returns the copied request.
+   * If the request has a non-draft request body, it is copied as well.
+   *
+   * @param request The request to copy.
+   */
+  copyRequest(request: TrufosRequest): Promise<TrufosRequest>;
 
   /**
    * Save changes of the given trufos request to the file system.
@@ -78,6 +87,12 @@ export interface IEventService {
   setCollectionVariables(variables: VariableMap): void;
 
   /**
+   * Replace all existing environment variables with the given ones.
+   * @param environmentVariables
+   */
+  setEnvironmentVariables(environmentVariables: EnvironmentMap): void;
+
+  /**
    * Select an environment by its key.
    * @param key The key of the environment to select.
    */
@@ -88,6 +103,14 @@ export interface IEventService {
    * @param folder The folder to save.
    */
   saveFolder(folder: Folder): void;
+
+  /**
+   * Copies the given folder and all its children and returns the copied folder.
+   * If any child has a non-draft request body, it is copied as well.
+   *
+   * @param folder The folder to copy.
+   */
+  copyFolder(folder: Folder): Promise<Folder>;
 
   /**
    * Open an existing collection at the given directory path.
