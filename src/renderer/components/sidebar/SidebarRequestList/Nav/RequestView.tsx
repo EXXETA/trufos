@@ -20,8 +20,9 @@ export const RequestView = ({ requestId }: SidebarRequestListProps) => {
         'cursor-pointer',
         'flex',
         'py-3.5',
-        'px-6',
-        'gap-2'
+        'ml-16',
+        'gap-2',
+        'w-full'
       )}
       onClick={handleMouseEvent(() => setSelectedRequest(requestId))}
     >
