@@ -1,11 +1,13 @@
 import './logging/logger';
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import 'main/event/main-event-service';
 import path from 'node:path';
 import quit from 'electron-squirrel-startup';
 import { SettingsService } from './persistence/service/settings-service';
+import { once } from 'node:events';
+import process from 'node:process';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -15,59 +17,78 @@ if (quit) {
   app.quit();
 }
 
+function showError(error?: unknown, title = 'Error') {
+  console.error(title + ':', error);
+  dialog.showErrorBox(title, error instanceof Error ? error.message : String(error));
+  app.quit();
+}
+
+process.on('uncaughtException', showError);
+process.on('unhandledRejection', showError);
+
 const createWindow = async () => {
-  // initialize services in correct order
-  await SettingsService.instance.init();
-  await EnvironmentService.instance.init();
+  try {
+    // initialize services in correct order
+    await SettingsService.instance.init();
+    await EnvironmentService.instance.init();
 
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 1024,
-    height: 728,
-    minWidth: 1024,
-    minHeight: 728,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-    },
-  });
+    // create the browser window
+    const mainWindow = new BrowserWindow({
+      width: 1024,
+      height: 728,
+      minWidth: 1024,
+      minHeight: 728,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+      },
+      show: false,
+    });
 
-  // Open links in default browser
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
+    // show once rendered
+    once(mainWindow, 'ready-to-show').then(() => mainWindow.show());
 
-  // Handle window close event
-  let isClosing = false;
-  mainWindow.on('close', async (event) => {
-    if (!isClosing) {
-      isClosing = true;
-      event.preventDefault();
-      mainWindow?.webContents.send('before-close');
+    // open links in default browser
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    });
 
-      // Wait for the renderer to respond or timeout
-      try {
-        await new Promise<void>((resolve, reject) => {
-          ipcMain.once('ready-to-close', () => resolve());
-          setTimeout(() => reject(new Error('Timeout')), 30000);
-        });
-      } catch (error) {
-        logger.error('Could not handle close event in renderer:', error);
+    // handle window close event
+    let isClosing = false;
+    mainWindow.on('close', async (event) => {
+      if (!isClosing) {
+        isClosing = true;
+        event.preventDefault();
+        mainWindow?.webContents.send('before-close');
+
+        // Wait for the renderer to respond or timeout
+        try {
+          await new Promise<void>((resolve, reject) => {
+            ipcMain.once('ready-to-close', () => resolve());
+            setTimeout(() => reject(new Error('Timeout')), 30000);
+          });
+        } catch (error) {
+          logger.error('Could not handle close event in renderer:', error);
+        }
+
+        // close app
+        mainWindow.close();
+        app.quit();
       }
+    });
 
-      // Close app
-      mainWindow.close();
-      app.quit();
+    // load the index.html of the app.
+    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+      await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    } else {
+      await mainWindow.loadFile(
+        path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
+      );
     }
-  });
-
-  // Load the index.html of the app.
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    await mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
-    );
+  } catch (e) {
+    console.error('Could not start Trufos:', e);
+    showError('Could not start Trufos: ' + e.message);
+    app.quit();
   }
 };
 
@@ -89,7 +110,7 @@ app.on('activate', async () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    await createWindow();
   }
 });
 
