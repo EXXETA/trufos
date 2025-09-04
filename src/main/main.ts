@@ -7,6 +7,7 @@ import path from 'node:path';
 import quit from 'electron-squirrel-startup';
 import { SettingsService } from './persistence/service/settings-service';
 import { once } from 'node:events';
+import process from 'node:process';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -15,6 +16,15 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 if (quit) {
   app.quit();
 }
+
+function showError(error?: unknown, title = 'Error') {
+  console.error(title + ':', error);
+  dialog.showErrorBox(title, error instanceof Error ? error.message : String(error));
+  app.quit();
+}
+
+process.on('uncaughtException', showError);
+process.on('unhandledRejection', showError);
 
 const createWindow = async () => {
   try {
@@ -77,7 +87,7 @@ const createWindow = async () => {
     }
   } catch (e) {
     console.error('Could not start Trufos:', e);
-    dialog.showErrorBox('Error', 'Could not start Trufos: ' + e.message);
+    showError('Could not start Trufos: ' + e.message);
     app.quit();
   }
 };
