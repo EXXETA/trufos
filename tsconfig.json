@@ -2,27 +2,20 @@
   "compilerOptions": {
     "target": "ES2023",
     "allowJs": true,
-    "module": "commonjs",
+    "module": "nodenext",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
     "sourceMap": true,
     "outDir": "dist",
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "resolveJsonModule": true,
     "baseUrl": "./src",
     "paths": {
-      "@/*": [
-        "renderer/*"
-      ]
+      "@/*": ["renderer/*"]
     },
     "jsx": "react-jsx",
-    "lib": [
-      "ESNext",
-      "dom"
-    ]
+    "lib": ["ESNext", "dom"]
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
 }
