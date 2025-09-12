@@ -9603,13 +9603,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-resizable-panels@npm:^3.0.5":
-  version: 3.0.5
-  resolution: "react-resizable-panels@npm:3.0.5"
+"react-resizable-panels@npm:^3.0.6":
+  version: 3.0.6
+  resolution: "react-resizable-panels@npm:3.0.6"
   peerDependencies:
     react: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
     react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-  checksum: 10c0/c6f18dcd3e24410084a8075ffd17c95940322e4a2a51362a0acd2fd2a875a052eac9b3ee589c41e43b603ac614c4cd1d8196ff6fc5f6a72aad837ddea499f816
+  checksum: 10c0/e6a6a2a7f438aaf3d4411c39626c1cab5c23af6f25d5ff1fdb8446916388fec549be63d65c47fe17bcc82522b1b5fc7fffa77a550ca9d0b8d21e340d83bdb3c0
   languageName: node
   linkType: hard
 
@@ -11217,7 +11217,7 @@ __metadata:
     react: "npm:^19.1.1"
     react-dom: "npm:^19.1.1"
     react-icons: "npm:^5.5.0"
-    react-resizable-panels: "npm:^3.0.5"
+    react-resizable-panels: "npm:^3.0.6"
     sonner: "npm:^2.0.7"
     style-loader: "npm:^4.0.0"
     tailwind-merge: "npm:^3.3.1"
