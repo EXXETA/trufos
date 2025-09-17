@@ -3345,7 +3345,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^22.18.1, @types/node@npm:^22.5.5":
+"@types/node@npm:^22.18.5":
+  version: 22.18.5
+  resolution: "@types/node@npm:22.18.5"
+  dependencies:
+    undici-types: "npm:~6.21.0"
+  checksum: 10c0/2a664e24f1b4bc7d49905cd2a416c2e2dbf8dd09d35d783922e447983817100fb637135a9d3fa1d98b790b48f214a68fda941afed56641c172bd2ce23b5cf57a
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^22.5.5":
   version: 22.18.1
   resolution: "@types/node@npm:22.18.1"
   dependencies:
@@ -11178,7 +11187,7 @@ __metadata:
     "@testing-library/react": "npm:^16.3.0"
     "@types/electron-squirrel-startup": "npm:^1.0.2"
     "@types/mime-types": "npm:^3.0.1"
-    "@types/node": "npm:^22.18.1"
+    "@types/node": "npm:^22.18.5"
     "@types/postman-collection": "npm:^3.5.11"
     "@types/react": "npm:^19.1.12"
     "@types/react-dom": "npm:^19.1.9"
