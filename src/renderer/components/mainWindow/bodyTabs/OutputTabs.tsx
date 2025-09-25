@@ -46,15 +46,20 @@ function getContentType(headers?: HttpHeaders) {
 
 interface OutputTabsProps {
   className: string;
+  activeTab?: number;
+  onTabChange?: (tabIndex: number) => void;
 }
 
-export function OutputTabs({ className }: OutputTabsProps) {
+const OUTPUT_TAB_VALUES = ['body', 'header'];
+
+export function OutputTabs({ className, activeTab, onTabChange }: OutputTabsProps) {
   const { setResponseEditor, formatResponseEditorText } = useResponseActions();
   const editor = useResponseStore((state) => state.editor);
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
 
   const [editorLanguage, setEditorLanguage] = useState<string | undefined>();
+  const [currentTab, setCurrentTab] = useState('body');
 
   const mimeType = useMemo(() => {
     const contentType = getContentType(response?.headers);
@@ -98,8 +103,23 @@ export function OutputTabs({ className }: OutputTabsProps) {
     }
   }, [requestId, canFormatResponseBody, formatResponseEditorText]);
 
+  // Handle programmatic tab changes
+  useEffect(() => {
+    if (activeTab !== undefined && OUTPUT_TAB_VALUES[activeTab]) {
+      setCurrentTab(OUTPUT_TAB_VALUES[activeTab]);
+    }
+  }, [activeTab]);
+
+  const handleTabChange = (value: string) => {
+    setCurrentTab(value);
+    const tabIndex = OUTPUT_TAB_VALUES.indexOf(value);
+    if (tabIndex !== -1) {
+      onTabChange?.(tabIndex);
+    }
+  };
+
   return (
-    <Tabs className={className} defaultValue="body">
+    <Tabs className={className} value={currentTab} onValueChange={handleTabChange}>
       <TabsList className="flex items-center justify-between">
         <div className="flex">
           <TabsTrigger value="body">Response Body</TabsTrigger>
