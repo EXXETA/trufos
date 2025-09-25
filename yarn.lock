@@ -8217,9 +8217,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"memfs@npm:^4.43.0":
-  version: 4.43.0
-  resolution: "memfs@npm:4.43.0"
+"memfs@npm:^4.46.1":
+  version: 4.46.1
+  resolution: "memfs@npm:4.46.1"
   dependencies:
     "@jsonjoy.com/json-pack": "npm:^1.11.0"
     "@jsonjoy.com/util": "npm:^1.9.0"
@@ -8227,7 +8227,7 @@ __metadata:
     thingies: "npm:^2.5.0"
     tree-dump: "npm:^1.0.3"
     tslib: "npm:^2.0.0"
-  checksum: 10c0/9d8645f3229e80bb6a4ca0ef627926a4170c45234f1b332ec2f9b90b40d2de3cba78c303d6730f383a798f0fdbcc78369ae0fa7bcc6b9e1a4cec2b31215b5f29
+  checksum: 10c0/840727d7b05bd830b4563a5c42a1ba5bba8556da2a69f3588b988270ebca179f43c4292a7e539051f5899f389f1a4aa2ffc00f87df9ef9dc805728b6bb6fd1e7
   languageName: node
   linkType: hard
 
@@ -11290,7 +11290,7 @@ __metadata:
     immer: "npm:^10.1.3"
     jsdom: "npm:^27.0.0"
     lucide-react: "npm:^0.544.0"
-    memfs: "npm:^4.43.0"
+    memfs: "npm:^4.46.1"
     mime-types: "npm:^3.0.1"
     monaco-editor: "npm:^0.53.0"
     next-themes: "npm:^0.4.6"
