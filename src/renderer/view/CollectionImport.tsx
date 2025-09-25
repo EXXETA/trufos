@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
+import { useStateResettable } from '@/util/react-util';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -82,14 +83,30 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   open = true,
 }) => {
   const { changeCollection } = useCollectionActions();
-  const [strategy, setStrategy] = useState<ImportStrategy>('Postman');
-  const [srcFilePath, setSrcFilePath] = useState<string | undefined>();
-  const [targetDirPath, setTargetDirPath] = useState<string | undefined>();
-  const [title, setTitle] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Resettable states
+  const [strategy, setStrategy, resetStrategy] = useStateResettable<ImportStrategy>('Postman');
+  const [srcFilePath, setSrcFilePath, resetSrcFilePath] = useStateResettable<string | undefined>(
+    undefined
+  );
+  const [targetDirPath, setTargetDirPath, resetTargetDirPath] = useStateResettable<
+    string | undefined
+  >(undefined);
+  const [title, setTitle, resetTitle] = useStateResettable('');
+  const [isImporting, setIsImporting, resetIsImporting] = useStateResettable(false);
+  const [error, setError, resetError] = useStateResettable<string | null>(null);
 
   const canImport = srcFilePath && targetDirPath && !isImporting;
+
+  useEffect(() => {
+    if (open) {
+      resetStrategy();
+      resetSrcFilePath();
+      resetTargetDirPath();
+      resetTitle();
+      resetError();
+      resetIsImporting();
+    }
+  }, [open]);
 
   const doImport = useCallback(async () => {
     try {
@@ -98,13 +115,14 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
       await changeCollection(
         await eventService.importCollection(srcFilePath, targetDirPath, strategy, title)
       );
+      onClose?.();
     } catch (e) {
       console.error(e);
       setError((e as Error).message);
     } finally {
       setIsImporting(false);
     }
-  }, [srcFilePath, targetDirPath, strategy, title]);
+  }, [srcFilePath, targetDirPath, strategy, title, onClose, changeCollection]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
