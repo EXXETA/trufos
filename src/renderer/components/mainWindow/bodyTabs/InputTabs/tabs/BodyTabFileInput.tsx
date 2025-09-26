@@ -3,6 +3,7 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import { useCallback, useMemo } from 'react';
 import FilePicker from '@/components/ui/file-picker';
 import { FileBody, RequestBodyType } from 'shim/objects/request';
+import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 
 interface BodyTabFileInputProps {
   className?: string;
@@ -13,15 +14,15 @@ export default function BodyTabFileInput({ className }: BodyTabFileInputProps) {
   const requestBody = useCollectionStore((state) => selectRequest(state).body);
 
   const setRequestBodyFile = useCallback(
-    (file?: File) => {
-      if (!file) return;
-
-      setRequestBody({
-        type: RequestBodyType.FILE,
-        filePath: window.electron.getAbsoluteFilePath(file),
-        fileName: file.name,
-        mimeType: file.type === '' ? undefined : file.type,
-      });
+    (file: DroppedEntryInfo) => {
+      if (!file.isDirectory) {
+        setRequestBody({
+          type: RequestBodyType.FILE,
+          filePath: file.path,
+          fileName: file.name,
+          mimeType: file.mimeType,
+        });
+      }
     },
     [setRequestBody]
   );
@@ -32,18 +33,19 @@ export default function BodyTabFileInput({ className }: BodyTabFileInputProps) {
 
   const isFileSelected = requestBody.type === RequestBodyType.FILE && requestBody.filePath;
 
-  // Derive a pseudo File object for controlled FilePicker when a file is already stored in state
-  const controlledFile = useMemo(() => {
+  const file = useMemo(() => {
     if (!isFileSelected) return null;
-    // We only have fileName + path + mimeType, so create a lightweight File-like shim if needed.
-    // For display we only need name; FilePicker never reads other props beyond name.
-    return { name: requestBody.fileName ?? 'Unknown file' } as File;
+    return {
+      name: requestBody.fileName,
+      path: requestBody.filePath,
+      isDirectory: false,
+    } as DroppedEntryInfo;
   }, [isFileSelected, requestBody]);
 
   return (
     <div className={cn('h-full', className)}>
       <FilePicker
-        file={controlledFile}
+        entry={file}
         onFileSelected={(file) => setRequestBodyFile(file)}
         onFileRemoved={removeRequestBodyFile}
       />
