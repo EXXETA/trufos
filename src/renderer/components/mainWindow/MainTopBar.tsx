@@ -10,7 +10,7 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2 } from 'lucide-react';
-import { handleError } from '@/error/errorHandler';
+import { showError } from '@/error/errorHandler';
 import { REQUEST_MODEL } from '@/lib/monaco/models';
 
 const httpService = HttpService.instance;
@@ -50,7 +50,7 @@ export function MainTopBar() {
         const response = await httpService.sendRequest(request);
         addResponse(request.id, response);
       } catch (error) {
-        handleError(error);
+        showError(error);
       } finally {
         setIsLoading(false);
       }

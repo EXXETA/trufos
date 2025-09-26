@@ -1,7 +1,7 @@
 import { toast } from '@/components/ui/sonner';
 import { DisplayableError } from './DisplayableError';
 
-export function handleError(error: unknown) {
+export function showError(error: unknown) {
   const toastOptions = {
     style: { backgroundColor: '#E36873', color: 'black' },
   };
