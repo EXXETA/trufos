@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
  * @param initialValue initial state value
  * @returns [state, setState, resetState]
  */
-export function useStateResettable<T>(initialValue: T) {
+export function useStateResettable<T>(initialValue?: T) {
   const [value, setValue] = useState(initialValue);
   const reset = useCallback(() => setValue(initialValue), []);
   return [value, setValue, reset] as const;

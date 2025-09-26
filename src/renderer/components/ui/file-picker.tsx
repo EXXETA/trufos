@@ -4,59 +4,54 @@ import { FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // We extend drop zone props except for those we manage internally or deliberately override.
-export interface FilePickerProps extends Omit<FileDropZoneProps, 'children' | 'onFileSelected'> {
+export interface FilePickerProps extends Omit<FileDropZoneProps, 'children'> {
   /** Controlled entry: if provided component becomes controlled. */
   entry?: DroppedEntryInfo | null;
   /** Default entry for uncontrolled usage */
   defaultEntry?: DroppedEntryInfo | null;
   /** Called when the file is removed */
   onFileRemoved?: () => void;
-  /** Optional render override for selected file row */
-  renderSelected?: (args: { entry: DroppedEntryInfo; remove: () => void }) => React.ReactNode;
-  /** Size variant (future expansion) */
+  /** Size variant */
   variant?: 'default' | 'compact';
-  /** Called when an entry (file or directory) is selected */
-  onFileSelected?: (entry: DroppedEntryInfo) => void;
+  /** Is the component controlled? */
+  controlled?: boolean;
 }
 
 export const FilePicker: React.FC<FilePickerProps> = ({
   className,
   entry: controlledEntry,
-  defaultEntry = null,
-  onFileSelected,
-  onFileRemoved,
-  renderSelected,
+  defaultEntry,
+  onFileSelected: onFileSelectedCallback,
+  onFileRemoved: onFileRemovedCallback,
   variant = 'default',
+  controlled = false,
   ...dropZoneProps
 }) => {
-  const [internalEntry, setInternalEntry] = useState<DroppedEntryInfo | null>(defaultEntry);
-
-  const isControlled = controlledEntry !== undefined;
-  const entry = isControlled ? controlledEntry : internalEntry;
+  const [internalEntry, setInternalEntry] = useState<DroppedEntryInfo>(defaultEntry);
+  const entry = controlled ? controlledEntry : internalEntry;
 
   useEffect(() => {
-    if (isControlled && controlledEntry === null) {
+    if (controlled && controlledEntry === null) {
       // Mirror external clearing in uncontrolled internal state for consistency when switching
       setInternalEntry(null);
     }
-  }, [isControlled, controlledEntry]);
+  }, [controlled, controlledEntry]);
 
-  const selectEntry = useCallback(
+  const onFileSelected = useCallback(
     (e: DroppedEntryInfo) => {
-      if (!isControlled) setInternalEntry(e);
-      onFileSelected?.(e);
+      if (!controlled) setInternalEntry(e);
+      onFileSelectedCallback?.(e);
     },
-    [isControlled, onFileSelected]
+    [controlled, onFileSelectedCallback]
   );
 
-  const removeEntry = useCallback(() => {
-    if (!isControlled) setInternalEntry(null);
-    onFileRemoved?.();
-  }, [isControlled, onFileRemoved]);
+  const onFileRemoved = useCallback(() => {
+    if (!controlled) setInternalEntry(null);
+    onFileRemovedCallback?.();
+  }, [controlled, onFileRemovedCallback]);
 
   const selectedNode = useMemo(() => {
     if (!entry) return null;
-    if (renderSelected) return renderSelected({ entry, remove: removeEntry });
     return (
       <div
         className={cn('flex items-center justify-between rounded-md border p-4 text-sm', {
@@ -72,19 +67,21 @@ export const FilePicker: React.FC<FilePickerProps> = ({
         <button
           type="button"
           className="flex-shrink-0 text-red-500 transition-colors hover:text-red-700"
-          onClick={removeEntry}
+          onClick={onFileRemoved}
           aria-label="Remove file"
         >
           <X />
         </button>
       </div>
     );
-  }, [entry, renderSelected, removeEntry, variant]);
+  }, [entry, onFileRemoved, variant]);
 
   if (entry) {
     return <div className={className}>{selectedNode}</div>;
   } else {
-    return <FileDropZone className={className} onFileSelected={selectEntry} {...dropZoneProps} />;
+    return (
+      <FileDropZone className={className} onFileSelected={onFileSelected} {...dropZoneProps} />
+    );
   }
 };
 
