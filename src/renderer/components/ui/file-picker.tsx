@@ -73,10 +73,9 @@ export const FilePicker: React.FC<FilePickerProps> = ({
     if (renderSelected) return renderSelected({ file, remove: removeFile });
     return (
       <div
-        className={cn(
-          'flex items-center justify-between rounded-md border p-4 text-sm',
-          variant === 'compact' && 'p-2'
-        )}
+        className={cn('flex items-center justify-between rounded-md border p-4 text-sm', {
+          'p-2': variant === 'compact',
+        })}
       >
         <div className="flex items-center gap-4 overflow-hidden">
           <FileText className="flex-shrink-0" />
