@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCollectionActions } from '@/state/collectionStore';
-import { Upload } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import FilePicker from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
+import { FolderIcon } from '@/components/icons';
 
 type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
 
@@ -81,9 +82,13 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               Insomnia
             </TabsTrigger>
           </TabsList>
-          <TabsContent value={strategy} className="m-0 flex flex-col gap-6 bg-transparent p-0">
+          <TabsContent
+            value={strategy}
+            className="m-0 flex flex-col gap-6 rounded-none bg-transparent p-0"
+          >
             <FilePicker
-              placeholder="Select collection file to import"
+              title="Select file of the original collection"
+              description="Postman, Bruno and Insomnia collections are supported"
               entry={srcEntry}
               onFileSelected={setSrcEntry}
               onFileRemoved={() => setSrcEntry(undefined)}
@@ -91,7 +96,9 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               controlled
             />
             <FilePicker
-              placeholder="Select directory for new collection"
+              title="Select directory for new collection"
+              description="This is where the imported collection will be placed"
+              icon={<FolderIcon size={36} />}
               entry={targetEntry}
               onFileSelected={setTargetEntry}
               onFileRemoved={() => setTargetEntry(undefined)}
@@ -99,13 +106,10 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               controlled
             />
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Name of the new collection
-              </span>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="My Imported Collection"
+                placeholder="Name of the new collection"
               />
             </div>
             {error && (
@@ -115,10 +119,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             )}
             <DialogFooter className="mt-2 gap-2">
               <Button onClick={doImport} disabled={!canImport} className="gap-2 self-center">
-                <Upload size={16} /> {isImporting ? 'Importing...' : 'Complete Import'}
-              </Button>
-              <Button variant="ghost" type="button" onClick={onClose}>
-                Cancel
+                <Plus size={16} /> {isImporting ? 'Importing...' : 'Complete Import'}
               </Button>
             </DialogFooter>
           </TabsContent>

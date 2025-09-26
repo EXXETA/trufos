@@ -19,8 +19,10 @@ export interface FileDropZoneProps {
   /** Callback fired when a file or directory (represented via first contained file) is selected */
   onFileSelected: (entry: DroppedEntryInfo) => void;
   disabled?: boolean;
-  /** Text shown when no custom children provided */
-  placeholder?: string;
+  title?: string;
+  description?: string;
+  /** Optional custom icon (component or element) rendered above the title. If not provided, a default Upload icon is shown. Recommended size is 36px */
+  icon?: React.ReactNode;
   /** Accept attribute forwarded to input */
   accept?: string;
   /** Allow selecting directories */
@@ -58,7 +60,9 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
   className,
   onFileSelected: onFileSelectedCallback,
   disabled,
-  placeholder,
+  title,
+  description,
+  icon,
   accept,
   directoryMode = false,
 }) => {
@@ -116,7 +120,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
       return;
     } else if (directoryMode) {
       const result = await eventService.showOpenDialog({
-        message: placeholder,
+        message: title,
         properties: ['openDirectory', 'createDirectory'],
       });
       if (!result.canceled && result.filePaths.length > 0) {
@@ -141,15 +145,11 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
     [onClick]
   );
 
-  const resolvedPlaceholder =
-    placeholder ?? (directoryMode ? 'Drag & drop a folder here' : 'Drag & drop a file here');
-
   return (
     <div
       className={cn(
-        'flex h-full w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed p-4 text-center text-sm transition-colors',
-        isDragging && 'border-primary',
-        disabled && 'pointer-events-none opacity-60',
+        'flex h-full w-full cursor-pointer flex-col items-center justify-center gap-4 border-2 border-dashed p-4 text-center text-sm transition-colors',
+        { 'border-primary': isDragging, 'pointer-events-none opacity-60': disabled },
         className
       )}
       onDragOver={onDragOver}
@@ -161,8 +161,13 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled || undefined}
     >
-      <Upload size={36} />
-      <span>{resolvedPlaceholder}</span>
+      {icon ?? <Upload size={36} />}
+      <span className="inline-flex h-[17px] shrink-0 items-start whitespace-pre text-sm font-normal leading-[1.2] text-text-primary">
+        {title ?? `Drag & drop a ${directoryMode ? 'folder' : 'file'} here`}
+      </span>
+      <span className="inline-flex h-[15px] shrink-0 items-start whitespace-pre text-xs font-normal leading-[1.2] text-text-secondary">
+        {description ?? ''}
+      </span>
       {directoryMode ? null : (
         <input
           ref={inputRef}
