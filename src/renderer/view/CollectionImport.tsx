@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCollectionActions } from '@/state/collectionStore';
-import { FolderOpen, Upload } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -13,70 +13,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import FilePicker from '@/components/ui/file-picker';
+import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 
 type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
 
 const eventService = RendererEventService.instance;
-
-interface PathSelectorProps {
-  label: string;
-  placeholder: string;
-  path?: string;
-  onPick: (path: string) => void;
-  type: 'file' | 'directory';
-  acceptExtensions?: string[]; // only for file
-}
-
-const PathSelector: React.FC<PathSelectorProps> = ({
-  label,
-  placeholder,
-  path,
-  onPick,
-  type,
-  acceptExtensions,
-}) => {
-  const pick = useCallback(async () => {
-    const properties: Electron.OpenDialogOptions['properties'] =
-      type === 'file' ? ['openFile'] : ['openDirectory'];
-    const filters =
-      type === 'file' && acceptExtensions
-        ? [
-            {
-              name: 'Supported Files',
-              extensions: acceptExtensions.map((e) => e.replace(/^\./, '')),
-            },
-          ]
-        : undefined;
-    const result = await eventService.showOpenDialog({ properties, filters });
-    if (!result.canceled && result.filePaths.length > 0) {
-      onPick(result.filePaths[0]);
-    }
-  }, [onPick, type, acceptExtensions]);
-
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <div className="flex items-center gap-2">
-        <div className="flex h-20 flex-1 items-center justify-center truncate rounded-md border border-dashed border-border bg-background/40 px-3 py-2 text-center text-sm">
-          {path ? (
-            <span className="truncate" title={path}>
-              {path}
-            </span>
-          ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
-          )}
-        </div>
-      </div>
-      <div className="flex justify-center">
-        <Button variant="ghost" size="sm" onClick={pick} className="gap-2">
-          <FolderOpen size={16} /> Select {type === 'file' ? 'File' : 'Directory'}
-        </Button>
-      </div>
-    </div>
-  );
-};
 
 export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }> = ({
   onClose,
@@ -85,23 +27,19 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   const { changeCollection } = useCollectionActions();
   // Resettable states
   const [strategy, setStrategy, resetStrategy] = useStateResettable<ImportStrategy>('Postman');
-  const [srcFilePath, setSrcFilePath, resetSrcFilePath] = useStateResettable<string | undefined>(
-    undefined
-  );
-  const [targetDirPath, setTargetDirPath, resetTargetDirPath] = useStateResettable<
-    string | undefined
-  >(undefined);
+  const [srcEntry, setSrcEntry, resetSrcEntry] = useStateResettable<DroppedEntryInfo>();
+  const [targetEntry, setTargetEntry, resetTargetEntry] = useStateResettable<DroppedEntryInfo>();
   const [title, setTitle, resetTitle] = useStateResettable('');
   const [isImporting, setIsImporting, resetIsImporting] = useStateResettable(false);
-  const [error, setError, resetError] = useStateResettable<string | null>(null);
+  const [error, setError, resetError] = useStateResettable<string>();
 
-  const canImport = srcFilePath && targetDirPath && !isImporting;
+  const canImport = srcEntry && targetEntry && !isImporting;
 
   useEffect(() => {
     if (open) {
       resetStrategy();
-      resetSrcFilePath();
-      resetTargetDirPath();
+      resetSrcEntry();
+      resetTargetEntry();
       resetTitle();
       resetError();
       resetIsImporting();
@@ -113,7 +51,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
       setIsImporting(true);
       setError(null);
       await changeCollection(
-        await eventService.importCollection(srcFilePath, targetDirPath, strategy, title)
+        await eventService.importCollection(srcEntry.path, targetEntry.path, strategy, title)
       );
       onClose?.();
     } catch (e) {
@@ -122,7 +60,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
     } finally {
       setIsImporting(false);
     }
-  }, [srcFilePath, targetDirPath, strategy, title, onClose, changeCollection]);
+  }, [srcEntry, targetEntry, strategy, title, onClose, changeCollection]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
@@ -144,20 +82,21 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             </TabsTrigger>
           </TabsList>
           <TabsContent value={strategy} className="m-0 flex flex-col gap-6 bg-transparent p-0">
-            <PathSelector
-              label="Source File"
-              placeholder="Select directory of the original collection"
-              path={srcFilePath}
-              onPick={setSrcFilePath}
-              type="file"
-              acceptExtensions={['.json']}
+            <FilePicker
+              placeholder="Select collection file to import"
+              entry={srcEntry}
+              onFileSelected={setSrcEntry}
+              onFileRemoved={() => setSrcEntry(undefined)}
+              accept=".json"
+              controlled
             />
-            <PathSelector
-              label="Target Directory"
+            <FilePicker
               placeholder="Select directory for new collection"
-              path={targetDirPath}
-              onPick={setTargetDirPath}
-              type="directory"
+              entry={targetEntry}
+              onFileSelected={setTargetEntry}
+              onFileRemoved={() => setTargetEntry(undefined)}
+              directoryMode
+              controlled
             />
             <div className="flex flex-col gap-2">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

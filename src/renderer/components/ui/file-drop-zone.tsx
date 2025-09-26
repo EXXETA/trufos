@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { RendererEventService } from '@/services/event/renderer-event-service';
 
 export interface DroppedEntryInfo {
   /** Absolute path to the selected file or directory */
@@ -18,8 +19,6 @@ export interface FileDropZoneProps {
   /** Callback fired when a file or directory (represented via first contained file) is selected */
   onFileSelected: (entry: DroppedEntryInfo) => void;
   disabled?: boolean;
-  /** Optional custom render; receives isDragging state */
-  children?: (ctx: { isDragging: boolean }) => React.ReactNode;
   /** Text shown when no custom children provided */
   placeholder?: string;
   /** Accept attribute forwarded to input */
@@ -53,11 +52,12 @@ interface DataTransferItemWithEntry /* not extending */ {
   webkitGetAsEntry(): FsEntryLite | null;
 }
 
+const eventService = RendererEventService.instance;
+
 export const FileDropZone: React.FC<FileDropZoneProps> = ({
   className,
   onFileSelected: onFileSelectedCallback,
   disabled,
-  children,
   placeholder,
   accept,
   directoryMode = false,
@@ -111,9 +111,24 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
     [disabled, directoryMode]
   );
 
-  const onClick = useCallback(() => {
-    if (disabled) return;
-    inputRef.current?.click();
+  const onClick = useCallback(async () => {
+    if (disabled) {
+      return;
+    } else if (directoryMode) {
+      const result = await eventService.showOpenDialog({
+        message: placeholder,
+        properties: ['openDirectory', 'createDirectory'],
+      });
+      if (!result.canceled && result.filePaths.length > 0) {
+        onFileSelectedCallback({
+          name: result.filePaths[0], // TODO: get base name from backend
+          path: result.filePaths[0],
+          isDirectory: true,
+        });
+      }
+    } else {
+      inputRef.current?.click();
+    }
   }, [disabled]);
 
   const onKeyDown = useCallback(
@@ -146,24 +161,20 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled || undefined}
     >
-      {children ? (
-        children({ isDragging })
-      ) : (
-        <>
-          <Upload size={36} />
-          <span>{resolvedPlaceholder}</span>
-        </>
+      <Upload size={36} />
+      <span>{resolvedPlaceholder}</span>
+      {directoryMode ? null : (
+        <input
+          ref={inputRef}
+          type="file"
+          hidden
+          onChange={(e) => {
+            e.preventDefault();
+            onSelected(e.target.files?.[0], false);
+          }}
+          accept={accept}
+        />
       )}
-      <input
-        ref={inputRef}
-        type="file"
-        hidden
-        onChange={(e) => {
-          e.preventDefault();
-          onSelected(e.target.files?.[0], false);
-        }}
-        accept={accept}
-      />
     </div>
   );
 };
