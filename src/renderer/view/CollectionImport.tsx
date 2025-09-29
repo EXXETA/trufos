@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { useStateResettable } from '@/util/react-util';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -16,79 +17,135 @@ import {
 import FilePicker from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderIcon } from '@/components/icons';
-
-type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
+import { ImportStrategy } from 'shim/event-service';
+import { showError } from '@/error/errorHandler';
 
 const eventService = RendererEventService.instance;
+
+interface TitleInputProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const TitleInput: React.FC<TitleInputProps> = ({ value, onChange }) => {
+  return (
+    <div className="flex flex-col gap-2">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Name of the new collection"
+      />
+    </div>
+  );
+};
+
+const ImportTabsContent: React.FC<{
+  children: React.ReactNode;
+  strategy: ImportStrategy | 'Trufos';
+  /** Whether to include default vertical spacing (gap) */
+  gap?: boolean;
+}> = ({ children, strategy, gap = true }) => {
+  return (
+    <TabsContent value={strategy} className="overflow-hidden rounded-none bg-transparent">
+      <div
+        className={cn('flex max-h-[calc(80vh-170px)] flex-col overflow-y-auto pr-2', {
+          'gap-6': gap,
+        })}
+      >
+        {children}
+      </div>
+    </TabsContent>
+  );
+};
 
 export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }> = ({
   onClose,
   open = true,
 }) => {
   const { changeCollection } = useCollectionActions();
-  // Resettable states
-  const [strategy, setStrategy, resetStrategy] = useStateResettable<ImportStrategy>('Postman');
+
+  const [strategy, setStrategy] = useState<ImportStrategy>('Postman');
   const [srcEntry, setSrcEntry, resetSrcEntry] = useStateResettable<DroppedEntryInfo>();
   const [targetEntry, setTargetEntry, resetTargetEntry] = useStateResettable<DroppedEntryInfo>();
   const [title, setTitle, resetTitle] = useStateResettable('');
   const [isImporting, setIsImporting, resetIsImporting] = useStateResettable(false);
-  const [error, setError, resetError] = useStateResettable<string>();
 
   const canImport = srcEntry && targetEntry && !isImporting;
 
   useEffect(() => {
     if (open) {
-      resetStrategy();
       resetSrcEntry();
       resetTargetEntry();
       resetTitle();
-      resetError();
       resetIsImporting();
     }
-  }, [open]);
+  }, [open, strategy]);
 
   const doImport = useCallback(async () => {
     try {
       setIsImporting(true);
-      setError(null);
       await changeCollection(
         await eventService.importCollection(srcEntry.path, targetEntry.path, strategy, title)
       );
       onClose?.();
     } catch (e) {
-      console.error(e);
-      setError((e as Error).message);
+      showError(e);
     } finally {
       setIsImporting(false);
     }
   }, [srcEntry, targetEntry, strategy, title, onClose, changeCollection]);
 
+  const dialogFooter = useMemo(() => {
+    if (strategy === 'Bruno' || strategy === 'Insomnia') {
+      return null;
+    }
+    return (
+      <DialogFooter className="mt-2 justify-center gap-2 sm:justify-center">
+        <div className="flex w-full justify-center">
+          <Button onClick={doImport} disabled={!canImport} className="gap-2">
+            <Plus size={16} /> {isImporting ? 'Importing...' : 'Complete Import'}
+          </Button>
+        </div>
+      </DialogFooter>
+    );
+  }, [strategy, doImport, canImport, isImporting]);
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="flex max-h-[80vh] w-[760px] max-w-3xl flex-col border-none shadow-none">
         <DialogHeader>
           <DialogTitle>Import Collection</DialogTitle>
         </DialogHeader>
-        <Tabs value={strategy} onValueChange={(v) => setStrategy(v as ImportStrategy)}>
-          <TabsList className="mb-4 grid grid-cols-4">
-            <TabsTrigger value="Trufos" disabled>
-              Trufos
-            </TabsTrigger>
+
+        <Tabs
+          value={strategy}
+          onValueChange={(v) => setStrategy(v as ImportStrategy)}
+          className="flex flex-1 flex-col overflow-hidden"
+        >
+          <TabsList className="mb-2">
+            <TabsTrigger value="Trufos">Trufos</TabsTrigger>
             <TabsTrigger value="Postman">Postman</TabsTrigger>
-            <TabsTrigger value="Bruno" disabled>
-              Bruno
-            </TabsTrigger>
-            <TabsTrigger value="Insomnia" disabled>
-              Insomnia
-            </TabsTrigger>
+            <TabsTrigger value="Bruno">Bruno</TabsTrigger>
+            <TabsTrigger value="Insomnia">Insomnia</TabsTrigger>
           </TabsList>
-          <TabsContent
-            value={strategy}
-            className="m-0 flex flex-col gap-6 rounded-none bg-transparent p-0"
-          >
+
+          <ImportTabsContent strategy="Trufos">
+            <FilePicker
+              title="Select directory of the existing collection"
+              description="Select the folder containing the collection.json file"
+              icon={<FolderIcon size={36} />}
+              entry={targetEntry}
+              onFileSelected={setTargetEntry}
+              onFileRemoved={() => setTargetEntry(undefined)}
+              directoryMode
+              controlled
+            />
+          </ImportTabsContent>
+
+          <ImportTabsContent strategy="Postman">
             <FilePicker
               title="Select file of the original collection"
-              description="Postman, Bruno and Insomnia collections are supported"
+              description="Postman exports .json files"
               entry={srcEntry}
               onFileSelected={setSrcEntry}
               onFileRemoved={() => setSrcEntry(undefined)}
@@ -105,25 +162,19 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               directoryMode
               controlled
             />
-            <div className="flex flex-col gap-2">
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Name of the new collection"
-              />
-            </div>
-            {error && (
-              <div className="text-sm text-destructive" role="alert">
-                {error}
-              </div>
-            )}
-            <DialogFooter className="mt-2 gap-2">
-              <Button onClick={doImport} disabled={!canImport} className="gap-2 self-center">
-                <Plus size={16} /> {isImporting ? 'Importing...' : 'Complete Import'}
-              </Button>
-            </DialogFooter>
-          </TabsContent>
+            <TitleInput value={title} onChange={setTitle} />
+          </ImportTabsContent>
+
+          <ImportTabsContent strategy="Bruno" gap={false}>
+            <span>Coming soon...</span>
+          </ImportTabsContent>
+
+          <ImportTabsContent strategy="Insomnia" gap={false}>
+            <span>Coming soon...</span>
+          </ImportTabsContent>
         </Tabs>
+
+        {dialogFooter}
       </DialogContent>
     </Dialog>
   );
