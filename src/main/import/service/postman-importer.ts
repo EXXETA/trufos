@@ -9,18 +9,17 @@ import { Collection as TrufosCollection } from 'shim/objects/collection';
 import { Folder as TrufosFolder } from 'shim/objects/folder';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
-import path from 'node:path';
 import fs from 'node:fs/promises';
-import { exists } from 'main/util/fs-util';
-import { InternalError, InternalErrorType } from 'main/error/internal-error';
 import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
+
+const DEFAULT_MIME_TYPE = 'text/plain';
 
 /**
  * An importer for Postman collections. It will import the collection and all of its variables,
  * folders and requests. It imports using the DFS algorithm.
  */
 export class PostmanImporter implements CollectionImporter {
-  public async importCollection(srcFilePath: string, targetDirPath: string) {
+  public async importCollection(srcFilePath: string) {
     // read Postman collection
     const json = JSON.parse(await fs.readFile(srcFilePath, 'utf8')) as CollectionDefinition;
     const postmanCollection = new PostmanCollection(json);
@@ -38,18 +37,6 @@ export class PostmanImporter implements CollectionImporter {
       );
     logger.info('Loaded', variablesArray.length, 'collection variables');
 
-    // create collection directory
-    const dirName = path.basename(targetDirPath);
-    const dirPath = path.join(targetDirPath, dirName);
-    if (await exists(dirPath)) {
-      throw new InternalError(
-        InternalErrorType.COLLECTION_LOAD_ERROR,
-        `Directory "${dirPath}" already exists`
-      );
-    } else {
-      await fs.mkdir(dirPath);
-    }
-
     const variables: Record<string, VariableObject> = {};
     variablesArray.forEach(([key, val]) => (variables[key] = val));
 
@@ -57,9 +44,9 @@ export class PostmanImporter implements CollectionImporter {
       id: postmanCollection.id,
       type: 'collection',
       title: postmanCollection.name,
-      dirPath: dirPath,
+      dirPath: '', // must be set after import
       children: [],
-      variables: variables,
+      variables,
       environments: {},
     };
 
@@ -113,7 +100,7 @@ export class PostmanImporter implements CollectionImporter {
           bodyInfo = {
             type: RequestBodyType.TEXT,
             text: request.body.raw,
-            mimeType: request.headers.get('Content-Type') ?? 'text/plain',
+            mimeType: request.headers.get('Content-Type') ?? DEFAULT_MIME_TYPE,
           };
           break;
       }
@@ -131,7 +118,11 @@ export class PostmanImporter implements CollectionImporter {
         value: header.value,
         isActive: !header.disabled,
       })),
-      body: bodyInfo,
+      body: bodyInfo ?? {
+        type: RequestBodyType.TEXT,
+        mimeType: DEFAULT_MIME_TYPE,
+      },
+      queryParams: [],
     };
 
     parent.children.push(trufosRequest);

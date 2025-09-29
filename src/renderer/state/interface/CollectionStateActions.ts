@@ -10,9 +10,9 @@ export interface CollectionStateActions {
 
   /**
    * Change the current collection to the given collection. Will save any unsaved changes
-   * @param collection The collection to change to
+   * @param collection the collection or collection directory path to open
    */
-  changeCollection(collection: Collection): void;
+  changeCollection(collection: Collection | string): Promise<void>;
 
   addNewRequest(title?: string, parentId?: string): Promise<void>;
 

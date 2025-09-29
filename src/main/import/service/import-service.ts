@@ -2,11 +2,16 @@ import { InternalError, InternalErrorType } from 'main/error/internal-error';
 import { Collection } from 'shim/objects/collection';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { PostmanImporter } from './postman-importer';
-
-export type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
+import { ImportStrategy } from 'shim/event-service';
+import { sanitizeTitle } from 'shim/fs';
+import path from 'path';
 
 export interface CollectionImporter {
-  importCollection(srcFilePath: string, targetDirPath: string): Promise<Collection>;
+  /**
+   * Reads a third-party collection from the given file or directory
+   * @param srcFilePath the file or directory to read from
+   */
+  importCollection(srcFilePath: string): Promise<Collection>;
 }
 
 const persistenceService = PersistenceService.instance;
@@ -24,11 +29,21 @@ export class ImportService {
     this.importers.set(strategy, importer);
   }
 
+  /**
+   * Imports a third-party collection from the given file or directory
+   * @param srcFilePath the file or directory to read from
+   * @param targetDirPath the directory to save the imported collection to. Will create a subdirectory based on the collection title.
+   * @param strategy the import strategy to use (e.g. Postman)
+   * @param title an optional title override for the imported collection
+   * @returns the imported collection
+   */
   public async importCollection(
     srcFilePath: string,
     targetDirPath: string,
-    strategy: ImportStrategy
+    strategy: ImportStrategy,
+    title?: string
   ) {
+    // select importer
     const importer = this.importers.get(strategy);
     if (importer === undefined) {
       throw new InternalError(
@@ -37,10 +52,15 @@ export class ImportService {
       );
     }
 
-    logger.info(
-      `Importing collection from "${srcFilePath}" to "${targetDirPath}" using strategy "${strategy}"`
-    );
-    const collection = await importer.importCollection(srcFilePath, targetDirPath);
+    // read and parse into Trufos collection
+    logger.info(`Importing collection from "${srcFilePath}" using strategy "${strategy}"`);
+    const collection = await importer.importCollection(srcFilePath);
+
+    // set directory
+    collection.title = title || collection.title;
+    collection.dirPath = path.join(targetDirPath, sanitizeTitle(collection.title));
+
+    // save on file system
     logger.info('Successfully imported collection:', collection);
     await persistenceService.saveCollectionRecursive(collection);
     return collection;

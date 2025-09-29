@@ -58,6 +58,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     openFolders: new Set(),
 
     initialize: (collection) => {
+      console.debug('Initializing collection store with collection', collection);
       const requests = new Map<TrufosRequest['id'], TrufosRequest>();
       const folders = new Map<Folder['id'], Folder>();
       const { initialize: initializeVariables } = useVariableStore.getState();
@@ -90,10 +91,12 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       });
     },
 
-    changeCollection: async (collection: Collection) => {
+    changeCollection: async (collection: Collection | string) => {
       const { setSelectedRequest, initialize } = get();
-      await setSelectedRequest(); // persist unsaved changes
-      initialize(collection);
+      await setSelectedRequest(); // deselect current request and persist unsaved changes
+      const dirPath = typeof collection === 'string' ? collection : collection.dirPath;
+      console.info('Opening collection at', dirPath);
+      initialize(await eventService.openCollection(dirPath));
     },
 
     addNewRequest: async (title, parentId) => {
@@ -160,6 +163,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     },
 
     setSelectedRequest: async (id) => {
+      console.debug('Setting selected request to', id);
       const state = get();
       const { selectedRequestId, requests } = state;
       const oldRequest = selectRequest(state);
@@ -170,7 +174,12 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         await eventService.saveRequest(oldRequest, REQUEST_MODEL.getValue());
       }
       if (id != null) {
-        await setRequestTextBody(requests.get(id));
+        const request = requests.get(id);
+        if (request == null) {
+          console.warn('Request with ID', id, 'not found');
+          id = undefined;
+        }
+        await setRequestTextBody(request);
       } else {
         REQUEST_MODEL.setValue('');
       }

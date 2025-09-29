@@ -15,3 +15,12 @@ export async function exists(filePath: string) {
   }
   return true;
 }
+
+/**
+ * Check if a directory is empty (ignoring .DS_Store files)
+ * @param dirPath the path to the directory
+ * @returns true if the directory is empty, false otherwise
+ */
+export async function isEmpty(dirPath: string) {
+  return !(await fs.readdir(dirPath)).some((file) => file !== '.DS_Store');
+}
