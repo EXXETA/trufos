@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import FilePicker from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
-import { FolderIcon } from '@/components/icons';
+import { FolderIcon, FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
 import { ImportStrategy } from 'shim/event-service';
 import { showError } from '@/error/errorHandler';
 import { Collection } from 'shim/objects/collection';
@@ -145,8 +145,8 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             <FilePicker
               title="Select directory of the existing collection"
               description="Select the folder containing the collection.json file"
-              icon={<FolderIcon size={36} />}
               entry={srcEntry}
+              icon={<FolderSearchIcon size={36} />}
               onFileSelected={setSrcEntry}
               onFileRemoved={() => setSrcEntry(undefined)}
               directoryMode
@@ -167,8 +167,8 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             <FilePicker
               title="Select directory for new collection"
               description="This is where the imported collection will be placed"
-              icon={<FolderIcon size={36} />}
               entry={targetEntry}
+              icon={<FolderPlusIcon size={36} />}
               onFileSelected={setTargetEntry}
               onFileRemoved={() => setTargetEntry(undefined)}
               directoryMode
