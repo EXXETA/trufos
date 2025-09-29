@@ -19,8 +19,11 @@ import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderIcon } from '@/components/icons';
 import { ImportStrategy } from 'shim/event-service';
 import { showError } from '@/error/errorHandler';
+import { Collection } from 'shim/objects/collection';
 
 const eventService = RendererEventService.instance;
+
+declare type ImportStrategyWithTrufos = ImportStrategy | 'Trufos';
 
 interface TitleInputProps {
   value: string;
@@ -41,7 +44,7 @@ const TitleInput: React.FC<TitleInputProps> = ({ value, onChange }) => {
 
 const ImportTabsContent: React.FC<{
   children: React.ReactNode;
-  strategy: ImportStrategy | 'Trufos';
+  strategy: ImportStrategyWithTrufos;
   /** Whether to include default vertical spacing (gap) */
   gap?: boolean;
 }> = ({ children, strategy, gap = true }) => {
@@ -64,13 +67,13 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 }) => {
   const { changeCollection } = useCollectionActions();
 
-  const [strategy, setStrategy] = useState<ImportStrategy>('Postman');
+  const [strategy, setStrategy] = useState<ImportStrategyWithTrufos>('Postman');
   const [srcEntry, setSrcEntry, resetSrcEntry] = useStateResettable<DroppedEntryInfo>();
   const [targetEntry, setTargetEntry, resetTargetEntry] = useStateResettable<DroppedEntryInfo>();
   const [title, setTitle, resetTitle] = useStateResettable('');
   const [isImporting, setIsImporting, resetIsImporting] = useStateResettable(false);
 
-  const canImport = srcEntry && targetEntry && !isImporting;
+  const canImport = srcEntry && (targetEntry != null || strategy === 'Trufos') && !isImporting;
 
   useEffect(() => {
     if (open) {
@@ -84,9 +87,18 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   const doImport = useCallback(async () => {
     try {
       setIsImporting(true);
-      await changeCollection(
-        await eventService.importCollection(srcEntry.path, targetEntry.path, strategy, title)
-      );
+      let collection: Collection;
+      if (strategy === 'Trufos') {
+        collection = await eventService.openCollection(srcEntry.path);
+      } else {
+        collection = await eventService.importCollection(
+          srcEntry.path,
+          targetEntry.path,
+          strategy,
+          title
+        );
+      }
+      await changeCollection(collection);
       onClose?.();
     } catch (e) {
       showError(e);
@@ -134,9 +146,9 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               title="Select directory of the existing collection"
               description="Select the folder containing the collection.json file"
               icon={<FolderIcon size={36} />}
-              entry={targetEntry}
-              onFileSelected={setTargetEntry}
-              onFileRemoved={() => setTargetEntry(undefined)}
+              entry={srcEntry}
+              onFileSelected={setSrcEntry}
+              onFileRemoved={() => setSrcEntry(undefined)}
               directoryMode
               controlled
             />
