@@ -2,6 +2,8 @@ import React, { useCallback, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { dir } from 'console';
+import { FolderSearchIcon } from '../icons';
 
 export interface DroppedEntryInfo {
   /** Absolute path to the selected file or directory */
@@ -161,7 +163,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled || undefined}
     >
-      {icon ?? <Upload size={36} />}
+      {(icon ?? directoryMode) ? <FolderSearchIcon size={36} /> : <Upload size={36} />}
       <span className="inline-flex h-[17px] shrink-0 items-start whitespace-pre text-sm font-normal leading-[1.2] text-text-primary">
         {title ?? `Drag & drop a ${directoryMode ? 'folder' : 'file'} here`}
       </span>
