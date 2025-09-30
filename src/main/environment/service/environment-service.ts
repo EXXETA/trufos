@@ -80,10 +80,12 @@ export class EnvironmentService implements Initializable {
    * @param variables The variables of the Collection to set.
    */
   public setCollectionVariables(variables: VariableMap) {
+    logger.secret?.debug('Setting collection variables:', variables);
     this.currentCollection.variables = variables;
   }
 
   public setEnvironmentVariables(environmentVariables: EnvironmentMap) {
+    logger.secret?.debug('Setting environment variables:', environmentVariables);
     this.currentCollection.environments = environmentVariables;
   }
 

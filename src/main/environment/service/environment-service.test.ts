@@ -5,19 +5,20 @@ import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { randomUUID } from 'node:crypto';
 import { getSystemVariables } from './system-variable';
-import { SettingsObject, SettingsService } from '../../persistence/service/settings-service';
+import { SettingsObject, SettingsService } from 'main/persistence/service/settings-service';
 
 const environmentService = EnvironmentService.instance;
 
 const environmentKey = 'test';
 const variableKey = 'var1';
+const variableValue = 'some-value';
 const collection: Partial<Collection> = {
   id: randomUUID(),
   environments: {
     [environmentKey]: {
       variables: {
         [variableKey]: {
-          value: 'some-value',
+          value: variableValue,
         },
       },
     },
@@ -173,5 +174,16 @@ describe('EnvironmentService', () => {
     expect(getSettingsSpy).toHaveBeenCalled();
     expect(loadCollectionSpy).toHaveBeenCalledTimes(settings.collections.length);
     expect(result).toEqual(collections);
+  });
+
+  it('setVariablesInString() should replace all variable placeholders with their values', async () => {
+    // Arrange
+    const template = `Replacing {{ ${variableKey} }}`;
+
+    // Act
+    const result = await environmentService.setVariablesInString(template);
+
+    // Assert
+    expect(result).toBe(`Replacing ${variableValue}`);
   });
 });

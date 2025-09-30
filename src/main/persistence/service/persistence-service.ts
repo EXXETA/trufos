@@ -251,6 +251,7 @@ export class PersistenceService {
     }
 
     // remove secrets from variables and save them separately
+    object = structuredClone(object); // avoid modifying the original object
     await this.saveSecrets(object, dirPath);
 
     // write the info file

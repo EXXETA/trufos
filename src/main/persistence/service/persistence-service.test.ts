@@ -229,7 +229,7 @@ describe('PersistenceService', () => {
     );
   });
 
-  it('saveCollection() should store the secrets in ~secrets.json.bin', async () => {
+  it('saveCollection() should store the secrets only in ~secrets.json.bin', async () => {
     // Arrange
     const secretVariable: VariableObject = { value: 'secret', secret: true };
     const plainVariable: VariableObject = { value: 'plain' };
