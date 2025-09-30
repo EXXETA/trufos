@@ -110,6 +110,7 @@
     "undici": "^7.16.0",
     "winston": "^3.17.0",
     "xml-formatter": "^3.6.7",
+    "zod": "^4.1.11",
     "zustand": "^5.0.8"
   },
   "packageManager": "yarn@4.10.2"
