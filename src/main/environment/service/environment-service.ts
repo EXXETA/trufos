@@ -66,6 +66,16 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
+   * Replaces any `{{ $someVariable }}` template variables in the given string with their values.
+   *
+   * @param string The string to replace the variables in.
+   * @returns The string with the variables replaced.
+   */
+  public setVariablesInString(string: string) {
+    return TemplateReplaceStream.replaceStringAsync(string, this.getVariableValue.bind(this));
+  }
+
+  /**
    * Replace all variables in the current collection with the given variables.
    * @param variables The variables of the Collection to set.
    */

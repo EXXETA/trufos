@@ -15,6 +15,8 @@ const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
 const persistenceService = PersistenceService.instance;
 
+declare type HttpHeaders = Record<string, string[]>;
+
 /**
  * Singleton service for making HTTP requests
  */
@@ -47,15 +49,21 @@ export class HttpService {
       }
     }
 
+    // resolve variables (except in body, which is resolved stream-based during send)
+    const url = await environmentService.setVariablesInString(request.url);
+    const headers = await this.resolveVariablesInHeaders(
+      this.trufosHeadersToUndiciHeaders(request.headers)
+    );
+
     // measure duration of the request
     const now = getSteadyTimestamp();
-    const responseData = await undici.request(request.url, {
+    const responseData = await undici.request(url, {
       dispatcher: this._dispatcher,
       method: request.method,
       headers: {
         ['content-type']: this.getContentType(request),
         ['authorization']: authorization,
-        ...this.trufosHeadersToUndiciHeaders(request.headers),
+        ...headers,
       },
       body: await this.readBody(request),
     });
@@ -94,7 +102,7 @@ export class HttpService {
    * @param request request object
    * @returns request body as stream or null if there is no body
    */
-  private async readBody(request: TrufosRequest) {
+  private async readBody(request: TrufosRequest): Promise<Readable | null> {
     if (request.body == null) {
       return null;
     }
@@ -127,8 +135,8 @@ export class HttpService {
     }
   }
 
-  private trufosHeadersToUndiciHeaders(trufosHeaders: TrufosHeader[]) {
-    const headers: Record<string, string[]> = {};
+  private trufosHeadersToUndiciHeaders(trufosHeaders: TrufosHeader[]): HttpHeaders {
+    const headers: HttpHeaders = {};
     for (const header of trufosHeaders) {
       if (header.isActive) {
         const key = header.key.toLowerCase();
@@ -137,5 +145,19 @@ export class HttpService {
       }
     }
     return headers;
+  }
+
+  private async resolveVariablesInHeaders(headers: HttpHeaders): Promise<HttpHeaders> {
+    return Object.fromEntries(
+      await Promise.all(
+        Object.entries(headers).map(
+          async ([key, values]) => [key, await this.resolveVariablesInHeaderValues(values)] as const
+        )
+      )
+    );
+  }
+
+  private resolveVariablesInHeaderValues(values: string[]) {
+    return Promise.all(values.map((value) => environmentService.setVariablesInString(value)));
   }
 }
