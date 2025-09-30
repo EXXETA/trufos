@@ -4,9 +4,16 @@ import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { VariableMap } from 'shim/objects/variables';
-import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v1-3-0';
+import {
+  InfoFile,
+  VERSION,
+  RequestInfoFile,
+  FolderInfoFile,
+  CollectionInfoFile,
+  InfoFileBaseSchema,
+} from './v1-4-0';
 
-export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v1-3-0';
+export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v1-4-0';
 
 /**
  * Deep clones the given object and removes any properties that are not allowed in an info file.
@@ -48,6 +55,11 @@ export function fromFolderInfoFile(
   parentId: Folder['parentId'],
   children: Folder['children']
 ): Folder {
+  try {
+    InfoFileBaseSchema.parse(infoFile);
+  } catch (error) {
+    logger.error('Could not open folder due to validation errors:', error); // TODO avoid loading folder and implement generic error handling
+  }
   return Object.assign(infoFile, { type: 'folder' as const, parentId, children });
 }
 
