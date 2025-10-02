@@ -10,13 +10,13 @@ interface EnvironmentState {
   /** The environments of the current collection */
   environments: EnvironmentMap;
   /** Currently selected environment key */
-  selectedEnvironment: string | null;
+  selectedEnvironment?: string;
 }
 
 interface EnvironmentActions {
   initialize(environments: EnvironmentMap): void;
   setEnvironments(environments: EnvironmentMap): Promise<void>;
-  selectEnvironment(environmentKey: string | null): void;
+  selectEnvironment(environmentKey?: string): Promise<void>;
   addEnvironment(key: string): void;
   removeEnvironment(key: string): void;
 }
@@ -24,7 +24,7 @@ interface EnvironmentActions {
 export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>()(
   immer((set) => ({
     environments: {},
-    selectedEnvironment: null,
+    selectedEnvironment: undefined,
 
     initialize(environments: EnvironmentMap) {
       set((state) => {
@@ -42,10 +42,8 @@ export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>
       });
     },
 
-    selectEnvironment(environmentKey: string | null) {
-      if (environmentKey) {
-        eventService.selectEnvironment(environmentKey);
-      }
+    selectEnvironment: async (environmentKey?: string) => {
+      await eventService.selectEnvironment(environmentKey);
       set((state) => {
         state.selectedEnvironment = environmentKey;
       });

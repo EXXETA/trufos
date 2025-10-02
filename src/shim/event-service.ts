@@ -96,7 +96,7 @@ export interface IEventService {
    * Select an environment by its key.
    * @param key The key of the environment to select.
    */
-  selectEnvironment(key: string): void;
+  selectEnvironment(key?: string): void;
 
   /**
    * Save the folder to the file system.

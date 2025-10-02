@@ -98,7 +98,7 @@ logger.secret = {
 };
 
 if (!app.isPackaged) {
-  logger.add(new transports.Console({ level: 'info' }));
+  logger.add(new transports.Console({ level: 'debug' }));
 }
 
 ipcMain.on('log', (event, data: TransformableInfo & LogEntry) => {

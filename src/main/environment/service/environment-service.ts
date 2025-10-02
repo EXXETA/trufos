@@ -66,14 +66,26 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
+   * Replaces any `{{ $someVariable }}` template variables in the given string with their values.
+   *
+   * @param string The string to replace the variables in.
+   * @returns The string with the variables replaced.
+   */
+  public setVariablesInString(string: string) {
+    return TemplateReplaceStream.replaceStringAsync(string, this.getVariableValue.bind(this));
+  }
+
+  /**
    * Replace all variables in the current collection with the given variables.
    * @param variables The variables of the Collection to set.
    */
   public setCollectionVariables(variables: VariableMap) {
+    logger.secret?.debug('Setting collection variables:', variables);
     this.currentCollection.variables = variables;
   }
 
   public setEnvironmentVariables(environmentVariables: EnvironmentMap) {
+    logger.secret?.debug('Setting environment variables:', environmentVariables);
     this.currentCollection.environments = environmentVariables;
   }
 
@@ -188,6 +200,25 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
+   * Recursively sets variables in the given object. Only string values are processed.
+   * @param object The object to set variables in.
+   * @returns The object with variables set.
+   */
+  private async setVariablesRecursive<T extends object>(object: T): Promise<T> {
+    for (const [key, value] of Object.entries(object)) {
+      if (typeof value === 'string') {
+        // @ts-expect-error - value is a string, so this is valid
+        object[key] = await this.setVariablesInString(value);
+      } else if (typeof value === 'object' && value !== null) {
+        // @ts-expect-error - value is an object, so this is valid
+        object[key] = await this.setVariablesRecursive(value);
+      }
+    }
+
+    return object;
+  }
+
+  /**
    * Returns the authorization header for the given object. If the object has an
    * authorization type of `INHERIT`, it will recursively get the authorization header from the
    * current collection.
@@ -202,7 +233,7 @@ export class EnvironmentService implements Initializable {
     } else if (auth.type === AuthorizationType.INHERIT) {
       return this.getAuthorizationHeader(this.currentCollection.auth);
     } else {
-      return await createAuthStrategy(auth).getAuthHeader();
+      return await createAuthStrategy(await this.setVariablesRecursive(auth)).getAuthHeader();
     }
   }
 }

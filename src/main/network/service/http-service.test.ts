@@ -5,10 +5,13 @@ import { TrufosRequest } from 'shim/objects/request';
 import { randomUUID } from 'node:crypto';
 import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { AuthorizationType } from 'shim/objects/auth';
+import { EnvironmentService } from 'main/environment/service/environment-service';
+import { TemplateReplaceStream } from 'template-replace-stream';
 
 const mockAgent = new MockAgent({ connections: 1 });
+const environmentService = EnvironmentService.instance;
 
 describe('HttpService', () => {
   beforeAll(() => {
@@ -136,6 +139,131 @@ describe('HttpService', () => {
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
     expect(lastCall.headers.authorization).toEqual([authorizationValue]);
+  });
+
+  it('fetchAsync() should replace variables in URL before sending request', async () => {
+    // Arrange
+    const variables = new Map([
+      ['host', 'dev.example.com'],
+      ['basePath', 'api'],
+      ['resource', 'data'],
+    ]);
+
+    const spy = vi
+      .spyOn(environmentService, 'setVariablesInString')
+      .mockImplementation((input: string) =>
+        TemplateReplaceStream.replaceStringAsync(input, variables)
+      );
+
+    const rawUrl = 'https://{{host}}/{{basePath}}/{{resource}}';
+    const expectedFinalUrl = 'https://dev.example.com/api/data';
+    const urlObj = new URL(expectedFinalUrl);
+    const httpService = setupMockHttpService(urlObj, 'OK');
+
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Variable URL Request',
+      url: rawUrl,
+      method: RequestMethod.GET,
+      headers: [],
+      body: null,
+      queryParams: [],
+    };
+
+    // Act
+    await httpService.fetchAsync(request);
+
+    // Assert
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    expect(lastCall.origin + lastCall.path).toEqual(expectedFinalUrl);
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('fetchAsync() should replace variables inside header values', async () => {
+    // Arrange
+    const variables = new Map([
+      ['apiVersion', 'v1'],
+      ['token', 'staging-token'],
+    ]);
+    const spy = vi
+      .spyOn(environmentService, 'setVariablesInString')
+      .mockImplementation((input: string) =>
+        TemplateReplaceStream.replaceStringAsync(input, variables)
+      );
+
+    const finalUrl = new URL('https://example.com/test');
+    const httpService = setupMockHttpService(finalUrl, 'OK');
+
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Header Variable Request',
+      url: 'https://example.com/test',
+      method: RequestMethod.GET,
+      headers: [
+        { key: 'X-Api-Version', value: '{{ apiVersion }}', isActive: true },
+        { key: 'Authorization', value: 'Bearer {{ token }}', isActive: true },
+      ],
+      body: null,
+      queryParams: [],
+    };
+
+    // Act
+    await httpService.fetchAsync(request);
+
+    // Assert
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    expect(lastCall.headers['x-api-version']).toEqual(['v1']);
+    expect(lastCall.headers.authorization).toEqual(['Bearer staging-token']);
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('fetchAsync() should support multiple header values with variable replacement', async () => {
+    // Arrange
+    const variables = new Map([
+      ['trace1', 'abc'],
+      ['trace2', 'def'],
+    ]);
+    const spy = vi
+      .spyOn(environmentService, 'setVariablesInString')
+      .mockImplementation((input: string) =>
+        TemplateReplaceStream.replaceStringAsync(input, variables)
+      );
+
+    const finalUrl = new URL('https://example.com/multi');
+    const httpService = setupMockHttpService(finalUrl, 'OK');
+
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Multi Header Variable Request',
+      url: 'https://example.com/multi',
+      method: RequestMethod.GET,
+      headers: [
+        { key: 'X-Trace-Id', value: '{{ trace1 }}', isActive: true },
+        { key: 'X-Trace-Id', value: '{{ trace2 }}', isActive: true },
+      ],
+      body: null,
+      queryParams: [],
+    };
+
+    // Act
+    await httpService.fetchAsync(request);
+
+    // Assert
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    expect(lastCall.headers['x-trace-id']).toEqual(['abc', 'def']);
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
   });
 });
 

@@ -127,7 +127,7 @@ export class MainEventService implements IEventService {
     await persistenceService.saveCollection(environmentService.currentCollection);
   }
 
-  async selectEnvironment(key: string) {
+  async selectEnvironment(key?: string) {
     environmentService.currentEnvironmentKey = key;
   }
 
