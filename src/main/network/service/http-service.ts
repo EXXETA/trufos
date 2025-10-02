@@ -10,6 +10,7 @@ import { TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
+import { app } from 'electron/main';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -63,6 +64,7 @@ export class HttpService {
       headers: {
         ['content-type']: this.getContentType(request),
         ['authorization']: authorization,
+        ['user-agent']: `Trufos/${app.getVersion()}`,
         ...headers,
       },
       body: await this.readBody(request),
