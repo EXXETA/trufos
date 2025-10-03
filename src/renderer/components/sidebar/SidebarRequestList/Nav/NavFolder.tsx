@@ -6,12 +6,14 @@ import { selectFolder, useCollectionActions, useCollectionStore } from '@/state/
 import { renderChildren } from '@/components/sidebar/SidebarRequestList/SidebarRequestList';
 import { cn } from '@/lib/utils';
 import { FolderIcon, SmallArrow } from '@/components/icons';
+import { getIndentation } from '@/util/indentation';
 
 interface NavFolderProps {
   folderId: Folder['id'];
+  depth?: number;
 }
 
-export const NavFolder = ({ folderId }: NavFolderProps) => {
+export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
   const { setFolderOpen, setFolderClose } = useCollectionActions();
   const isFolderOpen = useCollectionStore((state) => state.openFolders.has(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
@@ -36,7 +38,8 @@ export const NavFolder = ({ folderId }: NavFolderProps) => {
               'px-5',
               'cursor-pointer',
               'gap-1',
-              'hover:[background-color:#333333]'
+              'hover:[background-color:#333333]',
+              getIndentation(depth)
             )}
           >
             <div
@@ -51,7 +54,6 @@ export const NavFolder = ({ folderId }: NavFolderProps) => {
 
             <div className="flex items-center gap-1">
               <FolderIcon size={16} />
-
               <span>{folder.title}</span>
             </div>
 
@@ -61,15 +63,16 @@ export const NavFolder = ({ folderId }: NavFolderProps) => {
 
         <CollapsibleContent>
           <SidebarMenuSub
-            className={cn(
-              'p-0'
+            className={
+              cn()
+
               // TODO: provide decent animation
               // 'overflow-hidden transition-all duration-300 ease-in-out',
               // 'data-[state=open]:animate-in',
               // 'data-[state=closed]:animate-out'
-            )}
+            }
           >
-            {renderChildren(children)}
+            {renderChildren(children, depth)}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarGroup>

@@ -5,9 +5,10 @@ import { useCollectionStore } from '@/state/collectionStore';
 
 interface NavRequestProps {
   requestId: TrufosRequest['id'];
+  depth?: number;
 }
 
-export const NavRequest = ({ requestId }: NavRequestProps) => {
+export const NavRequest = ({ requestId, depth = 0 }: NavRequestProps) => {
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const isHighlighted = selectedRequestId === requestId;
 
@@ -16,7 +17,7 @@ export const NavRequest = ({ requestId }: NavRequestProps) => {
       className={`overflow-x-hidden hover:bg-divider ${isHighlighted && 'bg-divider'}`}
     >
       <SidebarMenuSubButton asChild isActive={requestId === selectedRequestId}>
-        <RequestView requestId={requestId} />
+        <RequestView requestId={requestId} depth={depth} />
       </SidebarMenuSubButton>
     </SidebarMenuItem>
   );
