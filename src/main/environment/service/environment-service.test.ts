@@ -6,6 +6,12 @@ import { PersistenceService } from 'main/persistence/service/persistence-service
 import { randomUUID } from 'node:crypto';
 import { getSystemVariables } from './system-variable';
 import { SettingsObject, SettingsService } from 'main/persistence/service/settings-service';
+import {
+  AuthorizationType,
+  BasicAuthorizationInformation,
+  BearerAuthorizationInformation,
+  InheritAuthorizationInformation,
+} from 'shim/objects/auth';
 
 const environmentService = EnvironmentService.instance;
 
@@ -185,5 +191,77 @@ describe('EnvironmentService', () => {
 
     // Assert
     expect(result).toBe(`Replacing ${variableValue}`);
+  });
+
+  it('getAuthorizationHeader() should return undefined when auth is undefined', async () => {
+    // Act
+    const result = await environmentService.getAuthorizationHeader();
+
+    // Assert
+    expect(result).toBeUndefined();
+  });
+
+  it('getAuthorizationHeader() should return undefined for INHERIT when collection has no auth configured', async () => {
+    // Arrange
+    environmentService.currentCollection.auth = undefined;
+    const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
+
+    // Act
+    const result = await environmentService.getAuthorizationHeader(auth);
+
+    // Assert
+    expect(result).toBeUndefined();
+  });
+
+  it('getAuthorizationHeader() should resolve INHERIT authorization from collection auth', async () => {
+    // Arrange
+    const collectionAuth: BasicAuthorizationInformation = {
+      type: AuthorizationType.BASIC,
+      username: 'inherit-user',
+      password: 'inherit-pass',
+    };
+    environmentService.currentCollection.auth = collectionAuth;
+    const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
+    const expected = `Basic ${Buffer.from(`${collectionAuth.username}:${collectionAuth.password}`).toString('base64')}`;
+
+    // Act
+    const result = await environmentService.getAuthorizationHeader(auth);
+
+    // Assert
+    expect(result).toBe(expected);
+  });
+
+  it('getAuthorizationHeader() should substitute variables for Basic auth credentials', async () => {
+    // Arrange
+    environmentService.currentEnvironment.variables.varUser = { value: 'user1' };
+    environmentService.currentEnvironment.variables.varPass = { value: 'pass1' };
+    const auth: BasicAuthorizationInformation = {
+      type: AuthorizationType.BASIC,
+      username: '{{ varUser }}',
+      password: '{{ varPass }}',
+    };
+    const expected = `Basic ${Buffer.from('user1:pass1').toString('base64')}`;
+
+    // Act
+    const result = await environmentService.getAuthorizationHeader(auth);
+
+    // Assert
+    expect(result).toBe(expected);
+  });
+
+  it('getAuthorizationHeader() should substitute variables inside Bearer token', async () => {
+    // Arrange
+    environmentService.currentEnvironment.variables.varToken = { value: 'abc123' };
+    const auth: BearerAuthorizationInformation = {
+      type: AuthorizationType.BEARER,
+      token: 'prefix-{{ varToken }}-suffix',
+    };
+    const expected = 'Bearer prefix-abc123-suffix';
+
+    // Act
+    const result = await environmentService.getAuthorizationHeader(auth);
+
+    // Assert
+    expect(result).toBe(expected);
   });
 });
