@@ -8,4 +8,8 @@ export function getName() {
   return 'Trufos';
 }
 
+export function getVersion() {
+  return '0.0.0';
+}
+
 export const isPackaged = false;
