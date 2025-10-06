@@ -10,10 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import CollectionImport from '@/view/CollectionImport';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCallback, useEffect, useState } from 'react';
 import { CollectionBase } from 'shim/objects/collection';
-import { FolderOpen, FolderPlus } from 'lucide-react';
+import { FolderOpen, FolderPlus, Upload } from 'lucide-react';
 
 const eventService = RendererEventService.instance;
 
@@ -21,6 +22,7 @@ export default function CollectionDropdown() {
   const { changeCollection } = useCollectionActions();
   const collection = useCollectionStore((state) => state.collection);
   const [collections, setCollections] = useState<CollectionBase[]>([]);
+  const [showImport, setShowImport] = useState(false);
 
   const loadCollections = useCallback(async () => {
     setCollections(await eventService.listCollections());
@@ -30,14 +32,6 @@ export default function CollectionDropdown() {
     loadCollections();
   }, [loadCollections]);
 
-  const loadCollection = useCallback(
-    async (dirPath: string) => {
-      console.info('Opening collection at', dirPath);
-      changeCollection(await eventService.openCollection(dirPath));
-    },
-    [changeCollection]
-  );
-
   const openCollection = useCallback(async () => {
     try {
       const result = await eventService.showOpenDialog({
@@ -46,13 +40,13 @@ export default function CollectionDropdown() {
         properties: ['openDirectory'],
       });
       if (!result.canceled && result.filePaths.length > 0) {
-        await loadCollection(result.filePaths[0]);
+        await changeCollection(result.filePaths[0]);
       }
       await loadCollections();
     } catch (e) {
       console.error('Error opening collection:', e);
     }
-  }, [loadCollection]);
+  }, []);
 
   const createCollection = useCallback(async () => {
     try {
@@ -63,7 +57,7 @@ export default function CollectionDropdown() {
       });
       if (!result.canceled && result.filePaths.length > 0) {
         console.info('Creating collection at', result.filePaths[0]);
-        changeCollection(
+        await changeCollection(
           await eventService.createCollection(result.filePaths[0], 'New Collection')
         );
       }
@@ -71,7 +65,7 @@ export default function CollectionDropdown() {
     } catch (e) {
       console.error('Error creating collection:', e);
     }
-  }, [changeCollection]);
+  }, []);
 
   const renderCollectionList = useCallback(
     () =>
@@ -80,33 +74,40 @@ export default function CollectionDropdown() {
           {title}
         </DropdownMenuRadioItem>
       )),
-    [collections, changeCollection]
+    [collections]
   );
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline">Switch Collection</Button>
-      </DropdownMenuTrigger>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline">Switch Collection</Button>
+        </DropdownMenuTrigger>
 
-      <DropdownMenuContent>
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={createCollection}>
-            <FolderPlus />
-            <span>New Collection</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={openCollection}>
-            <FolderOpen />
-            <span>Open Collection</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        <DropdownMenuContent>
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={createCollection}>
+              <FolderPlus />
+              <span>New Collection</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={openCollection}>
+              <FolderOpen />
+              <span>Open Collection</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowImport(true)}>
+              <Upload />
+              <span>Import Collection</span>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        <DropdownMenuRadioGroup value={collection.dirPath} onValueChange={loadCollection}>
-          {renderCollectionList()}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuRadioGroup value={collection.dirPath} onValueChange={changeCollection}>
+            {renderCollectionList()}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {showImport && <CollectionImport onClose={() => setShowImport(false)} />}
+    </>
   );
 }

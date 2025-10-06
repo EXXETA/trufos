@@ -1,4 +1,4 @@
-import { exists } from 'main/util/fs-util';
+import { exists, isEmpty } from 'main/util/fs-util';
 import { assign } from 'main/util/object-util';
 import { SemVer } from 'main/util/semver';
 import { randomUUID } from 'node:crypto';
@@ -32,6 +32,7 @@ import {
 import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
 import { SettingsService } from './settings-service';
+import { sanitizeTitle } from 'shim/fs';
 
 export const HIDDEN_FILE_PREFIX = '~';
 
@@ -193,6 +194,7 @@ export class PersistenceService {
    * @param collection the collection to save
    */
   public async saveCollection(collection: Collection) {
+    await fs.mkdir(collection.dirPath, { recursive: true });
     await this.saveInfoFile(
       collection,
       this.getOrCreateDirPath(collection),
@@ -417,13 +419,13 @@ export class PersistenceService {
   public async createCollection(dirPath: string, title: string): Promise<Collection> {
     dirPath = normalizeDirPath(dirPath);
     logger.info('Creating new collection at', dirPath);
-    if ((await fs.readdir(dirPath)).some((file) => file !== '.DS_Store')) {
+    if (!isEmpty(dirPath)) {
       throw new Error('Directory is not empty');
     }
 
     const collection: Collection = {
       id: randomUUID(),
-      title: title,
+      title,
       type: 'collection',
       dirPath,
       variables: {},
@@ -600,13 +602,6 @@ export class PersistenceService {
   }
 
   private getDirName(object: TrufosObject) {
-    return this.sanitizeTitle(object.title);
-  }
-
-  private sanitizeTitle(title: string) {
-    return title
-      .toLowerCase()
-      .replace(/\s/g, '-')
-      .replace(/[^a-z0-9-]/g, '');
+    return sanitizeTitle(object.title);
   }
 }

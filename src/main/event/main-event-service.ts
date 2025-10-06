@@ -1,7 +1,7 @@
 import { app, dialog, ipcMain } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
-import { IEventService } from 'shim/event-service';
+import { IEventService, ImportStrategy } from 'shim/event-service';
 import { TrufosObject } from 'shim/objects';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
@@ -9,9 +9,11 @@ import { VariableMap } from 'shim/objects/variables';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import './stream-events';
 import { EnvironmentMap } from 'shim/objects/environment';
+import { ImportService } from 'main/import/service/import-service';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
+const importService = ImportService.instance;
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -155,5 +157,14 @@ export class MainEventService implements IEventService {
 
   async showOpenDialog(options: Electron.OpenDialogOptions) {
     return await dialog.showOpenDialog(options);
+  }
+
+  async importCollection(
+    srcFilePath: string,
+    targetDirPath: string,
+    strategy: ImportStrategy,
+    title?: string
+  ) {
+    return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
   }
 }
