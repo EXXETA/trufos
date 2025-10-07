@@ -152,4 +152,12 @@ export interface IEventService {
     strategy: ImportStrategy,
     title?: string
   ): Promise<Collection>;
+
+  /**
+   * Rename the given folder or request to the new title.
+   * This updates the title and the directory name if necessary.
+   * @param object The folder or request to rename.
+   * @param newTitle The new title.
+   */
+  rename(object: Folder | TrufosRequest, newTitle: string): Promise<void>;
 }

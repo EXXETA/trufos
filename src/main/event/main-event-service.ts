@@ -167,4 +167,8 @@ export class MainEventService implements IEventService {
   ) {
     return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
   }
+
+  async rename(object: Folder | TrufosRequest, newTitle: string): Promise<void> {
+    await persistenceService.rename(object, newTitle);
+  }
 }
