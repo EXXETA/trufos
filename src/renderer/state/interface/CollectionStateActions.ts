@@ -60,10 +60,10 @@ export interface CollectionStateActions {
 
   /**
    * Rename the request title
-   * @param id
-   * @param title
+   * @param id the request id
+   * @param title the new title of the request
    */
-  renameRequest(id: TrufosRequest['id'], title: string): void;
+  renameRequest(id: TrufosRequest['id'], title: string): Promise<void>;
 
   /**
    * Copy a request.
@@ -147,7 +147,7 @@ export interface CollectionStateActions {
    * @param id the folder id
    * @param title the new title of the folder
    */
-  renameFolder(id: Folder['id'], title: string): void;
+  renameFolder(id: Folder['id'], title: string): Promise<void>;
 
   /**
    * Copy a folder with all its children.
