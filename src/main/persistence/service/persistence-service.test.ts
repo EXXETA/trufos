@@ -15,6 +15,7 @@ import { RequestMethod } from 'shim/objects/request-method';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateDefaultCollection } from './default-collection';
+import { sanitizeTitle } from 'shim/fs';
 import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
 import {
   getInfoFileName,
@@ -96,7 +97,7 @@ describe('PersistenceService', () => {
 
   it('createDefaultCollectionIfNotExists() should not create if it already exists', async () => {
     // Arrange
-    const defaultCollectionImport = await import('./default-collection');
+    const defaultCollectionImport = await import('./default-collection.js');
     const generateDefaultCollectionSpy = vi.spyOn(
       defaultCollectionImport,
       'generateDefaultCollection'
@@ -113,7 +114,7 @@ describe('PersistenceService', () => {
 
   it('createDefaultCollectionIfNotExists() should create a new default collection if does not exist', async () => {
     // Arrange
-    const defaultCollectionImport = await import('./default-collection');
+    const defaultCollectionImport = await import('./default-collection.js');
     const defaultCollection = {} as Collection;
     vi.spyOn(defaultCollectionImport, 'generateDefaultCollection').mockReturnValueOnce(
       defaultCollection
@@ -151,23 +152,6 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, folder.title, request.title))).toBe(false);
   });
 
-  it('rename() should rename the directory of a collection', async () => {
-    // Arrange
-    const oldDirPath = collection.dirPath;
-
-    await mkdir(oldDirPath, { recursive: true });
-
-    // Assert
-    expect(await exists(oldDirPath)).toBe(true);
-
-    // Act
-    await persistenceService.rename(collection, randomUUID());
-
-    // Assert
-    expect(await exists(collection.dirPath)).toBe(true);
-    expect(await exists(oldDirPath)).toBe(false);
-  });
-
   it('rename() should rename the directory of a folder', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
@@ -186,6 +170,79 @@ describe('PersistenceService', () => {
     const newDirPath = path.join(collection.dirPath, folder.title);
     expect(await exists(newDirPath)).toBe(true);
     expect(await exists(oldDirPath)).toBe(false);
+  });
+
+  it('rename() should update info file title and keep children accessible after folder rename', async () => {
+    // Arrange
+    const folder = getExampleFolderWithChildren(collection.id);
+    collection.children.push(folder);
+    const child = getExampleFolder(folder.id);
+    folder.children.push(child);
+
+    await persistenceService.saveCollectionRecursive(collection);
+    const oldChildDirPath = path.join(
+      collection.dirPath,
+      sanitizeTitle(folder.title),
+      sanitizeTitle(child.title)
+    );
+    expect(await exists(oldChildDirPath)).toBe(true);
+
+    const newTitle = folder.title + ' Renamed';
+    const expectedNewPath = path.join(collection.dirPath, sanitizeTitle(newTitle));
+
+    // Act
+    await persistenceService.rename(folder, newTitle);
+
+    // Assert: directory moved
+    expect(await exists(expectedNewPath)).toBe(true);
+    expect(await exists(oldChildDirPath)).toBe(false);
+
+    // Assert: child folder new path exists
+    const newChildFolderPath = path.join(expectedNewPath, getInfoFileName('folder'));
+    expect(await exists(newChildFolderPath)).toBe(true);
+
+    // Info file title updated
+    const info = JSON.parse(
+      await readFile(path.join(expectedNewPath, getInfoFileName('folder')), 'utf-8')
+    );
+    expect(info.title).toBe(newTitle);
+  });
+
+  it('rename() should persist new title for a request even if directory name unchanged', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    request.title = 'Same %Title%'; // sanitized stays same
+    collection.children.push(request);
+    await persistenceService.saveCollectionRecursive(collection);
+    const requestDirPath = path.join(collection.dirPath, sanitizeTitle(request.title));
+    expect(await exists(requestDirPath)).toBe(true);
+
+    // Act
+    await persistenceService.rename(request, 'Same $Title$'); // sanitized collides -> no dir rename, only title change
+
+    // Assert: file still exists
+    expect(await exists(requestDirPath)).toBe(true);
+    const info = JSON.parse(
+      await readFile(path.join(requestDirPath, getInfoFileName('request')), 'utf-8')
+    );
+    expect(info.title).toBe('Same $Title$');
+  });
+
+  it('rename() should append a number if target directory already exists', async () => {
+    // Arrange
+    const folderA = getExampleFolder(collection.id);
+    folderA.title = 'FolderA';
+    const folderB = getExampleFolder(collection.id);
+    folderB.title = 'FolderB';
+    collection.children.push(folderA, folderB);
+    await persistenceService.saveCollectionRecursive(collection);
+    const expectedDirPath = path.join(collection.dirPath, 'folderb-2');
+
+    // Act
+    await persistenceService.rename(folderA, 'FolderB');
+
+    // Assert
+    expect(await exists(expectedDirPath)).toBe(true);
   });
 
   it('saveRequest() should save the metadata of the request', async () => {

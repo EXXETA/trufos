@@ -198,22 +198,17 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       });
     },
 
-    renameRequest(id: TrufosRequest['id'], title: string) {
-      set((state) => {
-        const request = selectRequest(state, id);
-        if (request == null) return;
-
-        // Create a new request object with the updated title
-        const updatedRequest = {
-          ...request,
-          title: title,
-        };
-
-        // Update the folders map with the new object
-        state.requests.set(id, updatedRequest);
-      });
+    renameRequest: async (id: TrufosRequest['id'], title: string) => {
       const request = selectRequest(get(), id);
-      eventService.saveRequest(request);
+      if (request == null) return;
+
+      await eventService.rename(request, title);
+      set((state) => {
+        state.requests.set(id, {
+          ...request,
+          title,
+        });
+      });
     },
 
     copyRequest: async (id) => {
@@ -329,22 +324,17 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       });
     },
 
-    renameFolder(id: Folder['id'], title: string) {
-      set((state) => {
-        const folder = selectFolder(state, id);
-        if (folder == null) return;
+    renameFolder: async (id: Folder['id'], title: string) => {
+      const folder = selectFolder(get(), id);
+      if (folder == null) return;
 
-        // Create a new folder object with the updated title
-        const updatedFolder = {
+      await eventService.rename(folder, title);
+      set((state) => {
+        state.folders.set(id, {
           ...folder,
           title: title,
-        };
-
-        // Update the folders map with the new object
-        state.folders.set(id, updatedFolder);
+        });
       });
-      const folder = selectFolder(get(), id);
-      eventService.saveFolder(folder);
     },
 
     copyFolder: async (id) => {
