@@ -176,38 +176,34 @@ describe('PersistenceService', () => {
     // Arrange
     const folder = getExampleFolderWithChildren(collection.id);
     collection.children.push(folder);
+    const child = getExampleFolder(folder.id);
+    folder.children.push(child);
+
     await persistenceService.saveCollectionRecursive(collection);
     const oldChildDirPath = path.join(
       collection.dirPath,
-      folder.title,
-      (folder.children[0] as Folder).title,
-      (folder.children[0] as Folder).children[0].title
+      sanitizeTitle(folder.title),
+      sanitizeTitle(child.title)
     );
     expect(await exists(oldChildDirPath)).toBe(true);
 
     const newTitle = folder.title + ' Renamed';
+    const expectedNewPath = path.join(collection.dirPath, sanitizeTitle(newTitle));
 
     // Act
     await persistenceService.rename(folder, newTitle);
 
-    // Assert directory moved
-    const newFolderDirPath = path.join(collection.dirPath, sanitizeTitle(newTitle));
-    expect(await exists(newFolderDirPath)).toBe(true);
-    expect(await exists(oldChildDirPath)).toBe(false); // old path gone
+    // Assert: directory moved
+    expect(await exists(expectedNewPath)).toBe(true);
+    expect(await exists(oldChildDirPath)).toBe(false);
 
-    // Child request new path exists
-    const childRequest = (folder.children[0] as Folder).children[0];
-    const newChildRequestPath = path.join(
-      newFolderDirPath,
-      (folder.children[0] as Folder).title,
-      childRequest.title,
-      getInfoFileName('request')
-    );
-    expect(await exists(newChildRequestPath)).toBe(true);
+    // Assert: child folder new path exists
+    const newChildFolderPath = path.join(expectedNewPath, getInfoFileName('folder'));
+    expect(await exists(newChildFolderPath)).toBe(true);
 
     // Info file title updated
     const info = JSON.parse(
-      await readFile(path.join(newFolderDirPath, getInfoFileName('folder')), 'utf-8')
+      await readFile(path.join(expectedNewPath, getInfoFileName('folder')), 'utf-8')
     );
     expect(info.title).toBe(newTitle);
   });
