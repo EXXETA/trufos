@@ -133,7 +133,12 @@ export const FolderSearchIcon = svgToIcon(
                   </g>
                 </g>
                 <g id="shape-28ed7eca-9ec9-80d6-8006-a7a8a9468411" fill="transparent" rx="0" ry="0">
-                  <g id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c528" fill="transparent" rx="0" ry="0">
+                  <g
+                    id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c528"
+                    fill="transparent"
+                    rx="0"
+                    ry="0"
+                  >
                     <g
                       id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c529"
                       fill="transparent"
@@ -324,8 +329,18 @@ export const FolderPlusIcon = svgToIcon(
                       />
                     </g>
                   </g>
-                  <g id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c565" fill="transparent" rx={0} ry={0}>
-                    <g id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c567" fill="transparent" rx={0} ry={0}>
+                  <g
+                    id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c565"
+                    fill="transparent"
+                    rx={0}
+                    ry={0}
+                  >
+                    <g
+                      id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c567"
+                      fill="transparent"
+                      rx={0}
+                      ry={0}
+                    >
                       <g
                         id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c568"
                         fill="transparent"
@@ -347,7 +362,12 @@ export const FolderPlusIcon = svgToIcon(
                       </g>
                     </g>
                   </g>
-                  <g id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c566" fill="transparent" rx={0} ry={0}>
+                  <g
+                    id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c566"
+                    fill="transparent"
+                    rx={0}
+                    ry={0}
+                  >
                     <g id="shape-28ed7eca-9ec9-80d6-8006-a7a8a946c56a">
                       <g className="fills" id="fills-28ed7eca-9ec9-80d6-8006-a7a8a946c56a">
                         <path
