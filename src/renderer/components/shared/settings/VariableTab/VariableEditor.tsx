@@ -142,7 +142,7 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-5 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
+                    className="w-5 hover:bg-transparent hover:text-accent-primary active:text-accent-secondary"
                     onClick={() => remove(index)}
                   >
                     <Trash2 />
