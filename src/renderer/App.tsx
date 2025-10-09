@@ -5,6 +5,7 @@ import { RequestWindow } from '@/view/RequestWindow';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useEffect, useState } from 'react';
 
 const MIN_SIDEBAR_PIXELS = 300;
@@ -32,18 +33,20 @@ export const App = () => {
   }, []);
 
   return (
-    <TooltipProvider delayDuration={750}>
-      <SidebarProvider className="grid">
-        <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-          <ResizablePanel defaultSize={minSidebarSize} minSize={minSidebarSize}>
-            <Menubar />
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel minSize={minRequestWindowSize}>
-            <RequestWindow />
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </SidebarProvider>
-    </TooltipProvider>
+    <ThemeProvider defaultTheme="dark">
+      <TooltipProvider delayDuration={750}>
+        <SidebarProvider className="grid">
+          <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+            <ResizablePanel defaultSize={minSidebarSize} minSize={minSidebarSize}>
+              <Menubar />
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel minSize={minRequestWindowSize}>
+              <RequestWindow />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </SidebarProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   );
 };
