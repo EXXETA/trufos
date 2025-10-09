@@ -63,16 +63,16 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-transparent outline-none"
+              className="w-full bg-transparent outline-hidden"
               placeholder={`Enter the ${createType ?? trufosObject.type} name`}
             />
           </div>
           <DialogFooter className="bottom-0">
             <Button disabled={!isValid} variant={isValid ? 'default' : 'defaultDisable'}>
-              <span className="font-bold leading-4">Save</span>
+              <span className="leading-4 font-bold">Save</span>
             </Button>
             <Button type="reset" variant="destructive">
-              <span className="font-bold leading-4">Cancel</span>
+              <span className="leading-4 font-bold">Cancel</span>
             </Button>
           </DialogFooter>
         </form>

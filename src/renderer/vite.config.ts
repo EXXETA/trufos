@@ -1,9 +1,10 @@
 import { defineConfig } from 'vitest/config';
-import PluginReact from '@vitejs/plugin-react';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 
 export default defineConfig({
-  plugins: [PluginReact()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': __dirname,

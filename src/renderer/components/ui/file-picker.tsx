@@ -59,14 +59,14 @@ export const FilePicker: React.FC<FilePickerProps> = ({
         })}
       >
         <div className="flex items-center gap-4 overflow-hidden">
-          <FileText className="flex-shrink-0" />
+          <FileText className="shrink-0" />
           <span className="block truncate" title={entry.name}>
             {entry.name}
           </span>
         </div>
         <button
           type="button"
-          className="flex-shrink-0 text-danger transition-colors hover:opacity-80"
+          className="text-danger shrink-0 transition-colors hover:opacity-80"
           onClick={onFileRemoved}
           aria-label="Remove file"
         >

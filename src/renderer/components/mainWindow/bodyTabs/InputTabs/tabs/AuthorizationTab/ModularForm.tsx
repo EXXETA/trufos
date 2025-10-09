@@ -85,7 +85,7 @@ export const ModularForm = <T extends Record<string, any>>({
       case 'label':
         return (
           <div key={key as string} className={fieldConfig.className}>
-            <p className="text-sm text-text-primary">{fieldConfig.text}</p>
+            <p className="text-text-primary text-sm">{fieldConfig.text}</p>
           </div>
         );
 
@@ -94,13 +94,13 @@ export const ModularForm = <T extends Record<string, any>>({
         const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
-            <label className="text-sm font-medium text-text-primary">{label}</label>
+            <label className="text-text-primary text-sm font-medium">{label}</label>
             <Input
               type={fieldConfig.type}
               value={getValue(key, defaultValue ?? '')}
               onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
-              className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
             />
           </div>
         );
@@ -110,12 +110,12 @@ export const ModularForm = <T extends Record<string, any>>({
         const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
-            <label className="text-sm font-medium text-text-primary">{label}</label>
+            <label className="text-text-primary text-sm font-medium">{label}</label>
             <SecretInput
               value={getValue(key, defaultValue ?? '')}
               onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
-              className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
             />
           </div>
         );
@@ -125,13 +125,13 @@ export const ModularForm = <T extends Record<string, any>>({
         const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
-            <label className="text-sm font-medium text-text-primary">{label}</label>
+            <label className="text-text-primary text-sm font-medium">{label}</label>
             <Input
               type="number"
               value={getValue(key, defaultValue ?? 0)}
               onChange={(e) => onDataChanged({ [key]: e.target.valueAsNumber ?? 0 } as Partial<T>)}
               placeholder={placeholder}
-              className="w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
             />
           </div>
         );
@@ -141,12 +141,12 @@ export const ModularForm = <T extends Record<string, any>>({
         const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
-            <label className="text-sm font-medium text-text-primary">{label}</label>
+            <label className="text-text-primary text-sm font-medium">{label}</label>
             <Select
               value={getValue(key, defaultValue ?? fieldConfig.options[0].value)}
               onValueChange={(value) => onDataChanged({ [key]: value } as Partial<T>)}
             >
-              <SelectTrigger className="w-full rounded-md border border-border bg-background-primary px-3 py-2">
+              <SelectTrigger className="border-border bg-background-primary w-full rounded-md border px-3 py-2">
                 <SelectValue placeholder={placeholder ?? `Select ${label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
@@ -175,7 +175,7 @@ export const ModularForm = <T extends Record<string, any>>({
             />
             <label
               htmlFor={key as string}
-              className="cursor-pointer text-sm font-medium text-text-primary"
+              className="text-text-primary cursor-pointer text-sm font-medium"
             >
               {label}
             </label>
@@ -187,13 +187,13 @@ export const ModularForm = <T extends Record<string, any>>({
         const { label, placeholder, defaultValue } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
-            <label className="text-sm font-medium text-text-primary">{label}</label>
+            <label className="text-text-primary text-sm font-medium">{label}</label>
             <textarea
               value={getValue(key, defaultValue ?? '')}
               onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
               rows={fieldConfig.rows ?? 3}
-              className="resize-vertical w-full rounded-md border border-border bg-background-primary px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              className="resize-vertical border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
             />
           </div>
         );

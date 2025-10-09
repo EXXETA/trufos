@@ -25,7 +25,7 @@ export const RequestView = ({ requestId }: SidebarRequestListProps) => {
       )}
       onClick={handleMouseEvent(() => setSelectedRequest(requestId))}
     >
-      <div className={cn('text-xs font-bold leading-3', httpMethodColor(request.method))}>
+      <div className={cn('text-xs leading-3 font-bold', httpMethodColor(request.method))}>
         {request.method}
       </div>
 

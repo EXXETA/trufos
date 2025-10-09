@@ -48,7 +48,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
                   handleUpdateHeader(index, { key: e.target.value });
                   setIsKeyPopoverOpen(true);
                 }}
-                className="w-full bg-transparent outline-none"
+                className="w-full bg-transparent outline-hidden"
                 placeholder="Enter header key"
               />
             </div>
@@ -58,7 +58,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
             onOpenAutoFocus={(e) => e.preventDefault()}
             onInteractOutside={() => setIsKeyPopoverOpen(false)}
           >
-            <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-background-primary text-text-primary shadow-md">
+            <Command className="bg-background-primary text-text-primary max-h-[160px] overflow-y-auto rounded-md border shadow-md">
               <CommandList>
                 <CommandGroup>
                   {filteredHeaderKeys.map((val) => (
@@ -94,7 +94,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
                   handleUpdateHeader(index, { value: e.target.value });
                   setIsValuePopoverOpen(true);
                 }}
-                className="w-full bg-transparent outline-none"
+                className="w-full bg-transparent outline-hidden"
                 placeholder="Enter header value"
               />
             </div>
@@ -104,7 +104,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
             onOpenAutoFocus={(e) => e.preventDefault()}
             onInteractOutside={() => setIsValuePopoverOpen(false)}
           >
-            <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-background-primary text-text-primary shadow-md">
+            <Command className="bg-background-primary text-text-primary max-h-[160px] overflow-y-auto rounded-md border shadow-md">
               <CommandList>
                 <CommandGroup>
                   {filteredHeaderValues.map((val) => (
@@ -139,7 +139,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
               })}
             />
             {header.isActive && (
-              <div className="pointer-events-none absolute left-0 top-0 flex h-4 w-4 rotate-6 items-center justify-center">
+              <div className="pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center">
                 <CheckedIcon size={16} viewBox="0 0 16 16" color="var(--accent-primary)" />
               </div>
             )}
@@ -148,7 +148,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 hover:bg-transparent hover:text-accent-primary active:text-accent-secondary"
+            className="hover:text-accent-primary active:text-accent-secondary h-6 w-6 hover:bg-transparent"
             onClick={() => handleDeleteHeader(index)}
           >
             <DeleteIcon />

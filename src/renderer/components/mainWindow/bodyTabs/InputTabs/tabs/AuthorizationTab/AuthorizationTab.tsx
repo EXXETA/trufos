@@ -216,7 +216,7 @@ export const AuthorizationTab = () => {
 
   return (
     <div className="relative h-full p-4">
-      <div className="absolute left-[16px] right-[16px] top-[16px] z-10 space-y-4 pb-4">
+      <div className="absolute top-[16px] right-[16px] left-[16px] z-10 space-y-4 pb-4">
         <ModularForm
           config={form}
           data={{ ...auth, type }}
