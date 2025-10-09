@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import FileDropZone, { FileDropZoneProps, DroppedEntryInfo } from './file-drop-zone';
+import { FileDropZoneProps, DroppedEntryInfo, FileDropZone } from './file-drop-zone';
 import { FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -66,7 +66,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({
         </div>
         <button
           type="button"
-          className="flex-shrink-0 text-red-500 transition-colors hover:text-red-700"
+          className="flex-shrink-0 text-danger transition-colors hover:opacity-80"
           onClick={onFileRemoved}
           aria-label="Remove file"
         >

@@ -36,7 +36,7 @@ export const NavFolder = ({ folderId }: NavFolderProps) => {
               'px-5',
               'cursor-pointer',
               'gap-1',
-              'hover:[background-color:#333333]'
+              'hover:bg-disabled'
             )}
           >
             <div

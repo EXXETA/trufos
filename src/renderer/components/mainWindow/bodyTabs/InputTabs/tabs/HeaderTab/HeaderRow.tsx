@@ -58,7 +58,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
             onOpenAutoFocus={(e) => e.preventDefault()}
             onInteractOutside={() => setIsKeyPopoverOpen(false)}
           >
-            <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-[#111] text-white shadow-md">
+            <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-background-primary text-text-primary shadow-md">
               <CommandList>
                 <CommandGroup>
                   {filteredHeaderKeys.map((val) => (
@@ -104,7 +104,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
             onOpenAutoFocus={(e) => e.preventDefault()}
             onInteractOutside={() => setIsValuePopoverOpen(false)}
           >
-            <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-[#111] text-white shadow-md">
+            <Command className="max-h-[160px] overflow-y-auto rounded-md border bg-background-primary text-text-primary shadow-md">
               <CommandList>
                 <CommandGroup>
                   {filteredHeaderValues.map((val) => (
@@ -134,13 +134,13 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
               checked={header.isActive}
               onChange={(e) => handleUpdateHeader(index, { isActive: e.target.checked })}
               className={cn('form-checkbox h-4 w-4 appearance-none rounded-[2px] border', {
-                'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]': header.isActive,
-                'border-[rgba(238,238,238,1)] bg-transparent': !header.isActive,
+                'border-accent-primary bg-accent-tertiary': header.isActive,
+                'border-text-primary bg-transparent': !header.isActive,
               })}
             />
             {header.isActive && (
               <div className="pointer-events-none absolute left-0 top-0 flex h-4 w-4 rotate-6 items-center justify-center">
-                <CheckedIcon size={16} viewBox="0 0 16 16" color="rgba(107,194,224,1)" />
+                <CheckedIcon size={16} viewBox="0 0 16 16" color="var(--accent-primary)" />
               </div>
             )}
           </div>
@@ -148,7 +148,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
+            className="h-6 w-6 hover:bg-transparent hover:text-accent-primary active:text-accent-secondary"
             onClick={() => handleDeleteHeader(index)}
           >
             <DeleteIcon />

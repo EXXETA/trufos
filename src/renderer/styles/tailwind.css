@@ -8,6 +8,7 @@
     --foreground: 222.2 47.4% 11.2%;
 
     --danger: #FF5555;
+    --overlay: rgba(0, 0, 0, 0.8);
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
@@ -55,6 +56,7 @@
     --accent-primary: #75D9FB;
     --accent-secondary: #12B1E7;
     --accent-tertiary: #193641;
+    --overlay: rgba(0, 0, 0, 0.8);
 
     /* Background */
     --background-primary: #111111;
@@ -77,6 +79,17 @@
     --success: #2BB361;
     --error: #BD5151;
     --warning: #F9AA2D;
+
+    /* SVG Colors */
+    --svg-dark-gray: #282828;
+    --svg-medium-gray: #717070;
+    --svg-gray: #565656;
+    --svg-dark-gray-2: #474747;
+    --svg-light-gray: #828282;
+    --svg-teal: #1A3E4C;
+
+    /* Scrollbar */
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.5);
 
     /* Old */
     --background: 0 0% 6.67%;
