@@ -3,7 +3,7 @@ import { DisplayableError } from './DisplayableError';
 
 export function showError(error: unknown) {
   const toastOptions = {
-    style: { backgroundColor: '#E36873', color: 'black' },
+    style: { backgroundColor: 'var(--error)', color: 'var(--text-primary)' },
   };
 
   if (error instanceof DisplayableError) {

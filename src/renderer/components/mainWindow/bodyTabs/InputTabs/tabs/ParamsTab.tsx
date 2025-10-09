@@ -204,8 +204,8 @@ export const ParamsTab = () => {
                           className={cn(
                             'form-checkbox h-4 w-4 appearance-none rounded-[2px] border',
                             param?.isActive
-                              ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
-                              : 'border-[rgba(238,238,238,1)] bg-transparent'
+                              ? 'border-accent-primary bg-accent-tertiary'
+                              : 'border-text-primary bg-transparent'
                           )}
                         />
 
@@ -218,7 +218,7 @@ export const ParamsTab = () => {
                             <CheckedIcon
                               size={16}
                               viewBox={'0 0 16 16'}
-                              color={'rgba(107,194,224,1)'}
+                              color={'var(--accent-primary)'}
                             />
                           </div>
                         )}
@@ -227,7 +227,7 @@ export const ParamsTab = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
+                        className="h-6 w-6 hover:bg-transparent hover:text-accent-primary active:text-accent-secondary"
                         onClick={() => handleDeleteQueryParam(index)}
                       >
                         <DeleteIcon />
