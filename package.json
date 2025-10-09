@@ -48,7 +48,7 @@
     "eslint-plugin-import": "^2.32.0",
     "globals": "^16.4.0",
     "jsdom": "^27.0.0",
-    "memfs": "^4.48.1",
+    "memfs": "^4.49.0",
     "node-loader": "^2.1.0",
     "prettier": "^3.6.2",
     "style-loader": "^4.0.0",
