@@ -2,7 +2,7 @@
 
 @plugin 'tailwindcss-animate';
 
-@custom-variant dark (&:is(.dark *));
+@variant dark (.dark &);
 
 @utility container {
   margin-inline: auto;
@@ -35,9 +35,8 @@
 }
 
 @layer base {
-  /* Light theme moved under .light class so dark becomes default */
-  .light {
-    /* Standard shadcn variables for light mode */
+  :root {
+    /* Standard shadcn variables for light mode (default) */
     --background: 0 0% 100%;
     --foreground: 222.2 47.4% 11.2%;
 
@@ -74,7 +73,6 @@
 
     --radius: 0.5rem;
 
-    /* Custom light mode variables */
     --accent-primary: #1e40af;
     --accent-secondary: #3b82f6;
     --accent-tertiary: #dbeafe;
@@ -86,7 +84,6 @@
     --text-primary: #1e293b;
     --text-secondary: #64748b;
 
-    /* HTTP method colors for light mode */
     --http-get: #059669;
     --http-put: #0284c7;
     --http-post: #7c3aed;
@@ -94,12 +91,10 @@
     --http-patch: #ea580c;
     --disabled: #94a3b8;
 
-    /* State colors for light mode */
     --success: #16a34a;
     --error: #dc2626;
     --warning: #d97706;
 
-    /* Sidebar colors for light mode */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -108,74 +103,26 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
-    /* Added missing vars for parity */
-    --accent-primary: #0d8ec0;
-    --accent-secondary: #08739c;
-    --accent-tertiary: #e6f8fe;
-    --http-get: #228c22;
-    --http-put: #0066cc;
-    --http-post: #7a3ff2;
-    --http-delete: #d0345b;
-    --http-patch: #d88219;
-    --success: #1f874b;
-    --error: #c04040;
-    --warning: #d9901a;
+
     --svg-dark-gray: #444444;
     --svg-medium-gray: #777777;
     --svg-gray: #666666;
     --svg-dark-gray-2: #555555;
     --svg-light-gray: #999999;
     --svg-teal: #0f2f38;
-    --disabled: #cccccc;
+
     --tertiary: 195 85% 48%;
     --tertiary-foreground: 0 0% 100%;
-    --divider: 214.3 31.8% 91.4%;
+
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
     color-scheme: light;
   }
 
-  :root {
-    /* Accent */
-    --accent-primary: #75d9fb;
-    --accent-secondary: #12b1e7;
-    --accent-tertiary: #193641;
-    --overlay: rgba(0, 0, 0, 0.8);
-
-    /* Background */
-    --background-primary: #111111;
-    --background-secondary: #1f1f1f;
-    --background-tertiary: transparent;
-
-    /* Text */
-    --text-primary: #eeeeee;
-    --text-secondary: #bbbbbb;
-
-    /* Additional */
-    --http-get: #93f176;
-    --http-put: #37abff;
-    --http-post: #9f72fe;
-    --http-delete: #ee5c99;
-    --http-patch: #efa349;
-    --disabled: #444444;
-
-    /* State */
-    --success: #2bb361;
-    --error: #bd5151;
-    --warning: #f9aa2d;
-
-    /* SVG Colors */
-    --svg-dark-gray: #282828;
-    --svg-medium-gray: #717070;
-    --svg-gray: #565656;
-    --svg-dark-gray-2: #474747;
-    --svg-light-gray: #828282;
-    --svg-teal: #1a3e4c;
-
-    /* Scrollbar */
-    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.5);
-
-    /* Old */
+  .dark {
     --background: 0 0% 6.67%;
     --foreground: 213 31% 91%;
+
+    --overlay: rgba(0, 0, 0, 0.8);
 
     --muted: 0 0% 20%;
     --muted-foreground: 0 0% 100%;
@@ -205,47 +152,46 @@
 
     --divider: 0 0% 20%;
 
-    /* Custom dark mode variables */
-    --accent-primary: #75D9FB;
-    --accent-secondary: #12B1E7;
+    --accent-primary: #75d9fb;
+    --accent-secondary: #12b1e7;
     --accent-tertiary: #193641;
 
     --background-primary: #111111;
-    --background-secondary: #1F1F1F;
+    --background-secondary: #1f1f1f;
     --background-tertiary: transparent;
 
-    --text-primary: #EEEEEE;
-    --text-secondary: #BBBBBB;
+    --text-primary: #eeeeee;
+    --text-secondary: #bbbbbb;
 
-    /* HTTP method colors for dark mode */
-    --http-get: #93F176;
-    --http-put: #37ABFF;
-    --http-post: #9F72FE;
-    --http-delete: #EE5C99;
-    --http-patch: #EFA349;
+    --http-get: #93f176;
+    --http-put: #37abff;
+    --http-post: #9f72fe;
+    --http-delete: #ee5c99;
+    --http-patch: #efa349;
     --disabled: #444444;
 
-    /* State colors for dark mode */
-    --success: #2BB361;
-    --error: #BD5151;
-    --warning: #F9AA2D;
+    --success: #2bb361;
+    --error: #bd5151;
+    --warning: #f9aa2d;
 
-    /* Sidebar colors for dark mode */
+    --svg-dark-gray: #282828;
+    --svg-medium-gray: #717070;
+    --svg-gray: #565656;
+    --svg-dark-gray-2: #474747;
+    --svg-light-gray: #828282;
+    --svg-teal: #1a3e4c;
+
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.5);
+
     --sidebar-background: 240 5.9% 10%;
-
     --sidebar-foreground: 240 4.8% 95.9%;
-
     --sidebar-primary: 224.3 76.3% 48%;
-
     --sidebar-primary-foreground: 0 0% 100%;
-
     --sidebar-accent: 240 3.7% 15.9%;
-
     --sidebar-accent-foreground: 240 4.8% 95.9%;
-
     --sidebar-border: 240 3.7% 15.9%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
+
     color-scheme: dark;
   }
 }
