@@ -153,7 +153,7 @@ export const EnvironmentEditor = ({
       {/* Left Environment Sidebar */}
       <div className="bg-backgrund flex w-80 flex-col border-r">
         {/* Header */}
-        <div className="flex-shrink-0 border-b">
+        <div className="shrink-0 border-b">
           <div className="flex flex-col gap-4 p-4">
             <h3 className="font-medium text-sidebar-foreground">Environments</h3>
 
@@ -199,7 +199,7 @@ export const EnvironmentEditor = ({
                 <div
                   key={key}
                   className={cn(
-                    'group flex w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground',
+                    'group flex w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground',
                     selectedEnvironment === key &&
                       'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
                   )}
@@ -307,7 +307,7 @@ export const EnvironmentEditor = ({
         {selectedEnvironment ? (
           <>
             {/* Header */}
-            <div className="flex-shrink-0 border-b p-4">
+            <div className="shrink-0 border-b p-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium text-sidebar-foreground">
                   <span className="font-bold">{selectedEnvironment}</span>

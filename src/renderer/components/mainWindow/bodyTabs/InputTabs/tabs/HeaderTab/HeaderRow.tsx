@@ -48,7 +48,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
                   handleUpdateHeader(index, { key: e.target.value });
                   setIsKeyPopoverOpen(true);
                 }}
-                className="w-full bg-transparent outline-none"
+                className="w-full bg-transparent outline-hidden"
                 placeholder="Enter header key"
               />
             </div>
@@ -94,7 +94,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
                   handleUpdateHeader(index, { value: e.target.value });
                   setIsValuePopoverOpen(true);
                 }}
-                className="w-full bg-transparent outline-none"
+                className="w-full bg-transparent outline-hidden"
                 placeholder="Enter header value"
               />
             </div>

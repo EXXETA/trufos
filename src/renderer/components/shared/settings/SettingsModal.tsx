@@ -70,7 +70,7 @@ export const SettingsModal = () => {
       <DialogContent className="flex h-[80vh] max-w-4xl flex-col p-0 lg:max-w-5xl">
         <div className="flex h-full flex-col">
           {/* Header - Fixed */}
-          <div className="flex-shrink-0 px-4 pt-4">
+          <div className="shrink-0 px-4 pt-4">
             <DialogHeader>
               <DialogTitle className="font-bold">Collection Settings</DialogTitle>
             </DialogHeader>
@@ -78,12 +78,12 @@ export const SettingsModal = () => {
 
           {/* Tabs - Takes remaining space */}
           <Tabs defaultValue="variables" className="flex min-h-0 flex-1 flex-col">
-            <div className="flex-shrink-0 px-4 py-4">
+            <div className="shrink-0 px-4 py-4">
               <TabsList className="bg-background">
-                <TabsTrigger value="variables" className="!font-light">
+                <TabsTrigger value="variables" className="font-light!">
                   Variables
                 </TabsTrigger>
-                <TabsTrigger value="environments" className="!font-light">
+                <TabsTrigger value="environments" className="font-light!">
                   Environments
                 </TabsTrigger>
               </TabsList>
@@ -111,7 +111,7 @@ export const SettingsModal = () => {
           </Tabs>
 
           {/* Footer - Fixed */}
-          <DialogFooter className="flex-shrink-0 p-4">
+          <DialogFooter className="shrink-0 p-4">
             <div className="flex gap-2">
               <Button onClick={() => setOpen(false)} variant="outline">
                 <span className="font-bold leading-4">Cancel</span>

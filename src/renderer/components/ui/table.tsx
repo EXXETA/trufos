@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className={`relative rounded-[var(--radius)] border`}>
+    <div className={`relative rounded-(--radius) border`}>
       <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   )
@@ -33,7 +33,7 @@ const TableFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tfoot
     ref={ref}
-    className={cn('border-t bg-muted/50 font-medium [&>tr]:last:border-b-0', className)}
+    className={cn('border-t bg-muted/50 font-medium last:[&>tr]:border-b-0', className)}
     {...props}
   />
 ));
@@ -60,7 +60,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      'h-12 border-border px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&:not(:last-child)]:border-r',
+      'h-12 border-border px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 not-last:border-r',
       className
     )}
     {...props}
@@ -75,7 +75,7 @@ const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      'overflow-wrap break-word break-all border-border p-4 align-middle [&:not(:last-child)]:border-r',
+      'overflow-wrap break-word break-all border-border p-4 align-middle not-last:border-r',
       className
     )}
     {...props}

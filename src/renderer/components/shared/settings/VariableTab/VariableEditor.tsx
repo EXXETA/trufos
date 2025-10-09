@@ -105,7 +105,7 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <input
                     type="text"
                     value={variable.key}
-                    className={cn('w-full bg-transparent outline-none', {
+                    className={cn('w-full bg-transparent outline-hidden', {
                       'text-danger': invalidVariableKeys.has(variable.key),
                     })}
                     placeholder="Enter variable key"
@@ -116,7 +116,7 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <SecretInput
                     secret={variable.secret}
                     value={variable.value}
-                    className={cn('w-full border-none bg-transparent outline-none', {
+                    className={cn('w-full border-none bg-transparent outline-hidden', {
                       'text-danger': invalidVariableKeys.has(variable.key),
                     })}
                     placeholder="Enter variable value"
@@ -127,7 +127,7 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <input
                     type="text"
                     value={variable.description}
-                    className="w-full bg-transparent outline-none"
+                    className="w-full bg-transparent outline-hidden"
                     placeholder="Enter variable description"
                     onChange={(e) => update(index, { description: e.target.value })}
                   />

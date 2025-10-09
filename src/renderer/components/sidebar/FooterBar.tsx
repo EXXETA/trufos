@@ -20,14 +20,14 @@ export function FooterBar() {
         {/* Settings and icon on the left */}
         <div className="flex items-center gap-2">
           <SettingsModal />
-          <span className="flex-shrink-0 whitespace-pre text-[12px] font-medium normal-case leading-[1.2] tracking-[0px] text-[color:var(--text-secondary)] no-underline">
+          <span className="shrink-0 whitespace-pre text-[12px] font-medium normal-case leading-[1.2] tracking-[0px] text-(--text-secondary) no-underline">
             Settings
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Icons and version on the right */}
-          <span className="flex h-[15px] w-[26px] flex-shrink-0 items-center self-center whitespace-pre text-[12px] font-medium normal-case leading-[1.2] text-[color:var(--text-secondary)] no-underline">
+          <span className="flex h-[15px] w-[26px] shrink-0 items-center self-center whitespace-pre text-[12px] font-medium normal-case leading-[1.2] text-(--text-secondary) no-underline">
             {appVersion ?? null}
           </span>
           {/* GitHub Icon */}

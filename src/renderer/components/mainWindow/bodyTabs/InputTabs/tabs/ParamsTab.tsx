@@ -179,7 +179,7 @@ export const ParamsTab = () => {
                       type="text"
                       value={param?.key}
                       onChange={(e) => handleUpdateQueryParam(index, 'key', e.target.value)}
-                      className="w-full bg-transparent outline-none"
+                      className="w-full bg-transparent outline-hidden"
                       placeholder="Enter param key"
                     />
                   </TableCell>
@@ -189,7 +189,7 @@ export const ParamsTab = () => {
                       type="text"
                       value={param?.value}
                       onChange={(e) => handleUpdateQueryParam(index, 'value', e.target.value)}
-                      className="w-full bg-transparent outline-none"
+                      className="w-full bg-transparent outline-hidden"
                       placeholder="Enter param value"
                     />
                   </TableCell>

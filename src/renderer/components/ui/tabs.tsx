@@ -36,15 +36,15 @@ const TabsTrigger = React.forwardRef<
     className={cn(
       'inline-flex h-[36px] items-center justify-center whitespace-nowrap rounded-[24px]',
       'px-3 py-1.5',
-      'text-sm font-medium ring-offset-background transition-all focus-visible:outline-none',
+      'text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden',
       'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
       'disabled:pointer-events-none disabled:opacity-50',
-      'hover:outline',
+      'hover:outline-solid',
       'hover:outline-2',
       'hover:outline-accent-primary',
       'data-[state=active]:bg-accent-tertiary data-[state=active]:text-accent-primary',
-      'data-[state=active]:font-bold data-[state=active]:shadow-sm',
-      'data-[state=active]:active:outline',
+      'data-[state=active]:font-bold data-[state=active]:shadow-xs',
+      'data-[state=active]:active:outline-solid',
       'data-[state=active]:active:outline-2',
       'data-[state=active]:active:outline-accent-secondary',
       'data-[state=active]:active:text-accent-secondary',
@@ -62,7 +62,7 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      `tabs-scrollbar mt-2 flex-1 overflow-y-auto rounded-[24px] bg-card ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`,
+      `tabs-scrollbar mt-2 flex-1 overflow-y-auto rounded-[24px] bg-card ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`,
       className
     )}
     {...props}

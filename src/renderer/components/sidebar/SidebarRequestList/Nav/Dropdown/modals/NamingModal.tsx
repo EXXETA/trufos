@@ -63,7 +63,7 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-transparent outline-none"
+              className="w-full bg-transparent outline-hidden"
               placeholder={`Enter the ${createType ?? trufosObject.type} name`}
             />
           </div>
