@@ -12,6 +12,9 @@ import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { showError } from '@/error/errorHandler';
 import { REQUEST_MODEL } from '@/lib/monaco/models';
+import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
+import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
+import { Collection } from 'shim/objects/collection';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -19,10 +22,15 @@ const eventService = RendererEventService.instance;
 export function MainTopBar() {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    type: 'request' as 'request' | 'folder',
+  });
 
   const { updateRequest } = useCollectionActions();
   const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest);
+  const collection = useCollectionStore((state) => state.collection);
   const selectedHttpMethod = request?.method;
   const url = request?.url;
 
@@ -62,57 +70,54 @@ export function MainTopBar() {
     useErrorHandler(async () => {
       if (request == null) return;
 
-      // save request draft with the current editor content
       console.info('Saving request:', request);
       await eventService.saveRequest(request, REQUEST_MODEL.getValue());
-
-      // override existing request with the saved draft
       updateRequest(await eventService.saveChanges(request), true);
     }),
     [request]
   );
 
-  // useEffect to reset error state when URL and method are valid
+  const openRequestModal = () => setModalState({ isOpen: true, type: 'request' });
+
+  useGlobalHotkeys({
+    onSendRequest: sendRequest,
+    onSaveRequest: saveRequest,
+    onCreateNewRequest: openRequestModal,
+  });
+
   useEffect(() => {
     if (request?.url && request?.method) {
       setHasError(false);
     }
   }, [request]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      //isSaveShortcut is true if save combination is recorded
-      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
-      //if save combination is pressed and request is in draft mode, perform save
-      if (isSaveShortcut && request?.draft) {
-        event.preventDefault();
-        saveRequest();
-      }
-    };
-    //add keyboard event listener
-    window.addEventListener('keydown', handleKeyDown);
-    //cleanup
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [saveRequest]);
-
   return (
-    <div className="mb-[24px] flex gap-6">
-      <div className="relative flex w-full">
-        <HttpMethodSelect
-          selectedHttpMethod={selectedHttpMethod}
-          onHttpMethodChange={handleHttpMethodChange}
-        />
+    <>
+      <div className="mb-[24px] flex gap-6">
+        <div className="relative flex w-full">
+          <HttpMethodSelect
+            selectedHttpMethod={selectedHttpMethod}
+            onHttpMethodChange={handleHttpMethodChange}
+          />
 
-        <UrlInput url={url} onUrlChange={handleUrlChange} hasError={hasError} />
+          <UrlInput url={url} onUrlChange={handleUrlChange} hasError={hasError} />
 
-        <SaveButton isDisabled={!request?.draft} onClick={saveRequest} />
+          <SaveButton isDisabled={!request?.draft} onClick={saveRequest} />
+        </div>
+
+        <SendButton onClick={sendRequest} disabled={isLoading}>
+          {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
+        </SendButton>
       </div>
 
-      <SendButton onClick={sendRequest} disabled={isLoading}>
-        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
-      </SendButton>
-    </div>
+      {modalState.isOpen && (
+        <NamingModal
+          isOpen={modalState.isOpen}
+          trufosObject={collection as Collection}
+          createType={modalState.type}
+          setOpen={(open) => setModalState({ isOpen: open, type: modalState.type })}
+        />
+      )}
+    </>
   );
 }
