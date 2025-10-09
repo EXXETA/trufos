@@ -354,120 +354,120 @@ export function EmptyWildWest() {
         width="10.4293"
         height="116"
         rx="5.21464"
-        fill="var(--accent-primary)"
+        fill="var(--accent-tertiary)"
       />
       <path
         d="M76.212 79.2646C76.212 96.7428 84.4869 104.754 88.6243 106.574V115.45C85.2626 115.45 77.2981 113.265 72.3332 104.526C67.3683 95.7869 67.1614 84.499 67.6786 79.9474C67.9372 78.8095 69.2301 76.5337 72.3332 76.5337C75.4363 76.5337 76.212 78.3543 76.212 79.2646Z"
-        fill="var(--accent-primary)"
-        stroke="var(--accent-primary)"
+        fill="var(--accent-tertiary)"
+        stroke="var(--accent-tertiary)"
         strokeLinecap="round"
       />
       <path
         d="M104.475 102.058C104.475 112.141 98.7677 116.763 95.9144 117.813V122.934C98.2327 122.934 103.726 121.673 107.15 116.632C110.574 111.59 110.716 105.078 110.36 102.452C110.181 101.795 109.29 100.482 107.15 100.482C105.01 100.482 104.475 101.533 104.475 102.058Z"
-        fill="var(--accent-primary)"
-        stroke="var(--accent-primary)"
+        fill="var(--accent-tertiary)"
+        stroke="var(--accent-tertiary)"
         strokeLinecap="round"
       />
       <path
         d="M101.016 53.334L96.6422 57.8243"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M101.715 67.9344L95.9134 70.1351"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M110.462 117.328L104.661 119.529"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M90.1388 63.1212L84.1644 61.4776"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M106.262 108.861L100.288 107.218"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M72.0026 99.8804L66.0282 98.2369"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M88.6244 49.5919L84.2508 45.1016"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M106.848 103.476L102.474 98.9856"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M100.272 80.2607L95.8986 84.7511"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M112.68 107.218L108.306 111.708"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M88.1491 77.8776L82.7925 74.7025"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M69.9266 89.1034L64.5701 85.9283"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M89.1872 85.3441L83.2127 83.7005"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M79.2909 111.855L73.3165 110.211"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M82.1358 90.8267L77.7622 95.317"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M77.8334 81.7727L76.2326 87.9066"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M106.977 104.252C105.758 110.934 104.998 113.899 103.724 114.607L103.318 116.725C104.353 116.725 106.669 116.117 108.197 112.716C109.725 109.315 110.33 106.016 110.171 104.245C110.091 103.802 109.693 102.916 108.738 102.916C107.783 102.916 106.977 103.898 106.977 104.252Z"
         fill="var(--svg-medium-gray)"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeLinecap="round"
       />
       <rect
@@ -481,7 +481,7 @@ export function EmptyWildWest() {
       <path
         d="M75.3552 80.6434C75.3552 90.6465 79.88 100.983 82.2676 102.025L81.0477 104.698C79.1079 104.698 77.0005 99.454 74.1355 94.4524C71.2705 89.4509 70.9907 84.5847 71.2891 81.9797C71.4384 81.3285 71.4827 78.8616 73.2733 78.8616C75.064 78.8616 75.3552 80.1224 75.3552 80.6434Z"
         fill="var(--svg-medium-gray)"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeLinecap="round"
       />
       <rect
@@ -489,120 +489,120 @@ export function EmptyWildWest() {
         height="72"
         rx="3.47646"
         transform="matrix(-1 0 0 1 292.569 96.5388)"
-        fill="var(--accent-primary)"
+        fill="var(--accent-tertiary)"
       />
       <path
         d="M300.016 124.247C300.016 135.095 294.5 140.068 291.741 141.198V146.707C293.982 146.707 299.292 145.351 302.602 139.926C305.912 134.502 306.05 127.496 305.705 124.671C305.533 123.964 304.671 122.552 302.602 122.552C300.533 122.552 300.016 123.682 300.016 124.247Z"
-        fill="var(--accent-primary)"
-        stroke="var(--accent-primary)"
+        fill="var(--accent-tertiary)"
+        stroke="var(--accent-tertiary)"
         strokeLinecap="round"
       />
       <path
         d="M281.176 138.394C281.176 144.653 284.98 147.522 286.883 148.173V151.352C285.337 151.352 281.675 150.569 279.392 147.44C277.11 144.311 277.015 140.269 277.252 138.639C277.371 138.231 277.966 137.416 279.392 137.416C280.819 137.416 281.176 138.068 281.176 138.394Z"
-        fill="var(--accent-primary)"
-        stroke="var(--accent-primary)"
+        fill="var(--accent-tertiary)"
+        stroke="var(--accent-tertiary)"
         strokeLinecap="round"
       />
       <path
         d="M283.481 108.152L286.396 110.939"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M283.014 117.214L286.882 118.58"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M277.182 147.872L281.05 149.238"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M290.732 114.227L294.715 113.207"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M279.983 142.617L283.966 141.597"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M302.823 137.043L306.806 136.023"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M291.742 105.829L294.657 103.042"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M279.592 139.274L282.508 136.487"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M283.977 124.865L286.892 127.652"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M275.706 141.597L278.621 144.384"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M292.058 123.386L295.629 121.415"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M304.207 130.354L307.778 128.383"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M291.366 128.02L295.349 127"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M297.964 144.475L301.947 143.455"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M296.068 131.423L298.984 134.21"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M298.936 125.803L300.003 129.611"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M302.552 124.699C302.552 132.248 300.998 138.123 300.188 138.91L300.609 141.059C301.267 141.059 302.762 139.246 303.734 135.472C304.705 131.697 305.312 126.665 305.211 124.699C305.16 124.208 304.341 123.439 303.733 123.439C303.126 123.439 302.552 124.306 302.552 124.699Z"
         fill="var(--svg-medium-gray)"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeLinecap="round"
       />
       <rect
@@ -615,7 +615,7 @@ export function EmptyWildWest() {
       <path
         d="M281.208 138.653C281.208 142.514 282.766 145.384 283.756 145.786V147.505C282.952 147.505 281.468 146.163 280.281 144.233C279.093 142.303 279.044 139.81 279.167 138.804C279.229 138.553 279.538 138.05 280.281 138.05C281.023 138.05 281.208 138.452 281.208 138.653Z"
         fill="var(--svg-medium-gray)"
-        stroke="var(--accent-primary)"
+        stroke="var(--accent-tertiary)"
         strokeLinecap="round"
       />
       <ellipse cx="163" cy="31.875" rx="1.47368" ry="4" fill="var(--svg-dark-gray-2)" />
