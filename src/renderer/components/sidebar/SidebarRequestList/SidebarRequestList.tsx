@@ -24,7 +24,7 @@ export const SidebarRequestList = () => {
   const children = useCollectionStore((state) => state.collection.children);
 
   return (
-    <SidebarContent className="tabs-scrollbar flex-1 overflow-y-auto">
+    <SidebarContent className={'tabs-scrollbar -ml-6 -mr-6 flex-1 overflow-y-auto'}>
       <SidebarMenu className="gap-0">{renderChildren(children)}</SidebarMenu>
     </SidebarContent>
   );
