@@ -135,7 +135,7 @@ export const ParamsTab = () => {
 
   return (
     <div className="relative h-full p-4">
-      <div className="absolute left-[16px] right-[16px] top-[16px] z-10">
+      <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
         <div className="flex">
           <Button
             className="h-fit gap-1"
@@ -160,7 +160,7 @@ export const ParamsTab = () => {
         <Divider className="mt-2" />
       </div>
 
-      <div className="absolute bottom-[16px] left-[16px] right-[16px] top-[68px]">
+      <div className="absolute top-[68px] right-[16px] bottom-[16px] left-[16px]">
         <div className="pb-4">
           <Table className="w-full table-auto">
             <TableHeader>
@@ -212,7 +212,7 @@ export const ParamsTab = () => {
                         {param?.isActive && (
                           <div
                             className={
-                              'pointer-events-none absolute left-0 top-0 flex h-4 w-4 rotate-6 items-center justify-center'
+                              'pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center'
                             }
                           >
                             <CheckedIcon
@@ -227,7 +227,7 @@ export const ParamsTab = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 hover:bg-transparent hover:text-accent-primary active:text-accent-secondary"
+                        className="hover:text-accent-primary active:text-accent-secondary h-6 w-6 hover:bg-transparent"
                         onClick={() => handleDeleteQueryParam(index)}
                       >
                         <DeleteIcon />

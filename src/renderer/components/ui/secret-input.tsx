@@ -18,7 +18,7 @@ export function SecretInput({ secret = true, className, ...props }: SecretInputP
       <Input type={show ? 'text' : 'password'} className={cn('pr-16', className)} {...props} />
       <button
         type="button"
-        className="absolute inset-y-0 right-0 flex h-10 w-16 items-center justify-center text-sm text-text-secondary hover:text-text-primary"
+        className="text-text-secondary hover:text-text-primary absolute inset-y-0 right-0 flex h-10 w-16 items-center justify-center text-sm"
         onClick={() => setShow((prev) => !prev)}
         tabIndex={-1}
       >

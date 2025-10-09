@@ -155,7 +155,7 @@ export const EnvironmentEditor = ({
         {/* Header */}
         <div className="shrink-0 border-b">
           <div className="flex flex-col gap-4 p-4">
-            <h3 className="font-medium text-sidebar-foreground">Environments</h3>
+            <h3 className="text-sidebar-foreground font-medium">Environments</h3>
 
             <div className="relative">
               <Input
@@ -163,7 +163,7 @@ export const EnvironmentEditor = ({
                 value={newEnvironmentName}
                 onChange={(e) => setNewEnvironmentName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addEnvironment()}
-                className="h-8 w-full bg-background pr-10 text-sm shadow-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                className="bg-background focus-visible:ring-sidebar-ring h-8 w-full pr-10 text-sm shadow-none focus-visible:ring-2"
               />
               <TooltipProvider>
                 <Tooltip>
@@ -173,7 +173,7 @@ export const EnvironmentEditor = ({
                       disabled={!isValidEnvironmentName(newEnvironmentName)}
                       size="sm"
                       variant="ghost"
-                      className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 p-0"
+                      className="absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2 p-0"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -199,9 +199,9 @@ export const EnvironmentEditor = ({
                 <div
                   key={key}
                   className={cn(
-                    'group flex w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground',
+                    'group ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground flex w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden transition-[width,height,padding] focus-visible:ring-2',
                     selectedEnvironment === key &&
-                      'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
+                      'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
                   )}
                   onClick={() => onEnvironmentSelect?.(key)}
                 >
@@ -217,7 +217,7 @@ export const EnvironmentEditor = ({
                             cancelEdit();
                           }
                         }}
-                        className="h-8 w-full bg-background text-sm shadow-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                        className="bg-background focus-visible:ring-sidebar-ring h-8 w-full text-sm shadow-none focus-visible:ring-2"
                         autoFocus
                       />
                     ) : (
@@ -309,7 +309,7 @@ export const EnvironmentEditor = ({
             {/* Header */}
             <div className="shrink-0 border-b p-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-medium text-sidebar-foreground">
+                <h3 className="text-sidebar-foreground font-medium">
                   <span className="font-bold">{selectedEnvironment}</span>
                 </h3>
               </div>
@@ -327,7 +327,7 @@ export const EnvironmentEditor = ({
             </div>
           </>
         ) : (
-          <div className="flex flex-1 items-center justify-center text-muted-foreground">
+          <div className="text-muted-foreground flex flex-1 items-center justify-center">
             <div className="text-center">
               <div className="mb-2 text-lg font-medium">
                 {environmentKeys.length === 0 ? 'No Environments' : 'Select an Environment'}

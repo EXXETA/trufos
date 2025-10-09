@@ -66,7 +66,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({
         </div>
         <button
           type="button"
-          className="shrink-0 text-danger transition-colors hover:opacity-80"
+          className="text-danger shrink-0 transition-colors hover:opacity-80"
           onClick={onFileRemoved}
           aria-label="Remove file"
         >

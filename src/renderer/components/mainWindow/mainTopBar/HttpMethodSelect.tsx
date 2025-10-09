@@ -53,7 +53,7 @@ export const HttpMethodSelect: FC<HttpMethodSelectProps> = ({
       open={isOpen}
     >
       <SelectTrigger
-        className={`border ${isOpen ? 'rounded-bl-none rounded-tl-3xl border-accent-primary' : 'rounded-l-full border-border'} ease min-w-[102px] p-[8px_8px_8px_16px] transition-colors duration-300`}
+        className={`border ${isOpen ? 'border-accent-primary rounded-tl-3xl rounded-bl-none' : 'border-border rounded-l-full'} ease min-w-[102px] p-[8px_8px_8px_16px] transition-colors duration-300`}
         isOpen={isOpen}
       >
         <SelectValue ref={httpMethodSelectRef}>

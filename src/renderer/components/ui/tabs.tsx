@@ -9,7 +9,7 @@ const Tabs = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Root
     ref={ref}
-    className={cn('flex flex-col rounded-md bg-background', className)}
+    className={cn('bg-background flex flex-col rounded-md', className)}
     {...props}
   />
 ));
@@ -21,7 +21,7 @@ const TabsList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
-    className={cn('h-10 rounded-md rounded-b-none bg-background text-muted-foreground', className)}
+    className={cn('bg-background text-muted-foreground h-10 rounded-md rounded-b-none', className)}
     {...props}
   />
 ));
@@ -34,10 +34,10 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      'inline-flex h-[36px] items-center justify-center whitespace-nowrap rounded-[24px]',
+      'inline-flex h-[36px] items-center justify-center rounded-[24px] whitespace-nowrap',
       'px-3 py-1.5',
-      'text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden',
-      'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+      'ring-offset-background text-sm font-medium transition-all focus-visible:outline-hidden',
+      'focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2',
       'disabled:pointer-events-none disabled:opacity-50',
       'hover:outline-solid',
       'hover:outline-2',
@@ -62,7 +62,7 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      `tabs-scrollbar mt-2 flex-1 overflow-y-auto rounded-[24px] bg-card ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`,
+      `tabs-scrollbar bg-card ring-offset-background focus-visible:ring-ring mt-2 flex-1 overflow-y-auto rounded-[24px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden`,
       className
     )}
     {...props}

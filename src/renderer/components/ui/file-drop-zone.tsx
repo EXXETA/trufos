@@ -164,10 +164,10 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
       aria-disabled={disabled || undefined}
     >
       {(icon ?? directoryMode) ? <FolderSearchIcon size={36} /> : <Upload size={36} />}
-      <span className="inline-flex h-[17px] shrink-0 items-start whitespace-pre text-sm font-normal leading-[1.2] text-text-primary">
+      <span className="text-text-primary inline-flex h-[17px] shrink-0 items-start text-sm leading-[1.2] font-normal whitespace-pre">
         {title ?? `Drag & drop a ${directoryMode ? 'folder' : 'file'} here`}
       </span>
-      <span className="inline-flex h-[15px] shrink-0 items-start whitespace-pre text-xs font-normal leading-[1.2] text-text-secondary">
+      <span className="text-text-secondary inline-flex h-[15px] shrink-0 items-start text-xs leading-[1.2] font-normal whitespace-pre">
         {description ?? ''}
       </span>
       {directoryMode ? null : (

@@ -114,14 +114,14 @@ export const SettingsModal = () => {
           <DialogFooter className="shrink-0 p-4">
             <div className="flex gap-2">
               <Button onClick={() => setOpen(false)} variant="outline">
-                <span className="font-bold leading-4">Cancel</span>
+                <span className="leading-4 font-bold">Cancel</span>
               </Button>
               <Button
                 onClick={save}
                 disabled={!isOverallValid}
                 variant={isOverallValid ? 'default' : 'defaultDisable'}
               >
-                <span className="font-bold leading-4">Save</span>
+                <span className="leading-4 font-bold">Save</span>
               </Button>
             </div>
           </DialogFooter>

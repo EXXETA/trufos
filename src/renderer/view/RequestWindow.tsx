@@ -21,7 +21,7 @@ export function RequestWindow() {
         <EmptyWildWest />
         <span className="mt-2 text-center">
           <a
-            className="mr-1 cursor-pointer text-accent-primary underline"
+            className="text-accent-primary mr-1 cursor-pointer underline"
             onClick={handleAddNewRequest}
           >
             Create

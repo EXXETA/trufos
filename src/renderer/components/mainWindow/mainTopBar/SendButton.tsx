@@ -10,7 +10,7 @@ interface SendButtonProps {
 
 export const SendButton: React.FC<SendButtonProps> = ({ onClick, disabled = false, children }) => (
   <Button className="gap-3 pl-[30px]" onClick={onClick} variant="secondary" disabled={disabled}>
-    <span className="font-bold leading-4">Send</span>
+    <span className="leading-4 font-bold">Send</span>
 
     {children ?? <ArrowForwardIcon />}
   </Button>

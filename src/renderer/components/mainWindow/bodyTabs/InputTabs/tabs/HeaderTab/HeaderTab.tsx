@@ -40,7 +40,7 @@ export const HeaderTab = () => {
 
   return (
     <div className="relative h-full p-4">
-      <div className="absolute left-[16px] right-[16px] top-[16px] z-10">
+      <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
         <div className="flex">
           <Button
             className="h-fit gap-1 hover:bg-transparent"
@@ -65,7 +65,7 @@ export const HeaderTab = () => {
         <Divider className="mt-2" />
       </div>
 
-      <div className="absolute bottom-[16px] left-[16px] right-[16px] top-[68px]">
+      <div className="absolute top-[68px] right-[16px] bottom-[16px] left-[16px]">
         <div className="pb-4">
           <Table className="w-full table-auto">
             <TableHeader>
