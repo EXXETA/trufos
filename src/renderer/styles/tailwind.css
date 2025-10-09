@@ -7,7 +7,8 @@
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;
-  @media (width >= --theme(--breakpoint-sm)) {
+  /* Fixed theme() function usage */
+  @media (width >= theme(--breakpoint-sm)) {
     max-width: none;
   }
   @media (width >= 1400px) {
@@ -34,7 +35,8 @@
 }
 
 @layer base {
-  :root {
+  /* Light theme moved under .light class so dark becomes default */
+  .light {
     --background: 0 0% 100%;
     --foreground: 222.2 47.4% 11.2%;
 
@@ -80,9 +82,32 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Added missing vars for parity */
+    --accent-primary: #0d8ec0;
+    --accent-secondary: #08739c;
+    --accent-tertiary: #e6f8fe;
+    --http-get: #228c22;
+    --http-put: #0066cc;
+    --http-post: #7a3ff2;
+    --http-delete: #d0345b;
+    --http-patch: #d88219;
+    --success: #1f874b;
+    --error: #c04040;
+    --warning: #d9901a;
+    --svg-dark-gray: #444444;
+    --svg-medium-gray: #777777;
+    --svg-gray: #666666;
+    --svg-dark-gray-2: #555555;
+    --svg-light-gray: #999999;
+    --svg-teal: #0f2f38;
+    --disabled: #cccccc;
+    --tertiary: 195 85% 48%;
+    --tertiary-foreground: 0 0% 100%;
+    --divider: 214.3 31.8% 91.4%;
+    color-scheme: light;
   }
 
-  .dark {
+  :root {
     /* Accent */
     --accent-primary: #75d9fb;
     --accent-secondary: #12b1e7;
@@ -174,6 +199,7 @@
     --sidebar-border: 240 3.7% 15.9%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+    color-scheme: dark;
   }
 }
 
