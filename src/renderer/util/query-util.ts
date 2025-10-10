@@ -29,10 +29,6 @@ export const areUrlsMeaningfullyDifferent = (url1: string, url2: string): boolea
 
     let normalized = url.trim();
 
-    if (normalized.endsWith('?') || normalized.endsWith('&')) {
-      normalized = normalized.replace(/[?&]+$/, '');
-    }
-
     normalized = normalized.replace(/[?&]+$/, '');
 
     try {
