@@ -10,9 +10,9 @@ export interface CollectionStateActions {
 
   /**
    * Change the current collection to the given collection. Will save any unsaved changes
-   * @param collection The collection to change to
+   * @param collection the collection or collection directory path to open
    */
-  changeCollection(collection: Collection): void;
+  changeCollection(collection: Collection | string): Promise<void>;
 
   addNewRequest(title?: string, parentId?: string): Promise<void>;
 
@@ -60,10 +60,10 @@ export interface CollectionStateActions {
 
   /**
    * Rename the request title
-   * @param id
-   * @param title
+   * @param id the request id
+   * @param title the new title of the request
    */
-  renameRequest(id: TrufosRequest['id'], title: string): void;
+  renameRequest(id: TrufosRequest['id'], title: string): Promise<void>;
 
   /**
    * Copy a request.
@@ -147,7 +147,7 @@ export interface CollectionStateActions {
    * @param id the folder id
    * @param title the new title of the folder
    */
-  renameFolder(id: Folder['id'], title: string): void;
+  renameFolder(id: Folder['id'], title: string): Promise<void>;
 
   /**
    * Copy a folder with all its children.

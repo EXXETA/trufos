@@ -20,7 +20,10 @@ export function RequestWindow() {
       <div className="flex flex-auto flex-col items-center justify-center p-6">
         <EmptyWildWest />
         <span className="mt-2 text-center">
-          <a className="mr-1 cursor-pointer text-cyan-400 underline" onClick={handleAddNewRequest}>
+          <a
+            className="text-accent-primary mr-1 cursor-pointer underline"
+            onClick={handleAddNewRequest}
+          >
             Create
           </a>
           or select a request to get started

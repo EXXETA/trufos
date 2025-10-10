@@ -4,10 +4,12 @@ import { vi, beforeEach } from 'vitest';
 
 // @ts-expect-error mock global logger with console
 global.logger = console;
+global.logger.secret = console;
 
 vi.mock('electron');
 vi.mock('node:fs');
 vi.mock('node:fs/promises');
+vi.mock('node:process');
 vi.mock('tmp');
 
 beforeEach(() => {

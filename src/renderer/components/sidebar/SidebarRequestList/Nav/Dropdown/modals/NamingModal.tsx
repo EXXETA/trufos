@@ -11,6 +11,7 @@ import { Folder } from 'shim/objects/folder';
 import { Button } from '@/components/ui/button';
 import { useCollectionActions } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
+import { isFolder } from 'shim/objects';
 
 export interface NamingModalProps {
   createType?: 'folder' | 'request';
@@ -25,16 +26,16 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
 
   const handleSave = async () => {
     if (createType) {
-      if (createType === 'folder') {
+      if (isFolder(trufosObject)) {
         addNewFolder(name, trufosObject.id);
       } else {
         addNewRequest(name, trufosObject.id);
       }
     } else {
-      if (trufosObject.type === 'folder') {
-        renameFolder(trufosObject.id, name);
+      if (isFolder(trufosObject)) {
+        await renameFolder(trufosObject.id, name);
       } else {
-        renameRequest(trufosObject.id, name);
+        await renameRequest(trufosObject.id, name);
       }
     }
     setOpen(false);
@@ -62,16 +63,16 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-transparent outline-none"
+              className="w-full bg-transparent outline-hidden"
               placeholder={`Enter the ${createType ?? trufosObject.type} name`}
             />
           </div>
           <DialogFooter className="bottom-0">
             <Button disabled={!isValid} variant={isValid ? 'default' : 'defaultDisable'}>
-              <span className="font-bold leading-4">Save</span>
+              <span className="leading-4 font-bold">Save</span>
             </Button>
             <Button type="reset" variant="destructive">
-              <span className="font-bold leading-4">Cancel</span>
+              <span className="leading-4 font-bold">Cancel</span>
             </Button>
           </DialogFooter>
         </form>

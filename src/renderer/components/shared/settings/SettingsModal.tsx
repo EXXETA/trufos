@@ -25,9 +25,9 @@ export const SettingsModal = () => {
   const { setVariables } = useVariableActions();
   const { setEnvironments, selectEnvironment } = useEnvironmentActions();
 
-  const variables = useVariableStore((state) => selectVariables(state));
-  const environments = useEnvironmentStore((state) => selectEnvironments(state));
-  const selectedEnvironment = useEnvironmentStore((state) => selectSelectedEnvironment(state));
+  const variables = useVariableStore(selectVariables);
+  const environments = useEnvironmentStore(selectEnvironments);
+  const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
 
   const [editorVariables, setEditorVariables] = useState(variableMapToArray(variables));
   const [editorEnvironments, setEditorEnvironments] = useState(environments);
@@ -35,38 +35,34 @@ export const SettingsModal = () => {
   const [isValid, setValid] = useState(false);
   const [isEnvironmentValid, setEnvironmentValid] = useState(true);
   const [isOpen, setOpen] = useState(false);
-
-  useEffect(() => {
-    setEditorVariables(variableMapToArray(variables));
-  }, [variables]);
-
-  useEffect(() => {
-    setEditorEnvironments(environments);
-    setEditorSelectedEnvironment(selectedEnvironment);
-  }, [environments, selectedEnvironment]);
-
   const isOverallValid = isValid && isEnvironmentValid;
+
+  useEffect(() => {
+    if (isOpen) {
+      setEditorVariables(variableMapToArray(variables));
+      setEditorEnvironments(environments);
+      setEditorSelectedEnvironment(selectedEnvironment);
+    }
+  }, [isOpen]);
 
   const apply = async () => {
     await setVariables(variableArrayToMap(editorVariables));
     await setEnvironments(editorEnvironments);
-    selectEnvironment(editorSelectedEnvironment);
+    await selectEnvironment(editorSelectedEnvironment);
   };
 
+  // We intentionally do NOT call cancel() after a successful save because cancel() reverts
+  // the editor state to the store snapshot at the time of closing. When save() previously
+  // closed the dialog, the onOpenChange handler invoked cancel(), briefly overriding the
+  // just-applied changes until store effects re-synchronized. This created the perception
+  // that changes were not saved. By separating the close behavior we avoid that flicker/race.
   const save = async () => {
     await apply();
     setOpen(false);
   };
 
-  const cancel = () => {
-    setEditorVariables(variableMapToArray(variables));
-    setEditorEnvironments(environments);
-    setEditorSelectedEnvironment(selectedEnvironment);
-    setOpen(false);
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && cancel()}>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
       <DialogTrigger onClick={() => setOpen(true)}>
         <FiSettings className="ml-2 text-xl" />
       </DialogTrigger>
@@ -74,7 +70,7 @@ export const SettingsModal = () => {
       <DialogContent className="flex h-[80vh] max-w-4xl flex-col p-0 lg:max-w-5xl">
         <div className="flex h-full flex-col">
           {/* Header - Fixed */}
-          <div className="flex-shrink-0 px-4 pt-4">
+          <div className="shrink-0 px-4 pt-4">
             <DialogHeader>
               <DialogTitle className="font-bold">Collection Settings</DialogTitle>
             </DialogHeader>
@@ -82,12 +78,12 @@ export const SettingsModal = () => {
 
           {/* Tabs - Takes remaining space */}
           <Tabs defaultValue="variables" className="flex min-h-0 flex-1 flex-col">
-            <div className="flex-shrink-0 px-4 py-4">
+            <div className="shrink-0 px-4 py-4">
               <TabsList className="bg-background">
-                <TabsTrigger value="variables" className="!font-light">
+                <TabsTrigger value="variables" className="font-light!">
                   Variables
                 </TabsTrigger>
-                <TabsTrigger value="environments" className="!font-light">
+                <TabsTrigger value="environments" className="font-light!">
                   Environments
                 </TabsTrigger>
               </TabsList>
@@ -115,17 +111,17 @@ export const SettingsModal = () => {
           </Tabs>
 
           {/* Footer - Fixed */}
-          <DialogFooter className="flex-shrink-0 p-4">
+          <DialogFooter className="shrink-0 p-4">
             <div className="flex gap-2">
-              <Button onClick={cancel} variant="outline">
-                <span className="font-bold leading-4">Cancel</span>
+              <Button onClick={() => setOpen(false)} variant="outline">
+                <span className="leading-4 font-bold">Cancel</span>
               </Button>
               <Button
                 onClick={save}
                 disabled={!isOverallValid}
                 variant={isOverallValid ? 'default' : 'defaultDisable'}
               >
-                <span className="font-bold leading-4">Save</span>
+                <span className="leading-4 font-bold">Save</span>
               </Button>
             </div>
           </DialogFooter>

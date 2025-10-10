@@ -23,6 +23,7 @@ export const useVariableStore = create<VariableState & VariableStateActions>()(
     },
 
     setVariables: async (variables) => {
+      console.debug('Saving collection variables');
       await eventService.setCollectionVariables(variables);
       set((state) => {
         state.variables = variables;

@@ -135,7 +135,7 @@ export const ParamsTab = () => {
 
   return (
     <div className="relative h-full p-4">
-      <div className="absolute left-[16px] right-[16px] top-[16px] z-10">
+      <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
         <div className="flex">
           <Button
             className="h-fit gap-1"
@@ -160,7 +160,7 @@ export const ParamsTab = () => {
         <Divider className="mt-2" />
       </div>
 
-      <div className="absolute bottom-[16px] left-[16px] right-[16px] top-[68px]">
+      <div className="absolute top-[68px] right-[16px] bottom-[16px] left-[16px]">
         <div className="pb-4">
           <Table className="w-full table-auto">
             <TableHeader>
@@ -179,7 +179,7 @@ export const ParamsTab = () => {
                       type="text"
                       value={param?.key}
                       onChange={(e) => handleUpdateQueryParam(index, 'key', e.target.value)}
-                      className="w-full bg-transparent outline-none"
+                      className="w-full bg-transparent outline-hidden"
                       placeholder="Enter param key"
                     />
                   </TableCell>
@@ -189,7 +189,7 @@ export const ParamsTab = () => {
                       type="text"
                       value={param?.value}
                       onChange={(e) => handleUpdateQueryParam(index, 'value', e.target.value)}
-                      className="w-full bg-transparent outline-none"
+                      className="w-full bg-transparent outline-hidden"
                       placeholder="Enter param value"
                     />
                   </TableCell>
@@ -204,21 +204,21 @@ export const ParamsTab = () => {
                           className={cn(
                             'form-checkbox h-4 w-4 appearance-none rounded-[2px] border',
                             param?.isActive
-                              ? 'border-[rgba(107,194,224,1)] bg-[rgba(25,54,65,1)]'
-                              : 'border-[rgba(238,238,238,1)] bg-transparent'
+                              ? 'border-accent-primary bg-accent-tertiary'
+                              : 'border-text-primary bg-transparent'
                           )}
                         />
 
                         {param?.isActive && (
                           <div
                             className={
-                              'pointer-events-none absolute left-0 top-0 flex h-4 w-4 rotate-6 items-center justify-center'
+                              'pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center'
                             }
                           >
                             <CheckedIcon
                               size={16}
                               viewBox={'0 0 16 16'}
-                              color={'rgba(107,194,224,1)'}
+                              color={'var(--accent-primary)'}
                             />
                           </div>
                         )}
@@ -227,7 +227,7 @@ export const ParamsTab = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 hover:bg-transparent hover:text-[rgba(107,194,224,1)] active:text-[#12B1E7]"
+                        className="hover:text-accent-primary active:text-accent-secondary h-6 w-6 hover:bg-transparent"
                         onClick={() => handleDeleteQueryParam(index)}
                       >
                         <DeleteIcon />

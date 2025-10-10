@@ -46,7 +46,7 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
               className={cn(
                 'h-6 w-6',
                 'transition-transform duration-300 ease-in-out',
-                isFolderOpen ? 'rotate-0' : 'rotate-[270deg]'
+                isFolderOpen ? 'rotate-0' : 'rotate-270'
               )}
             >
               <SmallArrow size={24} />

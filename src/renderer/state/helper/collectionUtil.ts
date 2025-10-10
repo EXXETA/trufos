@@ -3,8 +3,8 @@ import { REQUEST_MODEL } from '@/lib/monaco/models';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 
-export async function setRequestTextBody(request: TrufosRequest) {
-  if (request.body?.type === RequestBodyType.TEXT) {
+export async function setRequestTextBody(request?: TrufosRequest) {
+  if (request?.body?.type === RequestBodyType.TEXT) {
     const stream = await IpcPushStream.open(request);
     REQUEST_MODEL.setValue(await IpcPushStream.collect(stream));
   } else {

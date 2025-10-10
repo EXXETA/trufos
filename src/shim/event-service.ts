@@ -6,6 +6,8 @@ import { Collection, CollectionBase } from './objects/collection';
 import { VariableMap, VariableObject } from './objects/variables';
 import { EnvironmentMap } from './objects/environment';
 
+export type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
+
 export interface IEventService {
   /**
    * (Re)load the last opened collection.
@@ -96,7 +98,7 @@ export interface IEventService {
    * Select an environment by its key.
    * @param key The key of the environment to select.
    */
-  selectEnvironment(key: string): void;
+  selectEnvironment(key?: string): void;
 
   /**
    * Save the folder to the file system.
@@ -135,4 +137,27 @@ export interface IEventService {
    * Open a folder dialog and return the selected directory path.
    */
   showOpenDialog(options: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue>;
+
+  /**
+   * Import a collection from a source file into a target directory using the given strategy.
+   * The target directory must exist. A new directory will be created inside it using the
+   * collection name (or the name the user provides) similar to createCollection semantics.
+   * @param srcFilePath The path to the collection export file (e.g. Postman JSON file).
+   * @param targetDirPath The existing directory that will contain the imported collection directory.
+   * @param strategy The import strategy / tool the file originates from.
+   */
+  importCollection(
+    srcFilePath: string,
+    targetDirPath: string,
+    strategy: ImportStrategy,
+    title?: string
+  ): Promise<Collection>;
+
+  /**
+   * Rename the given folder or request to the new title.
+   * This updates the title and the directory name if necessary.
+   * @param object The folder or request to rename.
+   * @param newTitle The new title.
+   */
+  rename(object: Folder | TrufosRequest, newTitle: string): Promise<void>;
 }

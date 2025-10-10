@@ -1,4 +1,4 @@
-import { exists } from 'main/util/fs-util';
+import { exists, isEmpty } from 'main/util/fs-util';
 import { assign } from 'main/util/object-util';
 import { SemVer } from 'main/util/semver';
 import { randomUUID } from 'node:crypto';
@@ -32,6 +32,7 @@ import {
 import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
 import { SettingsService } from './settings-service';
+import { sanitizeTitle } from 'shim/fs';
 
 export const HIDDEN_FILE_PREFIX = '~';
 
@@ -104,26 +105,32 @@ export class PersistenceService {
   /**
    * Renames a trufos object on the file system.
    * @param object trufos object to be renamed
-   * @param newTitle new title of the object
+   * @param title new title of the object
    */
-  public async rename(object: TrufosObject, newTitle: string) {
+  public async rename(object: Folder | TrufosRequest, title: string) {
+    object.title = title;
     const oldDirPath = this.getOrCreateDirPath(object);
-    object.title = newTitle;
-    const newDirPath = path.join(path.dirname(oldDirPath), this.getDirName(object));
+    this.idToPathMap.delete(object.id); // force recreation of path after rename
+    const newDirPath = this.getOrCreateDirPath(object);
 
-    logger.info('Renaming object at', oldDirPath, 'to', newDirPath);
-    await fs.rename(oldDirPath, newDirPath);
-
-    this.idToPathMap.set(object.id, newDirPath);
-
-    if (isCollection(object)) {
-      object.dirPath = newDirPath;
-    }
-    if (!isRequest(object)) {
-      for (const child of object.children) {
-        this.updatePathMapRecursively(child, newDirPath);
+    if (oldDirPath !== newDirPath) {
+      logger.info('Renaming object at', oldDirPath, 'to', newDirPath);
+      await fs.rename(oldDirPath, newDirPath);
+      this.idToPathMap.set(object.id, newDirPath);
+      if (!isRequest(object)) {
+        for (const child of object.children) {
+          this.updatePathMapRecursively(child, newDirPath);
+        }
       }
+    } else {
+      logger.info('Title changed but directory name unchanged for object', object.id);
     }
+
+    // Persist new title to the info file so that a reload reflects the change.
+    // We only need to update the primary info file. Draft info files (hidden) represent unsaved changes and
+    // will be updated when they are explicitly saved.
+    const infoFileName = getInfoFileName(object.type, isRequest(object) ? object.draft : false);
+    await this.saveInfoFile(object, newDirPath, infoFileName);
   }
 
   /**
@@ -193,6 +200,7 @@ export class PersistenceService {
    * @param collection the collection to save
    */
   public async saveCollection(collection: Collection) {
+    await fs.mkdir(collection.dirPath, { recursive: true });
     await this.saveInfoFile(
       collection,
       this.getOrCreateDirPath(collection),
@@ -251,6 +259,7 @@ export class PersistenceService {
     }
 
     // remove secrets from variables and save them separately
+    object = structuredClone(object); // avoid modifying the original object
     await this.saveSecrets(object, dirPath);
 
     // write the info file
@@ -416,13 +425,13 @@ export class PersistenceService {
   public async createCollection(dirPath: string, title: string): Promise<Collection> {
     dirPath = normalizeDirPath(dirPath);
     logger.info('Creating new collection at', dirPath);
-    if ((await fs.readdir(dirPath)).some((file) => file !== '.DS_Store')) {
+    if (!isEmpty(dirPath)) {
       throw new Error('Directory is not empty');
     }
 
     const collection: Collection = {
       id: randomUUID(),
-      title: title,
+      title,
       type: 'collection',
       dirPath,
       variables: {},
@@ -569,6 +578,12 @@ export class PersistenceService {
     }
   }
 
+  /**
+   * Gets the directory path of the given object. If the object is not yet associated with a directory,
+   * a new directory path is derived from the parent directory and the object's title.
+   * @param object the trufos object to get the directory path for
+   * @returns the directory path of the object
+   */
   private getOrCreateDirPath(object: TrufosObject) {
     if (isCollection(object)) {
       return object.dirPath;
@@ -599,13 +614,6 @@ export class PersistenceService {
   }
 
   private getDirName(object: TrufosObject) {
-    return this.sanitizeTitle(object.title);
-  }
-
-  private sanitizeTitle(title: string) {
-    return title
-      .toLowerCase()
-      .replace(/\s/g, '-')
-      .replace(/[^a-z0-9-]/g, '');
+    return sanitizeTitle(object.title);
   }
 }
