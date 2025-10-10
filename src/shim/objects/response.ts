@@ -3,7 +3,7 @@ import { HttpHeaders } from 'shim/headers';
 export type TrufosResponse = {
   headers: HttpHeaders;
   metaInfo: MetaInfo;
-  bodyFilePath?: string;
+  responseId?: string;
   autoFormat?: boolean;
 };
 

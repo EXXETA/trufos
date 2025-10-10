@@ -12,10 +12,12 @@ import { TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
 import process from 'node:process';
+import { ResponseBodyService } from 'main/network/service/response-body-service';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
 const persistenceService = PersistenceService.instance;
+const responseBodyService = ResponseBodyService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
 
@@ -93,7 +95,8 @@ export class HttpService {
         ),
       },
       headers: Object.freeze(responseData.headers),
-      bodyFilePath: responseData.body != null ? bodyFile.name : null,
+      responseId:
+        responseData.body != null ? responseBodyService.register(bodyFile.name) : undefined,
     };
 
     logger.debug('Returning response:', response);
