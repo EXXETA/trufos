@@ -9,9 +9,11 @@ import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { AuthorizationType } from 'shim/objects/auth';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { TemplateReplaceStream } from 'template-replace-stream';
+import { ResponseBodyService } from 'main/network/service/response-body-service';
 
 const mockAgent = new MockAgent({ connections: 1 });
 const environmentService = EnvironmentService.instance;
+const responseBodyService = ResponseBodyService.instance;
 
 describe('HttpService', () => {
   beforeAll(() => {
@@ -42,8 +44,11 @@ describe('HttpService', () => {
     // Assert
     expect(result.metaInfo.status).toEqual(200);
     expect(result.metaInfo.duration).toBeGreaterThanOrEqual(0);
+    expect(result.responseId).toBeDefined();
 
-    const responseBody = fs.readFileSync(result.bodyFilePath, 'utf8').toString();
+    const filePath = responseBodyService.getFilePath(result.responseId);
+    expect(filePath).toBeDefined();
+    const responseBody = fs.readFileSync(filePath, 'utf8').toString();
     expect(responseBody).toEqual(text);
   });
 
