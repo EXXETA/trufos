@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
 import { Divider } from '@/components/shared/Divider';
@@ -33,7 +33,7 @@ export const ParamsTab = () => {
   const request = useCollectionStore(selectRequest);
   const requestUrl = request?.url;
 
-  const { queryParams: queryParamsFromUrl } = getQueryParamsFromUrl(requestUrl);
+  const queryParamsFromUrl = useMemo(() => getQueryParamsFromUrl(requestUrl), [requestUrl]);
 
   useEffect(() => {
     if (isActiveStateUpdating) {
@@ -48,9 +48,13 @@ export const ParamsTab = () => {
       const currentParams = queryParams || [];
       const inactiveParams = currentParams.filter((param) => !param.isActive);
 
-      updateRequest({
-        queryParams: [...queryParamsFromUrl, ...inactiveParams],
-      });
+      const mergedParams = [...queryParamsFromUrl, ...inactiveParams];
+
+      if (!shallowEqual(mergedParams, currentParams)) {
+        updateRequest({
+          queryParams: mergedParams,
+        });
+      }
     }
   }, [queryParamsFromUrl]);
 

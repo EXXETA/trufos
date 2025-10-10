@@ -12,6 +12,7 @@ import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { showError } from '@/error/errorHandler';
 import { REQUEST_MODEL } from '@/lib/monaco/models';
+import { areUrlsMeaningfullyDifferent } from '@/util/query-util';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -29,7 +30,13 @@ export function MainTopBar() {
   const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
     setHasError(false);
 
-    updateRequest({ url: event.target.value });
+    const newUrl = event.target.value;
+
+    if (areUrlsMeaningfullyDifferent(url, newUrl)) {
+      updateRequest({ url: newUrl });
+    } else {
+      updateRequest({ url: newUrl, draft: request?.draft });
+    }
   };
 
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
