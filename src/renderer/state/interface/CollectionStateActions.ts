@@ -58,6 +58,8 @@ export interface CollectionStateActions {
 
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
+  closeRequest(id: TrufosRequest['id']): Promise<void>;
+
   /**
    * Rename the request title
    * @param id the request id

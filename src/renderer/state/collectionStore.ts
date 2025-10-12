@@ -198,6 +198,16 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       });
     },
 
+    closeRequest: async (id) => {
+      set((state) => {
+        if (state.selectedRequestId === id) state.selectedRequestId = undefined;
+        const request = selectRequest(state, id);
+        const parent = selectParent(state, request.parentId);
+        parent.children = parent.children.filter((child) => child.id !== id);
+        state.requests.delete(id);
+      });
+    },
+
     renameRequest: async (id: TrufosRequest['id'], title: string) => {
       const request = selectRequest(get(), id);
       if (request == null) return;
