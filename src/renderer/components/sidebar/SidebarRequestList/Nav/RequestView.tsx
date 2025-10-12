@@ -4,6 +4,8 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import { handleMouseEvent } from '@/util/callback-util';
 import { cn } from '@/lib/utils';
 import { RequestDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/RequestDropdown';
+import { SidebarMenuAction } from '@/components/ui/sidebar';
+import { CloseIcon} from '@/components/icons';
 
 export interface SidebarRequestListProps {
   requestId: TrufosRequest['id'];
@@ -12,6 +14,7 @@ export interface SidebarRequestListProps {
 export const RequestView = ({ requestId }: SidebarRequestListProps) => {
   const { setSelectedRequest } = useCollectionActions();
   const request = useCollectionStore((state) => selectRequest(state, requestId));
+  const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
 
   return (
     <span
@@ -30,6 +33,21 @@ export const RequestView = ({ requestId }: SidebarRequestListProps) => {
       </div>
 
       <p className="text-xs leading-3">{request.title ?? request.url}</p>
+
+      <div>
+        <SidebarMenuAction
+          className={cn('h-6 w-6', 'absolute right-8 top-2 md:right-11')}
+          showOnHover={selectedRequestId !== request.id} // same hover behavior
+          // onClick={handleMouseEvent(() => {
+          //    closeRequest(request.id); // <-- your custom handler
+          // })}
+        >
+          <div className={cn('h6 w-6', 'rotate-90')}>
+            <CloseIcon size={24} />
+          </div>
+          <span className="sr-only">Close</span>
+        </SidebarMenuAction>
+      </div>
 
       <RequestDropdown request={request} />
     </span>
