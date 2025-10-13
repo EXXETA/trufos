@@ -759,6 +759,62 @@ describe('PersistenceService', () => {
       JSON.parse(await readFile(path.join(collection.dirPath, getSecretsFileName()), 'utf-8'))
     ).not.toContain(plainVariable);
   });
+
+  it('loadCollection() should order direct children by their index (undefined last)', async () => {
+    // Arrange
+    const folder1 = getExampleFolder(collection.id);
+    folder1.title = 'Folder1';
+    folder1.index = 2;
+    const folder2 = getExampleFolder(collection.id);
+    folder2.title = 'Folder2';
+    folder2.index = 1;
+    const request1 = getExampleRequest(collection.id);
+    request1.title = 'Req1';
+    request1.index = 5;
+    const request2 = getExampleRequest(collection.id);
+    request2.title = 'Req2'; // no index -> should be last
+    collection.children.push(folder1, folder2, request2, request1);
+    await persistenceService.saveCollectionRecursive(collection);
+
+    // Act
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+
+    // Assert
+    const titles = loaded.children.map((c) => c.title);
+    expect(titles).toEqual(['Folder2', 'Folder1', 'Req1', 'Req2']);
+    expect(loaded.children[0].index).toBe(1);
+    expect(loaded.children[1].index).toBe(2);
+    expect(loaded.children[2].index).toBe(5);
+    expect(loaded.children[3].index).toBeUndefined();
+  });
+
+  it('loadCollection() should order nested children inside folders by index (undefined last)', async () => {
+    // Arrange
+    const folder = getExampleFolder(collection.id);
+    folder.title = 'RootFolder';
+    const childA = getExampleRequest(folder.id);
+    childA.title = 'A';
+    childA.index = 10;
+    const childB = getExampleRequest(folder.id);
+    childB.title = 'B';
+    childB.index = 1;
+    const childC = getExampleRequest(folder.id);
+    childC.title = 'C'; // no index
+    folder.children.push(childA, childB, childC);
+    collection.children.push(folder);
+    await persistenceService.saveCollectionRecursive(collection);
+
+    // Act
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+    const loadedFolder = loaded.children.find((c) => c.title === 'RootFolder') as Folder;
+
+    // Assert
+    const nestedTitles = loadedFolder.children.map((c) => c.title);
+    expect(nestedTitles).toEqual(['B', 'A', 'C']);
+    expect((loadedFolder.children[0] as any).index).toBe(1);
+    expect((loadedFolder.children[1] as any).index).toBe(10);
+    expect((loadedFolder.children[2] as any).index).toBeUndefined();
+  });
 });
 
 it('createGitIgnore() should create a .gitignore file with the correct content', async () => {
