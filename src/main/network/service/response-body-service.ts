@@ -1,41 +1,36 @@
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 
-interface ResponseEntry {
-  filePath: string;
-}
-
 export class ResponseBodyService {
   public static readonly instance = new ResponseBodyService();
 
-  private readonly responseBodyMap = new Map<string, ResponseEntry>();
+  private readonly responseBodyMap = new Map<string, string>();
 
   private constructor() {}
 
   public register(filePath: string): string {
     const responseId = randomUUID();
-    this.responseBodyMap.set(responseId, { filePath });
+    this.responseBodyMap.set(responseId, filePath);
     logger.debug(`Registered response body: ${responseId} -> ${filePath}`);
     return responseId;
   }
 
   public getFilePath(responseId: string): string | undefined {
-    const entry = this.responseBodyMap.get(responseId);
-    return entry?.filePath;
+    return this.responseBodyMap.get(responseId);
   }
 
   public remove(responseId: string): void {
-    const entry = this.responseBodyMap.get(responseId);
-    if (entry) {
-      this.deleteFileIfExists(entry.filePath);
+    const filePath = this.responseBodyMap.get(responseId);
+    if (filePath) {
+      this.deleteFileIfExists(filePath);
       this.responseBodyMap.delete(responseId);
       logger.debug(`Removed response body: ${responseId}`);
     }
   }
 
   public clear(): void {
-    this.responseBodyMap.forEach((entry) => {
-      this.deleteFileIfExists(entry.filePath);
+    this.responseBodyMap.forEach((filePath) => {
+      this.deleteFileIfExists(filePath);
     });
     this.responseBodyMap.clear();
     logger.debug('Cleared all response bodies');
