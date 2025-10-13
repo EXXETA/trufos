@@ -1,9 +1,6 @@
 import '@/logging/console';
 import { enableMapSet } from 'immer';
-
-enableMapSet();
-
-import '@/styles/tailwind.css';
+enableMapSet(); // immer support for Map and Set
 import { createRoot } from 'react-dom/client';
 import { App } from '@/App';
 import { RendererEventService } from '@/services/event/renderer-event-service';

@@ -1,5 +1,4 @@
-import '@/styles/tailwind.css';
-import '@/styles/global.css';
+import '@/styles/index.css';
 import { Menubar } from '@/view/Menubar';
 import { RequestWindow } from '@/view/RequestWindow';
 import { SidebarProvider } from '@/components/ui/sidebar';
