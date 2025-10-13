@@ -1,18 +1,23 @@
 import { Folder } from 'shim/objects/folder';
-import { SidebarGroup, SidebarMenuSub, SidebarMenuSubButton } from '@/components/ui/sidebar';
+import {
+  SidebarGroup,
+  SidebarMenuAction,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+} from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { FolderDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/FolderDropdown';
 import { selectFolder, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { renderChildren } from '@/components/sidebar/SidebarRequestList/SidebarRequestList';
 import { cn } from '@/lib/utils';
-import { FolderIcon, SmallArrow } from '@/components/icons';
-
+import { CloseIcon, FolderIcon, SmallArrow } from '@/components/icons';
+import { handleMouseEvent } from '@/util/callback-util';
 interface NavFolderProps {
   folderId: Folder['id'];
 }
 
 export const NavFolder = ({ folderId }: NavFolderProps) => {
-  const { setFolderOpen, setFolderClose } = useCollectionActions();
+  const { setFolderOpen, setFolderClose, closeFolder } = useCollectionActions();
   const isFolderOpen = useCollectionStore((state) => state.openFolders.has(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
   const children = useCollectionStore((state) => selectFolder(state, folderId).children);
@@ -53,6 +58,20 @@ export const NavFolder = ({ folderId }: NavFolderProps) => {
               <FolderIcon size={16} />
 
               <span>{folder.title}</span>
+            </div>
+
+            <div>
+              <SidebarMenuAction
+                className={cn('h-6 w-6', 'absolute right-8 top-2 md:right-11')}
+                onClick={handleMouseEvent(() => {
+                  closeFolder(folder.id); // <-- your custom handler
+                })}
+              >
+                <div className={cn('h6 w-6', 'rotate-90')}>
+                  <CloseIcon size={24} />
+                </div>
+                <span className="sr-only">Close</span>
+              </SidebarMenuAction>
             </div>
 
             <FolderDropdown folder={folder} />

@@ -198,7 +198,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       });
     },
 
-    closeRequest: async (id) => {
+    closeRequest: (id) => {
       set((state) => {
         if (state.selectedRequestId === id) state.selectedRequestId = undefined;
         const request = selectRequest(state, id);
@@ -330,6 +330,41 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         state.openFolders.delete(id);
         if (isRequestInAParentFolder(state.selectedRequestId, folder)) {
           state.selectedRequestId = undefined;
+        }
+      });
+    },
+
+    closeFolder: (id) => {
+      set((state) => {
+        const folder = selectFolder(state, id);
+
+        // Helper function to gather all nested folders
+        const collectDescendantFolders = (folder: Folder, acc: Set<string>) => {
+          for (const child of folder.children) {
+            if (child.type === 'folder') {
+              acc.add(child.id);
+              const nested = state.folders.get(child.id);
+              if (nested) collectDescendantFolders(nested, acc);
+            }
+          }
+          return acc;
+        };
+
+        const foldersToClose = collectDescendantFolders(folder, new Set());
+        foldersToClose.add(id);
+
+        for (const folderId of foldersToClose) {
+          state.openFolders.delete(folderId);
+        }
+
+        state.openFolders.delete(id);
+        if (isRequestInAParentFolder(state.selectedRequestId, folder)) {
+          state.selectedRequestId = undefined;
+        }
+
+        const parent = selectParent(state, folder.parentId);
+        if (parent) {
+          parent.children = parent.children.filter((child) => child.id !== id);
         }
       });
     },

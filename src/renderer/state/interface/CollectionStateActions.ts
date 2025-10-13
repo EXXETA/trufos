@@ -58,7 +58,7 @@ export interface CollectionStateActions {
 
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
-  closeRequest(id: TrufosRequest['id']): Promise<void>;
+  closeRequest(id: TrufosRequest['id']): void;
 
   /**
    * Rename the request title
@@ -143,6 +143,12 @@ export interface CollectionStateActions {
    * @param id
    */
   deleteFolder(id: string): Promise<void>;
+
+  /**
+   * Close the folder to the file system
+   * @param id
+   */
+  closeFolder(id: string): void;
 
   /**
    * Rename the folder title
