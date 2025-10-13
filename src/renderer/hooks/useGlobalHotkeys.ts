@@ -1,5 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { useCollectionActions, useCollectionStore, selectRequest } from '@/state/collectionStore';
+import { Folder } from 'shim/objects/folder';
+import { TrufosRequest } from 'shim/objects/request';
 
 interface UseGlobalHotkeysProps {
   onSendRequest?: () => void;
@@ -7,6 +9,7 @@ interface UseGlobalHotkeysProps {
   onSwitchRequestTab?: (tabIndex: number) => void;
   onSwitchResponseTab?: (tabIndex: number) => void;
   onCreateNewRequest?: () => void;
+  onShowHelp?: () => void;
 }
 
 export function useGlobalHotkeys({
@@ -15,18 +18,20 @@ export function useGlobalHotkeys({
   onSwitchRequestTab,
   onSwitchResponseTab,
   onCreateNewRequest,
+  onShowHelp,
 }: UseGlobalHotkeysProps = {}) {
   const { setSelectedRequest, setFolderOpen } = useCollectionActions();
-  const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
-  const collection = useCollectionStore((state) => state.collection);
-  const currentRequest = useCollectionStore(selectRequest);
-  const folders = useCollectionStore((state) => state.folders);
 
   const navigateToAdjacentRequest = useCallback(
     (direction: 'up' | 'down') => {
+      const state = useCollectionStore.getState();
+      const selectedRequestId = state.selectedRequestId;
+      const collection = state.collection;
+      const folders = state.folders;
+
       if (!selectedRequestId || !collection?.children) return;
 
-      const getAllRequestsInOrder = (children: any[]): string[] => {
+      const getAllRequestsInOrder = (children: (Folder | TrufosRequest)[]): string[] => {
         const result: string[] = [];
         for (const child of children) {
           if (child.type === 'request') {
@@ -52,8 +57,7 @@ export function useGlobalHotkeys({
 
       const nextRequestId = orderedRequestIds[nextIndex];
       if (nextRequestId) {
-        const store = useCollectionStore.getState();
-        const targetRequest = store.requests.get(nextRequestId);
+        const targetRequest = state.requests.get(nextRequestId);
 
         if (targetRequest) {
           let currentParentId = targetRequest.parentId;
@@ -71,14 +75,7 @@ export function useGlobalHotkeys({
         setSelectedRequest(nextRequestId);
       }
     },
-    [
-      selectedRequestId,
-      collection?.children,
-      collection?.id,
-      setSelectedRequest,
-      setFolderOpen,
-      folders,
-    ]
+    [setSelectedRequest, setFolderOpen]
   );
 
   const handleKeyDown = useCallback(
@@ -92,7 +89,6 @@ export function useGlobalHotkeys({
         event.stopPropagation();
       };
 
-      // Check if we're in an input field to avoid conflicts
       const target = event.target as HTMLElement;
       const isInInput =
         target.tagName === 'INPUT' ||
@@ -130,9 +126,13 @@ export function useGlobalHotkeys({
           break;
 
         case 's':
-          if (onSaveRequest && currentRequest?.draft && !isInInput) {
-            preventDefault();
-            onSaveRequest();
+          if (!isInInput) {
+            const state = useCollectionStore.getState();
+            const currentRequest = selectRequest(state);
+            if (onSaveRequest && currentRequest?.draft) {
+              preventDefault();
+              onSaveRequest();
+            }
           }
           break;
 
@@ -185,8 +185,8 @@ export function useGlobalHotkeys({
       onSwitchRequestTab,
       onSwitchResponseTab,
       onCreateNewRequest,
+      onShowHelp,
       navigateToAdjacentRequest,
-      currentRequest?.draft,
     ]
   );
 
