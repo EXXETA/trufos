@@ -1,13 +1,12 @@
 @import 'tailwindcss';
 
 @plugin 'tailwindcss-animate';
-
-@variant dark (.dark &);
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
 
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;
-  /* Fixed theme() function usage */
   @media (width >= theme(--breakpoint-sm)) {
     max-width: none;
   }
@@ -16,27 +15,20 @@
   }
 }
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
 @layer base {
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+  * {
+    @apply border-border;
   }
-}
 
-@layer base {
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+
+  /* Light Theme */
   :root {
-    /* Standard shadcn variables for light mode (default) */
     --background: 0 0% 100%;
     --foreground: 222.2 47.4% 11.2%;
 
@@ -118,6 +110,7 @@
     color-scheme: light;
   }
 
+  /* Dark Theme */
   .dark {
     --background: 0 0% 6.67%;
     --foreground: 213 31% 91%;
@@ -196,19 +189,7 @@
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings:
-      'rlig' 1,
-      'calt' 1;
-  }
-}
-
+/* Theme Variables */
 @theme {
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
