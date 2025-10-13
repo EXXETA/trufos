@@ -507,7 +507,9 @@ export class PersistenceService {
       }
     }
 
-    return children;
+    return children.sort(
+      (a, b) => (a.index ?? Number.POSITIVE_INFINITY) - (b.index ?? Number.POSITIVE_INFINITY)
+    );
   }
 
   private async load<T extends TrufosRequest | Folder>(

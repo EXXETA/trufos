@@ -17,6 +17,7 @@ export type TrufosRequest = {
   body: RequestBody;
   draft?: boolean;
   auth?: AuthorizationInformation;
+  index?: number;
 };
 
 export type RequestBody = TextBody | FileBody;
