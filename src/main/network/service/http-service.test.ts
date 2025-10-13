@@ -44,9 +44,9 @@ describe('HttpService', () => {
     // Assert
     expect(result.metaInfo.status).toEqual(200);
     expect(result.metaInfo.duration).toBeGreaterThanOrEqual(0);
-    expect(result.responseId).toBeDefined();
+    expect(result.id).toBeDefined();
 
-    const filePath = responseBodyService.getFilePath(result.responseId);
+    const filePath = responseBodyService.getFilePath(result.id);
     expect(filePath).toBeDefined();
     const responseBody = fs.readFileSync(filePath, 'utf8').toString();
     expect(responseBody).toEqual(text);

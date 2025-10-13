@@ -1,9 +1,10 @@
 import { HttpHeaders } from 'shim/headers';
 
 export type TrufosResponse = {
+  type: 'response';
   headers: HttpHeaders;
   metaInfo: MetaInfo;
-  responseId?: string;
+  id?: string;
   autoFormat?: boolean;
 };
 

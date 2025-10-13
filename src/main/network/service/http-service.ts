@@ -86,6 +86,7 @@ export class HttpService {
 
     // return a new Response instance
     const response: TrufosResponse = {
+      type: 'response',
       metaInfo: {
         status: responseData.statusCode,
         duration: duration,
@@ -95,8 +96,7 @@ export class HttpService {
         ),
       },
       headers: Object.freeze(responseData.headers),
-      responseId:
-        responseData.body != null ? responseBodyService.register(bodyFile.name) : undefined,
+      id: responseData.body != null ? responseBodyService.register(bodyFile.name) : undefined,
     };
 
     logger.debug('Returning response:', response);

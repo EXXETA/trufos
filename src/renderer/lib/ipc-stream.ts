@@ -1,5 +1,6 @@
 import { EventEmitter } from '@/lib/event-emitter';
 import { TrufosRequest } from 'shim/objects/request';
+import { TrufosResponse } from 'shim/objects/response';
 
 const { ipcRenderer } = window.electron;
 
@@ -13,7 +14,7 @@ export interface IpcPushStream {
   on(event: 'error', listener: (error: Error) => void): this;
 }
 
-export type StreamInput = string | TrufosRequest | { type: 'response'; id: string };
+export type StreamInput = string | TrufosRequest | TrufosResponse;
 
 /**
  * A stream that can be used to push data from the main process to the renderer process.
@@ -42,7 +43,7 @@ export class IpcPushStream extends EventEmitter {
 
   public static open(filePath: string): Promise<IpcPushStream>;
   public static open(request: TrufosRequest): Promise<IpcPushStream>;
-  public static open(responseBody: { type: 'response'; id: string }): Promise<IpcPushStream>;
+  public static open(response: TrufosResponse): Promise<IpcPushStream>;
 
   public static async open(input: StreamInput) {
     return new IpcPushStream(await window.electron.ipcRenderer.invoke('stream-open', input));
