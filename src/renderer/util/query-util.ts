@@ -21,24 +21,24 @@ export const getQueryParamsFromUrl = (url: string): TrufosQueryParam[] => {
   }
 };
 
+const normalizeUrl = (url: string): string => {
+  if (!url) return '';
+
+  let normalized = url.trim();
+
+  normalized = normalized.replace(/[?&]+$/, '');
+
+  try {
+    const urlObj = new URL(normalized);
+    urlObj.searchParams.sort();
+    return urlObj.toString();
+  } catch {
+    return normalized;
+  }
+};
+
 export const areUrlsMeaningfullyDifferent = (url1: string, url2: string): boolean => {
   if (url1 === url2) return false;
-
-  const normalizeUrl = (url: string): string => {
-    if (!url) return '';
-
-    let normalized = url.trim();
-
-    normalized = normalized.replace(/[?&]+$/, '');
-
-    try {
-      const urlObj = new URL(normalized);
-      urlObj.searchParams.sort();
-      return urlObj.toString();
-    } catch {
-      return normalized;
-    }
-  };
 
   const normalized1 = normalizeUrl(url1);
   const normalized2 = normalizeUrl(url2);
