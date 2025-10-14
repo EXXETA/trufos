@@ -25,7 +25,7 @@ export const SidebarRequestList = () => {
 
   return (
     <SidebarContent className="tabs-scrollbar flex-1 overflow-y-auto">
-      <SidebarMenu className="gap-0">{renderChildren(children, 0)}</SidebarMenu>
+      <SidebarMenu className="gap-0">{renderChildren(children)}</SidebarMenu>
     </SidebarContent>
   );
 };

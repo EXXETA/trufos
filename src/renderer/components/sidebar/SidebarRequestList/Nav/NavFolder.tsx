@@ -62,18 +62,7 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <SidebarMenuSub
-            className={
-              cn()
-
-              // TODO: provide decent animation
-              // 'overflow-hidden transition-all duration-300 ease-in-out',
-              // 'data-[state=open]:animate-in',
-              // 'data-[state=closed]:animate-out'
-            }
-          >
-            {renderChildren(children, depth)}
-          </SidebarMenuSub>
+          <SidebarMenuSub>{renderChildren(children, depth)}</SidebarMenuSub>
         </CollapsibleContent>
       </SidebarGroup>
     </Collapsible>
