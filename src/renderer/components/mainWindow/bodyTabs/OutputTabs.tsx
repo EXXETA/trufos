@@ -64,8 +64,8 @@ export function OutputTabs({ className }: OutputTabsProps) {
   useEffect(() => {
     const updateEditorContent = async () => {
       RESPONSE_MODEL.setValue('');
-      if (response?.bodyFilePath != null) {
-        const stream = await IpcPushStream.open(response.bodyFilePath);
+      if (response?.id != null) {
+        const stream = await IpcPushStream.open(response);
         const content = await IpcPushStream.collect(stream);
         RESPONSE_MODEL.setValue(content);
         if (response?.autoFormat) {
@@ -89,8 +89,8 @@ export function OutputTabs({ className }: OutputTabsProps) {
   }, [mimeType]);
 
   const canFormatResponseBody = useMemo(() => {
-    return response?.bodyFilePath && isFormattableLanguage(editorLanguage);
-  }, [response?.bodyFilePath, editorLanguage]);
+    return response?.id && isFormattableLanguage(editorLanguage);
+  }, [response?.id, editorLanguage]);
 
   const handleFormatResponseBody = useCallback(() => {
     if (requestId && canFormatResponseBody) {
