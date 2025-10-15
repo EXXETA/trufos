@@ -15,6 +15,7 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCallback, useEffect, useState } from 'react';
 import { CollectionBase } from 'shim/objects/collection';
 import { FolderOpen, FolderPlus, Upload } from 'lucide-react';
+import { CloseIcon } from '@/components/icons';
 
 const eventService = RendererEventService.instance;
 
@@ -71,7 +72,17 @@ export default function CollectionDropdown() {
     () =>
       collections.map(({ title, dirPath }, i) => (
         <DropdownMenuRadioItem key={i} value={dirPath}>
-          {title}
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              await eventService.closeCollection(dirPath);
+              setCollections((prev) => prev.filter((c) => c.dirPath !== dirPath));
+            }}
+            className="text-muted-foreground hover:text-destructive flex h-6 w-6 items-center justify-center"
+          >
+            <CloseIcon size={24} />
+          </button>
+          <span>{title}</span>
         </DropdownMenuRadioItem>
       )),
     [collections]
