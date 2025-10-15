@@ -40,7 +40,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "@vitest/coverage-v8": "^3.2.4",
     "css-loader": "^7.1.2",
-    "electron": "^38.2.2",
+    "electron": "^38.3.0",
     "electron-devtools-installer": "^4.0.0",
     "eslint": "^9.37.0",
     "eslint-import-resolver-typescript": "^4.4.4",
