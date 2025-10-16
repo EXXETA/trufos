@@ -50,7 +50,7 @@ export const ThemeToggle: React.FC = () => {
       variant="ghost"
       size="sm"
       onClick={toggleTheme}
-      className="h-8 w-8 p-0 hover:bg-sidebar-accent"
+      className="hover:bg-sidebar-accent h-8 w-8 p-0"
       title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
     >
       {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
