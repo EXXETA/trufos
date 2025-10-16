@@ -4,7 +4,7 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import { handleMouseEvent } from '@/util/callback-util';
 import { cn } from '@/lib/utils';
 import { RequestDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/RequestDropdown';
-import { getIndentation } from '@/util/indentation';
+import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
 
 export interface NavRequestProps {
   requestId: TrufosRequest['id'];

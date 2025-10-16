@@ -6,7 +6,7 @@ import { selectFolder, useCollectionActions, useCollectionStore } from '@/state/
 import { renderChildren } from '@/components/sidebar/SidebarRequestList/SidebarRequestList';
 import { cn } from '@/lib/utils';
 import { FolderIcon, SmallArrow } from '@/components/icons';
-import { getIndentation } from '@/util/indentation';
+import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
 
 interface NavFolderProps {
   folderId: Folder['id'];
