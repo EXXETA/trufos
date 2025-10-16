@@ -1,16 +1,13 @@
 import '@/logging/console';
 import { enableMapSet } from 'immer';
-
-enableMapSet();
-
-import '@/styles/tailwind.css';
+enableMapSet(); // immer support for Map and Set
 import { createRoot } from 'react-dom/client';
 import { App } from '@/App';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCollectionStore } from '@/state/collectionStore';
 import winston from 'winston';
 
-import('@/lib/monaco/config'); // lazy load monaco editor to improve startup time
+import('@/lib/monaco/config.js'); // lazy load monaco editor to improve startup time
 
 // set up store
 const { initialize } = useCollectionStore.getState();
@@ -22,8 +19,6 @@ declare global {
     logger: winston.Logger;
   }
 }
-
-document.getElementById('body')?.classList.add('dark');
 
 const container = document.getElementById('root');
 const root = createRoot(container);
