@@ -74,19 +74,21 @@ export default function CollectionDropdown() {
       collections.map(({ title, dirPath }, i) => (
         <DropdownMenuRadioItem key={i} value={dirPath}>
           <p className="flex-1 pr-2">{title}</p>
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              await eventService.closeCollection(dirPath);
-              setCollections((prev) => prev.filter((c) => c.dirPath !== dirPath));
-            }}
-            className={cn(
-              'text-popover-foreground flex h-6 w-6 items-center justify-center rounded-md opacity-0',
-              'hover:text-popover-foreground hover:bg-popover hover:opacity-100'
-            )}
-          >
-            <CloseIcon size={24} />
-          </button>
+          {i !== 0 && (
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                await eventService.closeCollection(dirPath);
+                setCollections((prev) => prev.filter((c) => c.dirPath !== dirPath));
+              }}
+              className={cn(
+                'text-popover-foreground flex h-6 w-6 items-center justify-center rounded-md opacity-0',
+                'hover:text-popover-foreground hover:bg-popover hover:opacity-100'
+              )}
+            >
+              <CloseIcon size={24} />
+            </button>
+          )}
         </DropdownMenuRadioItem>
       )),
     [collections]
