@@ -24,9 +24,9 @@ export function FooterBar() {
           <span className="shrink-0 text-[12px] leading-[1.2] font-medium tracking-[0px] whitespace-pre text-(--text-secondary) normal-case no-underline">
             Settings
           </span>
-          <div className="ml-2">
+          {/*<div className="ml-2">
             <ThemeToggle />
-          </div>
+          </div>*/}
         </div>
 
         <div className="flex items-center gap-2">
