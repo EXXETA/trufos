@@ -1,6 +1,5 @@
 import { exists, isEmpty } from 'main/util/fs-util';
 import { assign } from 'main/util/object-util';
-import { SemVer } from 'main/util/semver';
 import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
@@ -10,7 +9,6 @@ import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import {
-  DRAFT_TEXT_BODY_FILE_NAME,
   RequestBodyType,
   TEXT_BODY_FILE_NAME,
   TextBody,
@@ -27,33 +25,20 @@ import {
   InfoFile,
   RequestInfoFile,
   toInfoFile,
-  VERSION,
 } from './info-files/latest';
 import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
 import { SettingsService } from './settings-service';
 import { sanitizeTitle } from 'shim/fs';
 
-export const HIDDEN_FILE_PREFIX = '~';
-
 /** Content of the .gitignore file for a collection */
-const COLLECTION_GITIGNORE = [`${HIDDEN_FILE_PREFIX}*`].join(EOL);
+const COLLECTION_GITIGNORE = ['.draft'].join(EOL);
 
-function normalizeDirPath(dirPath: string) {
-  dirPath = path.normalize(dirPath);
-  if (dirPath.endsWith(path.sep)) {
-    dirPath = dirPath.slice(0, -1);
-  }
-  return dirPath;
-}
+/** The name of the secrets file */
+export const SECRETS_FILE_NAME = '.secrets.bin';
 
-export function getInfoFileName(type: TrufosObject['type'], draft = false) {
-  return `${draft ? HIDDEN_FILE_PREFIX : ''}${type}.json`;
-}
-
-export function getSecretsFileName(draft = false) {
-  return `${draft ? HIDDEN_FILE_PREFIX : ''}${HIDDEN_FILE_PREFIX}secrets.json.bin`;
-}
+/** The name of the draft directory */
+const DRAFT_DIR_NAME = '.draft';
 
 const secretService = SecretService.instance;
 
@@ -72,10 +57,10 @@ export class PersistenceService {
    */
   public async createDefaultCollectionIfNotExists() {
     const dirPath = SettingsService.DEFAULT_COLLECTION_DIR;
-    if (!(await exists(path.join(dirPath, getInfoFileName('collection'))))) {
+    if (!(await exists(path.join(dirPath, this.getInfoFileName('collection'))))) {
       logger.info('Creating default collection at', dirPath);
       const collection = generateDefaultCollection(dirPath);
-      await this.saveCollectionRecursive(collection);
+      await this.saveCollection(collection, true);
     }
   }
 
@@ -129,8 +114,7 @@ export class PersistenceService {
     // Persist new title to the info file so that a reload reflects the change.
     // We only need to update the primary info file. Draft info files (hidden) represent unsaved changes and
     // will be updated when they are explicitly saved.
-    const infoFileName = getInfoFileName(object.type, isRequest(object) ? object.draft : false);
-    await this.saveInfoFile(object, newDirPath, infoFileName);
+    await this.saveInfoFile(object, newDirPath);
   }
 
   /**
@@ -139,17 +123,15 @@ export class PersistenceService {
    * @param textBody OPTIONAL: the text body of the request
    */
   public async saveRequest(request: TrufosRequest, textBody?: string) {
-    const dirPath = this.getOrCreateDirPath(request);
-    const infoFileName = getInfoFileName(request.type, request.draft);
-    await this.saveInfoFile(request, dirPath, infoFileName);
+    const dirPath = this.getOrCreateDirPath(request, true);
+    await this.saveInfoFile(request, dirPath);
 
     // save text body if provided
     if (textBody != null) {
       const body = request.body as TextBody;
       body.type = RequestBodyType.TEXT; // enforce type
       delete body.text; // only present once, if imported collection
-      const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
-      await fs.writeFile(path.join(dirPath, fileName), textBody);
+      await fs.writeFile(path.join(dirPath, TEXT_BODY_FILE_NAME), textBody);
     } else if (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME))) {
       await fs.unlink(path.join(dirPath, TEXT_BODY_FILE_NAME));
     }
@@ -185,27 +167,36 @@ export class PersistenceService {
       await fs.copyFile(originalTextBodyPath, path.join(requestCopyDirPath, TEXT_BODY_FILE_NAME));
     }
 
-    const secretsFileName = getSecretsFileName();
-    const secretsFilePath = path.join(requestDirPath, secretsFileName);
+    const secretsFilePath = path.join(requestDirPath, SECRETS_FILE_NAME);
 
     if (await exists(secretsFilePath)) {
-      await fs.copyFile(secretsFilePath, path.join(requestCopyDirPath, secretsFileName));
+      await fs.copyFile(secretsFilePath, path.join(requestCopyDirPath, SECRETS_FILE_NAME));
     }
 
     return requestCopy;
   }
 
   /**
-   * Saves the given collection to the file system. This is not recursive.
+   * Saves the given collection to the file system.
    * @param collection the collection to save
+   * @param recursive whether to save all children of the collection recursively. Default is false.
    */
-  public async saveCollection(collection: Collection) {
+  public async saveCollection(collection: Collection, recursive = false) {
     await fs.mkdir(collection.dirPath, { recursive: true });
-    await this.saveInfoFile(
-      collection,
-      this.getOrCreateDirPath(collection),
-      getInfoFileName(collection.type)
-    );
+    await this.saveInfoFile(collection, this.getOrCreateDirPath(collection));
+
+    if (recursive) {
+      const queue: TrufosObject[] = [...collection.children];
+      while (queue.length > 0) {
+        const child = queue.shift();
+        if (isRequest(child)) {
+          await this.saveRequest(child);
+        } else if (isFolder(child)) {
+          await this.saveFolder(child);
+          queue.push(...child.children);
+        }
+      }
+    }
   }
 
   /**
@@ -213,7 +204,7 @@ export class PersistenceService {
    * @param folder The folder to save.
    */
   public async saveFolder(folder: Folder) {
-    await this.saveInfoFile(folder, this.getOrCreateDirPath(folder), getInfoFileName(folder.type));
+    await this.saveInfoFile(folder, this.getOrCreateDirPath(folder));
   }
 
   /**
@@ -248,23 +239,23 @@ export class PersistenceService {
    * Saves the information of a trufos object to the file system.
    * @param object the object to save
    * @param dirPath the directory path to save the object to
-   * @param fileName the name of the information file
    */
-  private async saveInfoFile(object: TrufosObject, dirPath: string, fileName: string) {
+  private async saveInfoFile(object: TrufosObject, dirPath: string) {
     logger.info('Saving object', (object.id ??= randomUUID()));
     if (!isCollection(object) && object.parentId == null) {
       throw new Error('Object must have a parent');
-    } else if (!(await exists(dirPath))) {
-      await fs.mkdir(dirPath);
     }
+    await fs.mkdir(dirPath, { recursive: true });
 
     // remove secrets from variables and save them separately
     object = structuredClone(object); // avoid modifying the original object
     await this.saveSecrets(object, dirPath);
 
     // write the info file
-    await fs.writeFile(path.join(dirPath, fileName), JSON.stringify(toInfoFile(object), null, 2));
-    this.idToPathMap.set(object.id, dirPath);
+    await fs.writeFile(
+      path.join(dirPath, this.getInfoFileName(object.type)),
+      JSON.stringify(toInfoFile(object), null, 2)
+    );
   }
 
   /**
@@ -273,7 +264,7 @@ export class PersistenceService {
    * @param dirPath the directory path where the secrets should be saved
    */
   private async saveSecrets(object: TrufosObject, dirPath: string) {
-    const filePath = path.join(dirPath, getSecretsFileName(isRequest(object) && object.draft));
+    const filePath = path.join(dirPath, SECRETS_FILE_NAME);
     const secrets = extractSecrets(object);
     if (Object.keys(secrets).length > 0) {
       logger.debug(`Saving secrets for ${object.type} with ID [${object.id}]`);
@@ -285,40 +276,6 @@ export class PersistenceService {
   }
 
   /**
-   * Recursively saves a collection and all of its children to the file system.
-   * @param collection the collection to save
-   */
-  public async saveCollectionRecursive(collection: Collection) {
-    await this.saveCollection(collection);
-
-    const queue: TrufosObject[] = [...collection.children];
-    while (queue.length > 0) {
-      const child = queue.shift();
-      if (isRequest(child)) {
-        await this.saveRequest(child);
-      } else if (isFolder(child)) {
-        await this.saveFolder(child);
-        queue.push(...child.children);
-      }
-    }
-  }
-
-  /**
-   * Checks if a draft exists for the given request and returns the draft information.
-   * Also sets the draft flag of the request to false.
-   * @param request the request to mark as not a draft
-   */
-  private async undraft(request: TrufosRequest) {
-    request.draft = false;
-    const dirPath = this.getOrCreateDirPath(request);
-    if (!(await exists(path.join(dirPath, getInfoFileName(request.type, true))))) {
-      return { draft: false };
-    }
-
-    return { draft: true, dirPath, infoFileName: getInfoFileName(request.type, request.draft) };
-  }
-
-  /**
    * Overrides all information with the draft information. This does not write
    * any information to the file system. This only overrides the information
    * file with the draft information file.
@@ -326,35 +283,31 @@ export class PersistenceService {
    * @param request the request to save the draft of
    */
   public async saveChanges(request: TrufosRequest) {
-    const { draft, dirPath, infoFileName } = await this.undraft(request);
-    if (draft) {
+    const dirPath = this.getOrCreateDirPath(request);
+    if (await this.hasDraft(dirPath)) {
       logger.info('Saving changes of request at', dirPath);
-      await fs.rename(
-        path.join(dirPath, HIDDEN_FILE_PREFIX + infoFileName),
-        path.join(dirPath, infoFileName)
+      const draftDirPath = this.getDraftDirPath(dirPath);
+
+      // move all files from draft dir to original dir
+      const filesToDelete = new Set([SECRETS_FILE_NAME, TEXT_BODY_FILE_NAME]);
+      const filesToMove = await fs.readdir(draftDirPath);
+      filesToMove.forEach((file) => filesToDelete.delete(file));
+      await Promise.all(
+        filesToMove.map((file) =>
+          fs.rename(path.join(draftDirPath, file), path.join(dirPath, file))
+        )
       );
 
-      this.moveDraftFileToOriginal(
-        path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME),
-        path.join(dirPath, TEXT_BODY_FILE_NAME)
+      // delete files that exist in the original dir but not in the draft dir
+      await Promise.all(
+        Array.from(filesToDelete).map((file) => fs.unlink(path.join(dirPath, file)))
       );
-      this.moveDraftFileToOriginal(
-        path.join(dirPath, getSecretsFileName(true)),
-        path.join(dirPath, getSecretsFileName())
-      );
+
+      // delete draft dir
+      await fs.rmdir(draftDirPath);
     }
 
     return request;
-  }
-
-  private async moveDraftFileToOriginal(draftFilePath: string, originalFilePath: string) {
-    if (await exists(draftFilePath)) {
-      logger.info('Moving draft file to original file', draftFilePath, '->', originalFilePath);
-      await fs.rename(draftFilePath, originalFilePath);
-    } else if (await exists(originalFilePath)) {
-      logger.warn('Draft file does not exist, but original file exists. Deleting original file.');
-      await fs.unlink(originalFilePath);
-    }
   }
 
   /**
@@ -362,18 +315,14 @@ export class PersistenceService {
    * @param request the request to discard the draft of
    */
   public async discardChanges(request: TrufosRequest) {
-    const { draft, dirPath } = await this.undraft(request);
-    if (!draft) {
+    const dirPath = this.getOrCreateDirPath(request);
+    if (!request.draft) {
       return request;
     }
     logger.info('Discarding changes of request at', dirPath);
 
     // delete draft files
-    await fs.unlink(path.join(dirPath, getInfoFileName(request.type, true)));
-    if (isRequest(request) && (await exists(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME)))) {
-      await fs.unlink(path.join(dirPath, DRAFT_TEXT_BODY_FILE_NAME));
-    }
-
+    await fs.rmdir(this.getDraftDirPath(dirPath), { recursive: true });
     return await this.loadRequest(request.parentId, dirPath);
   }
 
@@ -407,8 +356,9 @@ export class PersistenceService {
   public async loadTextBodyOfRequest(request: TrufosRequest, encoding?: BufferEncoding) {
     logger.info('Loading text body of request', request.id);
     if (request.body.type === RequestBodyType.TEXT) {
-      const fileName = request.draft ? DRAFT_TEXT_BODY_FILE_NAME : TEXT_BODY_FILE_NAME;
-      const filePath = path.join(this.getOrCreateDirPath(request), fileName);
+      let dirPath = this.getOrCreateDirPath(request);
+      if (request.draft) dirPath = this.getDraftDirPath(dirPath);
+      const filePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
       if (await exists(filePath)) {
         logger.debug(`Opening text body file at ${filePath}`);
         return createReadStream(filePath, encoding);
@@ -423,7 +373,7 @@ export class PersistenceService {
    * @param title the title of the collection
    */
   public async createCollection(dirPath: string, title: string): Promise<Collection> {
-    dirPath = normalizeDirPath(dirPath);
+    dirPath = this.normalizeDirPath(dirPath);
     logger.info('Creating new collection at', dirPath);
     if (!isEmpty(dirPath)) {
       throw new Error('Directory is not empty');
@@ -460,7 +410,7 @@ export class PersistenceService {
    * @returns the loaded collection
    */
   public async loadCollection(dirPath: string, recursive = true) {
-    dirPath = normalizeDirPath(dirPath);
+    dirPath = this.normalizeDirPath(dirPath);
     logger.info('Loading collection at', dirPath);
     const type = 'collection' as const;
     const info = await this.readInfoFile(dirPath, type);
@@ -470,10 +420,14 @@ export class PersistenceService {
     return fromCollectionInfoFile(info, dirPath, children);
   }
 
-  private async loadRequest(parentId: string, dirPath: string): Promise<TrufosRequest> {
+  private async loadRequest(
+    parentId: string,
+    dirPath: string,
+    draft?: boolean
+  ): Promise<TrufosRequest> {
+    draft ??= await exists(path.join(dirPath, DRAFT_DIR_NAME));
     const type = 'request' as const;
-    const draft = await exists(path.join(dirPath, getInfoFileName(type, true)));
-    const info = await this.readInfoFile(dirPath, type, draft);
+    const info = await this.readInfoFile(draft ? this.getDraftDirPath(dirPath) : dirPath, type);
     this.idToPathMap.set(info.id, dirPath);
 
     return fromRequestInfoFile(info, parentId, draft);
@@ -497,7 +451,7 @@ export class PersistenceService {
     for (const node of await fs.readdir(parentDirPath, {
       withFileTypes: true,
     })) {
-      if (!node.isDirectory()) {
+      if (!node.isDirectory() || node.name === DRAFT_DIR_NAME) {
         continue;
       }
 
@@ -517,12 +471,12 @@ export class PersistenceService {
     dirPath: string,
     type?: T['type']
   ): Promise<T> {
-    if (type === 'folder' || (await exists(path.join(dirPath, getInfoFileName('folder'))))) {
+    if (type === 'folder' || (await exists(path.join(dirPath, this.getInfoFileName('folder'))))) {
       return (await this.loadFolder(parentId, dirPath)) as T;
     } else if (
       type === 'request' ||
-      (await exists(path.join(dirPath, getInfoFileName('request')))) ||
-      (await exists(path.join(dirPath, getInfoFileName('request', true))))
+      (await exists(path.join(dirPath, this.getInfoFileName('request')))) ||
+      (await exists(path.join(this.getDraftDirPath(dirPath), this.getInfoFileName('request'))))
     ) {
       return (await this.loadRequest(parentId, dirPath)) as T;
     }
@@ -530,36 +484,19 @@ export class PersistenceService {
 
   private readInfoFile(dirPath: string, type: Collection['type']): Promise<CollectionInfoFile>;
   private readInfoFile(dirPath: string, type: Folder['type']): Promise<FolderInfoFile>;
-  private readInfoFile(
-    dirPath: string,
-    type: TrufosRequest['type'],
-    draft: boolean
-  ): Promise<RequestInfoFile>;
+  private readInfoFile(dirPath: string, type: TrufosRequest['type']): Promise<RequestInfoFile>;
 
-  private async readInfoFile<T extends TrufosObject>(
-    dirPath: string,
-    type: T['type'],
-    draft = false
-  ) {
-    const filePath = path.join(dirPath, getInfoFileName(type, draft));
+  private async readInfoFile<T extends TrufosObject>(dirPath: string, type: T['type']) {
+    const filePath = path.join(dirPath, this.getInfoFileName(type));
     const info = assign(
       JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile,
-      await this.loadSecrets(dirPath, draft)
+      await this.loadSecrets(dirPath)
     );
-
-    // check if the version is supported
-    if (SemVer.parse(info.version).isNewerThan(VERSION)) {
-      throw new Error(
-        `The version of the loaded ${type} info file is newer than latest supported version ${VERSION}. Please update the application.`
-      );
-    }
-
-    // potentially migrate the info file to the latest version
-    return await migrateInfoFile(info, type, filePath);
+    return await migrateInfoFile(info, type, filePath); // (potentially) migrate the info file to the latest version
   }
 
-  private async loadSecrets(dirPath: string, draft = false): Promise<Partial<InfoFile>> {
-    const filePath = path.join(dirPath, getSecretsFileName(draft));
+  private async loadSecrets(dirPath: string): Promise<Partial<InfoFile>> {
+    const filePath = path.join(dirPath, SECRETS_FILE_NAME);
     if (await exists(filePath)) {
       logger.debug('Loading secrets from', filePath);
       return JSON.parse(secretService.decrypt(await fs.readFile(filePath)));
@@ -584,13 +521,17 @@ export class PersistenceService {
    * Gets the directory path of the given object. If the object is not yet associated with a directory,
    * a new directory path is derived from the parent directory and the object's title.
    * @param object the trufos object to get the directory path for
+   * @param respectDraft whether to return the draft directory path for requests with draft status
    * @returns the directory path of the object
    */
-  private getOrCreateDirPath(object: TrufosObject) {
+  private getOrCreateDirPath(object: TrufosObject, respectDraft = false) {
+    object.id ??= randomUUID();
+    let dirPath: string;
+
     if (isCollection(object)) {
-      return object.dirPath;
+      dirPath = object.dirPath;
     } else if (this.idToPathMap.has(object.id)) {
-      return this.idToPathMap.get(object.id);
+      dirPath = this.idToPathMap.get(object.id);
     } else {
       // object is not yet associated with any directory, must be a new object
       // we need to derive a new and unused directory path from the parent
@@ -600,15 +541,27 @@ export class PersistenceService {
       }
 
       const newDirName = this.getDirName(object);
-      let newDirPath = path.join(parentDirPath, newDirName);
+      dirPath = path.join(parentDirPath, newDirName);
 
-      // Check if the newDirPath is already taken, in that case we just append a number
-      for (let i = 2; this.isDirPathTaken(newDirPath); i++) {
-        newDirPath = path.join(parentDirPath, newDirName + '-' + i);
+      // check if the dir path is already taken, in that case we just append a number
+      for (let i = 2; this.isDirPathTaken(dirPath); i++) {
+        dirPath = path.join(parentDirPath, newDirName + '-' + i);
       }
-
-      return newDirPath;
+      this.idToPathMap.set(object.id, dirPath);
     }
+
+    // check if we need to return the draft dir path
+    if (respectDraft && isRequest(object) && object.draft) dirPath = this.getDraftDirPath(dirPath);
+    return dirPath;
+  }
+
+  /**
+   * Gets the info file name for a given trufos object type.
+   * @param type the type of the trufos object
+   * @returns the info file name
+   */
+  getInfoFileName(type: TrufosObject['type']) {
+    return `${type}.json`;
   }
 
   private isDirPathTaken(targetDirPath: string) {
@@ -617,5 +570,26 @@ export class PersistenceService {
 
   private getDirName(object: TrufosObject) {
     return sanitizeTitle(object.title);
+  }
+
+  /**
+   * Returns true if the given directory path to a trufos item has a draft. This is the case when there's a `.draft` subdirectory.
+   * @param dirPath the directory to the trufos object
+   * @returns true if the given directory has a draft
+   */
+  private async hasDraft(dirPath: string) {
+    return await exists(this.getDraftDirPath(dirPath));
+  }
+
+  private getDraftDirPath(dirPath: string) {
+    return path.join(dirPath, DRAFT_DIR_NAME);
+  }
+
+  private normalizeDirPath(dirPath: string) {
+    dirPath = path.normalize(dirPath);
+    if (dirPath.endsWith(path.sep)) {
+      dirPath = dirPath.slice(0, -1);
+    }
+    return dirPath;
   }
 }

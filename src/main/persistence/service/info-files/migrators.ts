@@ -6,6 +6,7 @@ import { InfoFileMigrator as V1_1_0 } from './v1-1-0';
 import { InfoFileMigrator as V1_2_0 } from './v1-2-0';
 import { InfoFileMigrator as V1_3_0 } from './v1-3-0';
 import { InfoFileMigrator as V1_4_0 } from './v1-4-0';
+import { SemVer } from 'main/util/semver';
 
 // add new migrators here
 const MIGRATOR_ARRAY = [new V1_0_1(), new V1_1_0(), new V1_2_0(), new V1_3_0(), new V1_4_0()];
@@ -25,6 +26,14 @@ export async function migrateInfoFile(
   type: TrufosObjectType,
   filePath: string
 ) {
+  // check if the version is supported
+  if (SemVer.parse(infoFile.version).isNewerThan(LATEST_VERSION)) {
+    throw new Error(
+      `The version of the loaded ${type} info file is newer than latest supported version ${LATEST_VERSION}. Please update the application.`
+    );
+  }
+
+  // migrate until latest version is reached
   while (infoFile.version !== LATEST_VERSION.toString()) {
     logger.debug(`Looking for migrator for source version ${infoFile.version}`);
     const migrator = MIGRATORS.get(infoFile.version);
