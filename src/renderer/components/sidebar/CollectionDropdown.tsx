@@ -73,7 +73,7 @@ export default function CollectionDropdown() {
     () =>
       collections.map(({ title, dirPath }, i) => (
         <DropdownMenuRadioItem key={i} value={dirPath}>
-          <p>{title}</p>
+          <p className="flex-1 pr-2">{title}</p>
           <button
             onClick={async (e) => {
               e.stopPropagation();
