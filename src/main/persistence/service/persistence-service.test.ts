@@ -5,24 +5,14 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
-import {
-  DRAFT_TEXT_BODY_FILE_NAME,
-  RequestBodyType,
-  TEXT_BODY_FILE_NAME,
-  TrufosRequest,
-} from 'shim/objects/request';
+import { RequestBodyType, TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateDefaultCollection } from './default-collection';
 import { sanitizeTitle } from 'shim/fs';
 import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
-import {
-  getInfoFileName,
-  getSecretsFileName,
-  HIDDEN_FILE_PREFIX,
-  PersistenceService,
-} from './persistence-service';
+import { PersistenceService, SECRETS_FILE_NAME } from './persistence-service';
 
 const persistenceService = PersistenceService.instance;
 
@@ -103,7 +93,10 @@ describe('PersistenceService', () => {
       'generateDefaultCollection'
     );
     await mkdir(collectionDirPath);
-    await writeFile(path.join(collectionDirPath, getInfoFileName(collection.type)), '');
+    await writeFile(
+      path.join(collectionDirPath, persistenceService.getInfoFileName(collection.type)),
+      ''
+    );
 
     // Act
     await persistenceService.createDefaultCollectionIfNotExists();
@@ -119,8 +112,8 @@ describe('PersistenceService', () => {
     vi.spyOn(defaultCollectionImport, 'generateDefaultCollection').mockReturnValueOnce(
       defaultCollection
     );
-    const saveCollectionRecursiveSpy = vi
-      .spyOn(persistenceService, 'saveCollectionRecursive')
+    const saveCollectionSpy = vi
+      .spyOn(persistenceService, 'saveCollection')
       .mockResolvedValueOnce();
 
     // Act
@@ -128,7 +121,7 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(generateDefaultCollection).toHaveBeenCalledWith(collectionDirPath);
-    expect(saveCollectionRecursiveSpy).toHaveBeenCalledWith(defaultCollection);
+    expect(saveCollectionSpy).toHaveBeenCalledWith(defaultCollection);
   });
 
   it('moveChild() should move the directory from the old parent to the new parent', async () => {
@@ -138,7 +131,7 @@ describe('PersistenceService', () => {
     const request = getExampleRequest(folder.id);
     folder.children.push(request);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     // Assert
     expect(await exists(path.join(collection.dirPath, folder.title))).toBe(true);
@@ -158,7 +151,7 @@ describe('PersistenceService', () => {
     collection.children.push(folder);
     const oldDirPath = path.join(collection.dirPath, folder.title);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     // Assert
     expect(await exists(oldDirPath)).toBe(true);
@@ -179,7 +172,7 @@ describe('PersistenceService', () => {
     const child = getExampleFolder(folder.id);
     folder.children.push(child);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     const oldChildDirPath = path.join(
       collection.dirPath,
       sanitizeTitle(folder.title),
@@ -198,12 +191,18 @@ describe('PersistenceService', () => {
     expect(await exists(oldChildDirPath)).toBe(false);
 
     // Assert: child folder new path exists
-    const newChildFolderPath = path.join(expectedNewPath, getInfoFileName('folder'));
+    const newChildFolderPath = path.join(
+      expectedNewPath,
+      persistenceService.getInfoFileName('folder')
+    );
     expect(await exists(newChildFolderPath)).toBe(true);
 
     // Info file title updated
     const info = JSON.parse(
-      await readFile(path.join(expectedNewPath, getInfoFileName('folder')), 'utf-8')
+      await readFile(
+        path.join(expectedNewPath, persistenceService.getInfoFileName('folder')),
+        'utf-8'
+      )
     );
     expect(info.title).toBe(newTitle);
   });
@@ -213,7 +212,7 @@ describe('PersistenceService', () => {
     const request = getExampleRequest(collection.id);
     request.title = 'Same %Title%'; // sanitized stays same
     collection.children.push(request);
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     const requestDirPath = path.join(collection.dirPath, sanitizeTitle(request.title));
     expect(await exists(requestDirPath)).toBe(true);
 
@@ -223,7 +222,10 @@ describe('PersistenceService', () => {
     // Assert: file still exists
     expect(await exists(requestDirPath)).toBe(true);
     const info = JSON.parse(
-      await readFile(path.join(requestDirPath, getInfoFileName('request')), 'utf-8')
+      await readFile(
+        path.join(requestDirPath, persistenceService.getInfoFileName('request')),
+        'utf-8'
+      )
     );
     expect(info.title).toBe('Same $Title$');
   });
@@ -235,7 +237,7 @@ describe('PersistenceService', () => {
     const folderB = getExampleFolder(collection.id);
     folderB.title = 'FolderB';
     collection.children.push(folderA, folderB);
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     const expectedDirPath = path.join(collection.dirPath, 'folderb-2');
 
     // Act
@@ -250,10 +252,14 @@ describe('PersistenceService', () => {
     const request = getExampleRequest(collection.id);
     collection.children.push(request);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     const oldInfo = JSON.parse(
       await readFile(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        ),
         'utf-8'
       )
     ) as RequestInfoFile;
@@ -268,7 +274,11 @@ describe('PersistenceService', () => {
     // Assert
     const newInfo = JSON.parse(
       await readFile(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        ),
         'utf-8'
       )
     ) as RequestInfoFile;
@@ -281,9 +291,11 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollection(collection);
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, getInfoFileName(collection.type)))).toBe(
-      true
-    );
+    expect(
+      await exists(
+        path.join(collection.dirPath, persistenceService.getInfoFileName(collection.type))
+      )
+    ).toBe(true);
   });
 
   it('saveCollection() should store the secrets only in ~secrets.json.bin', async () => {
@@ -299,13 +311,16 @@ describe('PersistenceService', () => {
 
     // Assert
     const info = JSON.parse(
-      await readFile(path.join(collection.dirPath, getInfoFileName(collection.type)), 'utf-8')
+      await readFile(
+        path.join(collection.dirPath, persistenceService.getInfoFileName(collection.type)),
+        'utf-8'
+      )
     ) as CollectionInfoFile;
     expect(info.variables).toEqual(
       Object.fromEntries(Object.entries(variables).filter(([, v]) => !v.secret))
     );
     const secrets = JSON.parse(
-      await readFile(path.join(collection.dirPath, getSecretsFileName()), 'utf-8')
+      await readFile(path.join(collection.dirPath, SECRETS_FILE_NAME), 'utf-8')
     ) as Partial<CollectionInfoFile>;
     expect(secrets.variables).toEqual(
       Object.fromEntries(Object.entries(variables).filter(([, v]) => v.secret))
@@ -325,7 +340,7 @@ describe('PersistenceService', () => {
     expect(await exists(expectedSecondDirPath)).toBe(false);
     expect(await exists(expectedThirdDirPath)).toBe(false);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     // Act
     collection.children.push(firstRequest);
@@ -362,10 +377,10 @@ describe('PersistenceService', () => {
     const folderInfoFilePath = path.join(
       collection.dirPath,
       folder.title,
-      getInfoFileName(folder.type)
+      persistenceService.getInfoFileName(folder.type)
     );
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     await rm(folderInfoFilePath);
 
     // Assert
@@ -387,29 +402,29 @@ describe('PersistenceService', () => {
     const folderInfoFilePath = path.join(
       collection.dirPath,
       copiedFolderTitle,
-      getInfoFileName(folder.type)
+      persistenceService.getInfoFileName(folder.type)
     );
     const childRequestFilePath = path.join(
       collection.dirPath,
       copiedFolderTitle,
       folder.children[1].title,
-      getInfoFileName('request')
+      persistenceService.getInfoFileName('request')
     );
     const childFolderInfoFilePath = path.join(
       collection.dirPath,
       copiedFolderTitle,
       folder.children[0].title,
-      getInfoFileName('folder')
+      persistenceService.getInfoFileName('folder')
     );
     const childFolderRequestInfoFilePath = path.join(
       collection.dirPath,
       copiedFolderTitle,
       folder.children[0].title,
       (folder.children[0] as Folder).children[0].title,
-      getInfoFileName('request')
+      persistenceService.getInfoFileName('request')
     );
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     // Assert
     expect(await exists(folderInfoFilePath)).toBe(false);
@@ -442,12 +457,12 @@ describe('PersistenceService', () => {
     const requestInfoFilePath = path.join(
       collection.dirPath,
       request.title,
-      getInfoFileName(request.type)
+      persistenceService.getInfoFileName(request.type)
     );
     const copiedRequestInfoFilePath = path.join(
       collection.dirPath,
       copiedRequestTitle,
-      getInfoFileName(request.type)
+      persistenceService.getInfoFileName(request.type)
     );
     const requestTextBodyFilePath = path.join(
       collection.dirPath,
@@ -460,7 +475,7 @@ describe('PersistenceService', () => {
       TEXT_BODY_FILE_NAME
     );
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     await persistenceService.saveRequest(request, textBody);
 
     // Assert
@@ -488,7 +503,7 @@ describe('PersistenceService', () => {
     expect(await streamToString(copiedTextBodyStream)).toBe(textBody);
   });
 
-  it('saveCollectionRecursive() should save the collection and its children', async () => {
+  it('saveCollection() with recursive flag should save the collection and its children', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);
@@ -496,18 +511,27 @@ describe('PersistenceService', () => {
     folder.children.push(request);
 
     // Act
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     // Assert
-    expect(await exists(path.join(collection.dirPath, getInfoFileName(collection.type)))).toBe(
-      true
-    );
     expect(
-      await exists(path.join(collection.dirPath, folder.title, getInfoFileName(folder.type)))
+      await exists(
+        path.join(collection.dirPath, persistenceService.getInfoFileName(collection.type))
+      )
     ).toBe(true);
     expect(
       await exists(
-        path.join(collection.dirPath, folder.title, request.title, getInfoFileName(request.type))
+        path.join(collection.dirPath, folder.title, persistenceService.getInfoFileName(folder.type))
+      )
+    ).toBe(true);
+    expect(
+      await exists(
+        path.join(
+          collection.dirPath,
+          folder.title,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        )
       )
     ).toBe(true);
   });
@@ -517,7 +541,7 @@ describe('PersistenceService', () => {
     const request = getExampleRequest(collection.id);
     collection.children.push(request);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     request.draft = true;
     request.method = RequestMethod.POST;
@@ -525,24 +549,42 @@ describe('PersistenceService', () => {
     await persistenceService.saveRequest(request);
     let originalInfo = JSON.parse(
       await readFile(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        ),
         'utf-8'
       )
     ) as RequestInfoFile;
     const draftInfo = JSON.parse(
       await readFile(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true)),
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        ),
         'utf-8'
       )
     ) as RequestInfoFile;
 
     // Assert
     expect(
-      await exists(path.join(collection.dirPath, request.title, getInfoFileName(request.type)))
+      await exists(
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        )
+      )
     ).toBe(true);
     expect(
       await exists(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true))
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        )
       )
     ).toBe(true);
     expect(originalInfo).not.toEqual(draftInfo);
@@ -552,16 +594,30 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(
-      await exists(path.join(collection.dirPath, request.title, getInfoFileName(request.type)))
+      await exists(
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        )
+      )
     ).toBe(true);
     expect(
       await exists(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true))
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        )
       )
     ).toBe(false);
     originalInfo = JSON.parse(
       await readFile(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        ),
         'utf-8'
       )
     ) as RequestInfoFile;
@@ -573,7 +629,7 @@ describe('PersistenceService', () => {
     const request = getExampleRequest(collection.id);
     collection.children.push(request);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     request.draft = true;
     request.method = RequestMethod.POST;
@@ -581,18 +637,32 @@ describe('PersistenceService', () => {
     await persistenceService.saveRequest(request);
     const oldInfo = JSON.parse(
       await readFile(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        ),
         'utf-8'
       )
     ) as RequestInfoFile;
 
     // Assert
     expect(
-      await exists(path.join(collection.dirPath, request.title, getInfoFileName(request.type)))
+      await exists(
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        )
+      )
     ).toBe(true);
     expect(
       await exists(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true))
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        )
       )
     ).toBe(true);
 
@@ -601,16 +671,30 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(
-      await exists(path.join(collection.dirPath, request.title, getInfoFileName(request.type)))
+      await exists(
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        )
+      )
     ).toBe(true);
     expect(
       await exists(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type, true))
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        )
       )
     ).toBe(false);
     const newInfo = JSON.parse(
       await readFile(
-        path.join(collection.dirPath, request.title, getInfoFileName(request.type)),
+        path.join(
+          collection.dirPath,
+          request.title,
+          persistenceService.getInfoFileName(request.type)
+        ),
         'utf-8'
       )
     ) as RequestInfoFile;
@@ -622,7 +706,7 @@ describe('PersistenceService', () => {
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     // Assert
     expect(await exists(path.join(collection.dirPath, folder.title))).toBe(true);
@@ -640,16 +724,14 @@ describe('PersistenceService', () => {
     const request = getExampleRequest(collection.id);
     collection.children.push(request);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     await persistenceService.saveRequest(request, textBody);
 
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(
       true
     );
-    expect(
-      await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME))
-    ).toBe(false);
+    expect(await exists(path.join(collection.dirPath, request.title))).toBe(false);
 
     // Act
     const result = await persistenceService.loadTextBodyOfRequest(request);
@@ -664,7 +746,7 @@ describe('PersistenceService', () => {
     const request = getExampleRequest(collection.id);
     collection.children.push(request);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     await persistenceService.saveRequest(request, textBody);
 
     // Act
@@ -683,16 +765,14 @@ describe('PersistenceService', () => {
     request.draft = true;
     collection.children.push(request);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     await persistenceService.saveRequest(request, textBody);
 
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(
       false
     );
-    expect(
-      await exists(path.join(collection.dirPath, request.title, DRAFT_TEXT_BODY_FILE_NAME))
-    ).toBe(true);
+    expect(await exists(path.join(collection.dirPath, request.title))).toBe(true);
 
     // Act
     const result = await persistenceService.loadTextBodyOfRequest(request);
@@ -706,7 +786,7 @@ describe('PersistenceService', () => {
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     await mkdir(path.join(collection.dirPath, 'invalid-directory')); // create data garbage
 
     // Act
@@ -726,7 +806,7 @@ describe('PersistenceService', () => {
     const folder = getExampleFolder(collection.id);
     collection.children.push(folder);
 
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     // Act
     const result = await persistenceService.loadCollection(collection.dirPath, false);
@@ -752,11 +832,14 @@ describe('PersistenceService', () => {
     expect(result.environments.dev.variables).toEqual(variables);
     expect(
       JSON.parse(
-        await readFile(path.join(collection.dirPath, getInfoFileName(collection.type)), 'utf-8')
+        await readFile(
+          path.join(collection.dirPath, persistenceService.getInfoFileName(collection.type)),
+          'utf-8'
+        )
       )
     ).not.toContain(secretVariable);
     expect(
-      JSON.parse(await readFile(path.join(collection.dirPath, getSecretsFileName()), 'utf-8'))
+      JSON.parse(await readFile(path.join(collection.dirPath, SECRETS_FILE_NAME), 'utf-8'))
     ).not.toContain(plainVariable);
   });
 
@@ -774,7 +857,7 @@ describe('PersistenceService', () => {
     const request2 = getExampleRequest(collection.id);
     request2.title = 'Req2'; // no index -> should be last
     collection.children.push(folder1, folder2, request2, request1);
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     // Act
     const loaded = await persistenceService.loadCollection(collection.dirPath);
@@ -802,7 +885,7 @@ describe('PersistenceService', () => {
     childC.title = 'C'; // no index
     folder.children.push(childA, childB, childC);
     collection.children.push(folder);
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
 
     // Act
     const loaded = await persistenceService.loadCollection(collection.dirPath);
@@ -829,5 +912,5 @@ it('createGitIgnore() should create a .gitignore file with the correct content',
   // Assert
   expect(await exists(gitignorePath)).toBe(true);
   const content = await readFile(gitignorePath, 'utf-8');
-  expect(content).toContain(`${HIDDEN_FILE_PREFIX}*`);
+  expect(content).toContain('.draft');
 });

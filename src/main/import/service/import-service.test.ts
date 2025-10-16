@@ -19,9 +19,7 @@ describe('ImportService', () => {
     const targetDirPath = tmpdir();
     const importService = ImportService.instance;
     await fs.writeFile(POSTMAN_COLLECTION_FILE_PATH, POSTMAN_COLLECTION);
-    vi.mocked(PersistenceService.instance.saveCollectionRecursive).mockImplementation(
-      async () => null
-    );
+    vi.mocked(PersistenceService.instance.saveCollection).mockImplementation(async () => null);
 
     // Act
     const result = await importService.importCollection(
