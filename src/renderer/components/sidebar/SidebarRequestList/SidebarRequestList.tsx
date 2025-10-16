@@ -9,13 +9,14 @@ import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavReque
  * Render the children of a folder or collection
  * @param children The children to render
  */
-export function renderChildren(children: (TrufosRequest | Folder)[]) {
+export function renderChildren(children: (TrufosRequest | Folder)[], depth = 0) {
   return children.map((child) => {
     if (child.type === 'request') {
-      return <NavRequest key={child.id} requestId={child.id} />;
+      return <NavRequest key={child.id} requestId={child.id} depth={depth + 1} />;
     } else if (child.type === 'folder') {
-      return <NavFolder key={child.id} folderId={child.id} />;
+      return <NavFolder key={child.id} folderId={child.id} depth={depth + 1} />;
     }
+    return null;
   });
 }
 
@@ -23,7 +24,7 @@ export const SidebarRequestList = () => {
   const children = useCollectionStore((state) => state.collection.children);
 
   return (
-    <SidebarContent className={'tabs-scrollbar flex-1 overflow-y-auto'}>
+    <SidebarContent className="tabs-scrollbar flex-1 overflow-y-auto">
       <SidebarMenu className="gap-0">{renderChildren(children)}</SidebarMenu>
     </SidebarContent>
   );
