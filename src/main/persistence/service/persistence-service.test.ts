@@ -608,6 +608,7 @@ describe('PersistenceService', () => {
         path.join(
           collection.dirPath,
           request.title,
+          DRAFT_DIR_NAME,
           persistenceService.getInfoFileName(request.type)
         )
       )
@@ -685,6 +686,7 @@ describe('PersistenceService', () => {
         path.join(
           collection.dirPath,
           request.title,
+          DRAFT_DIR_NAME,
           persistenceService.getInfoFileName(request.type)
         )
       )
@@ -732,7 +734,11 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(
       true
     );
-    expect(await exists(path.join(collection.dirPath, request.title))).toBe(false);
+    expect(
+      await exists(
+        path.join(collection.dirPath, request.title, DRAFT_DIR_NAME, TEXT_BODY_FILE_NAME)
+      )
+    ).toBe(false);
 
     // Act
     const result = await persistenceService.loadTextBodyOfRequest(request);
