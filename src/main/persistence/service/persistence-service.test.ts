@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateDefaultCollection } from './default-collection';
 import { sanitizeTitle } from 'shim/fs';
 import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
-import { PersistenceService, SECRETS_FILE_NAME } from './persistence-service';
+import { DRAFT_DIR_NAME, PersistenceService, SECRETS_FILE_NAME } from './persistence-service';
 
 const persistenceService = PersistenceService.instance;
 
@@ -121,7 +121,7 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(generateDefaultCollection).toHaveBeenCalledWith(collectionDirPath);
-    expect(saveCollectionSpy).toHaveBeenCalledWith(defaultCollection);
+    expect(saveCollectionSpy).toHaveBeenCalledWith(defaultCollection, true);
   });
 
   it('moveChild() should move the directory from the old parent to the new parent', async () => {
@@ -562,6 +562,7 @@ describe('PersistenceService', () => {
         path.join(
           collection.dirPath,
           request.title,
+          DRAFT_DIR_NAME,
           persistenceService.getInfoFileName(request.type)
         ),
         'utf-8'
