@@ -299,9 +299,11 @@ export class PersistenceService {
       );
 
       // delete files that exist in the original dir but not in the draft dir
-      await Promise.all(
-        Array.from(filesToDelete).map((file) => fs.unlink(path.join(dirPath, file)))
-      );
+      for (const file of filesToDelete) {
+        if (await exists(path.join(dirPath, file))) {
+          await fs.unlink(path.join(dirPath, file));
+        }
+      }
 
       // delete draft dir
       await fs.rmdir(draftDirPath);
