@@ -62,7 +62,7 @@ export class ImportService {
 
     // save on file system
     logger.info('Successfully imported collection:', collection);
-    await persistenceService.saveCollectionRecursive(collection);
+    await persistenceService.saveCollection(collection, true);
     return collection;
   }
 }
