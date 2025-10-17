@@ -1,5 +1,7 @@
+import path from 'path';
 import { migrateInfoFile } from './migrators';
 import { describe, it, expect } from 'vitest';
+import { tmpdir } from 'node:os';
 
 describe(`${migrateInfoFile.name}()`, () => {
   it('should migrate the given info file to the latest schema and remove the version property', async () => {
@@ -17,7 +19,7 @@ describe(`${migrateInfoFile.name}()`, () => {
     };
 
     // Act
-    const result = await migrateInfoFile(infoFile);
+    const result = await migrateInfoFile(infoFile, 'request', path.join(tmpdir(), 'request.json'));
 
     // Assert
     expect(result).toEqual({

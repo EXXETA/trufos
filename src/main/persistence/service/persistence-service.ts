@@ -38,7 +38,7 @@ const COLLECTION_GITIGNORE = ['.draft'].join(EOL);
 export const SECRETS_FILE_NAME = '.secrets.bin';
 
 /** The name of the draft directory */
-const DRAFT_DIR_NAME = '.draft';
+export const DRAFT_DIR_NAME = '.draft';
 
 const secretService = SecretService.instance;
 
@@ -152,7 +152,7 @@ export class PersistenceService {
     newParentId?: string
   ) {
     const requestCopy = structuredClone(request);
-    requestCopy.id = randomUUID();
+    requestCopy.id = null;
     requestCopy.title = addCopySuffix ? `${request.title} (Copy)` : request.title;
     requestCopy.parentId = newParentId ?? request.parentId;
     requestCopy.draft = false;
@@ -218,7 +218,7 @@ export class PersistenceService {
    */
   public async copyFolder(folder: Folder, addCopySuffix: boolean = true, newParentId?: string) {
     const folderCopy = structuredClone(folder);
-    folderCopy.id = randomUUID();
+    folderCopy.id = null;
     folderCopy.title = addCopySuffix ? `${folder.title} (Copy)` : folder.title;
     folderCopy.parentId = newParentId ?? folder.parentId;
 
@@ -241,7 +241,7 @@ export class PersistenceService {
    * @param dirPath the directory path to save the object to
    */
   private async saveInfoFile(object: TrufosObject, dirPath: string) {
-    logger.info('Saving object', (object.id ??= randomUUID()));
+    logger.info('Saving object', object.id);
     if (!isCollection(object) && object.parentId == null) {
       throw new Error('Object must have a parent');
     }
@@ -380,7 +380,7 @@ export class PersistenceService {
     }
 
     const collection: Collection = {
-      id: randomUUID(),
+      id: null,
       title,
       type: 'collection',
       dirPath,
@@ -528,10 +528,11 @@ export class PersistenceService {
     object.id ??= randomUUID();
     let dirPath: string;
 
-    if (isCollection(object)) {
-      dirPath = object.dirPath;
-    } else if (this.idToPathMap.has(object.id)) {
+    if (this.idToPathMap.has(object.id)) {
       dirPath = this.idToPathMap.get(object.id);
+    } else if (isCollection(object)) {
+      dirPath = object.dirPath;
+      this.idToPathMap.set(object.id, dirPath);
     } else {
       // object is not yet associated with any directory, must be a new object
       // we need to derive a new and unused directory path from the parent
