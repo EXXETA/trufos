@@ -427,8 +427,8 @@ export class PersistenceService {
     dirPath: string,
     draft?: boolean
   ): Promise<TrufosRequest> {
-    draft ??= await exists(path.join(dirPath, DRAFT_DIR_NAME));
     const type = 'request' as const;
+    draft ??= await exists(path.join(this.getDraftDirPath(dirPath), this.getInfoFileName(type)));
     const info = await this.readInfoFile(draft ? this.getDraftDirPath(dirPath) : dirPath, type);
     this.idToPathMap.set(info.id, dirPath);
 
