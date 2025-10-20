@@ -104,9 +104,13 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
     const draftDirPath = path.join(dirPath, DRAFT_DIR_NAME);
     for (const file of await fs.readdir(dirPath, { withFileTypes: true })) {
       if (!file.isFile()) continue;
+
+      // move to draft
       if (file.name.startsWith(OLD_DRAFT_PREFIX)) {
+        if (file.name.endsWith('request.json')) {
+          await this.applyNewVersion(path.join(dirPath, file.name));
+        }
         await fs.mkdir(draftDirPath, { recursive: true });
-        await this.applyNewVersion(path.join(dirPath, file.name));
         await fs.rename(
           path.join(dirPath, file.name),
           path.join(draftDirPath, file.name.substring(OLD_DRAFT_PREFIX.length))
