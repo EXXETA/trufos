@@ -15,7 +15,6 @@ import {
   SECRETS_FILE_NAME,
 } from 'main/persistence/service/persistence-service';
 import path from 'node:path';
-import { exists } from 'main/util/fs-util';
 import fs from 'node:fs/promises';
 
 export const VERSION = new SemVer(2, 0, 0);
