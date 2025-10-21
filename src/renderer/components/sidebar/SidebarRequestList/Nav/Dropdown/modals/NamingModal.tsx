@@ -11,7 +11,7 @@ import { Folder } from 'shim/objects/folder';
 import { Button } from '@/components/ui/button';
 import { useCollectionActions } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
-import { isFolder } from 'shim/objects';
+import { isFolder, isRequest } from 'shim/objects';
 
 export interface NamingModalProps {
   createType?: 'folder' | 'request';
@@ -26,15 +26,15 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
 
   const handleSave = async () => {
     if (createType) {
-      if (isFolder(trufosObject)) {
+      if (createType === 'folder') {
         addNewFolder(name, trufosObject.id);
-      } else {
+      } else if (createType === 'request') {
         addNewRequest(name, trufosObject.id);
       }
     } else {
       if (isFolder(trufosObject)) {
         await renameFolder(trufosObject.id, name);
-      } else {
+      } else if (isRequest(trufosObject)) {
         await renameRequest(trufosObject.id, name);
       }
     }
