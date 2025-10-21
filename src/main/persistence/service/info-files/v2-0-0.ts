@@ -62,10 +62,11 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
 
   async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
     const dirPath = path.dirname(filePath);
+    await this.renameSecretsFile(dirPath);
     if (type === 'collection') {
       await PersistenceService.instance.createGitIgnore(dirPath);
     } else if (type === 'request') {
-      await this.renameRequestFiles(dirPath);
+      await this.moveDraftsToDraftDir(dirPath);
     }
     await this.applyNewVersion(filePath);
     return this.applyChanges(old);
@@ -80,11 +81,6 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
       JSON.parse(await fs.readFile(filePath, 'utf8')) as OldInfoFile
     );
     await fs.writeFile(filePath, JSON.stringify(content, null, 2), 'utf8');
-  }
-
-  private async renameRequestFiles(dirPath: string) {
-    await this.renameSecretsFile(dirPath);
-    await this.moveDraftsToDraftDir(dirPath);
   }
 
   private async renameSecretsFile(dirPath: string) {
