@@ -159,5 +159,5 @@ export interface IEventService {
    * @param object The folder or request to rename.
    * @param newTitle The new title.
    */
-  rename(object: Folder | TrufosRequest, newTitle: string): Promise<void>;
+  rename(object: Folder | TrufosRequest | Collection, newTitle: string): Promise<void>;
 }
