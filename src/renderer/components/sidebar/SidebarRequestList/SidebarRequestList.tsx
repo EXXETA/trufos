@@ -8,6 +8,7 @@ import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavReque
 /**
  * Render the children of a folder or collection
  * @param children The children to render
+ * @param depth
  */
 export function renderChildren(children: (TrufosRequest | Folder)[], depth = 0) {
   return children.map((child) => {
@@ -24,7 +25,7 @@ export const SidebarRequestList = () => {
   const children = useCollectionStore((state) => state.collection.children);
 
   return (
-    <SidebarContent className={'tabs-scrollbar -ml-6 -mr-6 flex-1 overflow-y-auto'}>
+    <SidebarContent className={'tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-y-auto'}>
       <SidebarMenu className="gap-0">{renderChildren(children)}</SidebarMenu>
     </SidebarContent>
   );

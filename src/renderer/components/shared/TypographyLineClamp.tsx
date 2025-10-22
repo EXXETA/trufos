@@ -71,7 +71,7 @@ export const TypographyLineClamp = forwardRef<HTMLDivElement, TypographyLineClam
             <TooltipTrigger asChild>{contentElement}</TooltipTrigger>
 
             <TooltipContent side={placement}>
-              <p className="max-w-xs text-sm text-muted-foreground">{children}</p>
+              <p className="text-muted-foreground max-w-xs text-sm">{children}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
