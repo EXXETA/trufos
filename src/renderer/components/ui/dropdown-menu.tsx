@@ -20,7 +20,9 @@ const DropdownMenuTrigger = ({
   onClick,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) => {
-  return <DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />;
+  return (
+    <DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" onClick={onClick} {...props} />
+  );
 };
 DropdownMenuTrigger.displayName = DropdownMenuPrimitive.Trigger.displayName;
 
