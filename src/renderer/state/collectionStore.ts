@@ -393,7 +393,6 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         state.openFolders.clear();
       });
 
-      // Optionally, initialize with a default collection if needed
       if (closedCollection) {
         initialize(closedCollection);
       }
