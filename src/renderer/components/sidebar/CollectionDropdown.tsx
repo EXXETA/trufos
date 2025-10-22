@@ -4,8 +4,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  // DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -14,7 +12,7 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { CollectionBase } from 'shim/objects/collection';
 import { cn } from '@/lib/utils';
-import { CollectionIcon, SmallArrow, CloseIcon } from '@/components/icons';
+import { CollectionIcon, SmallArrow } from '@/components/icons';
 import { FolderOpen, FolderPlus, Upload } from 'lucide-react';
 import { TypographyLineClamp } from '@/components/shared/TypographyLineClamp';
 import { CollectionImport } from '@/view/CollectionImport';
@@ -71,31 +69,6 @@ export default function CollectionDropdown() {
     }
   }, []);
 
-  const renderCollectionList = useCallback(
-    () =>
-      collections.map(({ title, dirPath }, i) => (
-        <DropdownMenuRadioItem key={i} value={dirPath}>
-          <p className="flex-1 pr-2">{title}</p>
-          {i !== 0 && (
-            <button
-              onClick={async (e) => {
-                e.stopPropagation();
-                await eventService.closeCollection(dirPath);
-                setCollections((prev) => prev.filter((c) => c.dirPath !== dirPath));
-              }}
-              className={cn(
-                'flex h-6 w-6 items-center justify-center rounded-md text-popover-foreground opacity-0',
-                'hover:bg-popover hover:text-popover-foreground hover:opacity-100'
-              )}
-            >
-              <CloseIcon size={24} />
-            </button>
-          )}
-        </DropdownMenuRadioItem>
-      )),
-    [collections]
-  );
-
   return (
     <DropdownMenu onOpenChange={() => setIsOpen(!isOpen)}>
       <DropdownMenuTrigger asChild>
@@ -116,24 +89,28 @@ export default function CollectionDropdown() {
       <DropdownMenuContent
         className={cn(
           'w-[var(--radix-dropdown-menu-trigger-width)]',
-          'border border-border bg-background-secondary p-0',
-          'max-h-[75vh] overflow-hidden'
+          'border-border bg-background-secondary border p-0',
+          'max-h-[75vh] overflow-hidden',
+          'text-[var(--text-secondary)]'
         )}
       >
-        <div className="sticky top-0 z-10 bg-background-secondary">
+        <div className="bg-background-secondary sticky top-0 z-10">
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={createCollection} className={'px-4 py-3'}>
               <FolderPlus />
+
               <span>New Collection</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={openCollection} className={'px-4 py-3'}>
               <FolderOpen />
+
               <span>Open Collection</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={() => setShowImport(true)}>
+            <DropdownMenuItem onClick={() => setShowImport(true)} className={'px-4 py-3'}>
               <Upload />
+
               <span>Import Collection</span>
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -143,27 +120,26 @@ export default function CollectionDropdown() {
 
         <div className="tabs-scrollbar max-h-[calc(75vh-102px)] overflow-y-auto">
           <DropdownMenuGroup>
-            {/*{collections.map(({*/}
-            {/*  title,*/}
-            {/*  dirPath*/}
-            {/*}, i) => (<DropdownMenuItem*/}
-            {/*    key={`${title}-${i}`}*/}
-            {/*    onClick={() => changeCollection(dirPath)}*/}
-            {/*    className={cn('flex px-4 py-3', collection?.dirPath === dirPath && 'bg-divider')}*/}
-            {/*  >*/}
-            {/*    <CollectionIcon size={16} color="secondary" />*/}
+            {collections.map(({ title, dirPath }, i) => (
+              <DropdownMenuItem
+                key={`${title}-${i}`}
+                onClick={() => changeCollection(dirPath)}
+                className={cn('flex px-4 py-3', collection?.dirPath === dirPath && 'bg-divider')}
+              >
+                <CollectionIcon size={16} color="secondary" />
 
-            {/*    <div className="grid items-start gap-0">*/}
-            {/*      <TypographyLineClamp contentClassname="text-xs">{title}</TypographyLineClamp>*/}
+                <div className="grid items-start gap-0">
+                  <TypographyLineClamp contentClassname="text-xs">{title}</TypographyLineClamp>
 
-            {/*      <TypographyLineClamp contentClassname="text-[8px]">{dirPath}</TypographyLineClamp>*/}
-            {/*    </div>*/}
-            {/*  </DropdownMenuItem>))}*/}
-            {renderCollectionList()}
+                  <TypographyLineClamp contentClassname="text-[8px]">{dirPath}</TypographyLineClamp>
+                </div>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuGroup>
         </div>
-        {showImport && <CollectionImport onClose={() => setShowImport(false)} />}
       </DropdownMenuContent>
+
+      {showImport && <CollectionImport onClose={() => setShowImport(false)} />}
     </DropdownMenu>
   );
 }

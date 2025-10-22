@@ -8,7 +8,7 @@ import { useCollectionStore } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
-// import { CollectionSettings } from '@/components/sidebar/CollectionSettings';
+import { CollectionSettings } from '@/components/sidebar/CollectionSettings';
 
 export const SidebarHeaderBar = () => {
   const collection = useCollectionStore((state) => state.collection);
@@ -70,11 +70,11 @@ export const SidebarHeaderBar = () => {
         />
       )}
 
-      {/*<CollectionSettings*/}
-      {/*  isOpen={isSettingsOpen}*/}
-      {/*  trufosObject={collection as Collection}*/}
-      {/*  onClose={() => setIsSettingsOpen(!isSettingsOpen)}*/}
-      {/*/>*/}
+      <CollectionSettings
+        isOpen={isSettingsOpen}
+        trufosObject={collection as Collection}
+        onClose={() => setIsSettingsOpen(!isSettingsOpen)}
+      />
     </>
   );
 };

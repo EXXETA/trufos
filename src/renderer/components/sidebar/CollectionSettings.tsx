@@ -47,6 +47,7 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
 
   const handleCloseCollection = () => {
     closeCollection();
+
     onClose();
   };
 
@@ -71,7 +72,7 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
         </DialogHeader>
 
         {trufosObject.type === 'collection' && trufosObject.dirPath && (
-          <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-md bg-muted/40 p-2 text-sm text-muted-foreground">
+          <div className="bg-muted/40 text-muted-foreground grid grid-cols-[1fr_auto] items-center gap-2 rounded-md p-2 text-sm">
             <TypographyLineClamp
               contentClassname={'text-xs text-[var(--text-secondary)]'}
               lineClamp={2}
@@ -102,7 +103,7 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
           <Separator />
 
           <div className="flex items-center justify-between">
-            <span className="font-medium text-destructive">Close Collection</span>
+            <span className="text-destructive font-medium">Close Collection</span>
             <Button
               variant="destructive"
               size="sm"
