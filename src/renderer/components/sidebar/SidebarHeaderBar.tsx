@@ -18,7 +18,7 @@ export const SidebarHeaderBar = () => {
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 
   const openModal = (type: 'request' | 'folder') => setCreationModalState({ isOpen: true, type });
-  console.log('collection', collection);
+
   return (
     <>
       <SidebarHeader className="flex-col gap-6">
