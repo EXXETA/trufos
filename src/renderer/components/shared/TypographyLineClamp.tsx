@@ -69,6 +69,7 @@ export const TypographyLineClamp = forwardRef<HTMLDivElement, TypographyLineClam
         <TooltipProvider>
           <Tooltip delayDuration={150}>
             <TooltipTrigger asChild>{contentElement}</TooltipTrigger>
+
             <TooltipContent side={placement}>
               <p className="max-w-xs text-sm text-muted-foreground">{children}</p>
             </TooltipContent>
