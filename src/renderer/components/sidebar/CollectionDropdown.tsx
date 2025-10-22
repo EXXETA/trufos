@@ -11,14 +11,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import CollectionImport from '@/view/CollectionImport';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { CollectionBase } from 'shim/objects/collection';
 import { cn } from '@/lib/utils';
-import { CollectionIcon, SmallArrow } from '@/components/icons';
+import { CollectionIcon, SmallArrow, CloseIcon } from '@/components/icons';
 import { FolderOpen, FolderPlus, Upload } from 'lucide-react';
-import { CloseIcon } from '@/components/icons';
-import { cn } from '@/lib/utils';
+import { TypographyLineClamp } from '@/components/shared/TypographyLineClamp';
+import { CollectionImport } from '@/view/CollectionImport';
 
 const eventService = RendererEventService.instance;
 
@@ -35,7 +34,7 @@ export default function CollectionDropdown() {
 
   useEffect(() => {
     loadCollections();
-  }, [loadCollections]);
+  }, [isOpen]);
 
   const openCollection = useCallback(async () => {
     try {
@@ -61,10 +60,10 @@ export default function CollectionDropdown() {
         properties: ['openDirectory', 'createDirectory'],
       });
       if (!result.canceled && result.filePaths.length > 0) {
+        const title = result?.filePaths[0].split('\\').slice(-1)[0];
+
         console.info('Creating collection at', result.filePaths[0]);
-        await changeCollection(
-          await eventService.createCollection(result.filePaths[0], 'New Collection')
-        );
+        await changeCollection(await eventService.createCollection(result.filePaths[0], title));
       }
       await loadCollections();
     } catch (e) {
@@ -85,8 +84,8 @@ export default function CollectionDropdown() {
                 setCollections((prev) => prev.filter((c) => c.dirPath !== dirPath));
               }}
               className={cn(
-                'text-popover-foreground flex h-6 w-6 items-center justify-center rounded-md opacity-0',
-                'hover:text-popover-foreground hover:bg-popover hover:opacity-100'
+                'flex h-6 w-6 items-center justify-center rounded-md text-popover-foreground opacity-0',
+                'hover:bg-popover hover:text-popover-foreground hover:opacity-100'
               )}
             >
               <CloseIcon size={24} />
@@ -100,9 +99,8 @@ export default function CollectionDropdown() {
   return (
     <DropdownMenu onOpenChange={() => setIsOpen(!isOpen)}>
       <DropdownMenuTrigger asChild>
-        {/* TODO: Button should render collection name dynamically. If no created yet - Default collection */}
-        <Button variant="secondary" className={cn('flex justify-between', 'border-0')}>
-          <p>{collection?.title}</p>
+        <Button variant="secondary" className={cn('flex justify-between border-0')}>
+          <TypographyLineClamp>{collection?.title}</TypographyLineClamp>
 
           <div
             className={cn(
@@ -116,51 +114,55 @@ export default function CollectionDropdown() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className={
-          'w-[var(--radix-dropdown-menu-trigger-width)] border border-border bg-background-secondary p-0'
-        }
+        className={cn(
+          'w-[var(--radix-dropdown-menu-trigger-width)]',
+          'border border-border bg-background-secondary p-0',
+          'max-h-[75vh] overflow-hidden'
+        )}
       >
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={createCollection} className={'px-4 py-3'}>
-            <FolderPlus />
-            <span>New Collection</span>
-          </DropdownMenuItem>
+        <div className="sticky top-0 z-10 bg-background-secondary">
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={createCollection} className={'px-4 py-3'}>
+              <FolderPlus />
+              <span>New Collection</span>
+            </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={openCollection} className={'px-4 py-3'}>
-            <FolderOpen />
-            <span>Open Collection</span>
-          </DropdownMenuItem>
+            <DropdownMenuItem onClick={openCollection} className={'px-4 py-3'}>
+              <FolderOpen />
+              <span>Open Collection</span>
+            </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={() => setShowImport(true)}>
-            <Upload />
-            <span>Import Collection</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => setShowImport(true)}>
+              <Upload />
+              <span>Import Collection</span>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
 
           <DropdownMenuSeparator />
+        </div>
 
-        {/* TODO: collection title should be rendered automatically from single source of truth */}
-        <DropdownMenuGroup>
-          {collections.map(({ title, dirPath }, i) => {
-            const collectionTitle = i === 0 ? title : dirPath.split('\\').slice(-1);
+        <div className="tabs-scrollbar max-h-[calc(75vh-102px)] overflow-y-auto">
+          <DropdownMenuGroup>
+            {/*{collections.map(({*/}
+            {/*  title,*/}
+            {/*  dirPath*/}
+            {/*}, i) => (<DropdownMenuItem*/}
+            {/*    key={`${title}-${i}`}*/}
+            {/*    onClick={() => changeCollection(dirPath)}*/}
+            {/*    className={cn('flex px-4 py-3', collection?.dirPath === dirPath && 'bg-divider')}*/}
+            {/*  >*/}
+            {/*    <CollectionIcon size={16} color="secondary" />*/}
 
-            return (
-              <DropdownMenuItem
-                key={`${title}-${i}`}
-                onClick={() => loadCollections(dirPath)}
-                className={`flex ${collection?.dirPath === dirPath ? 'bg-divider' : ''}`}
-              >
-                <CollectionIcon size={16} color={'secondary'} />
+            {/*    <div className="grid items-start gap-0">*/}
+            {/*      <TypographyLineClamp contentClassname="text-xs">{title}</TypographyLineClamp>*/}
 
-                <div className="flex flex-col items-start gap-0">
-                  <span className="text-xs">{collectionTitle}</span>
-
-                  <span className="text-[8px]">{dirPath}</span>
-                </div>
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuGroup>
+            {/*      <TypographyLineClamp contentClassname="text-[8px]">{dirPath}</TypographyLineClamp>*/}
+            {/*    </div>*/}
+            {/*  </DropdownMenuItem>))}*/}
+            {renderCollectionList()}
+          </DropdownMenuGroup>
+        </div>
+        {showImport && <CollectionImport onClose={() => setShowImport(false)} />}
       </DropdownMenuContent>
     </DropdownMenu>
   );

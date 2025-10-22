@@ -1,27 +1,28 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { AddFolderIcon, CreateRequestIcon } from '@/components/icons';
+import { AddFolderIcon, CreateRequestIcon, SettingsIcon } from '@/components/icons';
 import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
 import { useCollectionStore } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
-import { SettingsModal } from '@/components/shared/settings/SettingsModal';
+// import { CollectionSettings } from '@/components/sidebar/CollectionSettings';
+
 export const SidebarHeaderBar = () => {
   const collection = useCollectionStore((state) => state.collection);
-  const [modalState, setModalState] = useState({ isOpen: false, type: null });
+
+  const [creationModalState, setCreationModalState] = useState({ isOpen: false, type: null });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 
-  const openModal = (type: 'request' | 'folder') => setModalState({ isOpen: true, type });
-
+  const openModal = (type: 'request' | 'folder') => setCreationModalState({ isOpen: true, type });
+  console.log('collection', collection);
   return (
     <>
       <SidebarHeader className="flex-col gap-6">
         <CollectionDropdown />
-
-        {/* TODO: 3) new settings button (should contain collection settings as rename, delete etc.) */}
 
         <Divider />
 
@@ -48,18 +49,33 @@ export const SidebarHeaderBar = () => {
             <AddFolderIcon size={16} color={'secondary'} />
           </Button>
 
-          {/*<CollectionSettings />*/}
+          <Button
+            className={buttonClassName}
+            variant={'ghost'}
+            size={'icon'}
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            aria-label="Add new folder"
+          >
+            <SettingsIcon size={16} color={'secondary'} />
+          </Button>
         </div>
       </SidebarHeader>
 
-      {modalState.isOpen && (
+      {creationModalState.isOpen && (
         <NamingModal
-          isOpen={modalState.isOpen}
+          isOpen={creationModalState.isOpen}
           trufosObject={collection as Collection}
-          createType={modalState.type}
-          setOpen={(open) => setModalState({ isOpen: open, type: modalState.type })}
+          createType={creationModalState.type}
+          setOpen={(open) => setCreationModalState({ isOpen: open, type: creationModalState.type })}
         />
       )}
+
+      {/*<CollectionSettings*/}
+      {/*  isOpen={isSettingsOpen}*/}
+      {/*  trufosObject={collection as Collection}*/}
+      {/*  onClose={() => setIsSettingsOpen(!isSettingsOpen)}*/}
+      {/*/>*/}
     </>
   );
 };
