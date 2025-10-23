@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -14,6 +16,7 @@ export default defineConfig({
     setupFiles: path.join(__dirname, '__mocks__', 'index.ts'),
   },
   build: {
-    sourcemap: true,
+    sourcemap: isProduction ? true : 'inline',
+    minify: false,
   },
 });

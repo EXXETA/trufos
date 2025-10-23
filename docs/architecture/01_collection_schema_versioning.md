@@ -55,6 +55,7 @@ export class InfoFileMapper extends AbstractInfoFileMapper<OldInfoFile, InfoFile
 4. Add your new migrator to the `MIGRATORS` array in `migrators.ts`.
 5. Modify the imports in `latest.ts` to point to the new schema file.
 6. Modify the `toInfoFile()` method in `latest.ts` to generate the new schema.
+7. Create a test for the new migrator
 
 That's it! The schema is now updated and the migration script will be executed during the loading of
 the collection, folder, or request.

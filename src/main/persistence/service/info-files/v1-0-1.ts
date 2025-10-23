@@ -39,7 +39,7 @@ export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: OldInfoFile) {
+  async migrate(old: OldInfoFile): Promise<InfoFile> {
     return Object.assign(old, { id: randomUUID(), version: VERSION.toString() });
   }
 }
