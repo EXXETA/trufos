@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, ChangeEvent } from 'react';
-import { Collection } from '../../../shim/objects/collection';
+import { Collection } from 'shim/objects/collection';
 import { useCollectionActions } from '@/state/collectionStore';
 import {
   Dialog,
@@ -11,9 +11,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { BookmarkIcon } from '@/components/icons';
-import { MdOutlineContentCopy } from 'react-icons/md';
+import { MdOutlineContentCopy, MdOutlineModeEdit } from 'react-icons/md';
 import { TypographyLineClamp } from '@/components/shared/TypographyLineClamp';
+import { cn } from '@/lib/utils';
 
 export interface CollectionSettingsProps {
   trufosObject: Collection;
@@ -35,13 +35,13 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
     setPathName(trufosObject?.dirPath);
   }, [trufosObject?.dirPath]);
 
-  console.log('trufosObject?.dirPath', trufosObject?.dirPath);
   const handleChangeName = (event: ChangeEvent<HTMLInputElement>) => {
     setName(event.target.value);
   };
 
   const handleRenameCollection = () => {
     renameCollection(name);
+
     onClose();
   };
 
@@ -52,9 +52,7 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
   };
 
   const handleCopyPath = async () => {
-    if ('dirPath' in trufosObject && trufosObject.dirPath) {
-      await navigator.clipboard.writeText(trufosObject.dirPath);
-    }
+    await navigator.clipboard.writeText(trufosObject.dirPath);
   };
 
   const isValid = useMemo(() => {
@@ -90,13 +88,14 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
           <div className="flex items-center gap-6">
             <Input value={name} type="text" onChange={handleChangeName} />
             <Button
-              className={`flex p-4 ${!isValid ? 'border-0 text-[var(--disabled)]' : ''}`}
+              className={cn('flex gap-1 p-4', { 'border-0 text-[var(--disabled)]': !isValid })}
               variant="secondary"
               disabled={!isValid}
               onClick={handleRenameCollection}
             >
               <span className="flex">Rename</span>
-              <BookmarkIcon className="ml-2 h-4 w-4" />
+
+              <MdOutlineModeEdit size={16} />
             </Button>
           </div>
 
