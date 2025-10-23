@@ -13,6 +13,7 @@ vi.mock('node:process');
 vi.mock('tmp');
 
 beforeEach(() => {
+  vi.clearAllMocks();
   vol.reset();
   vol.mkdirSync(tmpdir(), { recursive: true });
   vol.mkdirSync(homedir(), { recursive: true });
