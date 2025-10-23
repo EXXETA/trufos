@@ -9,11 +9,7 @@ import { TrufosObjectType } from 'shim/objects';
 import { AuthorizationInformation, InheritAuthorizationInformation } from 'shim/objects/auth';
 
 import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-4-0';
-import {
-  DRAFT_DIR_NAME,
-  PersistenceService,
-  SECRETS_FILE_NAME,
-} from 'main/persistence/service/persistence-service';
+import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
@@ -62,10 +58,11 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
 
   async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
     const dirPath = path.dirname(filePath);
-    await this.renameSecretsFile(dirPath);
     if (type === 'collection') {
-      await PersistenceService.instance.createGitIgnore(dirPath);
+      await this.renameSecretsFile(dirPath);
+      await createGitIgnore(dirPath);
     } else if (type === 'request') {
+      await this.renameSecretsFile(dirPath);
       await this.moveDraftsToDraftDir(dirPath);
     }
     await this.applyNewVersion(filePath);
@@ -113,4 +110,14 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
       }
     }
   }
+}
+
+/**
+ * Creates a collection .gitignore file in the specified directory path.
+ * @param dirPath the directory path where the .gitignore file should be created
+ */
+export async function createGitIgnore(dirPath: string) {
+  const filePath = path.join(dirPath, '.gitignore');
+  logger.info(`Creating .gitignore file at`, filePath);
+  await fs.writeFile(filePath, '.draft');
 }

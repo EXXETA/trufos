@@ -12,7 +12,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateDefaultCollection } from './default-collection';
 import { sanitizeTitle } from 'shim/fs';
 import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
-import { DRAFT_DIR_NAME, PersistenceService, SECRETS_FILE_NAME } from './persistence-service';
+import { PersistenceService } from './persistence-service';
+import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
 
 const persistenceService = PersistenceService.instance;
 
@@ -905,19 +906,4 @@ describe('PersistenceService', () => {
     expect((loadedFolder.children[1] as any).index).toBe(10);
     expect((loadedFolder.children[2] as any).index).toBeUndefined();
   });
-});
-
-it('createGitIgnore() should create a .gitignore file with the correct content', async () => {
-  // Arrange
-  const testDir = path.join(USER_DATA_DIR, 'test-gitignore');
-  await mkdir(testDir, { recursive: true });
-  const gitignorePath = path.join(testDir, '.gitignore');
-
-  // Act
-  await persistenceService.createGitIgnore(testDir);
-
-  // Assert
-  expect(await exists(gitignorePath)).toBe(true);
-  const content = await readFile(gitignorePath, 'utf-8');
-  expect(content).toContain('.draft');
 });

@@ -3,7 +3,6 @@ import { assign } from 'main/util/object-util';
 import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
-import { EOL } from 'node:os';
 import path from 'node:path';
 import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
@@ -17,6 +16,7 @@ import {
 import { generateDefaultCollection } from './default-collection';
 import {
   CollectionInfoFile,
+  createGitIgnore,
   extractSecrets,
   FolderInfoFile,
   fromCollectionInfoFile,
@@ -30,15 +30,7 @@ import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
 import { SettingsService } from './settings-service';
 import { sanitizeTitle } from 'shim/fs';
-
-/** Content of the .gitignore file for a collection */
-const COLLECTION_GITIGNORE = ['.draft'].join(EOL);
-
-/** The name of the secrets file */
-export const SECRETS_FILE_NAME = '.secrets.bin';
-
-/** The name of the draft directory */
-export const DRAFT_DIR_NAME = '.draft';
+import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
 
 const secretService = SecretService.instance;
 
@@ -391,18 +383,8 @@ export class PersistenceService {
       children: [],
     };
     await this.saveCollection(collection); // save collection file
-    await this.createGitIgnore(dirPath); // create .gitignore file
+    await createGitIgnore(dirPath); // create .gitignore file
     return collection;
-  }
-
-  /**
-   * Creates a collection .gitignore file in the specified directory path.
-   * @param dirPath the directory path where the .gitignore file should be created
-   */
-  public async createGitIgnore(dirPath: string) {
-    const filePath = path.join(dirPath, '.gitignore');
-    logger.info(`Creating .gitignore file at`, filePath);
-    await fs.writeFile(filePath, COLLECTION_GITIGNORE);
   }
 
   /**
