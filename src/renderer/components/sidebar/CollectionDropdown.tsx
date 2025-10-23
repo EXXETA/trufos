@@ -58,10 +58,11 @@ export default function CollectionDropdown() {
         properties: ['openDirectory', 'createDirectory'],
       });
       if (!result.canceled && result.filePaths.length > 0) {
-        const title = result?.filePaths[0].split('\\').slice(-1)[0];
-
         console.info('Creating collection at', result.filePaths[0]);
-        await changeCollection(await eventService.createCollection(result.filePaths[0], title));
+
+        await changeCollection(
+          await eventService.createCollection(result.filePaths[0], result.filePaths[0])
+        );
       }
       await loadCollections();
     } catch (e) {
@@ -72,7 +73,7 @@ export default function CollectionDropdown() {
   return (
     <DropdownMenu onOpenChange={() => setIsOpen(!isOpen)}>
       <DropdownMenuTrigger asChild>
-        <Button variant="secondary" className={cn('flex justify-between border-0')}>
+        <Button variant="secondary" className={'flex justify-between border-0'}>
           <TypographyLineClamp>{collection?.title}</TypographyLineClamp>
 
           <div
