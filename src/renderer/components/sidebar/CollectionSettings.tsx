@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect, ChangeEvent } from 'react';
-import { Collection } from 'shim/objects/collection';
+import { useMemo, useState, useEffect, useCallback, ChangeEvent } from 'react';
+import { Collection, CollectionBase } from 'shim/objects/collection';
 import { useCollectionActions } from '@/state/collectionStore';
 import {
   Dialog,
@@ -14,6 +14,9 @@ import { Input } from '@/components/ui/input';
 import { MdOutlineContentCopy, MdOutlineModeEdit } from 'react-icons/md';
 import { TypographyLineClamp } from '@/components/shared/TypographyLineClamp';
 import { cn } from '@/lib/utils';
+import { RendererEventService } from '@/services/event/renderer-event-service';
+
+const eventService = RendererEventService.instance;
 
 export interface CollectionSettingsProps {
   trufosObject: Collection;
@@ -24,25 +27,38 @@ export interface CollectionSettingsProps {
 export const CollectionSettings = ({ trufosObject, isOpen, onClose }: CollectionSettingsProps) => {
   const [name, setName] = useState('');
   const [pathName, setPathName] = useState('');
+  const [collections, setCollections] = useState<CollectionBase[]>([]);
+
+  const loadCollections = useCallback(async () => {
+    setCollections(await eventService.listCollections());
+  }, [setCollections]);
+
+  useEffect(() => {
+    loadCollections();
+  }, [isOpen]);
 
   const { renameCollection, closeCollection } = useCollectionActions();
 
   useEffect(() => {
     setName(trufosObject.title);
-  }, [trufosObject.title]);
+  }, [isOpen]);
 
   useEffect(() => {
     setPathName(trufosObject?.dirPath);
-  }, [trufosObject?.dirPath]);
+  }, [isOpen]);
 
   const handleChangeName = (event: ChangeEvent<HTMLInputElement>) => {
     setName(event.target.value);
   };
 
-  const handleRenameCollection = () => {
-    renameCollection(name);
+  const handleRenameCollection = async () => {
+    try {
+      await renameCollection(name);
 
-    onClose();
+      onClose();
+    } catch (err) {
+      console.error('Failed to rename collection', err);
+    }
   };
 
   const handleCloseCollection = () => {
@@ -103,9 +119,11 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
 
           <div className="flex items-center justify-between">
             <span className="text-destructive font-medium">Close Collection</span>
+
             <Button
-              variant="destructive"
+              variant={'destructive'}
               size="sm"
+              disabled={collections.length === 1}
               className="rounded-full"
               onClick={handleCloseCollection}
             >

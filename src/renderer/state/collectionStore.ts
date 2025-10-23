@@ -34,6 +34,7 @@ eventService.on('before-close', async () => {
 interface CollectionState {
   /** The currently selected collection */
   collection?: Omit<Collection, 'variables' | 'environments'>;
+  defaultCollection?: Omit<Collection, 'variables' | 'environments'>;
 
   /** A map of all requests in the collection */
   requests: Map<TrufosRequest['id'], TrufosRequest>;
@@ -380,37 +381,37 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     },
 
     closeCollection: async (dirPath?: string) => {
-      const { initialize } = get();
-      console.info('Closing collection at', dirPath ?? get().collection?.dirPath);
+      const { initialize, collection: activeCollection, defaultCollection } = get();
+      const targetPath = dirPath ?? activeCollection?.dirPath;
 
-      const closedCollection = await eventService.closeCollection(dirPath);
-
-      set((state) => {
-        state.collection = closedCollection ? closedCollection : undefined;
-        state.requests.clear();
-        state.folders.clear();
-        state.selectedRequestId = undefined;
-        state.openFolders.clear();
-      });
-
-      if (closedCollection) {
-        initialize(closedCollection);
+      if (defaultCollection && targetPath === defaultCollection.dirPath) {
+        console.warn('Default collection cannot be closed');
+        return;
       }
+
+      console.info('Closing collection at', targetPath);
+
+      const currentCollection = await eventService.closeCollection(targetPath);
+
+      const nextCollection = currentCollection ?? defaultCollection ?? activeCollection;
+
+      if (!currentCollection) {
+        console.warn(
+          'Closed collection not returned, falling back to default/previous collection.'
+        );
+      }
+
+      initialize(nextCollection);
     },
 
     renameCollection: async (title: string) => {
       const current = get().collection;
       if (!current) return;
 
-      // get the complete collection from the backend
-      const fullCollection = await eventService.loadCollection();
-
-      await eventService.rename(fullCollection, title);
+      await eventService.rename(get().collection, title);
 
       set((state) => {
-        if (state.collection) {
-          state.collection.title = title;
-        }
+        state.collection.title = title;
       });
     },
   }))
