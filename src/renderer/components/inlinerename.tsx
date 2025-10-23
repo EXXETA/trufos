@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Check, X } from 'lucide-react';
@@ -19,9 +19,15 @@ export const InlineRenameInput = ({
   validate = (v) => !!v.trim(),
   className,
   autoEdit = false,
+  onCancel,
 }: InlineRenameInputProps) => {
   const [editing, setEditing] = useState(autoEdit);
   const [value, setValue] = useState(initialValue);
+
+  // Sync editing state whenever autoEdit becomes true
+  useEffect(() => {
+    if (autoEdit) setEditing(true);
+  }, [autoEdit]);
 
   const handleSave = () => {
     if (validate(value) && value !== initialValue) {
@@ -33,10 +39,11 @@ export const InlineRenameInput = ({
   const handleCancel = () => {
     setValue(initialValue);
     setEditing(false);
+    onCancel?.();
   };
 
   return (
-    <div className={className}>
+    <div className={cn('flex items-center gap-1', className)}>
       {editing ? (
         <Input
           value={value}
@@ -46,21 +53,17 @@ export const InlineRenameInput = ({
             if (e.key === 'Escape') handleCancel();
           }}
           autoFocus
-          onFocus={(e) => e.target.select()} // highlight current text
-          className="h-8 w-full text-sm shadow-none focus-visible:ring-2"
+          onFocus={(e) => e.target.select()}
+          className="h-6 w-3/4 max-w-[120px] min-w-[70px] text-sm shadow-none focus-visible:ring-2"
         />
-      ) : null}
-
-      {/* Show the name only when not editing */}
-      <div
-        onClick={() => setEditing(true)}
-        className={cn('cursor-pointer truncate font-medium', { hidden: editing })}
-      >
-        {value}
-      </div>
+      ) : (
+        <div onClick={() => setEditing(true)} className={cn('cursor-pointer truncate font-medium')}>
+          {value}
+        </div>
+      )}
 
       {editing && (
-        <div className="mt-1 flex items-center gap-1">
+        <div className="flex items-center gap-1">
           <Button onClick={handleSave} size="sm" variant="ghost" className="h-6 w-6 p-0">
             <Check className="h-3 w-3" />
           </Button>
