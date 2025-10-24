@@ -8,7 +8,7 @@ import {
 import { Collection as TrufosCollection } from 'shim/objects/collection';
 import { Folder as TrufosFolder } from 'shim/objects/folder';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { parseUrl, TrufosQueryEntry } from 'shim/objects/url';
+import { parseUrl } from 'shim/objects/url';
 import { RequestMethod } from 'shim/objects/request-method';
 import fs from 'node:fs/promises';
 import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';

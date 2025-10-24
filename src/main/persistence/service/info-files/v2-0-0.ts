@@ -12,7 +12,6 @@ import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-4-0';
 import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { TrufosURL } from 'shim/objects/url';
 
 export const VERSION = new SemVer(2, 0, 0);
 
@@ -24,7 +23,7 @@ type InfoFileBase = {
 };
 
 export type RequestInfoFile = InfoFileBase & {
-  url: TrufosURL;
+  url: string;
   method: RequestMethod;
   headers: TrufosHeader[];
   body: RequestBody;
@@ -54,8 +53,6 @@ const OLD_SECRETS_FILE_NAME = '~secrets.json.bin';
  */
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
-
-  public readonly mustSaveFile = true;
 
   async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
     const dirPath = path.dirname(filePath);

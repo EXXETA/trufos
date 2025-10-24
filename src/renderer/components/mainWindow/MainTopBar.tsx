@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RequestMethod } from 'shim/objects/request-method';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
@@ -12,44 +12,26 @@ import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { showError } from '@/error/errorHandler';
 import { REQUEST_MODEL } from '@/lib/monaco/models';
-import { areUrlsMeaningfullyDifferent } from '@/util/query-util';
+import { TrufosURL } from 'shim/objects/url';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 export function MainTopBar() {
-  const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const { updateRequest } = useCollectionActions();
   const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest);
-  const selectedHttpMethod = request?.method;
-  const url = request?.url;
+  const { url, method } = request;
 
-  const handleUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setHasError(false);
-
-    const newUrl = event.target.value;
-
-    if (areUrlsMeaningfullyDifferent(url, newUrl)) {
-      updateRequest({ url: newUrl });
-    } else {
-      updateRequest({ url: newUrl, draft: request?.draft });
-    }
+  const handleUrlChange = (url: TrufosURL) => {
+    updateRequest({ url });
   };
-
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
 
   const sendRequest = useCallback(
     useErrorHandler(async () => {
-      if (request == null) return;
-      if (!request.url || !request.method) {
-        setHasError(true);
-
-        throw new Error('Missing URL or HTTP method');
-      }
-
       try {
         setIsLoading(true);
         await eventService.saveRequest(request, REQUEST_MODEL.getValue());
@@ -79,18 +61,11 @@ export function MainTopBar() {
     [request]
   );
 
-  // useEffect to reset error state when URL and method are valid
-  useEffect(() => {
-    if (request?.url && request?.method) {
-      setHasError(false);
-    }
-  }, [request]);
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      //isSaveShortcut is true if save combination is recorded
+      // isSaveShortcut is true if save combination is recorded
       const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
-      //if save combination is pressed and request is in draft mode, perform save
+      // if save combination is pressed and request is in draft mode, perform save
       if (isSaveShortcut && request?.draft) {
         event.preventDefault();
         saveRequest();
@@ -105,15 +80,10 @@ export function MainTopBar() {
   }, [saveRequest]);
 
   return (
-    <div className="mb-[24px] flex gap-6">
+    <div className="mb-6 flex gap-6">
       <div className="relative flex w-full">
-        <HttpMethodSelect
-          selectedHttpMethod={selectedHttpMethod}
-          onHttpMethodChange={handleHttpMethodChange}
-        />
-
-        <UrlInput url={url} onUrlChange={handleUrlChange} hasError={hasError} />
-
+        <HttpMethodSelect selectedHttpMethod={method} onHttpMethodChange={handleHttpMethodChange} />
+        <UrlInput url={url} onChange={handleUrlChange} />
         <SaveButton isDisabled={!request?.draft} onClick={saveRequest} />
       </div>
 
