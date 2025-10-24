@@ -78,6 +78,7 @@
 
     --text-primary: #263e4c;
     --text-secondary: #3d5563;
+    --text-disabled: #b3bcc5;
 
     --http-get: #2cbb00;
     --http-put: #00a2d9;
@@ -160,6 +161,7 @@
 
     --text-primary: #eeeeee;
     --text-secondary: #bbbbbb;
+    --text-disabled: #111111;
 
     --http-get: #93f176;
     --http-put: #37abff;
