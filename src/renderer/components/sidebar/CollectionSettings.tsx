@@ -87,10 +87,7 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
 
         {trufosObject.type === 'collection' && trufosObject.dirPath && (
           <div className="bg-muted/40 text-muted-foreground grid grid-cols-[1fr_auto] items-center gap-2 rounded-md p-2 text-sm">
-            <TypographyLineClamp
-              contentClassname={'text-xs text-[var(--text-secondary)]'}
-              lineClamp={2}
-            >
+            <TypographyLineClamp contentClassname={'text-xs text-text-secondary'} lineClamp={2}>
               {pathName}
             </TypographyLineClamp>
 
@@ -104,8 +101,8 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
           <div className="flex items-center gap-6">
             <Input value={name} type="text" onChange={handleChangeName} />
             <Button
-              className={cn('flex gap-1 p-4', { 'border-0 text-[var(--disabled)]': !isValid })}
-              variant="secondary"
+              className={cn('flex gap-1 p-4')}
+              variant={!isValid ? 'disabled' : 'secondary'}
               disabled={!isValid}
               onClick={handleRenameCollection}
             >
