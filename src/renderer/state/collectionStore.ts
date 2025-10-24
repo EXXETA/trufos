@@ -11,6 +11,7 @@ import { AuthorizationInformation } from 'shim/objects/auth';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { createEmptyUrl } from 'shim/objects/url';
 import { RequestMethod } from 'shim/objects/request-method';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
@@ -101,7 +102,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
     addNewRequest: async (title, parentId) => {
       const request = await eventService.saveRequest({
-        url: 'http://',
+        url: createEmptyUrl(),
         method: RequestMethod.GET,
         draft: true,
         id: null,
@@ -109,7 +110,6 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         type: 'request',
         title: title ?? (Math.random() + 1).toString(36).substring(7),
         headers: [],
-        queryParams: [],
         body: {
           type: RequestBodyType.TEXT,
           mimeType: 'text/plain',
@@ -267,7 +267,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       set((state) => {
         const queryParams = selectQueryParams(state);
         queryParams.splice(index, 1);
-        if (selectRequest(state).queryParams.length === 0) {
+        if (selectQueryParams(state).length === 0) {
           state.addQueryParam();
         }
       }),
@@ -275,7 +275,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     clearQueryParams: () =>
       set((state) => {
         const request = selectRequest(state);
-        request.queryParams = [];
+        request.url.query = [];
         state.addQueryParam();
       }),
 
@@ -415,7 +415,7 @@ const selectParent = (state: CollectionState, parentId: string) => {
   return state.folders.get(parentId)!;
 };
 const selectHeaders = (state: CollectionState) => selectRequest(state)?.headers;
-const selectQueryParams = (state: CollectionState) => selectRequest(state)?.queryParams;
+const selectQueryParams = (state: CollectionState) => selectRequest(state)?.url.query;
 const selectObject = <T extends TrufosObject>(state: CollectionState, object: T) =>
   isCollection(object)
     ? (state.collection as T)

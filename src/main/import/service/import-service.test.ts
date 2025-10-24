@@ -39,7 +39,7 @@ describe('ImportService', () => {
     const firstChild = childrenLevel1[0] as TrufosRequest;
     expect(firstChild.type).toBe('request');
     expect(firstChild.title).toBe('200 ok');
-    expect(firstChild.url).toBe('http://echo.getpostman.com/status/200');
+    expect(firstChild.url).toEqual({ base: 'http://echo.getpostman.com/status/200', query: [] });
     expect(firstChild.method).toBe('GET');
     expect(firstChild.headers).toEqual([]);
     expect(firstChild.body).toEqual({
@@ -50,7 +50,7 @@ describe('ImportService', () => {
     const secondChild = childrenLevel1[1] as TrufosRequest;
     expect(secondChild.type).toBe('request');
     expect(secondChild.title).toBe('200 ok');
-    expect(secondChild.url).toBe('http://echo.getpostman.com/post');
+    expect(secondChild.url).toEqual({ base: 'http://echo.getpostman.com/post', query: [] });
     expect(secondChild.method).toBe('POST');
     expect(secondChild.headers).toEqual([
       {
@@ -74,7 +74,10 @@ describe('ImportService', () => {
     const firstChildLevel2 = childrenLevel2[0] as TrufosRequest;
     expect(firstChildLevel2.type).toBe('request');
     expect(firstChildLevel2.title).toBe('201');
-    expect(firstChildLevel2.url).toBe('http://echo.getpostman.com/status/201');
+    expect(firstChildLevel2.url).toEqual({
+      base: 'http://echo.getpostman.com/status/201',
+      query: [],
+    });
     expect(firstChildLevel2.method).toBe('PUT');
     expect(firstChildLevel2.headers).toEqual([
       {
@@ -97,7 +100,7 @@ describe('ImportService', () => {
     const secondChildLevel2 = childrenLevel2[1] as TrufosRequest;
     expect(secondChildLevel2.type).toBe('request');
     expect(secondChildLevel2.title).toBe('201');
-    expect(secondChildLevel2.url).toBe('http://echo.getpostman.com/post');
+    expect(secondChildLevel2.url).toEqual({ base: 'http://echo.getpostman.com/post', query: [] });
     expect(secondChildLevel2.method).toBe('GET');
     expect(secondChildLevel2.headers).toEqual([]);
     expect(secondChildLevel2.body).toEqual({

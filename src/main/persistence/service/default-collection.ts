@@ -1,5 +1,6 @@
 import { Collection } from 'shim/objects/collection';
 import { RequestBodyType } from 'shim/objects/request';
+import { parseUrl } from 'shim/objects/url';
 import { RequestMethod } from 'shim/objects/request-method';
 import { randomUUID } from 'node:crypto';
 
@@ -33,10 +34,9 @@ export function generateDefaultCollection(dirPath: string): Collection {
         parentId: collectionId,
         type: 'request',
         title: 'Example Request',
-        url: 'https://github.com/EXXETA/trufos/raw/main/README.md',
+        url: parseUrl('https://echo.free.beeceptor.com'),
         method: RequestMethod.GET,
         headers: [],
-        queryParams: [],
         body: {
           type: RequestBodyType.TEXT,
           mimeType: 'text/plain',
@@ -54,10 +54,9 @@ export function generateDefaultCollection(dirPath: string): Collection {
             parentId: folderId,
             type: 'request',
             title: 'Another Request',
-            url: 'https://exxeta.com/',
+            url: parseUrl('https://exxeta.com/'),
             method: RequestMethod.GET,
             headers: [],
-            queryParams: [],
             body: {
               type: RequestBodyType.TEXT,
               mimeType: 'application/json',
