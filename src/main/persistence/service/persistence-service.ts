@@ -84,7 +84,7 @@ export class PersistenceService {
    * @param object trufos object to be renamed
    * @param title new title of the object
    */
-  public async rename(object: Folder | TrufosRequest, title: string) {
+  public async rename(object: Folder | TrufosRequest | Collection, title: string) {
     object.title = title;
     const oldDirPath = this.getOrCreateDirPath(object);
     this.idToPathMap.delete(object.id); // force recreation of path after rename

@@ -34,6 +34,7 @@ eventService.on('before-close', async () => {
 interface CollectionState {
   /** The currently selected collection */
   collection?: Omit<Collection, 'variables' | 'environments'>;
+  defaultCollection?: Omit<Collection, 'variables' | 'environments'>;
 
   /** A map of all requests in the collection */
   requests: Map<TrufosRequest['id'], TrufosRequest>;
@@ -376,6 +377,35 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         if (isRequest(object)) {
           object.draft = true;
         }
+      });
+    },
+
+    closeCollection: async (dirPath?: string) => {
+      const { initialize, collection: activeCollection } = get();
+      const targetPath = dirPath ?? activeCollection?.dirPath;
+
+      if (!targetPath) {
+        console.warn('No collection path provided or active collection found.');
+        return;
+      }
+
+      console.info('Closing collection at', targetPath);
+
+      const closedCollection = await eventService.closeCollection(targetPath);
+
+      const nextCollection = closedCollection ?? activeCollection;
+
+      initialize(nextCollection);
+    },
+
+    renameCollection: async (title: string) => {
+      const current = get().collection;
+      if (!current) return;
+
+      await eventService.rename(current, title);
+
+      set((state) => {
+        state.collection.title = title;
       });
     },
   }))
