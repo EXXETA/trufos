@@ -61,7 +61,7 @@ export default function CollectionDropdown() {
         console.info('Creating collection at', result.filePaths[0]);
 
         await changeCollection(
-          await eventService.createCollection(result.filePaths[0], result.filePaths[0])
+          await eventService.createCollection(result.filePaths[0], 'New Collection')
         );
       }
       await loadCollections();

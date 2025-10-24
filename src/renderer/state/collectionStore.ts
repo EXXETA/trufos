@@ -381,25 +381,19 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     },
 
     closeCollection: async (dirPath?: string) => {
-      const { initialize, collection: activeCollection, defaultCollection } = get();
+      const { initialize, collection: activeCollection } = get();
       const targetPath = dirPath ?? activeCollection?.dirPath;
 
-      if (defaultCollection && targetPath === defaultCollection.dirPath) {
-        console.warn('Default collection cannot be closed');
+      if (!targetPath) {
+        console.warn('No collection path provided or active collection found.');
         return;
       }
 
       console.info('Closing collection at', targetPath);
 
-      const currentCollection = await eventService.closeCollection(targetPath);
+      const closedCollection = await eventService.closeCollection(targetPath);
 
-      const nextCollection = currentCollection ?? defaultCollection ?? activeCollection;
-
-      if (!currentCollection) {
-        console.warn(
-          'Closed collection not returned, falling back to default/previous collection.'
-        );
-      }
+      const nextCollection = closedCollection ?? activeCollection;
 
       initialize(nextCollection);
     },
@@ -408,7 +402,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
       const current = get().collection;
       if (!current) return;
 
-      await eventService.rename(get().collection, title);
+      await eventService.rename(current, title);
 
       set((state) => {
         state.collection.title = title;
