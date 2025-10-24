@@ -2,6 +2,7 @@ import { HttpService } from './http-service';
 import { MockAgent } from 'undici';
 import fs from 'node:fs';
 import { TrufosRequest } from 'shim/objects/request';
+import { parseUrl, TrufosURL } from 'shim/objects/url';
 import { randomUUID } from 'node:crypto';
 import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
@@ -31,11 +32,10 @@ describe('HttpService', () => {
       parentId: randomUUID(),
       type: 'request',
       title: 'Test Request',
-      url: url.toString(),
+      url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [],
       body: null,
-      queryParams: [],
     };
 
     // Act
@@ -70,11 +70,10 @@ describe('HttpService', () => {
       parentId: randomUUID(),
       type: 'request',
       title: 'Test Request',
-      url: url.toString(),
+      url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [],
       body: null,
-      queryParams: [],
     };
 
     // Act
@@ -98,11 +97,10 @@ describe('HttpService', () => {
       parentId: randomUUID(),
       type: 'request',
       title: 'Test Authenticated Request',
-      url: url.toString(),
+      url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [],
       body: null,
-      queryParams: [],
       auth: { type: AuthorizationType.BASIC, username, password },
     };
     const httpService = setupMockHttpService(url, null);
@@ -128,11 +126,10 @@ describe('HttpService', () => {
       parentId: randomUUID(),
       type: 'request',
       title: 'Test Authenticated Request',
-      url: url.toString(),
+      url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [{ key: 'Authorization', value: authorizationValue, isActive: true }],
       body: null,
-      queryParams: [],
       auth: { type: AuthorizationType.BASIC, username, password },
     };
     const httpService = setupMockHttpService(url, null);
@@ -170,11 +167,10 @@ describe('HttpService', () => {
       parentId: randomUUID(),
       type: 'request',
       title: 'Variable URL Request',
-      url: rawUrl,
+      url: parseUrl(rawUrl),
       method: RequestMethod.GET,
       headers: [],
       body: null,
-      queryParams: [],
     };
 
     // Act
@@ -208,14 +204,13 @@ describe('HttpService', () => {
       parentId: randomUUID(),
       type: 'request',
       title: 'Header Variable Request',
-      url: 'https://example.com/test',
+      url: parseUrl(finalUrl.toString()),
       method: RequestMethod.GET,
       headers: [
         { key: 'X-Api-Version', value: '{{ apiVersion }}', isActive: true },
         { key: 'Authorization', value: 'Bearer {{ token }}', isActive: true },
       ],
       body: null,
-      queryParams: [],
     };
 
     // Act
@@ -250,14 +245,13 @@ describe('HttpService', () => {
       parentId: randomUUID(),
       type: 'request',
       title: 'Multi Header Variable Request',
-      url: 'https://example.com/multi',
+      url: parseUrl('https://example.com/multi'),
       method: RequestMethod.GET,
       headers: [
         { key: 'X-Trace-Id', value: '{{ trace1 }}', isActive: true },
         { key: 'X-Trace-Id', value: '{{ trace2 }}', isActive: true },
       ],
       body: null,
-      queryParams: [],
     };
 
     // Act

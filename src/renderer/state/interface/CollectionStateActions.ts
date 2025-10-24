@@ -2,7 +2,7 @@ import { editor } from 'monaco-editor';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
-import { TrufosQueryParam } from 'shim/objects/query-param';
+import { TrufosQueryEntry } from 'shim/objects/url';
 import { RequestBody, TrufosRequest } from 'shim/objects/request';
 
 export interface CollectionStateActions {
@@ -105,7 +105,7 @@ export interface CollectionStateActions {
    * @param index The index of the query parameter to update
    * @param updatedParam The new query parameter content
    */
-  updateQueryParam(index: number, updatedParam: Partial<TrufosQueryParam>): void;
+  updateQueryParam(index: number, updatedParam: Partial<TrufosQueryEntry>): void;
 
   /**
    * Delete a query parameter from the currently selected request

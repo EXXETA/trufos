@@ -12,6 +12,7 @@ import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-4-0';
 import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { TrufosURL } from 'shim/objects/url';
 
 export const VERSION = new SemVer(2, 0, 0);
 
@@ -23,7 +24,7 @@ type InfoFileBase = {
 };
 
 export type RequestInfoFile = InfoFileBase & {
-  url: string;
+  url: TrufosURL;
   method: RequestMethod;
   headers: TrufosHeader[];
   body: RequestBody;
