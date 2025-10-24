@@ -2,7 +2,7 @@ import { editor } from 'monaco-editor';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
-import { TrufosQueryEntry } from 'shim/objects/url';
+import { TrufosQuery } from 'shim/objects/query';
 import { RequestBody, TrufosRequest } from 'shim/objects/request';
 
 export interface CollectionStateActions {
@@ -105,7 +105,7 @@ export interface CollectionStateActions {
    * @param index The index of the query parameter to update
    * @param updatedParam The new query parameter content
    */
-  updateQueryParam(index: number, updatedParam: Partial<TrufosQueryEntry>): void;
+  updateQueryParam(index: number, updatedParam: Partial<TrufosQuery>): void;
 
   /**
    * Delete a query parameter from the currently selected request
@@ -121,8 +121,9 @@ export interface CollectionStateActions {
   /**
    * Toggle the active state of a query parameter
    * @param index The index of the query parameter to toggle
+   * @param active OPTIONAL: If set, the query parameter will be set to this active state instead of toggling it
    */
-  toggleQueryParam(index: number): void;
+  setQueryParamActive(index: number, active?: boolean): void;
 
   /**
    * Set the draft flag on the currently selected request
