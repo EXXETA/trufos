@@ -23,7 +23,7 @@ export const NamingModal = ({ createType, trufosObject, onClose }: NamingModalPr
   const [name, setName] = useState(createType ? '' : trufosObject?.title);
   const { renameFolder, renameRequest, addNewRequest, addNewFolder } = useCollectionActions();
 
-  const handleSave = async () => {
+  const handleSave = () => {
     onClose();
     if (createType) {
       if (createType === 'folder') {
