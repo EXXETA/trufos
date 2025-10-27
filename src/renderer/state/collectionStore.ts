@@ -225,53 +225,58 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     addHeader: () =>
       set((state) => {
         selectHeaders(state).push({ key: '', value: '', isActive: true });
+        selectRequest(state).draft = true;
       }),
 
     updateHeader: (index, updatedHeader) =>
       set((state) => {
         const headers = selectHeaders(state);
         headers[index] = { ...headers[index], ...updatedHeader };
+        selectRequest(state).draft = true;
       }),
 
     deleteHeader: (index) =>
       set((state) => {
         selectHeaders(state).splice(index, 1);
+        selectRequest(state).draft = true;
       }),
 
     clearHeaders: () =>
       set((state) => {
         selectRequest(state).headers = [];
+        selectRequest(state).draft = true;
       }),
 
     addQueryParam: () =>
       set((state) => {
         selectQueryParams(state).push({ key: '', value: '', isActive: true });
+        selectRequest(state).draft = true;
       }),
 
     updateQueryParam: (index, updatedParam) =>
       set((state) => {
         const queryParam = selectQueryParam(state, index);
-        if (queryParam) {
-          selectQueryParams(state)[index] = { ...queryParam, ...updatedParam };
-        }
+        selectQueryParams(state)[index] = { ...queryParam, ...updatedParam };
+        selectRequest(state).draft = true;
       }),
 
     deleteQueryParam: (index) =>
       set((state) => {
         selectQueryParams(state).splice(index, 1);
+        selectRequest(state).draft = true;
       }),
 
     clearQueryParams: () =>
       set((state) => {
         selectRequest(state).url.query = [];
+        selectRequest(state).draft = true;
       }),
 
     setQueryParamActive: (index, isActive) =>
       set((state) => {
         const queryParam = selectQueryParam(state, index);
-        if (queryParam) {
-          queryParam.isActive = isActive ?? !queryParam.isActive;
-        }
+        queryParam.isActive = isActive ?? !queryParam.isActive;
+        selectRequest(state).draft = true;
       }),
 
     setDraftFlag: () =>
