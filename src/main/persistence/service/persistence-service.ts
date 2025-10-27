@@ -301,6 +301,7 @@ export class PersistenceService {
       await fs.rmdir(draftDirPath);
     }
 
+    request.draft = false;
     return request;
   }
 
