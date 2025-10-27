@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -41,10 +41,9 @@ export const SidebarHeaderBar = () => {
 
       {modalState.isOpen && (
         <NamingModal
-          isOpen={modalState.isOpen}
           trufosObject={collection as Collection}
           createType={modalState.type}
-          onClose={(open) => setModalState({ isOpen: open, type: modalState.type })}
+          onClose={() => setModalState({ isOpen: false, type: null })}
         />
       )}
     </div>
