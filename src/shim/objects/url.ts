@@ -16,10 +16,11 @@ export interface TrufosURL {
  */
 export function parseUrl(full: string): TrufosURL {
   const [base, queryString] = full.split('?', 2);
-  const query = new URLSearchParams(queryString)
-    .entries()
-    .map(([key, value]) => ({ key, value, isActive: true }))
-    .toArray();
+  const query = (queryString ?? '')
+    .split('&')
+    .filter((part) => part.length > 0)
+    .map((part) => part.split('=', 2))
+    .map(([key, value]) => ({ key, value, isActive: true }));
   return { base, query };
 }
 
@@ -28,10 +29,11 @@ export function parseUrl(full: string): TrufosURL {
  * @param url the {@link TrufosURL} object
  */
 export function buildUrl(url: TrufosURL): string {
-  const params = new URLSearchParams(
-    url.query.filter((q) => q.isActive).map((q) => [q.key, q.value])
-  );
-  return params.size === 0 ? url.base : `${url.base}?${params}`;
+  const params = url.query
+    .filter((q) => q.isActive)
+    .map((q) => `${q.key}${q.value != null ? '=' : ''}${q.value ?? ''}`)
+    .join('&');
+  return params.length === 0 ? url.base : `${url.base}?${params}`;
 }
 
 /**

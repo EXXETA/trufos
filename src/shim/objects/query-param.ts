@@ -1,5 +1,5 @@
 export type TrufosQueryParam = {
   key: string;
-  value: string;
+  value?: string;
   isActive: boolean;
 };

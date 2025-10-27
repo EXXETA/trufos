@@ -61,7 +61,7 @@ export const ParamsTab = () => {
                   <TableCell className="w-1/3 break-all">
                     <input
                       type="text"
-                      value={param?.key}
+                      value={param.key}
                       onChange={(e) => updateQueryParam(index, { key: e.target.value })}
                       className="w-full bg-transparent outline-hidden"
                       placeholder="Enter param key"
@@ -71,7 +71,7 @@ export const ParamsTab = () => {
                   <TableCell className="w-full break-all">
                     <input
                       type="text"
-                      value={param?.value}
+                      value={param.value}
                       onChange={(e) => updateQueryParam(index, { value: e.target.value })}
                       className="w-full bg-transparent outline-hidden"
                       placeholder="Enter param value"
@@ -83,17 +83,18 @@ export const ParamsTab = () => {
                       <div className="relative z-10 h-4 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={param?.isActive}
+                          checked={param.isActive}
                           onChange={(e) => setQueryParamActive(index, e.target.checked)}
                           className={cn(
                             'form-checkbox h-4 w-4 appearance-none rounded-[2px] border',
-                            param?.isActive
-                              ? 'border-accent-primary bg-accent-tertiary'
-                              : 'border-text-primary bg-transparent'
+                            {
+                              'border-accent-primary bg-accent-tertiary': param.isActive,
+                              'border-text-primary bg-transparent': !param.isActive,
+                            }
                           )}
                         />
 
-                        {param?.isActive && (
+                        {param.isActive && (
                           <div
                             className={
                               'pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center'
