@@ -33,8 +33,8 @@ export class PostmanImporter implements CollectionImporter {
             variable.id,
             {
               value: variable.toString(),
-            },
-          ] as [string, VariableObject]
+            } as VariableObject,
+          ] as const
       );
     logger.info('Loaded', variablesArray.length, 'collection variables');
 

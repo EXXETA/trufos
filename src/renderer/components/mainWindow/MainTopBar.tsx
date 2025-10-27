@@ -25,9 +25,7 @@ export function MainTopBar() {
   const request = useCollectionStore(selectRequest);
   const { url, method } = request;
 
-  const handleUrlChange = (url: TrufosURL) => {
-    updateRequest({ url });
-  };
+  const handleUrlChange = (url: TrufosURL) => updateRequest({ url });
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
 
   const sendRequest = useCallback(

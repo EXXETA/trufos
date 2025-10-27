@@ -1,4 +1,4 @@
-import { TrufosQuery } from './query';
+import { TrufosQueryParam } from './query-param';
 
 /**
  * Unified URL abstraction used in requests. It contains the base (without query string) and the query entries with potential multi-values.
@@ -7,7 +7,7 @@ export interface TrufosURL {
   /** URL without any query string */
   base: string;
   /** Query parameters (duplicate keys allowed) */
-  query: TrufosQuery[];
+  query: TrufosQueryParam[];
 }
 
 /**
