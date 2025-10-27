@@ -31,12 +31,7 @@ describe('NamingModal creation behavior', () => {
     };
 
     const { getByPlaceholderText, getByText } = render(
-      <NamingModal
-        createType="request"
-        isOpen={true}
-        trufosObject={parentFolder}
-        setOpen={() => {}}
-      />
+      <NamingModal createType="request" trufosObject={parentFolder} onClose={() => {}} />
     );
 
     const input = getByPlaceholderText('Enter the request name') as HTMLInputElement;

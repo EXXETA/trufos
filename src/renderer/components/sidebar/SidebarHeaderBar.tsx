@@ -44,7 +44,7 @@ export const SidebarHeaderBar = () => {
           isOpen={modalState.isOpen}
           trufosObject={collection as Collection}
           createType={modalState.type}
-          setOpen={(open) => setModalState({ isOpen: open, type: modalState.type })}
+          onClose={(open) => setModalState({ isOpen: open, type: modalState.type })}
         />
       )}
     </div>
