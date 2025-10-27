@@ -28,12 +28,56 @@ describe('TrufosUrl', () => {
         ],
       },
     ],
+    [
+      'http://example.com?',
+      {
+        base: 'http://example.com',
+        query: [{ key: '', value: undefined, isActive: true }],
+      },
+    ],
   ])('parseUrl($0) should parse correctly', (input, expected) => {
     // Act
     const result = parseUrl(input);
 
     // Assert
     expect(result).toEqual(expected);
+  });
+
+  it.each<[TrufosURL, string]>([
+    [
+      { base: 'http://example.com', query: [{ key: 'foo', value: 'bar', isActive: true }] },
+      'http://example.com?foo=bar',
+    ],
+    [
+      {
+        base: 'http://example.com',
+        query: [],
+      },
+      'http://example.com',
+    ],
+    [
+      {
+        base: 'http://example.com',
+        query: [{ key: '', value: undefined, isActive: true }],
+      },
+      'http://example.com?',
+    ],
+    [
+      {
+        base: 'http://example.com',
+        query: [
+          { key: 'foo', value: 'bar', isActive: false },
+          { key: 'baz', value: 'qux', isActive: true },
+        ],
+      },
+      'http://example.com?baz=qux',
+    ],
+  ])('buildUrl() should build correct URL string', (url, expected) => {
+    // Act
+    const result = buildUrl(url);
+
+    // Assert
+    expect(result).toBe(expected);
   });
 
   it.each<[TrufosURL, TrufosURL, boolean]>([

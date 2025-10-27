@@ -15,25 +15,27 @@ export interface TrufosURL {
  * @param full the full URL string
  */
 export function parseUrl(full: string): TrufosURL {
-  const [base, queryString] = full.split('?', 2);
-  const query = (queryString ?? '')
+  const index = full.indexOf('?');
+  if (index === -1) return { base: full, query: [] };
+
+  const query = full
+    .substring(index + 1)
     .split('&')
-    .filter((part) => part.length > 0)
     .map((part) => part.split('=', 2))
     .map(([key, value]) => ({ key, value, isActive: true }));
-  return { base, query };
+  return { base: full.substring(0, index), query };
 }
 
 /**
  * Serialize a TrufosURL into a string. Inactive query entries are skipped.
  * @param url the {@link TrufosURL} object
  */
-export function buildUrl(url: TrufosURL): string {
-  const params = url.query
+export function buildUrl({ base, query }: TrufosURL): string {
+  const params = query
     .filter((q) => q.isActive)
-    .map((q) => `${q.key}${q.value != null ? '=' : ''}${q.value ?? ''}`)
+    .map(({ key, value }) => (value == null ? key : `${key}=${value}`))
     .join('&');
-  return params.length === 0 ? url.base : `${url.base}?${params}`;
+  return query.length === 0 ? base : `${base}?${params}`;
 }
 
 /**
