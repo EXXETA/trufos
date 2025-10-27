@@ -9,7 +9,7 @@ export type TrufosRequest = {
   parentId: string;
   type: 'request';
   title: string;
-  url: TrufosURL; // unified URL abstraction
+  url: TrufosURL;
   method: RequestMethod;
   headers: TrufosHeader[];
   body: RequestBody;
