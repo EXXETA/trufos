@@ -34,7 +34,6 @@ eventService.on('before-close', async () => {
 interface CollectionState {
   /** The currently selected collection */
   collection?: Omit<Collection, 'variables' | 'environments'>;
-  defaultCollection?: Omit<Collection, 'variables' | 'environments'>;
 
   /** A map of all requests in the collection */
   requests: Map<TrufosRequest['id'], TrufosRequest>;
