@@ -145,6 +145,7 @@ export interface IEventService {
    * @param srcFilePath The path to the collection export file (e.g. Postman JSON file).
    * @param targetDirPath The existing directory that will contain the imported collection directory.
    * @param strategy The import strategy / tool the file originates from.
+   * @param title
    */
   importCollection(
     srcFilePath: string,

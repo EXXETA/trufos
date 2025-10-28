@@ -15,7 +15,7 @@ const Icon: FC<IconProps> = ({
   ...props
 }) => {
   return (
-    <svg width={size} height={size} fill={color} viewBox={viewBox} {...props}>
+    <svg width={size} height={size} fill={color} color={color} viewBox={viewBox} {...props}>
       {children}
     </svg>
   );

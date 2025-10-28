@@ -29,12 +29,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
 }) => {
   const [theme, setTheme] = useState<Theme>(defaultTheme);
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme;
-    if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
-      setTheme(savedTheme);
-    }
-  }, []);
+  // TODO: needs to be refactored
+  // useEffect(() => {
+  //   const savedTheme = localStorage.getItem('theme') as Theme;
+  //   if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+  //     setTheme(savedTheme);
+  //   }
+  // }, []);
 
   useEffect(() => {
     const root = document.documentElement;

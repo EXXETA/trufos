@@ -184,4 +184,21 @@ export interface CollectionStateActions {
     object: T,
     updatedFields?: Partial<T['auth']> | null
   ): void;
+
+  /**
+   * Rename the currently opened collection.
+   *
+   * @param title The new title of the collection.
+   */
+  renameCollection(title: string): Promise<void>;
+
+  /**
+   * Close the currently opened collection.
+   * This will clear the current collection from memory
+   * and reset related state in the application, but will not
+   * delete the collection from the file system.
+   *
+   * @param dirPath Optional path of the collection to close.
+   */
+  closeCollection(dirPath?: string): Promise<void>;
 }
