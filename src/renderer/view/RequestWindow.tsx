@@ -17,7 +17,7 @@ export function RequestWindow() {
 
   if (!requestSelected) {
     return (
-      <div className="flex flex-auto flex-col items-center justify-center p-6">
+      <div className="flex h-full w-full flex-col items-center justify-center p-6">
         <EmptyWildWest />
         <span className="mt-2 text-center">
           <a
