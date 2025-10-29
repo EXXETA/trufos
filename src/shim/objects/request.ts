@@ -1,7 +1,7 @@
 import { AuthorizationInformation } from './auth';
-import { TrufosHeader } from './headers';
-import { TrufosQueryParam } from './query-param';
 import { RequestMethod } from './request-method';
+import { TrufosURL } from './url';
+import { TrufosHeader } from './headers';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 export type TrufosRequest = {
@@ -9,10 +9,9 @@ export type TrufosRequest = {
   parentId: string;
   type: 'request';
   title: string;
-  url: string;
+  url: TrufosURL;
   method: RequestMethod;
   headers: TrufosHeader[];
-  queryParams: TrufosQueryParam[];
   body: RequestBody;
   draft?: boolean;
   auth?: AuthorizationInformation;

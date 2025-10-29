@@ -15,7 +15,7 @@ interface NavFolderProps {
 
 export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
   const { setFolderOpen, setFolderClose } = useCollectionActions();
-  const isFolderOpen = useCollectionStore((state) => state.openFolders.has(folderId));
+  const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
   const children = useCollectionStore((state) => selectFolder(state, folderId).children);
   if (folder.type !== 'folder') return null;

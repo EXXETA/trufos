@@ -1,4 +1,3 @@
-import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
 import { Divider } from '@/components/shared/Divider';
@@ -11,151 +10,32 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { TrufosQueryParam } from 'shim/objects/query-param';
-import { getQueryParamsFromUrl } from '@/util/query-util';
-import { shallowEqual } from '@/util/object-util';
+import {
+  selectQueryParams,
+  useCollectionActions,
+  useCollectionStore,
+} from '@/state/collectionStore';
 
 export const ParamsTab = () => {
-  const [isActiveStateUpdating, setIsActiveStateUpdating] = useState<boolean>(false);
-
   const {
-    updateRequest,
     addQueryParam,
     updateQueryParam,
     clearQueryParams,
     deleteQueryParam,
-    toggleQueryParam,
+    setQueryParamActive,
   } = useCollectionActions();
 
-  const queryParams = useCollectionStore((state) => selectRequest(state).queryParams);
-
-  const request = useCollectionStore(selectRequest);
-  const requestUrl = request?.url;
-
-  const queryParamsFromUrl = useMemo(() => getQueryParamsFromUrl(requestUrl), [requestUrl]);
-
-  useEffect(() => {
-    if (isActiveStateUpdating) {
-      const currentParams = queryParams || [];
-
-      if (!shallowEqual(queryParamsFromUrl, currentParams)) {
-        updateRequest({ queryParams: currentParams });
-      }
-
-      setIsActiveStateUpdating(false);
-    } else {
-      const currentParams = queryParams || [];
-      const inactiveParams = currentParams.filter((param) => !param.isActive);
-
-      const mergedParams = [...queryParamsFromUrl, ...inactiveParams];
-
-      if (!shallowEqual(mergedParams, currentParams)) {
-        updateRequest({
-          queryParams: mergedParams,
-        });
-      }
-    }
-  }, [queryParamsFromUrl]);
-
-  const buildUrl = (activeParams: TrufosQueryParam[]) => {
-    try {
-      const url = new URL(requestUrl);
-
-      url.search = '';
-
-      activeParams.forEach(({ key, value, isActive }) => {
-        if (isActive && key) {
-          if (typeof value === 'string') {
-            url.searchParams.append(key, value);
-          }
-        }
-      });
-
-      return url.toString();
-    } catch (error) {
-      console.error('Error building URL:', error);
-      return requestUrl;
-    }
-  };
-
-  const handleAddQueryParam = () => {
-    addQueryParam();
-  };
-
-  const handleUpdateQueryParam = (index: number, field: 'key' | 'value', value: string) => {
-    setIsActiveStateUpdating(true);
-
-    const updatedParams = queryParams.map((param, i) =>
-      i === index ? { ...param, [field]: value } : param
-    );
-
-    const newBuiltUrl = buildUrl(updatedParams);
-
-    if (newBuiltUrl !== requestUrl) {
-      updateRequest({ url: newBuiltUrl });
-    }
-
-    updateQueryParam(index, { [field]: value });
-  };
-
-  const handleDeleteQueryParam = (index: number) => {
-    const updatedParams = queryParams.filter((_, i) => i !== index);
-
-    const newBuiltUrl = buildUrl(updatedParams);
-
-    if (newBuiltUrl !== requestUrl) {
-      updateRequest({ url: newBuiltUrl });
-    }
-
-    deleteQueryParam(index);
-  };
-
-  const handleDeleteAllParams = () => {
-    const newBuiltUrl = buildUrl([]);
-
-    if (newBuiltUrl !== requestUrl) {
-      updateRequest({ url: newBuiltUrl });
-    }
-
-    clearQueryParams();
-  };
-
-  const handleToggleQueryParam = (index: number) => {
-    setIsActiveStateUpdating(true);
-
-    const currentParams = queryParams || [];
-
-    const updatedParams = currentParams.map((param, i) => {
-      return i === index ? { ...param, isActive: !param.isActive } : param;
-    });
-
-    const newBuiltUrl = buildUrl(updatedParams);
-
-    updateRequest({ url: newBuiltUrl });
-
-    toggleQueryParam(index);
-  };
+  const queryParams = useCollectionStore(selectQueryParams);
 
   return (
     <div className="relative h-full p-4">
-      <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
+      <div className="absolute top-4 right-4 left-4 z-10">
         <div className="flex">
-          <Button
-            className="h-fit gap-1"
-            size={'sm'}
-            variant={'ghost'}
-            onClick={handleAddQueryParam}
-          >
+          <Button className="h-fit gap-1" size="sm" variant="ghost" onClick={addQueryParam}>
             <AddIcon />
             Add Query Param
           </Button>
-          <Button
-            className="h-fit gap-1"
-            size={'sm'}
-            variant={'ghost'}
-            onClick={handleDeleteAllParams}
-          >
+          <Button className="h-fit gap-1" size="sm" variant="ghost" onClick={clearQueryParams}>
             <DeleteIcon />
             Delete All
           </Button>
@@ -164,7 +44,7 @@ export const ParamsTab = () => {
         <Divider className="mt-2" />
       </div>
 
-      <div className="absolute top-[68px] right-[16px] bottom-[16px] left-[16px]">
+      <div className="absolute top-[68px] right-4 bottom-4 left-4">
         <div className="pb-4">
           <Table className="w-full table-auto">
             <TableHeader>
@@ -176,13 +56,13 @@ export const ParamsTab = () => {
             </TableHeader>
 
             <TableBody>
-              {queryParams?.map((param, index) => (
+              {queryParams.map((param, index) => (
                 <TableRow key={index}>
                   <TableCell className="w-1/3 break-all">
                     <input
                       type="text"
-                      value={param?.key}
-                      onChange={(e) => handleUpdateQueryParam(index, 'key', e.target.value)}
+                      value={param.key}
+                      onChange={(e) => updateQueryParam(index, { key: e.target.value })}
                       className="w-full bg-transparent outline-hidden"
                       placeholder="Enter param key"
                     />
@@ -191,8 +71,8 @@ export const ParamsTab = () => {
                   <TableCell className="w-full break-all">
                     <input
                       type="text"
-                      value={param?.value}
-                      onChange={(e) => handleUpdateQueryParam(index, 'value', e.target.value)}
+                      value={param.value}
+                      onChange={(e) => updateQueryParam(index, { value: e.target.value })}
                       className="w-full bg-transparent outline-hidden"
                       placeholder="Enter param value"
                     />
@@ -203,17 +83,18 @@ export const ParamsTab = () => {
                       <div className="relative z-10 h-4 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={param?.isActive}
-                          onChange={() => handleToggleQueryParam(index)}
+                          checked={param.isActive}
+                          onChange={(e) => setQueryParamActive(index, e.target.checked)}
                           className={cn(
                             'form-checkbox h-4 w-4 appearance-none rounded-[2px] border',
-                            param?.isActive
-                              ? 'border-accent-primary bg-accent-tertiary'
-                              : 'border-text-primary bg-transparent'
+                            {
+                              'border-accent-primary bg-accent-tertiary': param.isActive,
+                              'border-text-primary bg-transparent': !param.isActive,
+                            }
                           )}
                         />
 
-                        {param?.isActive && (
+                        {param.isActive && (
                           <div
                             className={
                               'pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center'
@@ -232,7 +113,7 @@ export const ParamsTab = () => {
                         variant="ghost"
                         size="icon"
                         className="hover:text-accent-primary active:text-accent-secondary h-6 w-6 hover:bg-transparent"
-                        onClick={() => handleDeleteQueryParam(index)}
+                        onClick={() => deleteQueryParam(index)}
                       >
                         <DeleteIcon />
                       </Button>

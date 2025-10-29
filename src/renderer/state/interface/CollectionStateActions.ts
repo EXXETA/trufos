@@ -121,8 +121,9 @@ export interface CollectionStateActions {
   /**
    * Toggle the active state of a query parameter
    * @param index The index of the query parameter to toggle
+   * @param active OPTIONAL: If set, the query parameter will be set to this active state instead of toggling it
    */
-  toggleQueryParam(index: number): void;
+  setQueryParamActive(index: number, active?: boolean): void;
 
   /**
    * Set the draft flag on the currently selected request

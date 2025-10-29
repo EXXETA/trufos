@@ -14,6 +14,7 @@ import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { parseUrl } from 'shim/objects/url';
 
 const eventService = RendererEventService.instance;
 eventService.on('before-close', async () => {
@@ -101,7 +102,7 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
 
     addNewRequest: async (title, parentId) => {
       const request = await eventService.saveRequest({
-        url: 'http://',
+        url: parseUrl('http://'),
         method: RequestMethod.GET,
         draft: true,
         id: null,
@@ -109,7 +110,6 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
         type: 'request',
         title: title ?? (Math.random() + 1).toString(36).substring(7),
         headers: [],
-        queryParams: [],
         body: {
           type: RequestBodyType.TEXT,
           mimeType: 'text/plain',
@@ -225,66 +225,58 @@ export const useCollectionStore = create<CollectionState & CollectionStateAction
     addHeader: () =>
       set((state) => {
         selectHeaders(state).push({ key: '', value: '', isActive: true });
+        selectRequest(state).draft = true;
       }),
 
     updateHeader: (index, updatedHeader) =>
       set((state) => {
         const headers = selectHeaders(state);
         headers[index] = { ...headers[index], ...updatedHeader };
+        selectRequest(state).draft = true;
       }),
 
     deleteHeader: (index) =>
       set((state) => {
-        const headers = selectHeaders(state);
-        headers.splice(index, 1);
-        if (selectRequest(state).headers.length === 0) {
-          state.addHeader();
-        }
+        selectHeaders(state).splice(index, 1);
+        selectRequest(state).draft = true;
       }),
 
     clearHeaders: () =>
       set((state) => {
-        const request = selectRequest(state);
-        request.headers = [];
-        state.addHeader();
+        selectRequest(state).headers = [];
+        selectRequest(state).draft = true;
       }),
 
     addQueryParam: () =>
       set((state) => {
         selectQueryParams(state).push({ key: '', value: '', isActive: true });
+        selectRequest(state).draft = true;
       }),
 
     updateQueryParam: (index, updatedParam) =>
       set((state) => {
-        const queryParams = selectQueryParams(state);
-
-        if (queryParams[index]) {
-          queryParams[index] = { ...queryParams[index], ...updatedParam };
-        }
+        const queryParam = selectQueryParam(state, index);
+        selectQueryParams(state)[index] = { ...queryParam, ...updatedParam };
+        selectRequest(state).draft = true;
       }),
 
     deleteQueryParam: (index) =>
       set((state) => {
-        const queryParams = selectQueryParams(state);
-        queryParams.splice(index, 1);
-        if (selectRequest(state).queryParams.length === 0) {
-          state.addQueryParam();
-        }
+        selectQueryParams(state).splice(index, 1);
+        selectRequest(state).draft = true;
       }),
 
     clearQueryParams: () =>
       set((state) => {
-        const request = selectRequest(state);
-        request.queryParams = [];
-        state.addQueryParam();
+        selectRequest(state).url.query = [];
+        selectRequest(state).draft = true;
       }),
 
-    toggleQueryParam: (index) =>
+    setQueryParamActive: (index, isActive) =>
       set((state) => {
-        const queryParams = selectQueryParams(state);
-        if (queryParams[index]) {
-          queryParams[index].isActive = !queryParams[index].isActive;
-        }
+        const queryParam = selectQueryParam(state, index);
+        queryParam.isActive = isActive ?? !queryParam.isActive;
+        selectRequest(state).draft = true;
       }),
 
     setDraftFlag: () =>
@@ -414,8 +406,6 @@ const selectParent = (state: CollectionState, parentId: string) => {
   if (state.collection.id === parentId) return state.collection;
   return state.folders.get(parentId)!;
 };
-const selectHeaders = (state: CollectionState) => selectRequest(state)?.headers;
-const selectQueryParams = (state: CollectionState) => selectRequest(state)?.queryParams;
 const selectObject = <T extends TrufosObject>(state: CollectionState, object: T) =>
   isCollection(object)
     ? (state.collection as T)
@@ -423,6 +413,10 @@ const selectObject = <T extends TrufosObject>(state: CollectionState, object: T)
       ? (selectRequest(state, object.id) as T)
       : (selectFolder(state, object.id) as T);
 
+export const selectHeaders = (state: CollectionState) => selectRequest(state).headers;
+export const selectQueryParams = (state: CollectionState) => selectRequest(state).url.query;
+const selectQueryParam = (state: CollectionState, index: number) =>
+  selectQueryParams(state)?.[index];
 export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) =>
   state.requests.get(requestId ?? state.selectedRequestId);
 export const selectFolder = (state: CollectionState, folderId: Folder['id']) =>

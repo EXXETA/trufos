@@ -54,8 +54,6 @@ const OLD_SECRETS_FILE_NAME = '~secrets.json.bin';
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  public readonly mustSaveFile = true;
-
   async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
     const dirPath = path.dirname(filePath);
     if (type === 'collection') {
