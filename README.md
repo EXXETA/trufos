@@ -1,7 +1,7 @@
 [![CI Pipeline](https://github.com/EXXETA/trufos/actions/workflows/ci.yml/badge.svg)](https://github.com/EXXETA/trufos/actions/workflows/ci.yml)
 ![GitHub contributors](https://img.shields.io/github/contributors/EXXETA/trufos)
 [![Discord](https://img.shields.io/discord/1328262093903892530?logo=discord&label=Discord&cacheSeconds=60)](https://discord.gg/sb4nfdevpW)
-![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Frufus%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
+![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Ftrufos%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
 
 <h1 align="center">Trufos - The REST Utility, free and Open Source</h1>
 <p align="center">
@@ -9,14 +9,16 @@
 </p>
 
 As many REST clients exist in the ecosystem, Trufos aims to provide an out-of-the-box experience
-that is fast, user-friendly, and customizable. Trufos intends to offer the following features:
+that is fast, user-friendly, and customizable. Below is an overview of current and planned features:
 
-- Offline usage: No registration or login required
-- Smooth handling of large request and response objects
-- Version control-friendly storage of requests and collections, facilitating easy collaboration
-- Custom handling of HTTP requests and responses via script injection
-- Support for various authentication methods, including JWT, OAuth, and basic authentication
-- Extendable plugin architecture for additional features and integrations
+| Feature                                       | Status         | Notes                                                    |
+| --------------------------------------------- | -------------- | -------------------------------------------------------- |
+| Offline usage (no registration / login)       | ✅ Implemented | Works fully offline; all data stored locally             |
+| Handling of large request & response payloads | ✅ Implemented | Minimized data kept in memory                            |
+| Version control-friendly collections          | ✅ Implemented | Collections stored as JSON for easy diff & collaboration |
+| Authentication (JWT, OAuth 2.0, Basic)        | ✅ Implemented | Supports multiple auth flows including token refresh     |
+| Scripting (custom request/response handling)  | 🛠 Planned     |                                                          |
+| Plugin architecture / extensions              | 🛠 Planned     |                                                          |
 
 **Current Development Status**: Trufos is still at an early stage of development. Be aware of this
 when using Trufos under production conditions. If you would like to contribute to this project,
@@ -24,7 +26,7 @@ please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 
 ![Screenshot nothing selected](docs/images/Screenshot-nothing-selected.png)
 
-![Screenshot Request selected](docs/images/Screenshot-Request.png)
+![Screenshot request and response with variable](docs/images/Screenshot-request-variable.png)
 
 ## Requirements
 
