@@ -17,9 +17,8 @@ interface ResponseState {
   /**
    * Format the text in the response editor.
    * This will only work if the response editor is set and the response body type is text-based.
-   * @param requestId The request ID of the request.
    */
-  formatResponseEditorText(requestId: string): Promise<void>;
+  formatResponseEditorText(): Promise<void>;
 }
 
 export const useResponseStore = create<ResponseState>()(
@@ -35,9 +34,8 @@ export const useResponseStore = create<ResponseState>()(
         delete state.responseInfoMap[requestId];
       }),
     setResponseEditor: (responseEditor) => set({ editor: responseEditor }),
-    formatResponseEditorText: async (requestId) => {
-      const state = get();
-      const responseEditor = state.editor;
+    formatResponseEditorText: async () => {
+      const responseEditor = get().editor;
       if (!responseEditor) return;
 
       try {
@@ -46,10 +44,6 @@ export const useResponseStore = create<ResponseState>()(
       } finally {
         responseEditor.updateOptions({ readOnly: true });
       }
-
-      set((state) => {
-        state.responseInfoMap[requestId].autoFormat = true;
-      });
     },
   }))
 );

@@ -1,6 +1,5 @@
 import { EventEmitter } from '@/lib/event-emitter';
-import { TrufosRequest } from 'shim/objects/request';
-import { TrufosResponse } from 'shim/objects/response';
+import { StreamInput, StringBufferEncoding } from 'shim/ipc-stream';
 
 const { ipcRenderer } = window.electron;
 
@@ -13,8 +12,6 @@ export interface IpcPushStream {
 
   on(event: 'error', listener: (error: Error) => void): this;
 }
-
-export type StreamInput = string | TrufosRequest | TrufosResponse;
 
 /**
  * A stream that can be used to push data from the main process to the renderer process.
@@ -41,12 +38,10 @@ export class IpcPushStream extends EventEmitter {
     streams.set(id, this);
   }
 
-  public static open(filePath: string): Promise<IpcPushStream>;
-  public static open(request: TrufosRequest): Promise<IpcPushStream>;
-  public static open(response: TrufosResponse): Promise<IpcPushStream>;
-
-  public static async open(input: StreamInput) {
-    return new IpcPushStream(await window.electron.ipcRenderer.invoke('stream-open', input));
+  public static async open(input: StreamInput, encoding: StringBufferEncoding) {
+    return new IpcPushStream(
+      await window.electron.ipcRenderer.invoke('stream-open', input, encoding)
+    );
   }
 
   public close() {
@@ -56,14 +51,14 @@ export class IpcPushStream extends EventEmitter {
 
   /**
    * Collect all data from the stream and return it as a single string.
-   * @param stream The stream to collect the data from.
+   * @returns The string in the configured encoding.
    */
-  public static collect(stream: IpcPushStream) {
+  public readAll() {
     const chunks = [] as string[];
-    stream.on('data', (chunk) => chunks.push(chunk));
+    this.on('data', (chunk) => chunks.push(chunk));
     return new Promise<string>((resolve, reject) => {
-      stream.on('end', () => resolve(chunks.join('')));
-      stream.on('error', (error) => reject(error));
+      this.on('end', () => resolve(chunks.join('')));
+      this.on('error', (error) => reject(error));
     });
   }
 }

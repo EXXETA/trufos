@@ -21,6 +21,14 @@ export function OutputTabs({ className }: OutputTabsProps) {
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
 
+  if (response == null) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-center">
+        <span>Send a request to get a response :)</span>
+      </div>
+    );
+  }
+
   return (
     <Tabs className={className} defaultValue="body">
       <TabsList className="flex items-center justify-between">
@@ -36,30 +44,24 @@ export function OutputTabs({ className }: OutputTabsProps) {
       </TabsContent>
 
       <TabsContent value="header" className="p-4">
-        {!response?.headers ? (
-          <div className="flex h-full w-full items-center justify-center text-center">
-            <span>Please enter URL address and click Send to get a response</span>
-          </div>
-        ) : (
-          <div className="h-0">
-            <Table className="w-full table-auto">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-auto">Key</TableHead>
-                  <TableHead className="w-full">Value</TableHead>
+        <div className="h-0">
+          <Table className="w-full table-auto">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-auto">Key</TableHead>
+                <TableHead className="w-full">Value</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(response.headers).map(([key, value]) => (
+                <TableRow key={key}>
+                  <TableCell className="w-1/3">{key}</TableCell>
+                  <TableCell>{Array.isArray(value) ? value.join(', ') : value}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Object.entries(response.headers).map(([key, value]) => (
-                  <TableRow key={key}>
-                    <TableCell className="w-1/3">{key}</TableCell>
-                    <TableCell>{Array.isArray(value) ? value.join(', ') : value}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </TabsContent>
     </Tabs>
   );
