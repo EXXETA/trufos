@@ -9,6 +9,7 @@ import { SettingsService } from './persistence/service/settings-service';
 import { once } from 'node:events';
 import process from 'node:process';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { MainEventService } from 'main/event/main-event-service';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -32,6 +33,7 @@ const createWindow = async () => {
     // initialize services in correct order
     await SettingsService.instance.init();
     await EnvironmentService.instance.init();
+    MainEventService.instance.updateApp(); // check for updates in the background
 
     // create the browser window
     const mainWindow = new BrowserWindow({
