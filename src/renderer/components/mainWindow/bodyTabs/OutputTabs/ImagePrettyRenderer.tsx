@@ -12,10 +12,8 @@ export const ImagePrettyRenderer: ResponseRenderer = ({ response }) => {
   );
 
   return (
-    <div className="absolute inset-0 flex flex-col">
-      <div className="min-h-0 flex-1 overflow-auto">
-        <img src={src} alt="Response Image" className="block w-full object-contain" />
-      </div>
+    <div className="absolute inset-0 flex min-h-0 flex-1 flex-col overflow-auto">
+      <img src={src} alt="Response Image" className="block w-full object-contain" />
     </div>
   );
 };
