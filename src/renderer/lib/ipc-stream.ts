@@ -3,39 +3,35 @@ import { StreamInput, StringBufferEncoding } from 'shim/ipc-stream';
 
 const { ipcRenderer } = window.electron;
 
-const streams = new Map<number, IpcPushStream>();
-
-export interface IpcPushStream {
-  on(event: 'data', listener: (chunk: string) => void): this;
-
-  on(event: 'end', listener: (canceled: boolean) => void): this;
-
-  on(event: 'error', listener: (error: Error) => void): this;
-}
-
 /**
  * A stream that can be used to push data from the main process to the renderer process.
  */
-export class IpcPushStream extends EventEmitter {
+export class IpcPushStream extends EventEmitter<{
+  data: (chunk: string) => void;
+  end: (canceled: boolean) => void;
+  error: (error: Error) => void;
+}> {
+  private static streams = new Map<number, IpcPushStream>();
+
   static {
     ipcRenderer.on('stream-data', (event, id: number, chunk: string) => {
-      streams.get(id)?.emit('data', chunk);
+      IpcPushStream.streams.get(id)?.emit('data', chunk);
     });
 
     ipcRenderer.on('stream-end', (event, id: number) => {
-      streams.get(id)?.emit('end', false);
-      streams.delete(id);
+      IpcPushStream.streams.get(id)?.emit('end', false);
+      IpcPushStream.streams.delete(id);
     });
 
     ipcRenderer.on('stream-error', (event, id: number, error: Error) => {
-      streams.get(id)?.emit('error', error);
-      streams.delete(id);
+      IpcPushStream.streams.get(id)?.emit('error', error);
+      IpcPushStream.streams.delete(id);
     });
   }
 
   private constructor(private readonly id: number) {
     super();
-    streams.set(id, this);
+    IpcPushStream.streams.set(id, this);
   }
 
   public static async open(input: StreamInput, encoding: StringBufferEncoding) {
@@ -45,7 +41,7 @@ export class IpcPushStream extends EventEmitter {
   }
 
   public close() {
-    streams.delete(this.id);
+    IpcPushStream.streams.delete(this.id);
     ipcRenderer.send('stream-close', this.id);
     this.emit('end', true);
   }
@@ -55,7 +51,7 @@ export class IpcPushStream extends EventEmitter {
    * @returns The string in the configured encoding or undefined if the stream was closed prematurely.
    */
   public readAll() {
-    const chunks = [] as string[];
+    const chunks: string[] = [];
     this.on('data', (chunk) => chunks.push(chunk));
     return new Promise<string>((resolve, reject) => {
       this.on('end', (canceled) => (canceled ? undefined : resolve(chunks.join(''))));

@@ -1,10 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EventEmitter } from '@/lib/event-emitter';
 
-class TestEmitter extends EventEmitter {
-  public trigger(event: string, ...args: unknown[]) {
+interface TestEvents {
+  test(value?: number): void;
+  other(text: string): void;
+}
+
+class TestEmitter extends EventEmitter<TestEvents> {
+  public trigger<K extends keyof TestEvents>(event: K, ...args: Parameters<TestEvents[K]>) {
     // expose protected emit for tests
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (this as any).emit(event, ...args);
   }
 }
@@ -34,11 +38,11 @@ describe('EventEmitter', () => {
     expect(order).toEqual([1, 2, 2]);
   });
 
-  it('should not fail when removing a non-existing listener', () => {
+  it('should not fail when removing a non-existing listener from a valid event', () => {
     const emitter = new TestEmitter();
     const fn = vi.fn();
-
-    expect(() => emitter.off('non-existing', fn)).not.toThrow();
+    // removing a listener that was never registered should be a no-op
+    expect(() => emitter.off('test', fn)).not.toThrow();
   });
 
   it('should not affect other listeners when one throws', () => {
@@ -50,6 +54,9 @@ describe('EventEmitter', () => {
 
     emitter.on('test', fn1);
     emitter.on('test', fn2);
+
+    // @ts-expect-error invalid argument type
+    emitter.on('other', (n: number) => {});
 
     expect(() => emitter.trigger('test')).not.toThrow();
     expect(fn2).toHaveBeenCalled();
