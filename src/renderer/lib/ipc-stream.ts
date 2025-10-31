@@ -28,7 +28,7 @@ export class IpcPushStream extends EventEmitter {
     });
 
     ipcRenderer.on('stream-error', (event, id: number, error: Error) => {
-      streams.get(id)?.emit('error', error);
+      streams.get(id)?.emit('error', IpcPushStreamError.fromError(error));
       streams.delete(id);
     });
   }
@@ -47,6 +47,7 @@ export class IpcPushStream extends EventEmitter {
   public close() {
     streams.delete(this.id);
     ipcRenderer.send('stream-close', this.id);
+    this.emit('error', new IpcPushStreamError('Stream closed', IpcPushStreamErrorType.Aborted));
   }
 
   /**
@@ -60,5 +61,24 @@ export class IpcPushStream extends EventEmitter {
       this.on('end', () => resolve(chunks.join('')));
       this.on('error', (error) => reject(error));
     });
+  }
+}
+
+export enum IpcPushStreamErrorType {
+  Aborted = 'Aborted',
+  Unknown = 'Unknown',
+}
+
+export class IpcPushStreamError extends Error {
+  constructor(
+    message: string,
+    public readonly type = IpcPushStreamErrorType.Unknown
+  ) {
+    super(message);
+    this.name = IpcPushStreamError.name;
+  }
+
+  public static fromError(error: Error) {
+    return new IpcPushStreamError(error.message);
   }
 }

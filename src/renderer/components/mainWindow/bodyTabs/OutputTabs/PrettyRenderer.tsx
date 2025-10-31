@@ -1,4 +1,5 @@
-import { IpcPushStream } from '@/lib/ipc-stream';
+import { getToastForError } from '@/components/ui/use-toast';
+import { IpcPushStream, IpcPushStreamError, IpcPushStreamErrorType } from '@/lib/ipc-stream';
 import { useResponseActions, useResponseStore } from '@/state/responseStore';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { HttpHeaders } from 'shim/headers';
@@ -48,13 +49,19 @@ export const useResponseData = (
   onChange: (data: string) => void
 ) => {
   useEffect(() => {
-    console.debug('Opening response stream with encoding:', encoding);
     let stream: IpcPushStream | undefined;
     IpcPushStream.open(response, encoding)
       .then((s) => (stream = s).readAll())
-      .then(onChange);
+      .then(onChange)
+      .catch((err) => {
+        if (!(err instanceof IpcPushStreamError) || err.type !== IpcPushStreamErrorType.Aborted) {
+          getToastForError(err);
+        }
+      });
+
+    // cancel stream on unmount or response change
     return () => stream?.close();
-  }, [response, encoding]);
+  }, [response, encoding, onChange]);
 };
 
 export const useResponseEditor = () => {
