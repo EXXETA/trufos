@@ -1,6 +1,8 @@
 export type EventListener = (...args: unknown[]) => void;
 export type EventHandlers = { [event: string]: EventListener };
 
+export const ERROR_EVENT = 'error' as const;
+
 export abstract class EventEmitter<Handlers extends { [K in keyof Handlers]: EventListener }> {
   private readonly listeners = new Map<keyof Handlers, Set<Handlers[keyof Handlers]>>();
 
@@ -36,4 +38,35 @@ export abstract class EventEmitter<Handlers extends { [K in keyof Handlers]: Eve
     }
     return this;
   }
+}
+
+/**
+ * Wait for a single occurrence of an event from an EventEmitter.
+ * @param emitter The {@link EventEmitter} to listen to
+ * @param event The event to listen for
+ * @returns A promise that resolves with the event arguments or rejects with an error from the 'error' event
+ */
+export function once<Handlers extends EventHandlers, K extends keyof Handlers>(
+  emitter: EventEmitter<Handlers>,
+  event: K
+) {
+  return new Promise<Parameters<Handlers[K]>>((resolve, reject) => {
+    const onEvent = ((...args: Parameters<Handlers[K]>) => {
+      cleanup();
+      resolve(args);
+    }) as Handlers[K];
+
+    const onError = ((err: Parameters<Handlers[typeof ERROR_EVENT]>) => {
+      cleanup();
+      reject(err);
+    }) as Handlers[typeof ERROR_EVENT];
+
+    const cleanup = () => {
+      emitter.off(event, onEvent);
+      emitter.off(ERROR_EVENT, onError);
+    };
+
+    emitter.once(event, onEvent);
+    emitter.once(ERROR_EVENT, onError);
+  });
 }
