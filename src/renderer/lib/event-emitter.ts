@@ -10,7 +10,7 @@ export abstract class EventEmitter<Handlers extends { [K in keyof Handlers]: Eve
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    (this.listeners.get(event) as Set<Handlers[K]>).add(listener);
+    this.listeners.get(event).add(listener);
     return this;
   }
 
