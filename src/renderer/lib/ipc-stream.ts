@@ -8,7 +8,7 @@ const streams = new Map<number, IpcPushStream>();
 export interface IpcPushStream {
   on(event: 'data', listener: (chunk: string) => void): this;
 
-  on(event: 'end', listener: () => void): this;
+  on(event: 'end', listener: (canceled: boolean) => void): this;
 
   on(event: 'error', listener: (error: Error) => void): this;
 }
@@ -23,12 +23,12 @@ export class IpcPushStream extends EventEmitter {
     });
 
     ipcRenderer.on('stream-end', (event, id: number) => {
-      streams.get(id)?.emit('end');
+      streams.get(id)?.emit('end', false);
       streams.delete(id);
     });
 
     ipcRenderer.on('stream-error', (event, id: number, error: Error) => {
-      streams.get(id)?.emit('error', IpcPushStreamError.fromError(error));
+      streams.get(id)?.emit('error', error);
       streams.delete(id);
     });
   }
@@ -47,38 +47,19 @@ export class IpcPushStream extends EventEmitter {
   public close() {
     streams.delete(this.id);
     ipcRenderer.send('stream-close', this.id);
-    this.emit('error', new IpcPushStreamError('Stream closed', IpcPushStreamErrorType.Aborted));
+    this.emit('end', true);
   }
 
   /**
    * Collect all data from the stream and return it as a single string.
-   * @returns The string in the configured encoding.
+   * @returns The string in the configured encoding or undefined if the stream was closed prematurely.
    */
   public readAll() {
     const chunks = [] as string[];
     this.on('data', (chunk) => chunks.push(chunk));
     return new Promise<string>((resolve, reject) => {
-      this.on('end', () => resolve(chunks.join('')));
+      this.on('end', (canceled) => (canceled ? undefined : resolve(chunks.join(''))));
       this.on('error', (error) => reject(error));
     });
-  }
-}
-
-export enum IpcPushStreamErrorType {
-  Aborted = 'Aborted',
-  Unknown = 'Unknown',
-}
-
-export class IpcPushStreamError extends Error {
-  constructor(
-    message: string,
-    public readonly type = IpcPushStreamErrorType.Unknown
-  ) {
-    super(message);
-    this.name = IpcPushStreamError.name;
-  }
-
-  public static fromError(error: Error) {
-    return new IpcPushStreamError(error.message);
   }
 }
