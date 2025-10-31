@@ -24,7 +24,6 @@ interface ResponseState {
 export const useResponseStore = create<ResponseState>()(
   immer((set, get) => ({
     responseInfoMap: {},
-    editor: undefined,
     addResponse: (requestId, response) =>
       set((state) => {
         state.responseInfoMap[requestId] = response;
@@ -40,7 +39,7 @@ export const useResponseStore = create<ResponseState>()(
 
       try {
         responseEditor.updateOptions({ readOnly: false });
-        await responseEditor.getAction('editor.action.formatDocument').run();
+        await responseEditor.getAction('editor.action.formatDocument')?.run();
       } finally {
         responseEditor.updateOptions({ readOnly: true });
       }

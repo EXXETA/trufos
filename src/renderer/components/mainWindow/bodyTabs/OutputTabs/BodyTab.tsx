@@ -54,7 +54,7 @@ export const BodyTab = () => {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4 pt-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 pt-2">
       <div className="space-y-2 px-4">
         <div className="flex justify-between px-2">
           <SimpleSelect<OutputType>
@@ -65,7 +65,7 @@ export const BodyTab = () => {
         </div>
         <Divider />
       </div>
-      {renderContent()}
+      <div className="relative flex min-h-0 flex-1 px-4">{renderContent()}</div>
     </div>
   );
 };

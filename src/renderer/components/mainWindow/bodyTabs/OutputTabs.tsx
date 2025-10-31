@@ -39,7 +39,7 @@ export function OutputTabs({ className }: OutputTabsProps) {
         <ResponseStatus />
       </TabsList>
 
-      <TabsContent value="body">
+      <TabsContent value="body" className="flex h-full min-h-0 flex-col">
         <BodyTab />
       </TabsContent>
 
