@@ -18,8 +18,8 @@ export class IpcPushStream extends EventEmitter<{
       IpcPushStream.streams.get(id)?.emit('data', chunk);
     });
 
-    ipcRenderer.on('stream-end', (event, id: number) => {
-      IpcPushStream.streams.get(id)?.emit('end', false);
+    ipcRenderer.on('stream-end', (event, id: number, canceled: boolean) => {
+      IpcPushStream.streams.get(id)?.emit('end', canceled);
       IpcPushStream.streams.delete(id);
     });
 
@@ -41,9 +41,7 @@ export class IpcPushStream extends EventEmitter<{
   }
 
   public close() {
-    IpcPushStream.streams.delete(this.id);
     ipcRenderer.send('stream-close', this.id);
-    this.emit('end', true);
   }
 
   /**

@@ -41,7 +41,7 @@ ipcMain.handle(
 
     streams.set(id, stream);
     stream.on('data', (chunk) => sender.send('stream-data', id, chunk));
-    stream.on('end', () => sender.send('stream-end', id));
+    stream.on('end', () => sender.send('stream-end', id, false));
     stream.on('error', (error) => sender.send('stream-error', id, error));
     return id;
   }
@@ -50,4 +50,5 @@ ipcMain.handle(
 ipcMain.on('stream-close', (event, id: number) => {
   streams.get(id)?.close();
   streams.delete(id);
+  event.sender.send('stream-end', id, true);
 });
