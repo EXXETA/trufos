@@ -55,7 +55,7 @@ export class IpcPushStream extends EventEmitter<{
     this.on('data', (chunk) => chunks.push(chunk));
     return new Promise<string>((resolve, reject) => {
       this.on('end', (canceled) => (canceled ? undefined : resolve(chunks.join(''))));
-      this.on('error', (error) => reject(error));
+      this.on('error', reject);
     });
   }
 }
