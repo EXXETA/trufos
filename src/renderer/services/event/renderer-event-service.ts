@@ -64,4 +64,5 @@ export class RendererEventService implements IEventService {
   listCollections = createEventMethod('listCollections');
   importCollection = createEventMethod('importCollection');
   rename = createEventMethod('rename');
+  updateApp = createEventMethod('updateApp');
 }
