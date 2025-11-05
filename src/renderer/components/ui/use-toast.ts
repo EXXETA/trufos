@@ -136,7 +136,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, 'id'>;
 
-function toast({ ...props }: Toast) {
+export function toast({ ...props }: Toast) {
   const id = genId();
 
   const update = (props: ToasterToast) =>
@@ -165,7 +165,7 @@ function toast({ ...props }: Toast) {
   };
 }
 
-function useToast() {
+export function useToast() {
   const [state, setState] = React.useState<State>(memoryState);
 
   React.useEffect(() => {
@@ -191,7 +191,7 @@ function useToast() {
  * @returns The wrapped function. It is identical to the input function, but displays a toast on
  * error. Note that this function never throws.
  */
-function useErrorHandler<F extends (...args: any[]) => any>(fn: F) {
+export function useErrorHandler<F extends (...args: any[]) => any>(fn: F) {
   return function () {
     try {
       const result = fn(...arguments);
@@ -209,7 +209,7 @@ function useErrorHandler<F extends (...args: any[]) => any>(fn: F) {
  * description are taken from the error. Otherwise, a generic error message is displayed.
  * @param error The error to display.
  */
-function getToastForError(error: any) {
+export function getToastForError(error: any) {
   const options: Toast = { variant: 'destructive' };
 
   console.error(error);
@@ -223,5 +223,3 @@ function getToastForError(error: any) {
   }
   toast(options);
 }
-
-export { useToast, toast, useErrorHandler };
