@@ -161,4 +161,10 @@ export interface IEventService {
    * @param newTitle The new title.
    */
   rename(object: Folder | TrufosRequest, newTitle: string): Promise<void>;
+
+  /**
+   * Trigger the application update process in the background.
+   * Will show a dialog to the user if an update is available.
+   */
+  updateApp(): void;
 }

@@ -4,6 +4,7 @@
   "version": "0.2.0",
   "description": "Trufos - A cross-platform REST client",
   "main": ".vite/build/main.js",
+  "repository": "github:EXXETA/trufos",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
@@ -105,6 +106,7 @@
     "template-replace-stream": "^2.2.0",
     "tmp": "^0.2.5",
     "undici": "^7.16.0",
+    "update-electron-app": "^3.1.1",
     "winston": "^3.18.3",
     "xml-formatter": "^3.6.7",
     "zustand": "^5.0.8"
