@@ -8,6 +8,7 @@ import {
 import { Collection as TrufosCollection } from 'shim/objects/collection';
 import { Folder as TrufosFolder } from 'shim/objects/folder';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { parseUrl } from 'shim/objects/url';
 import { RequestMethod } from 'shim/objects/request-method';
 import fs from 'node:fs/promises';
 import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
@@ -32,8 +33,8 @@ export class PostmanImporter implements CollectionImporter {
             variable.id,
             {
               value: variable.toString(),
-            },
-          ] as [string, VariableObject]
+            } as VariableObject,
+          ] as const
       );
     logger.info('Loaded', variablesArray.length, 'collection variables');
 
@@ -111,18 +112,17 @@ export class PostmanImporter implements CollectionImporter {
       parentId: parent.id,
       type: 'request',
       title: item.name,
-      url: request.url.toString(),
-      method: request.method as RequestMethod,
+      url: parseUrl(request.url.toString()),
       headers: request.headers.all().map((header) => ({
         key: header.key,
         value: header.value,
         isActive: !header.disabled,
       })),
+      method: request.method as RequestMethod,
       body: bodyInfo ?? {
         type: RequestBodyType.TEXT,
         mimeType: DEFAULT_MIME_TYPE,
       },
-      queryParams: [],
     };
 
     parent.children.push(trufosRequest);

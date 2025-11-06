@@ -10,6 +10,7 @@ import { PersistenceService } from '../persistence/service/persistence-service';
 import './stream-events';
 import { EnvironmentMap } from 'shim/objects/environment';
 import { ImportService } from 'main/import/service/import-service';
+import { updateElectronApp } from 'update-electron-app';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -170,5 +171,18 @@ export class MainEventService implements IEventService {
 
   async rename(object: Folder | TrufosRequest, newTitle: string): Promise<void> {
     await persistenceService.rename(object, newTitle);
+  }
+
+  updateApp() {
+    const prefixMessage = (message: string) => `[UPDATER]: ${message}`;
+    updateElectronApp({
+      logger: {
+        log: (message: string) => logger.info(prefixMessage(message)),
+        info: (message: string) => logger.info(prefixMessage(message)),
+        error: (message: string) => logger.error(prefixMessage(message)),
+        warn: (message: string) => logger.warn(prefixMessage(message)),
+      },
+      updateInterval: '1 hour',
+    });
   }
 }

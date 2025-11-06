@@ -68,10 +68,9 @@ export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
 
       {renameModalIsOpen && (
         <NamingModal
-          isOpen={renameModalIsOpen}
           trufosObject={folder}
           createType={isCreateModal}
-          setOpen={setRenameModalIsOpen}
+          onClose={() => setRenameModalIsOpen(false)}
         />
       )}
     </>

@@ -11,34 +11,33 @@ import { Folder } from 'shim/objects/folder';
 import { Button } from '@/components/ui/button';
 import { useCollectionActions } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
-import { isFolder } from 'shim/objects';
+import { isFolder, isRequest } from 'shim/objects';
 
 export interface NamingModalProps {
   createType?: 'folder' | 'request';
   trufosObject: Folder | TrufosRequest | Collection;
-  isOpen: boolean;
-  setOpen: (open: boolean) => void;
+  onClose: VoidFunction;
 }
 
-export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: NamingModalProps) => {
-  const [name, setName] = useState(createType ? '' : trufosObject.title);
+export const NamingModal = ({ createType, trufosObject, onClose }: NamingModalProps) => {
+  const [name, setName] = useState(createType ? '' : trufosObject?.title);
   const { renameFolder, renameRequest, addNewRequest, addNewFolder } = useCollectionActions();
 
-  const handleSave = async () => {
+  const handleSave = () => {
+    onClose();
     if (createType) {
-      if (isFolder(trufosObject)) {
+      if (createType === 'folder') {
         addNewFolder(name, trufosObject.id);
-      } else {
+      } else if (createType === 'request') {
         addNewRequest(name, trufosObject.id);
       }
     } else {
       if (isFolder(trufosObject)) {
-        await renameFolder(trufosObject.id, name);
-      } else {
-        await renameRequest(trufosObject.id, name);
+        renameFolder(trufosObject.id, name);
+      } else if (isRequest(trufosObject)) {
+        renameRequest(trufosObject.id, name);
       }
     }
-    setOpen(false);
   };
 
   const title = useMemo(() => {
@@ -52,12 +51,12 @@ export const NamingModal = ({ createType, trufosObject, isOpen, setOpen }: Namin
   }, [name, createType, trufosObject.title]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && setOpen(false)}>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSave} onReset={() => setOpen(false)}>
+        <form onSubmit={handleSave} onReset={() => onClose()}>
           <div className="p-4">
             <input
               type="text"

@@ -121,8 +121,9 @@ export interface CollectionStateActions {
   /**
    * Toggle the active state of a query parameter
    * @param index The index of the query parameter to toggle
+   * @param active OPTIONAL: If set, the query parameter will be set to this active state instead of toggling it
    */
-  toggleQueryParam(index: number): void;
+  setQueryParamActive(index: number, active?: boolean): void;
 
   /**
    * Set the draft flag on the currently selected request
@@ -184,4 +185,21 @@ export interface CollectionStateActions {
     object: T,
     updatedFields?: Partial<T['auth']> | null
   ): void;
+
+  /**
+   * Rename the currently opened collection.
+   *
+   * @param title The new title of the collection.
+   */
+  renameCollection(title: string): Promise<void>;
+
+  /**
+   * Close the currently opened collection.
+   * This will clear the current collection from memory
+   * and reset related state in the application, but will not
+   * delete the collection from the file system.
+   *
+   * @param dirPath Optional path of the collection to close.
+   */
+  closeCollection(dirPath?: string): Promise<void>;
 }

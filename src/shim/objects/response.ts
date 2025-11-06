@@ -5,7 +5,6 @@ export type TrufosResponse = {
   headers: HttpHeaders;
   metaInfo: MetaInfo;
   id: string;
-  autoFormat?: boolean;
 };
 
 export type MetaInfo = {

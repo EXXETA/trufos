@@ -4,9 +4,10 @@ import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { VariableMap } from 'shim/objects/variables';
-import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v1-3-0';
+import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-1-0';
 
-export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v1-3-0';
+export { createGitIgnore } from './v2-0-0';
+export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v2-1-0';
 
 /**
  * Deep clones the given object and removes any properties that are not allowed in an info file.
@@ -23,7 +24,7 @@ export function toInfoFile(object: TrufosObject): InfoFile {
 
   switch (infoFile.type) {
     case 'request':
-      return omit(infoFile, 'type', 'parentId', 'draft', 'queryParams');
+      return omit(infoFile, 'type', 'parentId', 'draft');
     case 'collection':
       return omit(infoFile, 'type', 'dirPath', 'children');
     case 'folder':
@@ -36,6 +37,7 @@ export function fromCollectionInfoFile(
   dirPath: string,
   children: Collection['children']
 ): Collection {
+  delete infoFile.version;
   return Object.assign(infoFile, {
     type: 'collection' as const,
     dirPath,
@@ -48,6 +50,7 @@ export function fromFolderInfoFile(
   parentId: Folder['parentId'],
   children: Folder['children']
 ): Folder {
+  delete infoFile.version;
   return Object.assign(infoFile, { type: 'folder' as const, parentId, children });
 }
 
@@ -56,7 +59,8 @@ export function fromRequestInfoFile(
   parentId: TrufosRequest['parentId'],
   draft: boolean
 ): TrufosRequest {
-  return Object.assign(infoFile, { type: 'request' as const, parentId, draft, queryParams: [] });
+  delete infoFile.version;
+  return Object.assign(infoFile, { type: 'request' as const, parentId, draft });
 }
 
 /**

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { buildUrl } from 'shim/objects/url';
 import { TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { TrufosHeader } from 'shim/objects/headers';
@@ -54,7 +55,7 @@ export class HttpService {
     }
 
     // resolve variables (except in body, which is resolved stream-based during send)
-    const url = await environmentService.setVariablesInString(request.url);
+    const url = await environmentService.setVariablesInString(buildUrl(request.url));
     const headers = await this.resolveVariablesInHeaders(
       this.trufosHeadersToUndiciHeaders(request.headers)
     );

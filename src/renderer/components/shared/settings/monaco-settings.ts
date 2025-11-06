@@ -12,6 +12,7 @@ export const DEFAULT_MONACO_OPTIONS: Partial<editor.IStandaloneEditorConstructio
   },
   smoothScrolling: true,
   mouseWheelScrollSensitivity: 1,
+  fixedOverflowWidgets: true,
 };
 
 export const REQUEST_EDITOR_OPTIONS: Partial<editor.IStandaloneEditorConstructionOptions> = {

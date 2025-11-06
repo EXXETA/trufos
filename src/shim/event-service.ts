@@ -145,6 +145,7 @@ export interface IEventService {
    * @param srcFilePath The path to the collection export file (e.g. Postman JSON file).
    * @param targetDirPath The existing directory that will contain the imported collection directory.
    * @param strategy The import strategy / tool the file originates from.
+   * @param title
    */
   importCollection(
     srcFilePath: string,
@@ -160,4 +161,10 @@ export interface IEventService {
    * @param newTitle The new title.
    */
   rename(object: Folder | TrufosRequest, newTitle: string): Promise<void>;
+
+  /**
+   * Trigger the application update process in the background.
+   * Will show a dialog to the user if an update is available.
+   */
+  updateApp(): void;
 }
