@@ -1,8 +1,10 @@
 import { TrufosRequest } from 'shim/objects/request';
 import { Folder } from 'shim/objects/folder';
 import { Collection } from 'shim/objects/collection';
+import z from 'zod';
 
-export type TrufosObject = TrufosRequest | Folder | Collection;
+export const TrufosObject = z.discriminatedUnion('type', [TrufosRequest, Folder, Collection]);
+export type TrufosObject = z.infer<typeof TrufosObject>;
 
 export type TrufosObjectType = TrufosObject['type'];
 

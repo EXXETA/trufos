@@ -1,3 +1,4 @@
+import z from 'zod';
 import { OAuth2AuthorizationInformation } from './oauth2';
 
 export enum AuthorizationType {
@@ -7,23 +8,33 @@ export enum AuthorizationType {
   OAUTH2 = 'oauth2',
 }
 
-export type BearerAuthorizationInformation = {
-  type: AuthorizationType.BEARER;
-  token: string;
-};
+export const BearerAuthorizationInformation = z.object({
+  type: z.literal(AuthorizationType.BEARER),
+  token: z.string(),
+});
+export type BearerAuthorizationInformation = z.infer<typeof BearerAuthorizationInformation>;
 
-export type BasicAuthorizationInformation = {
-  type: AuthorizationType.BASIC;
-  username: string;
-  password: string;
-};
+export const BasicAuthorizationInformation = z.object({
+  type: z.literal(AuthorizationType.BASIC),
+  username: z.string(),
+  password: z.string(),
+});
+export type BasicAuthorizationInformation = z.infer<typeof BasicAuthorizationInformation>;
 
-export type InheritAuthorizationInformation = {
-  type: AuthorizationType.INHERIT;
-};
+export const InheritAuthorizationInformation = z.object({
+  type: z.literal(AuthorizationType.INHERIT),
+});
+export type InheritAuthorizationInformation = z.infer<typeof InheritAuthorizationInformation>;
 
-export type AuthorizationInformation =
-  | InheritAuthorizationInformation
-  | BearerAuthorizationInformation
-  | BasicAuthorizationInformation
-  | OAuth2AuthorizationInformation;
+export const AuthorizationInformationNoInherit = z.discriminatedUnion('type', [
+  BearerAuthorizationInformation,
+  BasicAuthorizationInformation,
+  OAuth2AuthorizationInformation,
+]);
+export type AuthorizationInformationNoInherit = z.infer<typeof AuthorizationInformationNoInherit>;
+
+export const AuthorizationInformation = z.discriminatedUnion('type', [
+  AuthorizationInformationNoInherit,
+  InheritAuthorizationInformation,
+]);
+export type AuthorizationInformation = z.infer<typeof AuthorizationInformation>;

@@ -1,20 +1,24 @@
 import { HttpHeaders } from 'shim/headers';
+import z from 'zod';
 
-export type TrufosResponse = {
-  type: 'response';
-  headers: HttpHeaders;
-  metaInfo: MetaInfo;
-  id: string;
-};
+export const ResponseSize = z.object({
+  totalSizeInBytes: z.number(),
+  headersSizeInBytes: z.number(),
+  bodySizeInBytes: z.number(),
+});
+export type ResponseSize = z.infer<typeof ResponseSize>;
 
-export type MetaInfo = {
-  duration: number;
-  size: ResponseSize;
-  status: number;
-};
+export const MetaInfo = z.object({
+  duration: z.number(),
+  size: ResponseSize,
+  status: z.number(),
+});
+export type MetaInfo = z.infer<typeof MetaInfo>;
 
-export type ResponseSize = {
-  totalSizeInBytes: number;
-  headersSizeInBytes: number;
-  bodySizeInBytes: number;
-};
+export const TrufosResponse = z.object({
+  type: z.literal('response'),
+  headers: HttpHeaders,
+  metaInfo: MetaInfo,
+  id: z.string(),
+});
+export type TrufosResponse = z.infer<typeof TrufosResponse>;
