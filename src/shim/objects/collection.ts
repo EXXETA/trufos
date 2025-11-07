@@ -2,7 +2,7 @@ import { Folder } from './folder';
 import { TrufosRequest } from './request';
 import { VariableMap } from './variables';
 import { EnvironmentMap } from './environment';
-import { AuthorizationInformationNoInherit } from './auth';
+import { AuthorizationInformationNoInherit } from './auth/auth';
 import z from 'zod';
 
 /** Minimal information about a collection. */

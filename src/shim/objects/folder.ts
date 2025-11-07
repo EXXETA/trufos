@@ -1,4 +1,4 @@
-import { TrufosRequest } from 'shim/objects/request';
+import { TrufosRequest } from './request';
 import z from 'zod';
 
 export const Folder = z.object({

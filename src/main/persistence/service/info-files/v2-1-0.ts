@@ -1,18 +1,22 @@
-import { RequestBody } from 'shim/objects/request';
-import { VariableMap } from 'shim/objects/variables';
-import { EnvironmentMap } from 'shim/objects/environment';
-import { RequestMethod } from 'shim/objects/request-method';
-import { TrufosHeader } from 'shim/objects/headers';
+import {
+  parseUrl,
+  TrufosURL,
+  RequestBody,
+  VariableMap,
+  EnvironmentMap,
+  RequestMethod,
+  TrufosHeader,
+  TrufosObjectType,
+  AuthorizationInformation,
+  AuthorizationInformationNoInherit,
+} from 'shim';
 import { SemVer } from 'main/util/semver';
 import { AbstractInfoFileMigrator } from './migrator';
-import { TrufosObjectType } from 'shim/objects';
-import { AuthorizationInformation, AuthorizationInformationNoInherit } from 'shim/objects/auth';
 import {
   InfoFile as OldInfoFile,
   RequestInfoFile as OldRequestInfoFile,
   VERSION as OLD_VERSION,
 } from './v2-0-0';
-import { parseUrl, TrufosURL } from 'shim/objects/url';
 import z from 'zod';
 
 export const VERSION = new SemVer(2, 1, 0);

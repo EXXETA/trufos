@@ -1,21 +1,13 @@
-import { TrufosRequest } from 'shim/objects/request';
-import { Folder } from 'shim/objects/folder';
-import { Collection } from 'shim/objects/collection';
-import z from 'zod';
-
-export const TrufosObject = z.discriminatedUnion('type', [TrufosRequest, Folder, Collection]);
-export type TrufosObject = z.infer<typeof TrufosObject>;
-
-export type TrufosObjectType = TrufosObject['type'];
-
-export function isRequest(object: TrufosObject): object is TrufosRequest {
-  return object.type === 'request';
-}
-
-export function isFolder(object: TrufosObject): object is Folder {
-  return object.type === 'folder';
-}
-
-export function isCollection(object: TrufosObject): object is Collection {
-  return object.type === 'collection';
-}
+export * from './request';
+export * from './folder';
+export * from './collection';
+export * from './auth/auth';
+export * from './auth/oauth2';
+export * from './url';
+export * from './variables';
+export * from './environment';
+export * from './headers';
+export * from './request-method';
+export * from './object';
+export * from './query-param';
+export * from './response';

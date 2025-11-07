@@ -1,5 +1,5 @@
-import { TokenEndpointResponse } from 'openid-client';
-import { AuthorizationType } from '.';
+import type { TokenEndpointResponse } from 'openid-client';
+import { AuthorizationType } from './auth';
 import z from 'zod';
 
 export enum OAuth2Method {
