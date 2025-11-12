@@ -1,7 +1,7 @@
 {
   "name": "trufos",
   "productName": "Trufos",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Trufos - A cross-platform REST client",
   "main": ".vite/build/main.js",
   "repository": "github:EXXETA/trufos",
