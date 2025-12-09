@@ -7,6 +7,7 @@ import {
   AuthorizationType,
   BasicAuthorizationInformation,
   BearerAuthorizationInformation,
+  OAuth2ClientAuthenticationMethod,
 } from 'shim/objects';
 import { OAuth2ClientCrentialsAuthorizationInformation, OAuth2Method } from 'shim/objects';
 import ClientCredentialsAuthorizationStrategy from './oauth2/client-credentials';
@@ -38,10 +39,13 @@ describe('createAuthStrategy()', () => {
   it('should create ClientCredentialsAuthorizationStrategy for OAuth2 client credentials', () => {
     const auth: OAuth2ClientCrentialsAuthorizationInformation = {
       type: AuthorizationType.OAUTH2,
+      scope: '',
       method: OAuth2Method.CLIENT_CREDENTIALS,
       clientId: 'client-id',
       clientSecret: 'client-secret',
       tokenUrl: 'https://example.com/oauth2/token',
+      issuerUrl: 'https://example.com/oauth2/issuer',
+      clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
     };
     const strategy = createAuthStrategy(auth);
     expect(strategy).toBeInstanceOf(ClientCredentialsAuthorizationStrategy);

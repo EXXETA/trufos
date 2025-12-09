@@ -14,6 +14,7 @@ describe.skip('ClientCredentialsAuthorizationStrategy', () => {
     const auth: OAuth2ClientCrentialsAuthorizationInformation = {
       type: AuthorizationType.OAUTH2,
       method: OAuth2Method.CLIENT_CREDENTIALS,
+      issuerUrl: 'https://login-demo.curity.io/oauth/v2/oauth-issuer',
       tokenUrl: 'https://login-demo.curity.io/oauth/v2/oauth-token',
       clientId: 'demo-backend-client',
       clientSecret: 'MJlO3binatD9jk1',
