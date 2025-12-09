@@ -2,7 +2,6 @@ export * from './request';
 export * from './folder';
 export * from './collection';
 export * from './auth/auth';
-export * from './auth/oauth2';
 export * from './url';
 export * from './variables';
 export * from './environment';

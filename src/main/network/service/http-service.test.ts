@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
 import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { AuthorizationType } from 'shim/objects/auth';
+import { AuthorizationType } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { ResponseBodyService } from 'main/network/service/response-body-service';

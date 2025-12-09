@@ -1,6 +1,6 @@
 import './logging/logger';
 
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import 'main/event/main-event-service';
 import path from 'node:path';
@@ -31,6 +31,8 @@ process.on('unhandledRejection', showError);
 const createWindow = async () => {
   try {
     // initialize services in correct order
+    await app.whenReady();
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('Safe storage is not available');
     await SettingsService.instance.init();
     await EnvironmentService.instance.init();
     MainEventService.instance.updateApp(); // check for updates in the background

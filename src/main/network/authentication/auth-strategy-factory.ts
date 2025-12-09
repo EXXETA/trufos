@@ -1,4 +1,4 @@
-import { AuthorizationInformation, AuthorizationType } from 'shim/objects/auth';
+import { AuthorizationInformation, AuthorizationType } from 'shim/objects';
 import BasicAuthStrategy from './basic-auth';
 import BearerAuthStrategy from './bearer-auth';
 import AuthStrategy from './auth-strategy';

@@ -1,9 +1,9 @@
-import { AuthorizationType } from 'shim/objects/auth';
+import { AuthorizationType } from 'shim/objects';
 import {
   OAuth2ClientAuthenticationMethod,
   OAuth2ClientCrentialsAuthorizationInformation,
   OAuth2Method,
-} from 'shim/objects/auth/oauth2';
+} from 'shim/objects';
 import { describe, expect, it } from 'vitest';
 import ClientCredentialsAuthorizationStrategy from './client-credentials';
 
