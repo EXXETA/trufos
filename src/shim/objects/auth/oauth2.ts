@@ -26,8 +26,7 @@ export interface Oauth2BaseAuthorizationInformation<T extends OAuth2Method> {
   tokens?: TokenEndpointResponse;
 }
 
-export interface OAuth2ClientCrentialsAuthorizationInformation
-  extends Oauth2BaseAuthorizationInformation<OAuth2Method.CLIENT_CREDENTIALS> {}
+export interface OAuth2ClientCrentialsAuthorizationInformation extends Oauth2BaseAuthorizationInformation<OAuth2Method.CLIENT_CREDENTIALS> {}
 
 export interface OAuth2ClientAuthorizationCodeFlowInformation<
   T extends OAuth2Method = OAuth2Method.AUTHORIZATION_CODE,
@@ -43,8 +42,7 @@ export enum OAuth2PKCECodeChallengeMethod {
   PLAIN = 'plain',
 }
 
-export interface OAuth2ClientAuthorizationCodeFlowPKCEInformation
-  extends OAuth2ClientAuthorizationCodeFlowInformation<OAuth2Method.AUTHORIZATION_CODE_PKCE> {
+export interface OAuth2ClientAuthorizationCodeFlowPKCEInformation extends OAuth2ClientAuthorizationCodeFlowInformation<OAuth2Method.AUTHORIZATION_CODE_PKCE> {
   method: OAuth2Method.AUTHORIZATION_CODE_PKCE;
   codeChallengeMethod: OAuth2PKCECodeChallengeMethod;
   codeVerifier?: string; // generated if not provided
