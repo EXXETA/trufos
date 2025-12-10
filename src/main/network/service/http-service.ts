@@ -1,4 +1,4 @@
-import undici, { Dispatcher } from 'undici';
+import undici, { Agent, Dispatcher } from 'undici';
 import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { pipeline } from 'node:stream/promises';
@@ -31,7 +31,7 @@ export class HttpService {
   private readonly _dispatcher?: Dispatcher;
 
   constructor(dispatcher?: Dispatcher) {
-    this._dispatcher = dispatcher;
+    this._dispatcher = dispatcher ?? new Agent({ connect: { rejectUnauthorized: false } }); // allow self-signed certificates
   }
 
   /**
