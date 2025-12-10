@@ -477,7 +477,13 @@ export class PersistenceService {
       JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile,
       await this.loadSecrets(dirPath)
     );
-    return await migrateInfoFile(info, type, filePath); // (potentially) migrate the info file to the latest version
+    try {
+      const latest = await migrateInfoFile(info, type, filePath); // (potentially) migrate the info file to the latest version
+      await InfoFile.parseAsync(latest); // validate the info file
+      return latest;
+    } catch (e) {
+      throw new Error(`Failed to load ${type} info file at "${filePath}":`, { cause: e });
+    }
   }
 
   private async loadSecrets(dirPath: string): Promise<Partial<InfoFile>> {

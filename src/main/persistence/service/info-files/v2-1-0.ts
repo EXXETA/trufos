@@ -9,7 +9,7 @@ import {
   TrufosObjectType,
   AuthorizationInformation,
   AuthorizationInformationNoInherit,
-} from 'shim';
+} from 'shim/objects';
 import { SemVer } from 'main/util/semver';
 import { AbstractInfoFileMigrator } from './migrator';
 import {

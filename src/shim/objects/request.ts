@@ -1,4 +1,4 @@
-import { AuthorizationInformation } from './auth/auth';
+import { AuthorizationInformation } from './auth';
 import { RequestMethod } from './request-method';
 import { TrufosURL } from './url';
 import { TrufosHeader } from './headers';
