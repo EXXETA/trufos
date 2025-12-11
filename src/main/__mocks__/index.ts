@@ -1,6 +1,7 @@
 import { homedir, tmpdir } from 'node:os';
 import { vol } from 'memfs';
-import { vi, beforeEach } from 'vitest';
+import { vi, beforeEach, expect } from 'vitest';
+import { prettifyError, ZodSafeParseResult } from 'zod';
 
 // @ts-expect-error mock global logger with console
 global.logger = console;
@@ -18,3 +19,21 @@ beforeEach(() => {
   vol.mkdirSync(tmpdir(), { recursive: true });
   vol.mkdirSync(homedir(), { recursive: true });
 });
+
+expect.extend({
+  toBeZodSuccess<T>(result: ZodSafeParseResult<T>) {
+    return {
+      pass: result.success,
+      message: () =>
+        result.success
+          ? 'Expected Zod parse to fail, but it succeeded.'
+          : prettifyError(result.error),
+    };
+  },
+});
+
+declare module 'vitest' {
+  interface Assertion<T = any> {
+    toBeZodSuccess(): T;
+  }
+}

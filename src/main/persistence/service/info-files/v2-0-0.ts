@@ -117,5 +117,5 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
 export async function createGitIgnore(dirPath: string) {
   const filePath = path.join(dirPath, '.gitignore');
   logger.info(`Creating .gitignore file at`, filePath);
-  await fs.writeFile(filePath, '.draft');
+  await fs.writeFile(filePath, ['.draft', '.secrets.bin'].join('\n'));
 }

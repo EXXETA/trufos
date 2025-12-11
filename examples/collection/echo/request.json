@@ -1,8 +1,11 @@
 {
   "id": "35efb7a3-84ab-4d28-a91c-2945c0591c6e",
   "title": "Echo",
-  "version": "2.0.0",
-  "url": "https://echo.free.beeceptor.com",
+  "version": "2.1.0",
+  "url": {
+    "base": "https://echo.free.beeceptor.com",
+    "query": []
+  },
   "method": "POST",
   "headers": [],
   "body": {
