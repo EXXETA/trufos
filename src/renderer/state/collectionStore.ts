@@ -7,7 +7,7 @@ import { useVariableStore } from '@/state/variableStore';
 import { useEnvironmentStore } from '@/state/environmentStore';
 import { editor } from 'monaco-editor';
 import { isCollection, isRequest, TrufosObject } from 'shim/objects';
-import { AuthorizationInformation } from 'shim/objects/auth';
+import { AuthorizationInformation } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';

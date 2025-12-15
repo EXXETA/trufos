@@ -1,5 +1,5 @@
 import AuthStrategy from './auth-strategy';
-import { BasicAuthorizationInformation } from 'shim/objects/auth';
+import { BasicAuthorizationInformation } from 'shim/objects';
 
 export default class BasicAuthStrategy extends AuthStrategy<BasicAuthorizationInformation> {
   async getAuthHeader() {

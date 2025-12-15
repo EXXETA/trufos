@@ -2,7 +2,7 @@ import {
   OAuth2ClientAuthorizationCodeFlowInformation,
   OAuth2ClientAuthorizationCodeFlowPKCEInformation,
   OAuth2Method,
-} from 'shim/objects/auth/oauth2';
+} from 'shim/objects';
 import OAuth2AuthStrategy from './strategy';
 import {
   authorizationCodeGrant,

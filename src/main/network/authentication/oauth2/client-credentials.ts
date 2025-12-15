@@ -1,4 +1,4 @@
-import { OAuth2ClientCrentialsAuthorizationInformation } from 'shim/objects/auth/oauth2';
+import { OAuth2ClientCrentialsAuthorizationInformation } from 'shim/objects';
 import OAuth2AuthStrategy from './strategy';
 import { clientCredentialsGrant } from 'openid-client';
 

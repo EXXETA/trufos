@@ -1,4 +1,4 @@
-import { AuthorizationInformation } from 'shim/objects/auth';
+import { AuthorizationInformation } from 'shim/objects';
 
 export default abstract class AuthStrategy<T extends AuthorizationInformation> {
   constructor(protected readonly authInfo: T) {}

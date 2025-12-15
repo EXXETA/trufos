@@ -1,13 +1,14 @@
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { AuthorizationInformation, AuthorizationType } from 'shim/objects/auth';
-import { useMemo } from 'react';
-import { ModularForm, FormComponentConfiguration } from './ModularForm';
 import {
+  AuthorizationInformation,
+  AuthorizationType,
   OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
   OAuth2PKCECodeChallengeMethod,
-} from 'shim/objects/auth/oauth2';
+} from 'shim/objects';
+import { useMemo } from 'react';
+import { ModularForm, FormComponentConfiguration } from './ModularForm';
 
 const AUTHORIZATION_NONE = 'none' as const;
 type AuthorizationTypeOrNone = AuthorizationType | typeof AUTHORIZATION_NONE;

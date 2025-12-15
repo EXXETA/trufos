@@ -1,45 +1,55 @@
-import { RequestBody } from 'shim/objects/request';
-import { VariableMap } from 'shim/objects/variables';
-import { EnvironmentMap } from 'shim/objects/environment';
-import { RequestMethod } from 'shim/objects/request-method';
-import { TrufosHeader } from 'shim/objects/headers';
+import {
+  parseUrl,
+  TrufosURL,
+  RequestBody,
+  VariableMap,
+  EnvironmentMap,
+  RequestMethod,
+  TrufosHeader,
+  TrufosObjectType,
+  AuthorizationInformation,
+  AuthorizationInformationNoInherit,
+} from 'shim/objects';
 import { SemVer } from 'main/util/semver';
 import { AbstractInfoFileMigrator } from './migrator';
-import { TrufosObjectType } from 'shim/objects';
-import { AuthorizationInformation, InheritAuthorizationInformation } from 'shim/objects/auth';
 import {
   InfoFile as OldInfoFile,
   RequestInfoFile as OldRequestInfoFile,
   VERSION as OLD_VERSION,
 } from './v2-0-0';
-import { parseUrl, TrufosURL } from 'shim/objects/url';
+import z from 'zod';
 
 export const VERSION = new SemVer(2, 1, 0);
 
-type InfoFileBase = {
-  id: string;
-  version: typeof VERSION.string;
-  title: string;
-  index?: number;
-};
+export const InfoFileBase = z.object({
+  id: z.string(),
+  version: z.literal(VERSION.string),
+  title: z.string(),
+  index: z.number().min(0).optional(),
+});
+export type InfoFileBase = z.infer<typeof InfoFileBase>;
 
-export type RequestInfoFile = InfoFileBase & {
-  url: TrufosURL;
-  method: RequestMethod;
-  headers: TrufosHeader[];
-  body: RequestBody;
-  auth?: AuthorizationInformation;
-};
+export const RequestInfoFile = InfoFileBase.extend({
+  url: TrufosURL,
+  method: z.enum(RequestMethod),
+  headers: TrufosHeader.array(),
+  body: RequestBody,
+  auth: AuthorizationInformation.optional(),
+});
+export type RequestInfoFile = z.infer<typeof RequestInfoFile>;
 
-export type FolderInfoFile = InfoFileBase;
+export const FolderInfoFile = InfoFileBase;
+export type FolderInfoFile = z.infer<typeof FolderInfoFile>;
 
-export type CollectionInfoFile = Omit<InfoFileBase, 'index'> & {
-  environments: EnvironmentMap;
-  variables: VariableMap;
-  auth?: Exclude<AuthorizationInformation, InheritAuthorizationInformation>;
-};
+export const CollectionInfoFile = InfoFileBase.omit({ index: true }).extend({
+  environments: EnvironmentMap,
+  variables: VariableMap,
+  auth: AuthorizationInformationNoInherit.optional(),
+});
+export type CollectionInfoFile = z.infer<typeof CollectionInfoFile>;
 
-export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
+export const InfoFile = z.union([RequestInfoFile, FolderInfoFile, CollectionInfoFile]);
+export type InfoFile = z.infer<typeof InfoFile>;
 
 /**
  * Migrates schema `v2.0.0` to `v2.1.0`.

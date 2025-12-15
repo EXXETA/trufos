@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "prettier.prettier-vscode",
+    "vitest.explorer",
+    "bradlc.vscode-tailwindcss"
+  ],
+  "unwantedRecommendations": []
+}

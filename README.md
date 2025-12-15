@@ -122,7 +122,12 @@ Trufos uses IPC push streams to process large request/response bodies incrementa
 - Where can I find the saved Requests?
 - The saved requests are in this folder:
   - Mac: `~/Library/Application\ Support/Trufos/default-collection`
-  - Windows: `C:\Users\USERNAME\AppData\Roaming\Trufos\default-collection`
+  - Windows: `%AppData%\Trufos\default-collection`
+
+- Where can I find the logs?
+- The logs are in this folder:
+  - Mac: `~/Library/Logs/Trufos`
+  - Windows: `%AppData%\Trufos\logs`
 
 ## Contributing
 

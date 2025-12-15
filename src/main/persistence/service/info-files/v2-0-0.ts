@@ -6,7 +6,7 @@ import { TrufosHeader } from 'shim/objects/headers';
 import { SemVer } from 'main/util/semver';
 import { AbstractInfoFileMigrator } from './migrator';
 import { TrufosObjectType } from 'shim/objects';
-import { AuthorizationInformation, InheritAuthorizationInformation } from 'shim/objects/auth';
+import { AuthorizationInformation, InheritAuthorizationInformation } from 'shim/objects';
 
 import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-4-0';
 import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
@@ -117,5 +117,5 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
 export async function createGitIgnore(dirPath: string) {
   const filePath = path.join(dirPath, '.gitignore');
   logger.info(`Creating .gitignore file at`, filePath);
-  await fs.writeFile(filePath, '.draft');
+  await fs.writeFile(filePath, ['.draft', '.secrets.bin'].join('\n'));
 }

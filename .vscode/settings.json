@@ -1,10 +1,13 @@
 {
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.defaultFormatter": "prettier.prettier-vscode",
   "editor.formatOnSave": true,
   "files.watcherExclude": {
     "**/.hg/store/**": true,
     "**/.git/**": true,
     "**/node_modules/**": true,
     "**/.vscode/**": true
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "prettier.prettier-vscode"
   }
 }
