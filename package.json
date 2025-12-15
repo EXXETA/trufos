@@ -52,7 +52,7 @@
     "node-loader": "^2.1.0",
     "prettier": "^3.7.4",
     "style-loader": "^4.0.0",
-    "tailwindcss": "^4.1.17",
+    "tailwindcss": "^4.1.18",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
     "typescript": "5.9.3",
