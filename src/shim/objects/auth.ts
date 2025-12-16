@@ -41,15 +41,17 @@ export type OAuth2ClientCrentialsAuthorizationInformation = z.infer<
   typeof OAuth2ClientCrentialsAuthorizationInformation
 >;
 
-const OAuth2ClientAuthorizationCodeFlowInformation = Oauth2BaseAuthorizationInformation.extend({
-  authorizationUrl: z.string(),
-  callbackUrl: z.string(),
-  /** Generated if not provided */
-  state: z.string().optional(),
-  /** Default: true. Whether to keep browser session cache */
-  cache: z.boolean().optional(),
-});
-type OAuth2ClientAuthorizationCodeFlowInformation = z.infer<
+export const OAuth2ClientAuthorizationCodeFlowInformation =
+  Oauth2BaseAuthorizationInformation.extend({
+    method: z.literal(OAuth2Method.AUTHORIZATION_CODE),
+    authorizationUrl: z.string(),
+    callbackUrl: z.string(),
+    /** Generated if not provided */
+    state: z.string().optional(),
+    /** Default: true. Whether to keep browser session cache */
+    cache: z.boolean().optional(),
+  });
+export type OAuth2ClientAuthorizationCodeFlowInformation = z.infer<
   typeof OAuth2ClientAuthorizationCodeFlowInformation
 >;
 
