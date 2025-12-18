@@ -6,7 +6,7 @@ import { Collection, CollectionBase } from 'shim/objects/collection';
 import { VariableMap } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 import { SettingsService } from 'main/persistence/service/settings-service';
-import { AuthorizationInformation, AuthorizationType } from 'shim/objects/auth';
+import { AuthorizationInformation, AuthorizationType } from 'shim/objects';
 import { createAuthStrategy } from 'main/network/authentication/auth-strategy-factory';
 import { EnvironmentMap } from 'shim/objects/environment';
 

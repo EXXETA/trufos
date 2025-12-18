@@ -1,14 +1,17 @@
+import z from 'zod';
 import { TrufosQueryParam } from './query-param';
 
 /**
  * Unified URL abstraction used in requests. It contains the base (without query string) and the query entries with potential multi-values.
  */
-export interface TrufosURL {
+export const TrufosURL = z.object({
   /** URL without any query string */
-  base: string;
+  base: z.string(),
   /** Query parameters (duplicate keys allowed) */
-  query: TrufosQueryParam[];
-}
+  query: z.array(TrufosQueryParam),
+});
+
+export type TrufosURL = z.infer<typeof TrufosURL>;
 
 /**
  * Parse a full URL string into a TrufosURL.

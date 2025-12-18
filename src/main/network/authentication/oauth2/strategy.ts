@@ -2,7 +2,7 @@ import {
   OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
-} from 'shim/objects/auth/oauth2';
+} from 'shim/objects';
 import AuthStrategy from '../auth-strategy';
 import {
   ClientAuth,

@@ -1,4 +1,4 @@
-import { AuthorizationType, BasicAuthorizationInformation } from 'shim/objects/auth';
+import { AuthorizationType, BasicAuthorizationInformation } from 'shim/objects';
 import { describe, expect, it } from 'vitest';
 import BasicAuthStrategy from './basic-auth';
 

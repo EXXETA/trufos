@@ -11,7 +11,7 @@ import {
   BasicAuthorizationInformation,
   BearerAuthorizationInformation,
   InheritAuthorizationInformation,
-} from 'shim/objects/auth';
+} from 'shim/objects';
 
 const environmentService = EnvironmentService.instance;
 

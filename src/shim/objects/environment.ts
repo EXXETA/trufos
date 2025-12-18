@@ -1,12 +1,19 @@
+import z from 'zod';
 import { VariableMap } from './variables';
 
-/** A map of environment key => environments as `Record` */
-export type EnvironmentMap = Record<string, EnvironmentObject>;
-
 /** An environment with variables. */
-export type EnvironmentObject = {
+export const EnvironmentObject = z.object({
   /** Variables that exist in the environment */
-  variables: VariableMap;
-};
+  variables: VariableMap,
+});
+export type EnvironmentObject = z.infer<typeof EnvironmentObject>;
 
-export type EnvironmentObjectWithKey = EnvironmentObject & { key: string };
+/** A map of environment key => environments as `Record` */
+export const EnvironmentMap = z.record(z.string(), EnvironmentObject);
+export type EnvironmentMap = z.infer<typeof EnvironmentMap>;
+
+export const EnvironmentObjectWithKey = EnvironmentObject.extend({
+  /** The unique key of the environment */
+  key: z.string(),
+});
+export type EnvironmentObjectWithKey = z.infer<typeof EnvironmentObjectWithKey>;

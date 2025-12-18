@@ -1,4 +1,4 @@
-import { AuthorizationType, BearerAuthorizationInformation } from 'shim/objects/auth';
+import { AuthorizationType, BearerAuthorizationInformation } from 'shim/objects';
 import { describe, expect, it } from 'vitest';
 import BearerAuthStrategy from './bearer-auth';
 

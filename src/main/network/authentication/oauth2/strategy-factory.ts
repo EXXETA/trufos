@@ -1,4 +1,4 @@
-import { OAuth2AuthorizationInformation, OAuth2Method } from 'shim/objects/auth/oauth2';
+import { OAuth2AuthorizationInformation, OAuth2Method } from 'shim/objects';
 import ClientCredentialsAuthorizationStrategy from './client-credentials';
 import AuthCodeFlowAuthorizationStrategy from './auth-code-flow';
 

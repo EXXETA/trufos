@@ -2,20 +2,23 @@ import { Folder } from './folder';
 import { TrufosRequest } from './request';
 import { VariableMap } from './variables';
 import { EnvironmentMap } from './environment';
-import { AuthorizationInformation, InheritAuthorizationInformation } from './auth';
+import { AuthorizationInformationNoInherit } from './auth';
+import z from 'zod';
 
 /** Minimal information about a collection. */
-export type CollectionBase = {
-  id: string;
-  title: string;
-  dirPath: string;
-};
+export const CollectionBase = z.object({
+  id: z.string(),
+  title: z.string(),
+  dirPath: z.string(),
+});
+export type CollectionBase = z.infer<typeof CollectionBase>;
 
 /** A collection of folders and requests. */
-export type Collection = CollectionBase & {
-  type: 'collection';
-  variables: VariableMap;
-  environments: EnvironmentMap;
-  auth?: Exclude<AuthorizationInformation, InheritAuthorizationInformation>;
-  children: (Folder | TrufosRequest)[];
-};
+export const Collection = CollectionBase.extend({
+  type: z.literal('collection'),
+  variables: VariableMap,
+  environments: EnvironmentMap,
+  auth: AuthorizationInformationNoInherit.optional(),
+  children: z.discriminatedUnion('type', [Folder, TrufosRequest]).array(),
+});
+export type Collection = z.infer<typeof Collection>;

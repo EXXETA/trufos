@@ -1,10 +1,14 @@
-import { Folder } from 'shim/objects/folder';
-import { TrufosRequest } from 'shim/objects/request';
-import { TrufosResponse } from 'shim/objects/response';
-import { TrufosObject } from './objects';
-import { Collection, CollectionBase } from './objects/collection';
-import { VariableMap, VariableObject } from './objects/variables';
-import { EnvironmentMap } from './objects/environment';
+import {
+  Folder,
+  TrufosRequest,
+  TrufosResponse,
+  TrufosObject,
+  Collection,
+  CollectionBase,
+  VariableMap,
+  VariableObject,
+  EnvironmentMap,
+} from './objects';
 
 export type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
 
