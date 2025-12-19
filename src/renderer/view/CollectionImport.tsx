@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import FilePicker from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
-import { FolderIcon, FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
+import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
 import { ImportStrategy } from 'shim/event-service';
 import { showError } from '@/error/errorHandler';
 import { Collection } from 'shim/objects/collection';
@@ -108,7 +108,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   }, [srcEntry, targetEntry, strategy, title, onClose, changeCollection]);
 
   const dialogFooter = useMemo(() => {
-    if (strategy === 'Bruno' || strategy === 'Insomnia') {
+    if (strategy === 'Insomnia') {
       return null;
     }
     return (
@@ -177,8 +177,28 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             <TitleInput value={title} onChange={setTitle} />
           </ImportTabsContent>
 
-          <ImportTabsContent strategy="Bruno" gap={false}>
-            <span>Coming soon...</span>
+          <ImportTabsContent strategy="Bruno">
+            <FilePicker
+              title="Select directory of the Bruno collection"
+              description="Select the folder containing bruno.json file"
+              entry={srcEntry}
+              icon={<FolderSearchIcon size={36} />}
+              onFileSelected={setSrcEntry}
+              onFileRemoved={() => setSrcEntry(undefined)}
+              directoryMode
+              controlled
+            />
+            <FilePicker
+              title="Select directory for new collection"
+              description="This is where the imported collection will be placed"
+              entry={targetEntry}
+              icon={<FolderPlusIcon size={36} />}
+              onFileSelected={setTargetEntry}
+              onFileRemoved={() => setTargetEntry(undefined)}
+              directoryMode
+              controlled
+            />
+            <TitleInput value={title} onChange={setTitle} />
           </ImportTabsContent>
 
           <ImportTabsContent strategy="Insomnia" gap={false}>

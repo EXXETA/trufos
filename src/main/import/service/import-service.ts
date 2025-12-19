@@ -2,6 +2,7 @@ import { InternalError, InternalErrorType } from 'main/error/internal-error';
 import { Collection } from 'shim/objects/collection';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { PostmanImporter } from './postman-importer';
+import { BrunoImporter } from './bruno-importer';
 import { ImportStrategy } from 'shim/event-service';
 import { sanitizeTitle } from 'shim/fs';
 import path from 'path';
@@ -21,6 +22,7 @@ export class ImportService {
 
   static {
     ImportService.instance.registerImporter('Postman', new PostmanImporter());
+    ImportService.instance.registerImporter('Bruno', new BrunoImporter());
   }
 
   private readonly importers: Map<ImportStrategy, CollectionImporter> = new Map();
