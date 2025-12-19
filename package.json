@@ -39,7 +39,7 @@
     "@typescript-eslint/eslint-plugin": "^8.49.0",
     "@typescript-eslint/parser": "^8.49.0",
     "@vitejs/plugin-react": "^5.1.2",
-    "@vitest/coverage-v8": "^4.0.15",
+    "@vitest/coverage-v8": "^4.0.16",
     "css-loader": "^7.1.2",
     "electron": "^39.2.6",
     "electron-devtools-installer": "^4.0.0",
@@ -57,7 +57,7 @@
     "ts-node": "^10.9.2",
     "typescript": "5.9.3",
     "vite": "^7.2.7",
-    "vitest": "^4.0.15",
+    "vitest": "^4.0.16",
     "webpack": "^5.103.0"
   },
   "keywords": [],
