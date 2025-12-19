@@ -7,6 +7,8 @@ import { RequestMethod } from 'shim/objects/request-method';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
+import { AuthorizationInformation, AuthorizationType } from 'shim/objects/auth';
+import { randomUUID } from 'node:crypto';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 
@@ -84,10 +86,15 @@ export class BrunoImporter implements CollectionImporter {
       let method: RequestMethod = RequestMethod.GET;
       let url = '';
       const headers: TrufosRequest['headers'] = [];
+      const queryParams: { key: string; value: string; isActive: boolean }[] = [];
       let bodyContent = '';
       let mimeType = DEFAULT_MIME_TYPE;
       let currentSection: string | null = null;
       let captureBody = false;
+      let auth: AuthorizationInformation | undefined = undefined;
+      let preRequestScript = '';
+      let postResponseScript = '';
+      let captureScript = false;
 
       for (const line of lines) {
         const trimmedLine = line.trim();
@@ -97,6 +104,32 @@ export class BrunoImporter implements CollectionImporter {
           continue;
         } else if (trimmedLine.startsWith('headers {')) {
           currentSection = 'headers';
+          continue;
+        } else if (trimmedLine.startsWith('auth {')) {
+          currentSection = 'auth';
+          continue;
+        } else if (trimmedLine.startsWith('auth:basic {')) {
+          currentSection = 'auth:basic';
+          auth = { type: AuthorizationType.BASIC, username: '', password: '' };
+          continue;
+        } else if (trimmedLine.startsWith('auth:bearer {')) {
+          currentSection = 'auth:bearer';
+          auth = { type: AuthorizationType.BEARER, token: '' };
+          continue;
+        } else if (trimmedLine.startsWith('auth:inherit {')) {
+          currentSection = 'auth:inherit';
+          auth = { type: AuthorizationType.INHERIT };
+          continue;
+        } else if (trimmedLine.startsWith('params:query {')) {
+          currentSection = 'params:query';
+          continue;
+        } else if (trimmedLine.startsWith('script:pre-request {')) {
+          currentSection = 'script:pre-request';
+          captureScript = true;
+          continue;
+        } else if (trimmedLine.startsWith('script:post-response {')) {
+          currentSection = 'script:post-response';
+          captureScript = true;
           continue;
         } else if (trimmedLine.startsWith('body {')) {
           currentSection = 'body';
@@ -148,6 +181,9 @@ export class BrunoImporter implements CollectionImporter {
           if (captureBody) {
             captureBody = false;
           }
+          if (captureScript) {
+            captureScript = false;
+          }
           currentSection = null;
           continue;
         }
@@ -164,15 +200,64 @@ export class BrunoImporter implements CollectionImporter {
           if (trimmedLine.startsWith('url:')) {
             url = trimmedLine.substring(4).trim();
           } else if (!trimmedLine.startsWith('}') && !url) {
+            // ignore comments in method block
+            if (trimmedLine.startsWith('//')) {
+              continue;
+            }
             url = trimmedLine;
           }
         } else if (currentSection === 'headers' && trimmedLine && !trimmedLine.startsWith('}')) {
+          // ignore header comments
+          if (trimmedLine.startsWith('//')) {
+            continue;
+          }
           const colonIndex = trimmedLine.indexOf(':');
           if (colonIndex > 0) {
             const key = trimmedLine.substring(0, colonIndex).trim();
             const value = trimmedLine.substring(colonIndex + 1).trim();
             headers.push({ key, value, isActive: true });
           }
+        } else if (
+          currentSection === 'params:query' &&
+          trimmedLine &&
+          !trimmedLine.startsWith('}')
+        ) {
+          const colonIndex = trimmedLine.indexOf(':');
+          if (colonIndex > 0) {
+            const key = trimmedLine.substring(0, colonIndex).trim();
+            const value = trimmedLine.substring(colonIndex + 1).trim();
+            const isActive = !key.startsWith('~');
+            const cleanKey = isActive ? key : key.substring(1).trim();
+            queryParams.push({ key: cleanKey, value, isActive });
+          }
+        } else if (currentSection === 'auth:basic' && trimmedLine && !trimmedLine.startsWith('}')) {
+          const colonIndex = trimmedLine.indexOf(':');
+          if (colonIndex > 0 && auth?.type === AuthorizationType.BASIC) {
+            const key = trimmedLine.substring(0, colonIndex).trim();
+            const value = trimmedLine.substring(colonIndex + 1).trim();
+            if (key === 'username') {
+              auth.username = value;
+            } else if (key === 'password') {
+              auth.password = value;
+            }
+          }
+        } else if (
+          currentSection === 'auth:bearer' &&
+          trimmedLine &&
+          !trimmedLine.startsWith('}')
+        ) {
+          const colonIndex = trimmedLine.indexOf(':');
+          if (colonIndex > 0 && auth?.type === AuthorizationType.BEARER) {
+            const key = trimmedLine.substring(0, colonIndex).trim();
+            const value = trimmedLine.substring(colonIndex + 1).trim();
+            if (key === 'token') {
+              auth.token = value;
+            }
+          }
+        } else if (currentSection === 'script:pre-request' && trimmedLine !== '}') {
+          preRequestScript += line + '\n';
+        } else if (currentSection === 'script:post-response' && trimmedLine !== '}') {
+          postResponseScript += line + '\n';
         } else if (captureBody && trimmedLine !== '}') {
           bodyContent += line + '\n';
         }
@@ -194,15 +279,34 @@ export class BrunoImporter implements CollectionImporter {
         };
       }
 
+      // require a valid URL; if not present, skip this request
+      if (!url || !url.trim()) {
+        logger.warn(`No URL found in Bruno file ${filePath}. Skipping request.`);
+        return null;
+      }
+
+      const parsedUrl = parseUrl(url);
+      if (queryParams.length > 0) {
+        parsedUrl.query = [...parsedUrl.query, ...queryParams];
+      }
+
+      if (preRequestScript.trim() || postResponseScript.trim()) {
+        logger.info(
+          `Parsed scripts from ${filePath} (not yet supported in Trufos):`,
+          `pre-request: ${preRequestScript.trim().length} chars, post-response: ${postResponseScript.trim().length} chars`
+        );
+      }
+
       return {
         id: this.generateId(),
         parentId,
         type: 'request',
         title: fileName,
-        url: parseUrl(url || 'http://'),
+        url: parsedUrl,
         method,
         headers,
         body: requestBody,
+        auth,
       };
     } catch (error) {
       logger.warn(`Failed to parse Bruno file ${filePath}:`, error);
@@ -280,6 +384,6 @@ export class BrunoImporter implements CollectionImporter {
   }
 
   private generateId(): string {
-    return `bruno_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    return randomUUID();
   }
 }

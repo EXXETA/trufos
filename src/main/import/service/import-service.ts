@@ -7,6 +7,11 @@ import { ImportStrategy } from 'shim/event-service';
 import { sanitizeTitle } from 'shim/fs';
 import path from 'path';
 
+export interface ImportedScripts {
+  preRequest?: string;
+  postResponse?: string;
+}
+
 export interface CollectionImporter {
   /**
    * Reads a third-party collection from the given file or directory
@@ -66,5 +71,18 @@ export class ImportService {
     logger.info('Successfully imported collection:', collection);
     await persistenceService.saveCollection(collection, true);
     return collection;
+  }
+
+  /**
+   * Process imported scripts from third-party collections.
+   * This is a placeholder for when Trufos implements script support.
+   * Scripts will be handled here instead of in individual importers.
+   *
+   * @param scripts the scripts to process
+   * @returns processed scripts in Trufos format (when implemented)
+   */
+  public processImportedScripts(scripts: ImportedScripts): ImportedScripts {
+    logger.info('Processing imported scripts (not yet implemented in Trufos):', scripts);
+    return scripts;
   }
 }

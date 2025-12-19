@@ -280,4 +280,222 @@ body:xml {
       expect(xmlRequest.body.text).toContain('<root>');
     }
   });
+
+  it('should handle bearer auth', async () => {
+    const collectionDir = path.join(testDir, 'collection-with-bearer-auth');
+    await fs.mkdir(collectionDir, { recursive: true });
+
+    const brunoJson = {
+      name: 'Collection With Bearer Auth',
+      version: '1',
+    };
+    await fs.writeFile(path.join(collectionDir, 'bruno.json'), JSON.stringify(brunoJson, null, 2));
+
+    const requestContent = `get {
+  url: https://api.example.com/protected
+}
+
+auth:bearer {
+  token: my-secret-token-123
+}
+`;
+    await fs.writeFile(path.join(collectionDir, 'protected-request.bru'), requestContent);
+
+    const result = await brunoImporter.importCollection(collectionDir);
+
+    expect(result.children.length).toBe(1);
+    const request = result.children[0] as TrufosRequest;
+    expect(request.auth).toBeDefined();
+    expect(request.auth?.type).toBe('bearer');
+    if (request.auth?.type === 'bearer') {
+      expect(request.auth.token).toBe('my-secret-token-123');
+    }
+  });
+
+  it('should handle basic auth', async () => {
+    const collectionDir = path.join(testDir, 'collection-with-basic-auth');
+    await fs.mkdir(collectionDir, { recursive: true });
+
+    const brunoJson = {
+      name: 'Collection With Basic Auth',
+      version: '1',
+    };
+    await fs.writeFile(path.join(collectionDir, 'bruno.json'), JSON.stringify(brunoJson, null, 2));
+
+    const requestContent = `get {
+  url: https://api.example.com/protected
+}
+
+auth:basic {
+  username: admin
+  password: secret123
+}
+`;
+    await fs.writeFile(path.join(collectionDir, 'basic-auth-request.bru'), requestContent);
+
+    const result = await brunoImporter.importCollection(collectionDir);
+
+    expect(result.children.length).toBe(1);
+    const request = result.children[0] as TrufosRequest;
+    expect(request.auth).toBeDefined();
+    expect(request.auth?.type).toBe('basic');
+    if (request.auth?.type === 'basic') {
+      expect(request.auth.username).toBe('admin');
+      expect(request.auth.password).toBe('secret123');
+    }
+  });
+
+  it('should handle inherit auth', async () => {
+    const collectionDir = path.join(testDir, 'collection-with-inherit-auth');
+    await fs.mkdir(collectionDir, { recursive: true });
+
+    const brunoJson = {
+      name: 'Collection With Inherit Auth',
+      version: '1',
+    };
+    await fs.writeFile(path.join(collectionDir, 'bruno.json'), JSON.stringify(brunoJson, null, 2));
+
+    const requestContent = `get {
+  url: https://api.example.com/protected
+}
+
+auth:inherit {
+}
+`;
+    await fs.writeFile(path.join(collectionDir, 'inherit-auth-request.bru'), requestContent);
+
+    const result = await brunoImporter.importCollection(collectionDir);
+
+    expect(result.children.length).toBe(1);
+    const request = result.children[0] as TrufosRequest;
+    expect(request.auth).toBeDefined();
+    expect(request.auth?.type).toBe('inherit');
+  });
+
+  it('should handle query parameters', async () => {
+    const collectionDir = path.join(testDir, 'collection-with-query-params');
+    await fs.mkdir(collectionDir, { recursive: true });
+
+    const brunoJson = {
+      name: 'Collection With Query Params',
+      version: '1',
+    };
+    await fs.writeFile(path.join(collectionDir, 'bruno.json'), JSON.stringify(brunoJson, null, 2));
+
+    const requestContent = `get {
+  url: https://api.example.com/search
+}
+
+params:query {
+  q: test query
+  limit: 10
+  ~disabled: should not be active
+}
+`;
+    await fs.writeFile(path.join(collectionDir, 'search-request.bru'), requestContent);
+
+    const result = await brunoImporter.importCollection(collectionDir);
+
+    expect(result.children.length).toBe(1);
+    const request = result.children[0] as TrufosRequest;
+    expect(request.url.query.length).toBe(3);
+
+    const qParam = request.url.query.find((p) => p.key === 'q');
+    expect(qParam).toBeDefined();
+    expect(qParam?.value).toBe('test query');
+    expect(qParam?.isActive).toBe(true);
+
+    const limitParam = request.url.query.find((p) => p.key === 'limit');
+    expect(limitParam).toBeDefined();
+    expect(limitParam?.value).toBe('10');
+    expect(limitParam?.isActive).toBe(true);
+
+    const disabledParam = request.url.query.find((p) => p.key === 'disabled');
+    expect(disabledParam).toBeDefined();
+    expect(disabledParam?.value).toBe('should not be active');
+    expect(disabledParam?.isActive).toBe(false);
+  });
+
+  it('should parse scripts but not store them (not yet supported in Trufos)', async () => {
+    const collectionDir = path.join(testDir, 'collection-with-scripts');
+    await fs.mkdir(collectionDir, { recursive: true });
+
+    const brunoJson = {
+      name: 'Collection With Scripts',
+      version: '1',
+    };
+    await fs.writeFile(path.join(collectionDir, 'bruno.json'), JSON.stringify(brunoJson, null, 2));
+
+    const requestContent = `post {
+  url: https://api.example.com/data
+}
+
+script:pre-request {
+  const timestamp = Date.now();
+  req.setVariable('timestamp', timestamp);
+}
+
+script:post-response {
+  if (res.status === 200) {
+    console.log('Success!');
+  }
+}
+
+body:json {
+  {
+    "key": "value"
+  }
+}
+`;
+    await fs.writeFile(path.join(collectionDir, 'script-request.bru'), requestContent);
+
+    const result = await brunoImporter.importCollection(collectionDir);
+
+    expect(result.children.length).toBe(1);
+    const request = result.children[0] as TrufosRequest;
+    expect(request.type).toBe('request');
+    expect(request.title).toBe('script-request');
+  });
+
+  it('should skip requests without URL', async () => {
+    const collectionDir = path.join(testDir, 'collection-without-url');
+    await fs.mkdir(collectionDir, { recursive: true });
+
+    const noUrlContent = `get {
+  // url intentionally missing
+}
+headers {
+  Content-Type: application/json
+}
+`;
+    await fs.writeFile(path.join(collectionDir, 'no-url.bru'), noUrlContent);
+
+    const result = await brunoImporter.importCollection(collectionDir);
+
+    expect(result.children.length).toBe(0);
+  });
+
+  it('should ignore commented and malformed header lines', async () => {
+    const collectionDir = path.join(testDir, 'collection-with-header-comments');
+    await fs.mkdir(collectionDir, { recursive: true });
+
+    const content = `get {
+  url: https://api.example.com/test
+}
+
+headers {
+  // This is a comment and should be ignored
+  X-Valid: yes
+  InvalidHeaderLineWithoutColon
+}
+`;
+    await fs.writeFile(path.join(collectionDir, 'header-comments.bru'), content);
+
+    const result = await brunoImporter.importCollection(collectionDir);
+
+    expect(result.children.length).toBe(1);
+    const request = result.children[0] as TrufosRequest;
+    expect(request.headers.length).toBe(1);
+    expect(request.headers[0]).toEqual({ key: 'X-Valid', value: 'yes', isActive: true });
+  });
 });
