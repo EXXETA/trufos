@@ -16,6 +16,7 @@ import { CollectionIcon, SmallArrow } from '@/components/icons';
 import { FolderOpen, FolderPlus, Upload } from 'lucide-react';
 import { TypographyLineClamp } from '@/components/shared/TypographyLineClamp';
 import { CollectionImport } from '@/view/CollectionImport';
+import { CollectionCreate } from '@/view/CollectionCreate';
 
 const eventService = RendererEventService.instance;
 
@@ -25,6 +26,7 @@ export default function CollectionDropdown() {
   const [collections, setCollections] = useState<CollectionBase[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   const loadCollections = useCallback(async () => {
     setCollections(await eventService.listCollections());
@@ -47,26 +49,6 @@ export default function CollectionDropdown() {
       await loadCollections();
     } catch (e) {
       console.error('Error opening collection:', e);
-    }
-  }, []);
-
-  const createCollection = useCallback(async () => {
-    try {
-      const result = await eventService.showOpenDialog({
-        title: 'Create New Collection Directory',
-        buttonLabel: 'Create',
-        properties: ['openDirectory', 'createDirectory'],
-      });
-      if (!result.canceled && result.filePaths.length > 0) {
-        console.info('Creating collection at', result.filePaths[0]);
-
-        await changeCollection(
-          await eventService.createCollection(result.filePaths[0], 'New Collection')
-        );
-      }
-      await loadCollections();
-    } catch (e) {
-      console.error('Error creating collection:', e);
     }
   }, []);
 
@@ -97,7 +79,7 @@ export default function CollectionDropdown() {
       >
         <div className="bg-background-secondary sticky top-0 z-10">
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={createCollection} className={'px-4 py-3'}>
+            <DropdownMenuItem onClick={() => setShowCreate(true)} className={'px-4 py-3'}>
               <FolderPlus />
 
               <span>New Collection</span>
@@ -141,6 +123,9 @@ export default function CollectionDropdown() {
       </DropdownMenuContent>
 
       {showImport && <CollectionImport onClose={() => setShowImport(false)} />}
+      {showCreate && (
+        <CollectionCreate loadCollections={loadCollections} onClose={() => setShowCreate(false)} />
+      )}
     </DropdownMenu>
   );
 }
