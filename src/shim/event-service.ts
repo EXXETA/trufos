@@ -171,4 +171,19 @@ export interface IEventService {
    * Will show a dialog to the user if an update is available.
    */
   updateApp(): void;
+
+  /**
+   * Export the given collection to a ZIP file.
+   * @param collection The collection to export.
+   * @param outputPath The directory where the ZIP file should be saved.
+   * @param includeSecrets Whether to include secrets in the export. Default is false.
+   * @param password Optional password to encrypt the ZIP file.
+   * @returns The path to the exported ZIP file.
+   */
+  exportCollection(
+    collection: Collection,
+    outputPath: string,
+    includeSecrets?: boolean,
+    password?: string
+  ): Promise<string>;
 }

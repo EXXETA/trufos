@@ -4455,6 +4455,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@zip.js/zip.js@npm:^2.8.11":
+  version: 2.8.13
+  resolution: "@zip.js/zip.js@npm:2.8.13"
+  checksum: 10c0/8bb7efd5b565443c3844fc57cc32df66698ed43940115df3a2c4d21017aad606de298f94124dd9a67814906c1dae452cef09443f846dc2d9209fdacddf7b94a2
+  languageName: node
+  linkType: hard
+
 "abbrev@npm:^1.0.0":
   version: 1.1.1
   resolution: "abbrev@npm:1.1.1"
@@ -11414,6 +11421,7 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.51.0"
     "@vitejs/plugin-react": "npm:^5.1.2"
     "@vitest/coverage-v8": "npm:^4.0.16"
+    "@zip.js/zip.js": "npm:^2.8.11"
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
     cmdk: "npm:^1.1.1"

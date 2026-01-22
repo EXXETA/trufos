@@ -10,11 +10,14 @@ import { PersistenceService } from '../persistence/service/persistence-service';
 import './stream-events';
 import { EnvironmentMap } from 'shim/objects/environment';
 import { ImportService } from 'main/import/service/import-service';
+import { ExportService } from 'main/export/service/export-service';
 import { updateElectronApp } from 'update-electron-app';
+import { Collection } from 'shim/objects/collection';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
 const importService = ImportService.instance;
+const exportService = ExportService.instance;
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -183,6 +186,18 @@ export class MainEventService implements IEventService {
         warn: (message: string) => logger.warn(prefixMessage(message)),
       },
       updateInterval: '1 hour',
+    });
+  }
+
+  async exportCollection(
+    collection: Collection,
+    outputPath: string,
+    includeSecrets: boolean = false,
+    password?: string
+  ) {
+    return await exportService.exportCollection(collection, outputPath, {
+      includeSecrets,
+      password,
     });
   }
 }

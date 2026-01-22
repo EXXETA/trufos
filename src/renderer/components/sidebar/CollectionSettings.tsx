@@ -11,10 +11,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { MdOutlineContentCopy, MdOutlineModeEdit } from 'react-icons/md';
 import { TypographyLineClamp } from '@/components/shared/TypographyLineClamp';
 import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { Download } from 'lucide-react';
 
 const eventService = RendererEventService.instance;
 
@@ -28,6 +30,8 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
   const [name, setName] = useState('');
   const [pathName, setPathName] = useState('');
   const [collections, setCollections] = useState<CollectionBase[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
+  const [includeSecrets, setIncludeSecrets] = useState(false);
 
   const loadCollections = useCallback(async () => {
     setCollections(await eventService.listCollections());
@@ -71,6 +75,27 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
     await navigator.clipboard.writeText(trufosObject.dirPath);
   };
 
+  const handleExportCollection = async () => {
+    try {
+      setIsExporting(true);
+      const result = await eventService.showOpenDialog({
+        title: 'Select Export Location',
+        buttonLabel: 'Export',
+        properties: ['openDirectory'],
+      });
+
+      if (!result.canceled && result.filePaths.length > 0) {
+        const outputPath = result.filePaths[0];
+        await eventService.exportCollection(trufosObject, outputPath, includeSecrets);
+        console.info('Collection exported successfully');
+      }
+    } catch (err) {
+      console.error('Failed to export collection', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const isValid = useMemo(() => {
     return name.trim().length > 0 && name !== trufosObject.title;
   }, [name, trufosObject.title]);
@@ -80,7 +105,7 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Collection Settings</DialogTitle>
-          <DialogDescription className={'text-[var(--text-secondary)]'}>
+          <DialogDescription className={'text-text-secondary'}>
             Manage your collection options below.
           </DialogDescription>
         </DialogHeader>
@@ -110,6 +135,39 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
 
               <MdOutlineModeEdit size={16} />
             </Button>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-text-secondary font-medium">Export Collection</span>
+
+              <Button
+                variant={'secondary'}
+                size="sm"
+                disabled={isExporting}
+                className="flex gap-2 rounded-full"
+                onClick={handleExportCollection}
+              >
+                <Download size={16} />
+                {isExporting ? 'Exporting...' : 'Export'}
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2 pl-4">
+              <Checkbox
+                id="include-secrets"
+                checked={includeSecrets}
+                onCheckedChange={(checked) => setIncludeSecrets(checked === true)}
+              />
+              <label
+                htmlFor="include-secrets"
+                className="text-text-secondary cursor-pointer text-sm"
+              >
+                Include secret values
+              </label>
+            </div>
           </div>
 
           <Separator />
