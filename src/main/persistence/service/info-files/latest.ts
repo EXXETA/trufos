@@ -9,6 +9,8 @@ import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile 
 export { createGitIgnore } from './v2-0-0';
 export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v2-1-0';
 
+export const GIT_IGNORE_FILE_NAME = '.gitignore';
+
 /**
  * Deep clones the given object and removes any properties that are not allowed in an info file.
  * @param object The trufos object to convert to an info file.

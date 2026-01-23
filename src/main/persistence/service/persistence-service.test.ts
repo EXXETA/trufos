@@ -11,7 +11,7 @@ import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateDefaultCollection } from './default-collection';
 import { sanitizeTitle } from 'shim/fs';
-import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
+import { CollectionInfoFile, RequestInfoFile, GIT_IGNORE_FILE_NAME } from './info-files/latest';
 import { PersistenceService } from './persistence-service';
 import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
 
@@ -59,14 +59,13 @@ function getExampleFolderWithChildren(parentId: string): Folder {
 function getExampleRequest(parentId: string): TrufosRequest {
   return {
     id: randomUUID(),
-    url: 'https://example.com',
+    url: { base: 'https://example.com', query: [] },
     headers: [],
     type: 'request',
     title: 'request',
     draft: false,
     parentId,
     method: RequestMethod.GET,
-    queryParams: [],
     body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
   };
 }
@@ -326,6 +325,59 @@ describe('PersistenceService', () => {
     expect(secrets.variables).toEqual(
       Object.fromEntries(Object.entries(variables).filter(([, v]) => v.secret))
     );
+  });
+
+  it('saveCollection(recursive=true) should create .gitignore when directory does not exist', async () => {
+    // Arrange
+    const newCollection = getExampleCollection();
+    await rm(newCollection.dirPath, { recursive: true, force: true });
+    const gitignorePath = path.join(newCollection.dirPath, GIT_IGNORE_FILE_NAME);
+
+    // Act
+    await persistenceService.saveCollection(newCollection, true);
+
+    // Assert
+    expect(await exists(gitignorePath)).toBe(true);
+  });
+
+  it('saveCollection(recursive=true) should create .gitignore when directory does exists but gitignore is missing', async () => {
+    // Arrange
+    const newCollection = getExampleCollection();
+
+    // Act
+    await persistenceService.saveCollection(newCollection, true);
+
+    // Assert
+    expect(await exists(path.join(newCollection.dirPath, GIT_IGNORE_FILE_NAME))).toBe(true);
+  });
+
+  it('saveCollection(recursive=true) should not modify .gitignore if it already exists', async () => {
+    // Arrange
+    const newCollection = getExampleCollection();
+    await mkdir(newCollection.dirPath, { recursive: true });
+    const gitignorePath = path.join(newCollection.dirPath, GIT_IGNORE_FILE_NAME);
+    const originalContent = '.custom\n';
+    await writeFile(gitignorePath, originalContent);
+
+    // Act
+    await persistenceService.saveCollection(newCollection, true);
+
+    // Assert
+    const content = await readFile(gitignorePath, 'utf-8');
+    expect(content).toBe(originalContent);
+  });
+
+  it('saveCollection(recursive=false) should not modify .gitignore', async () => {
+    // Arrange
+    const newCollection = getExampleCollection();
+    await mkdir(newCollection.dirPath, { recursive: true });
+    const gitignorePath = path.join(newCollection.dirPath, GIT_IGNORE_FILE_NAME);
+
+    // Act
+    await persistenceService.saveCollection(newCollection, false);
+
+    // Assert
+    expect(await exists(gitignorePath)).toBe(false);
   });
 
   it('saveRequest() should find an unused directory name', async () => {
