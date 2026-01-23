@@ -15,6 +15,8 @@ import fs from 'node:fs/promises';
 
 export const VERSION = new SemVer(2, 0, 0);
 
+export const GIT_IGNORE_FILE_NAME = '.gitignore';
+
 type InfoFileBase = {
   id: string;
   version: typeof VERSION.string;
@@ -115,7 +117,7 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
  * @param dirPath the directory path where the .gitignore file should be created
  */
 export async function createGitIgnore(dirPath: string) {
-  const filePath = path.join(dirPath, '.gitignore');
+  const filePath = path.join(dirPath, GIT_IGNORE_FILE_NAME);
   logger.info(`Creating .gitignore file at`, filePath);
   await fs.writeFile(filePath, ['.draft', '.secrets.bin'].join('\n'));
 }

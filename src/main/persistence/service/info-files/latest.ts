@@ -6,7 +6,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { VariableMap } from 'shim/objects/variables';
 import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-1-0';
 
-export { createGitIgnore } from './v2-0-0';
+export { createGitIgnore, GIT_IGNORE_FILE_NAME } from './v2-0-0';
 export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v2-1-0';
 
 /**

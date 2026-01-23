@@ -22,6 +22,7 @@ import {
   fromCollectionInfoFile,
   fromFolderInfoFile,
   fromRequestInfoFile,
+  GIT_IGNORE_FILE_NAME,
   InfoFile,
   RequestInfoFile,
   toInfoFile,
@@ -174,7 +175,13 @@ export class PersistenceService {
    * @param recursive whether to save all children of the collection recursively. Default is false.
    */
   public async saveCollection(collection: Collection, recursive = false) {
-    await fs.mkdir(collection.dirPath, { recursive: true });
+    if (
+      recursive &&
+      ((await fs.mkdir(collection.dirPath, { recursive })) ||
+        !(await exists(path.join(collection.dirPath, GIT_IGNORE_FILE_NAME))))
+    ) {
+      await createGitIgnore(collection.dirPath);
+    }
     await this.saveInfoFile(collection, this.getOrCreateDirPath(collection));
 
     if (recursive) {
