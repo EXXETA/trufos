@@ -43,7 +43,7 @@ No account or telemetry is required—Trufos runs locally and keeps your data on
 ## Requirements
 
 As Trufos is an Electron application, it can run on Windows, macOS, and Linux without any issues. If
-you want to develop or build this software yourself, you will need Node.js version 22. We use **yarn**
+you want to develop or build this software yourself, you will need Node.js version 24. We use **yarn**
 and not NPM in this project as it can better handle peer dependencies. **Do not install dependencies with NPM!**
 
 ### Local Development
