@@ -68,7 +68,7 @@
   "dependencies": {
     "@electron-forge/publisher-github": "^7.11.1",
     "@electron-forge/shared-types": "^7.11.1",
-    "@monaco-editor/react": "4.8.0-rc.2",
+    "@monaco-editor/react": "4.8.0-rc.3",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -99,7 +99,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-icons": "^5.5.0",
-    "react-resizable-panels": "^3.0.6",
+    "react-resizable-panels": "^4.5.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
