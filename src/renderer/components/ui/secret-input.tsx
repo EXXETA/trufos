@@ -6,7 +6,7 @@ interface SecretInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   secret?: boolean;
 }
 
-export function SecretInput({ secret = true, className, ...props }: SecretInputProps) {
+export function SecretInput({ secret = false, className, ...props }: SecretInputProps) {
   const [show, setShow] = useState(false);
 
   if (!secret) {
