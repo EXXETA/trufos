@@ -2138,25 +2138,25 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@monaco-editor/loader@npm:^1.6.1":
-  version: 1.6.1
-  resolution: "@monaco-editor/loader@npm:1.6.1"
+"@monaco-editor/loader@npm:^1.7.0":
+  version: 1.7.0
+  resolution: "@monaco-editor/loader@npm:1.7.0"
   dependencies:
     state-local: "npm:^1.0.6"
-  checksum: 10c0/88fed11f7e5892c2221b649328490512591b3eca432c9613c5a0b737d624b741fcc774197b119e681360454931a19de26b271ede567ddb226ab63f0d1ec67c89
+  checksum: 10c0/1fd3579cb09b669493cf553dfc0723a93483140a44353ce9a739827edfa7b2c6541b254024d15c48176ece749ef666b6d16cce6cf0e4396c7fa1c5a48012d08a
   languageName: node
   linkType: hard
 
-"@monaco-editor/react@npm:4.8.0-rc.2":
-  version: 4.8.0-rc.2
-  resolution: "@monaco-editor/react@npm:4.8.0-rc.2"
+"@monaco-editor/react@npm:4.8.0-rc.3":
+  version: 4.8.0-rc.3
+  resolution: "@monaco-editor/react@npm:4.8.0-rc.3"
   dependencies:
-    "@monaco-editor/loader": "npm:^1.6.1"
+    "@monaco-editor/loader": "npm:^1.7.0"
   peerDependencies:
     monaco-editor: ">= 0.25.0 < 1"
     react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
     react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/09c8b1cc8d10d666fccb22968adfce702893ebf0abd119a378bc928818d7bc6bd0ca1049d28acdcae530d5d60e114ce4efa367d514a29ed2ebfd986265a11677
+  checksum: 10c0/4af93cf42a91b8ddd1275c175c4841570cc519d6b9c8ae3bfb066669979ead897b453be5edca3a1e0e76eea053d8899dc99624fbffcd693baf28b8a68f4f682c
   languageName: node
   linkType: hard
 
@@ -3994,12 +3994,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:^19.2.9":
-  version: 19.2.9
-  resolution: "@types/react@npm:19.2.9"
+"@types/react@npm:^19.2.10":
+  version: 19.2.10
+  resolution: "@types/react@npm:19.2.10"
   dependencies:
     csstype: "npm:^3.2.2"
-  checksum: 10c0/91c6839edd10ebdab4cd686d2a744e6ae078ed5831a36d48284ae92df0463c89bda1084ffdd2e6445f0716236c2c6ae0828b82f70720727632331695f4581d2a
+  checksum: 10c0/17b96203a79ad3fa3cee8f1f1f324b93f005bc125755e29ac149402807275feaf3f00a4e65b8405f633923ac993da5737fd9800d27ee49911f3ed51dc27478f9
   languageName: node
   linkType: hard
 
@@ -10184,14 +10184,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^19.2.3":
-  version: 19.2.3
-  resolution: "react-dom@npm:19.2.3"
+"react-dom@npm:^19.2.4":
+  version: 19.2.4
+  resolution: "react-dom@npm:19.2.4"
   dependencies:
     scheduler: "npm:^0.27.0"
   peerDependencies:
-    react: ^19.2.3
-  checksum: 10c0/dc43f7ede06f46f3acc16ee83107c925530de9b91d1d0b3824583814746ff4c498ea64fd65cd83aba363205268adff52e2827c582634ae7b15069deaeabc4892
+    react: ^19.2.4
+  checksum: 10c0/f0c63f1794dedb154136d4d0f59af00b41907f4859571c155940296808f4b94bf9c0c20633db75b5b2112ec13d8d7dd4f9bf57362ed48782f317b11d05a44f35
   languageName: node
   linkType: hard
 
@@ -10253,13 +10253,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-resizable-panels@npm:^3.0.6":
-  version: 3.0.6
-  resolution: "react-resizable-panels@npm:3.0.6"
+"react-resizable-panels@npm:^4.5.6":
+  version: 4.5.6
+  resolution: "react-resizable-panels@npm:4.5.6"
   peerDependencies:
-    react: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-    react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-  checksum: 10c0/e6a6a2a7f438aaf3d4411c39626c1cab5c23af6f25d5ff1fdb8446916388fec549be63d65c47fe17bcc82522b1b5fc7fffa77a550ca9d0b8d21e340d83bdb3c0
+    react: ^18.0.0 || ^19.0.0
+    react-dom: ^18.0.0 || ^19.0.0
+  checksum: 10c0/21416596839596ba9329b02a18b97b9af4ea64908b85ac15155a37a140aa667f31c5e76275e8c16fb15fcb684a3ca1b8953cadd948073eeee29d4c1990825936
   languageName: node
   linkType: hard
 
@@ -10279,10 +10279,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^19.2.3":
-  version: 19.2.3
-  resolution: "react@npm:19.2.3"
-  checksum: 10c0/094220b3ba3a76c1b668f972ace1dd15509b157aead1b40391d1c8e657e720c201d9719537375eff08f5e0514748c0319063392a6f000e31303aafc4471f1436
+"react@npm:^19.2.4":
+  version: 19.2.4
+  resolution: "react@npm:19.2.4"
+  checksum: 10c0/cd2c9ff67a720799cc3b38a516009986f7fc4cb8d3e15716c6211cf098d1357ee3e348ab05ad0600042bbb0fd888530ba92e329198c92eafa0994f5213396596
   languageName: node
   linkType: hard
 
@@ -11654,7 +11654,7 @@ __metadata:
     "@eslint/compat": "npm:^2.0.1"
     "@eslint/eslintrc": "npm:^3.3.3"
     "@eslint/js": "npm:^9.39.2"
-    "@monaco-editor/react": "npm:4.8.0-rc.2"
+    "@monaco-editor/react": "npm:4.8.0-rc.3"
     "@radix-ui/react-checkbox": "npm:^1.3.3"
     "@radix-ui/react-collapsible": "npm:^1.1.12"
     "@radix-ui/react-dialog": "npm:^1.1.15"
@@ -11676,7 +11676,7 @@ __metadata:
     "@types/mime-types": "npm:^3.0.1"
     "@types/node": "npm:^24.10.9"
     "@types/postman-collection": "npm:^3.5.11"
-    "@types/react": "npm:^19.2.9"
+    "@types/react": "npm:^19.2.10"
     "@types/react-dom": "npm:^19.2.3"
     "@types/tmp": "npm:^0.2.6"
     "@typescript-eslint/eslint-plugin": "npm:^8.53.1"
@@ -11706,10 +11706,10 @@ __metadata:
     postman-collection: "npm:^5.2.0"
     prettier: "npm:^3.8.1"
     prettier-plugin-tailwindcss: "npm:^0.7.2"
-    react: "npm:^19.2.3"
-    react-dom: "npm:^19.2.3"
+    react: "npm:^19.2.4"
+    react-dom: "npm:^19.2.4"
     react-icons: "npm:^5.5.0"
-    react-resizable-panels: "npm:^3.0.6"
+    react-resizable-panels: "npm:^4.5.6"
     sonner: "npm:^2.0.7"
     style-loader: "npm:^4.0.0"
     tailwind-merge: "npm:^3.4.0"
