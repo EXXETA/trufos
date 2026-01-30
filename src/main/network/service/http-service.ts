@@ -60,6 +60,17 @@ export class HttpService {
       this.trufosHeadersToUndiciHeaders(request.headers)
     );
 
+    const body = await this.readBody(request);
+    if (
+      body != null &&
+      request.body?.type === RequestBodyType.FILE &&
+      request.body.filePath != null &&
+      !('content-length' in headers)
+    ) {
+      const stats = fs.statSync(request.body.filePath);
+      headers['content-length'] = [stats.size.toString()];
+    }
+
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
