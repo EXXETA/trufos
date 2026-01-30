@@ -7,8 +7,6 @@ import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleS
 import { getMimeType } from './PrettyRenderer';
 import { ImagePrettyRenderer } from './ImagePrettyRenderer';
 import { TextualPrettyRenderer } from './TextualPrettyRenderer';
-import MonacoEditor from '@/lib/monaco/MonacoEditor';
-import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { DefaultRenderer } from './DefaultRenderer';
 import { useStateDerived } from '@/util/react-util';
 
@@ -43,7 +41,7 @@ export const BodyTab = () => {
 
   const renderContent = () => {
     if (outputType === OutputType.PRETTY) {
-      if (mimeType.startsWith('image/')) {
+      if (mimeType?.startsWith('image/')) {
         return <ImagePrettyRenderer response={response} />;
       } else {
         return <TextualPrettyRenderer response={response} />;
