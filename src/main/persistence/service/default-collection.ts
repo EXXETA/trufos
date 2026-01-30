@@ -13,6 +13,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
   return {
     id: collectionId,
     type: 'collection',
+    isDefault: true,
     title: 'Default Collection',
     dirPath,
     variables: Object.fromEntries(

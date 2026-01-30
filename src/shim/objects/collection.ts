@@ -16,6 +16,7 @@ export type CollectionBase = z.infer<typeof CollectionBase>;
 /** A collection of folders and requests. */
 export const Collection = CollectionBase.extend({
   type: z.literal('collection'),
+  isDefault: z.boolean().optional(),
   variables: VariableMap,
   environments: EnvironmentMap,
   auth: AuthorizationInformationNoInherit.optional(),

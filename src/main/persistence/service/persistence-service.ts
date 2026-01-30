@@ -385,6 +385,7 @@ export class PersistenceService {
       id: null,
       title,
       type: 'collection',
+      isDefault: false,
       dirPath,
       variables: {},
       environments: {},

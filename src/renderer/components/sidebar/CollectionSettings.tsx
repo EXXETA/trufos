@@ -27,6 +27,7 @@ export interface CollectionSettingsProps {
 export const CollectionSettings = ({ trufosObject, isOpen, onClose }: CollectionSettingsProps) => {
   const [name, setName] = useState('');
   const [pathName, setPathName] = useState('');
+  const [isDefault, setIsDefault] = useState(false);
   const [collections, setCollections] = useState<CollectionBase[]>([]);
 
   const loadCollections = useCallback(async () => {
@@ -45,6 +46,10 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
 
   useEffect(() => {
     setPathName(trufosObject?.dirPath);
+  }, [isOpen]);
+
+  useEffect(() => {
+    setIsDefault(!!trufosObject?.isDefault);
   }, [isOpen]);
 
   const handleChangeName = (event: ChangeEvent<HTMLInputElement>) => {
@@ -112,21 +117,25 @@ export const CollectionSettings = ({ trufosObject, isOpen, onClose }: Collection
             </Button>
           </div>
 
-          <Separator />
+          {!isDefault && (
+            <>
+              <Separator />
 
-          <div className="flex items-center justify-between">
-            <span className="text-destructive font-medium">Close Collection</span>
+              <div className="flex items-center justify-between">
+                <span className="text-destructive font-medium">Close Collection</span>
 
-            <Button
-              variant={'destructive'}
-              size="sm"
-              disabled={collections.length === 1}
-              className="rounded-full"
-              onClick={handleCloseCollection}
-            >
-              Close
-            </Button>
-          </div>
+                <Button
+                  variant={'destructive'}
+                  size="sm"
+                  disabled={collections.length === 1}
+                  className="rounded-full"
+                  onClick={handleCloseCollection}
+                >
+                  Close
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
