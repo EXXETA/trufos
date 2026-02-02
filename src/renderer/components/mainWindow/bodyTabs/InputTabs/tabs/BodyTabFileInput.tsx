@@ -46,6 +46,7 @@ export default function BodyTabFileInput({ className }: BodyTabFileInputProps) {
     <div className={cn('h-full', className)}>
       <FilePicker
         entry={file}
+        controlled={true}
         onFileSelected={(file) => setRequestBodyFile(file)}
         onFileRemoved={removeRequestBodyFile}
       />
