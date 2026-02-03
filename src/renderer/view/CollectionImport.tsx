@@ -49,9 +49,9 @@ const ImportTabsContent: React.FC<{
   gap?: boolean;
 }> = ({ children, strategy, gap = true }) => {
   return (
-    <TabsContent value={strategy} className="overflow-hidden rounded-none bg-transparent">
+    <TabsContent value={strategy} className="overflow-visible rounded-none bg-transparent">
       <div
-        className={cn('flex max-h-[calc(80vh-170px)] flex-col overflow-y-auto pr-2', {
+        className={cn('flex flex-col pr-2', {
           'gap-6': gap,
         })}
       >
@@ -124,7 +124,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
-      <DialogContent className="flex max-h-[80vh] w-[760px] max-w-3xl flex-col border-none shadow-none">
+      <DialogContent className="flex max-h-[90vh] w-[760px] max-w-3xl flex-col border-none shadow-none">
         <DialogHeader>
           <DialogTitle>Import Collection</DialogTitle>
         </DialogHeader>
@@ -132,7 +132,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
         <Tabs
           value={strategy}
           onValueChange={(v) => setStrategy(v as ImportStrategy)}
-          className="flex flex-1 flex-col overflow-hidden"
+          className="flex flex-1 flex-col overflow-visible"
         >
           <TabsList className="mt-1 mb-2 ml-0.5 overflow-visible">
             <TabsTrigger value="Trufos">Trufos</TabsTrigger>
