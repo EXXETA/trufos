@@ -34,6 +34,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
+      'cursor-pointer',
       'inline-flex h-[36px] items-center justify-center rounded-[24px] whitespace-nowrap',
       'px-3 py-1.5',
       'ring-offset-background text-sm font-medium transition-all focus-visible:outline-hidden',
