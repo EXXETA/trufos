@@ -35,12 +35,12 @@ export const App = () => {
     <ThemeProvider defaultTheme="dark">
       <TooltipProvider delayDuration={750}>
         <SidebarProvider className="grid">
-          <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-            <ResizablePanel defaultSize={minSidebarSize} minSize={minSidebarSize}>
+          <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
+            <ResizablePanel defaultSize="25%" minSize={`${minSidebarSize}%`}>
               <Menubar />
             </ResizablePanel>
             <ResizableHandle />
-            <ResizablePanel minSize={minRequestWindowSize}>
+            <ResizablePanel defaultSize="75%" minSize={`${minRequestWindowSize}%`}>
               <RequestWindow />
             </ResizablePanel>
           </ResizablePanelGroup>
