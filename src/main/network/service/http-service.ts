@@ -67,10 +67,6 @@ export class HttpService {
 
     const { stream, size } = await this.readBody(request);
 
-    if (size != null && !('content-length' in headers)) {
-      headers['content-length'] = [size.toString()];
-    }
-
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
@@ -79,6 +75,7 @@ export class HttpService {
       headers: {
         ['content-type']: this.getContentType(request),
         ['authorization']: authorization,
+        ['content-length']: size?.toString(),
         ['user-agent']: `Trufos/${app.getVersion()} (${process.platform} ${process.getSystemVersion()}; ${process.arch})`,
         ...headers,
       },
