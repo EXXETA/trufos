@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import FilePicker from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
-import { FolderIcon, FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
+import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
 import { ImportStrategy } from 'shim/event-service';
 import { showError } from '@/error/errorHandler';
 import { Collection } from 'shim/objects/collection';
@@ -134,7 +134,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
           onValueChange={(v) => setStrategy(v as ImportStrategy)}
           className="flex flex-1 flex-col overflow-hidden"
         >
-          <TabsList className="mb-2">
+          <TabsList className="mt-1 mb-2 ml-0.5 overflow-visible">
             <TabsTrigger value="Trufos">Trufos</TabsTrigger>
             <TabsTrigger value="Postman">Postman</TabsTrigger>
             <TabsTrigger value="Bruno">Bruno</TabsTrigger>
@@ -159,6 +159,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               title="Select file of the original collection"
               description="Postman exports .json files"
               entry={srcEntry}
+              icon={<FolderSearchIcon size={36} />}
               onFileSelected={setSrcEntry}
               onFileRemoved={() => setSrcEntry(undefined)}
               accept=".json"
