@@ -22,6 +22,11 @@ const responseBodyService = ResponseBodyService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
 
+type RequestBodyResult = {
+  stream: Readable | null;
+  size?: number;
+};
+
 /**
  * Singleton service for making HTTP requests
  */
@@ -60,6 +65,8 @@ export class HttpService {
       this.trufosHeadersToUndiciHeaders(request.headers)
     );
 
+    const { stream, size } = await this.readBody(request);
+
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
@@ -68,10 +75,11 @@ export class HttpService {
       headers: {
         ['content-type']: this.getContentType(request),
         ['authorization']: authorization,
+        ['content-length']: size?.toString(),
         ['user-agent']: `Trufos/${app.getVersion()} (${process.platform} ${process.getSystemVersion()}; ${process.arch})`,
         ...headers,
       },
-      body: await this.readBody(request),
+      body: stream,
     });
 
     const duration = getDurationFromNow(now);
@@ -109,19 +117,26 @@ export class HttpService {
    * @param request request object
    * @returns request body as stream or null if there is no body
    */
-  private async readBody(request: TrufosRequest): Promise<Readable | null> {
+  private async readBody(request: TrufosRequest): Promise<RequestBodyResult> {
     if (request.body == null) {
-      return null;
+      return { stream: null };
     }
 
     switch (request.body.type) {
-      case 'text': {
+      case RequestBodyType.TEXT: {
         const requestBodyStream = await persistenceService.loadTextBodyOfRequest(request);
-        return environmentService.setVariablesInStream(requestBodyStream) as Readable;
+        return {
+          stream: environmentService.setVariablesInStream(requestBodyStream) as Readable,
+        };
       }
-      case 'file':
-        if (request.body.filePath == null) return null;
-        return fileSystemService.readFile(request.body.filePath);
+      case RequestBodyType.FILE:
+        if (request.body.filePath == null) return { stream: null };
+        const stats = fs.statSync(request.body.filePath);
+        const fileStream = await fileSystemService.readFile(request.body.filePath);
+        return {
+          stream: fileStream,
+          size: stats.size,
+        };
       default:
         throw new Error('Unknown body type');
     }
