@@ -37,6 +37,7 @@ const TitleInput: React.FC<TitleInputProps> = ({ value, onChange }) => {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Name of the new collection"
+        className="rounded-lg"
       />
     </div>
   );
