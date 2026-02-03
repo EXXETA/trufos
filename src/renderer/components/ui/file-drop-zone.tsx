@@ -150,7 +150,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
   return (
     <div
       className={cn(
-        'flex h-full w-full cursor-pointer flex-col items-center justify-center gap-4 border-2 border-dashed p-4 text-center text-sm transition-colors',
+        'hover:border-primary flex h-full w-full cursor-pointer flex-col items-center justify-center gap-4 border-2 border-dashed p-4 text-center text-sm transition-colors',
         { 'border-primary': isDragging, 'pointer-events-none opacity-60': disabled },
         className
       )}
