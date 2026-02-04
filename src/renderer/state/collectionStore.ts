@@ -47,16 +47,17 @@ const CollectionStoreContext = createContext<CollectionStore | null>(null);
 
 export const CollectionStoreProvider = CollectionStoreContext.Provider;
 
-// Factory function to create a collection store with initial data
-export const createCollectionStore = (initialCollection: Collection) => {
-  console.debug('Creating collection store with collection', initialCollection);
-
+/**
+ * Builds maps of requests and folders from a collection's children tree.
+ * Also initializes variable and environment stores.
+ */
+const buildCollectionItemMaps = (collection: Collection) => {
   const requests = new Map<TrufosRequest['id'], TrufosRequest>();
   const folders = new Map<Folder['id'], Folder>();
   const { initialize: initializeVariables } = useVariableStore.getState();
   const { initialize: initializeEnvironments } = useEnvironmentStore.getState();
 
-  const stack = [...initialCollection.children];
+  const stack = [...collection.children];
   while (stack.length > 0) {
     const current = stack.pop()!;
     if (current.type === 'folder') {
@@ -67,8 +68,17 @@ export const createCollectionStore = (initialCollection: Collection) => {
     }
   }
 
-  initializeVariables(initialCollection.variables);
-  initializeEnvironments(initialCollection.environments);
+  initializeVariables(collection.variables);
+  initializeEnvironments(collection.environments);
+
+  return { requests, folders };
+};
+
+// Factory function to create a collection store with initial data
+export const createCollectionStore = (initialCollection: Collection) => {
+  console.debug('Creating collection store with collection', initialCollection);
+
+  const { requests, folders } = buildCollectionItemMaps(initialCollection);
 
   return createStore<CollectionState & CollectionStateActions>()(
     immer((set, get) => ({
@@ -79,29 +89,13 @@ export const createCollectionStore = (initialCollection: Collection) => {
 
       initialize: (collection) => {
         console.debug('Initializing collection store with collection', collection);
-        const requests = new Map<TrufosRequest['id'], TrufosRequest>();
-        const folders = new Map<Folder['id'], Folder>();
-        const { initialize: initializeVariables } = useVariableStore.getState();
-        const { initialize: initializeEnvironments } = useEnvironmentStore.getState();
-
-        const stack = [...collection.children];
-        while (stack.length > 0) {
-          const current = stack.pop()!;
-          if (current.type === 'folder') {
-            folders.set(current.id, current);
-            stack.push(...current.children);
-          } else if (current.type === 'request') {
-            requests.set(current.id, current);
-          }
-        }
+        const { requests, folders } = buildCollectionItemMaps(collection);
 
         // (re)set initial state
         set((state) => {
           state.collection = collection;
           state.requests = requests;
           state.folders = folders;
-          initializeVariables(collection.variables);
-          initializeEnvironments(collection.environments);
 
           if (state.collection?.id !== collection.id) {
             state.selectedRequestId = undefined;
