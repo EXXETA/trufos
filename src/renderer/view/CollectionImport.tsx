@@ -50,7 +50,7 @@ const ImportTabsContent: React.FC<{
   gap?: boolean;
 }> = ({ children, strategy, gap = true }) => {
   return (
-    <TabsContent value={strategy} className="overflow-visible rounded-none bg-transparent">
+    <TabsContent value={strategy} className="min-h-0 flex-1 overflow-auto rounded-none bg-transparent">
       <div
         className={cn('flex flex-col pr-2', {
           'gap-6': gap,
@@ -121,7 +121,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
           <Button
             onClick={doImport}
             disabled={!canImport}
-            className="gap-2 font-bold disabled:opacity-40"
+            className="gap-2 font-bold"
           >
             <Plus size={16} />
             {isImporting
@@ -145,7 +145,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
         <Tabs
           value={strategy}
           onValueChange={(v) => setStrategy(v as ImportStrategy)}
-          className="flex flex-1 flex-col overflow-visible"
+          className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList className="mt-1 mb-2 ml-0.5 overflow-visible">
             <TabsTrigger value="Trufos">Trufos</TabsTrigger>
@@ -180,9 +180,9 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             />
             {/* Flow separator */}
             <div className="flex items-center justify-center">
-              <div className="h-px flex-1 bg-white" />
-              <div className="mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent border-t-white" />
-              <div className="h-px flex-1 bg-white" />
+              <div className="h-px flex-1 bg-separator" />
+              <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
+              <div className="h-px flex-1 bg-separator" />
             </div>
             <FilePicker
               title="Select directory for new collection"

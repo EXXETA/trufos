@@ -91,6 +91,8 @@
     --error: #dc2626;
     --warning: #d97706;
 
+    --separator: #263e4c;
+
     /* Sidebar (slightly lifted from background-tertiary) */
     --sidebar-background: #f8f9fb;
     --sidebar-foreground: hsl(222 34% 25%);
@@ -173,6 +175,8 @@
     --success: #2bb361;
     --error: #bd5151;
     --warning: #f9aa2d;
+
+    --separator: #eeeeee;
 
     --svg-dark-gray: #282828;
     --svg-medium-gray: #717070;
@@ -299,6 +303,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-divider: var(--divider);
+  --color-separator: var(--separator);
 
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
