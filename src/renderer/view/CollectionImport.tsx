@@ -115,8 +115,17 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
     return (
       <DialogFooter className="mt-2 justify-center gap-2 sm:justify-center">
         <div className="flex w-full justify-center">
-          <Button onClick={doImport} disabled={!canImport} className="gap-2">
-            <Plus size={16} /> {isImporting ? 'Importing...' : 'Complete Import'}
+          <Button
+            onClick={doImport}
+            disabled={!canImport}
+            className="gap-2 font-bold disabled:opacity-40"
+          >
+            <Plus size={16} />
+            {isImporting
+              ? 'Importing...'
+              : strategy === 'Trufos'
+                ? 'Open Collection'
+                : 'Complete Import'}
           </Button>
         </div>
       </DialogFooter>
@@ -166,6 +175,12 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               accept=".json"
               controlled
             />
+            {/* Flow separator */}
+            <div className="flex items-center justify-center">
+              <div className="h-px flex-1 bg-white" />
+              <div className="mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent border-t-white" />
+              <div className="h-px flex-1 bg-white" />
+            </div>
             <FilePicker
               title="Select directory for new collection"
               description="This is where the imported collection will be placed"
