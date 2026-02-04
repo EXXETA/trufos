@@ -74,7 +74,10 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   const [title, setTitle, resetTitle] = useStateResettable('');
   const [isImporting, setIsImporting, resetIsImporting] = useStateResettable(false);
 
-  const canImport = srcEntry && (targetEntry != null || strategy === 'Trufos') && !isImporting;
+  const canImport =
+    srcEntry &&
+    (strategy === 'Trufos' || (targetEntry != null && title.trim() !== '')) &&
+    !isImporting;
 
   useEffect(() => {
     if (open) {
