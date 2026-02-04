@@ -29,7 +29,7 @@ export const UrlInput: FC<UrlInputProps> = ({ url, onChange }) => {
       value={inputValue}
       type="url"
       inputMode="url"
-      className={cn('bg-background-secondary relative w-full grow rounded-l-none font-mono', {
+      className={cn('bg-background-secondary relative w-full grow rounded-l-none', {
         'border-(--error)': !isValid,
       })}
       onChange={handleChange}
