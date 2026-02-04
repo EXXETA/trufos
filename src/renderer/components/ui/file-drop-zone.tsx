@@ -150,7 +150,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
   return (
     <div
       className={cn(
-        'flex h-full w-full cursor-pointer flex-col items-center justify-center gap-4 border-2 border-dashed p-4 text-center text-sm transition-colors',
+        'hover:border-primary flex h-full w-full cursor-pointer flex-col items-center justify-center gap-4 border-2 border-dashed p-4 text-center text-sm transition-colors',
         { 'border-primary': isDragging, 'pointer-events-none opacity-60': disabled },
         className
       )}
@@ -163,7 +163,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled || undefined}
     >
-      {(icon ?? directoryMode) ? <FolderSearchIcon size={36} /> : <Upload size={36} />}
+      {icon ?? (directoryMode ? <FolderSearchIcon size={36} /> : <Upload size={36} />)}
       <span className="text-text-primary inline-flex h-[17px] shrink-0 items-start text-sm leading-[1.2] font-normal whitespace-pre">
         {title ?? `Drag & drop a ${directoryMode ? 'folder' : 'file'} here`}
       </span>
