@@ -5,7 +5,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { CollectionStoreProvider } from '@/state/collectionStoreProvider';
+import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
 
 const MIN_SIDEBAR_PIXELS = 300;
 const MIN_REQUEST_WINDOW_PIXELS = 500;

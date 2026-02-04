@@ -7,6 +7,7 @@ import {
   selectRequest,
 } from '@/state/collectionStore';
 import { REQUEST_MODEL } from '@/lib/monaco/models';
+import { showError } from '@/error/errorHandler';
 
 interface CollectionStoreProviderProps {
   children: ReactNode;
@@ -47,7 +48,7 @@ export const CollectionStoreProvider = ({ children }: CollectionStoreProviderPro
 
         setReady(true);
       } catch (error) {
-        console.error('Failed to initialize collection store:', error);
+        showError("Couldn't load collection store", error);
       }
     };
 
