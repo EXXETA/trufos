@@ -50,7 +50,10 @@ const ImportTabsContent: React.FC<{
   gap?: boolean;
 }> = ({ children, strategy, gap = true }) => {
   return (
-    <TabsContent value={strategy} className="min-h-0 flex-1 overflow-auto rounded-none bg-transparent">
+    <TabsContent
+      value={strategy}
+      className="min-h-0 flex-1 overflow-auto rounded-none bg-transparent"
+    >
       <div
         className={cn('flex flex-col pr-2', {
           'gap-6': gap,
@@ -118,11 +121,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
     return (
       <DialogFooter className="mt-2 justify-center gap-2 sm:justify-center">
         <div className="flex w-full justify-center">
-          <Button
-            onClick={doImport}
-            disabled={!canImport}
-            className="gap-2 font-bold"
-          >
+          <Button onClick={doImport} disabled={!canImport} className="gap-2 font-bold">
             <Plus size={16} />
             {isImporting
               ? 'Importing...'
@@ -180,9 +179,9 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             />
             {/* Flow separator */}
             <div className="flex items-center justify-center">
-              <div className="h-px flex-1 bg-separator" />
+              <div className="bg-separator h-px flex-1" />
               <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
-              <div className="h-px flex-1 bg-separator" />
+              <div className="bg-separator h-px flex-1" />
             </div>
             <FilePicker
               title="Select directory for new collection"
