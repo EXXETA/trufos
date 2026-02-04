@@ -13,7 +13,6 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import { CollectionBase } from 'shim/objects/collection';
 import { cn } from '@/lib/utils';
 import { CollectionIcon, SmallArrow } from '@/components/icons';
-import { FolderOpen, FolderPlus, Upload } from 'lucide-react';
 import { TypographyLineClamp } from '@/components/shared/TypographyLineClamp';
 import { CollectionImport } from '@/view/CollectionImport';
 import { CollectionCreate } from '@/view/CollectionCreate';
@@ -35,22 +34,6 @@ export default function CollectionDropdown() {
   useEffect(() => {
     loadCollections();
   }, [isOpen]);
-
-  const openCollection = useCallback(async () => {
-    try {
-      const result = await eventService.showOpenDialog({
-        title: 'Open Collection Directory',
-        buttonLabel: 'Open',
-        properties: ['openDirectory'],
-      });
-      if (!result.canceled && result.filePaths.length > 0) {
-        await changeCollection(result.filePaths[0]);
-      }
-      await loadCollections();
-    } catch (e) {
-      console.error('Error opening collection:', e);
-    }
-  }, []);
 
   return (
     <DropdownMenu onOpenChange={() => setIsOpen(!isOpen)}>
@@ -80,21 +63,11 @@ export default function CollectionDropdown() {
         <div className="bg-background-secondary sticky top-0 z-10">
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => setShowCreate(true)} className={'px-4 py-3'}>
-              <FolderPlus />
-
               <span>New Collection</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={openCollection} className={'px-4 py-3'}>
-              <FolderOpen />
-
-              <span>Open Collection</span>
-            </DropdownMenuItem>
-
             <DropdownMenuItem onClick={() => setShowImport(true)} className={'px-4 py-3'}>
-              <Upload />
-
-              <span>Import Collection</span>
+              <span>Open Collection</span>
             </DropdownMenuItem>
           </DropdownMenuGroup>
 
