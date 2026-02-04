@@ -134,6 +134,7 @@ export interface IEventService {
   /**
    * Close the collection at the given directory path. You cannot close the default collection.
    * @param dirPath The directory path of the collection to close. If not provided, the current collection is closed.
+   * @returns The now selected collection after closing the specified collection.
    */
   closeCollection(dirPath?: string): Promise<Collection>;
 
@@ -159,12 +160,12 @@ export interface IEventService {
   ): Promise<Collection>;
 
   /**
-   * Rename the given folder or request to the new title.
+   * Rename the given collection, folder, or request to the new title.
    * This updates the title and the directory name if necessary.
-   * @param object The folder or request to rename.
+   * @param object The object to rename.
    * @param newTitle The new title.
    */
-  rename(object: Folder | TrufosRequest, newTitle: string): Promise<void>;
+  rename(object: TrufosObject, newTitle: string): Promise<void>;
 
   /**
    * Trigger the application update process in the background.
