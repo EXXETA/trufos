@@ -1,7 +1,6 @@
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -67,25 +66,26 @@ export const SettingsModal = () => {
         <FiSettings className="ml-2 text-xl" />
       </DialogTrigger>
 
-      <DialogContent className="bg-muted flex h-[80vh] max-w-4xl flex-col overflow-hidden p-0 lg:max-w-5xl">
+      <DialogContent className="flex h-[80vh] max-w-4xl flex-col overflow-hidden p-0 lg:max-w-5xl">
         <Tabs defaultValue="variables" className="flex min-h-0 flex-1 flex-col">
           {/* Header - Fixed */}
-          <div className="bg-muted shrink-0 px-6 pt-4 pb-3">
+          <div className="shrink-0 bg-[#1F1F1F] px-6 pt-4 pb-3">
             <DialogHeader>
-              <DialogTitle className="px-2 leading-tight font-bold">
+              <DialogTitle className="px-1 text-xl leading-tight font-bold">
                 Collection Settings
               </DialogTitle>
             </DialogHeader>
-            <TabsList className="mt-4 gap-2 bg-transparent">
+            <TabsList className="mt-4 gap-1 bg-transparent p-1">
               <TabsTrigger
                 value="variables"
-                className="text-text-secondary data-[state=active]:bg-background data-[state=active]:text-foreground rounded-full px-4 py-2"
+                className="text-text-secondary rounded-full border border-transparent px-5 py-[10px] text-[15px] transition-colors hover:text-[#2F6F83] data-[state=active]:bg-[#193641] data-[state=active]:text-[#2F6F83]"
               >
                 Variables
               </TabsTrigger>
+
               <TabsTrigger
                 value="environments"
-                className="text-text-secondary data-[state=active]:bg-background data-[state=active]:text-foreground rounded-full px-4 py-2"
+                className="text-text-secondary rounded-full border border-transparent px-5 py-[10px] text-[15px] transition-colors hover:text-[#2F6F83] data-[state=active]:bg-[#193641] data-[state=active]:text-[#2F6F83]"
               >
                 Environments
               </TabsTrigger>
@@ -95,27 +95,17 @@ export const SettingsModal = () => {
           {/* Tabs - Takes remaining space */}
 
           <TabsContent value="variables" className="m-0 min-h-0 flex-1 border-0 p-0">
-            <div className="bg-background h-full overflow-y-auto px-6 py-4">
+            <div className="h-full overflow-y-auto bg-[#111111] px-6 py-4">
               <VariableEditor
                 variables={editorVariables}
                 onValidChange={setValid}
                 onVariablesChange={setEditorVariables}
               />
-              <div className="mt-4 flex justify-end">
-                <Button
-                  onClick={save}
-                  disabled={!isOverallValid}
-                  variant={isOverallValid ? 'default' : 'defaultDisable'}
-                  className="px-5 py-[13px]"
-                >
-                  Save
-                </Button>
-              </div>
             </div>
           </TabsContent>
 
           <TabsContent value="environments" className="m-0 min-h-0 flex-1 border-0 p-0">
-            <div className="bg-background h-full overflow-y-auto px-6 py-4">
+            <div className="h-full overflow-y-auto bg-[#111111] px-6 py-4">
               <EnvironmentEditor
                 environments={editorEnvironments}
                 selectedEnvironment={editorSelectedEnvironment}
@@ -123,18 +113,18 @@ export const SettingsModal = () => {
                 onEnvironmentSelect={setEditorSelectedEnvironment}
                 onValidChange={setEnvironmentValid}
               />
-              <div className="mt-4 flex justify-end">
-                <Button
-                  onClick={save}
-                  disabled={!isOverallValid}
-                  variant={isOverallValid ? 'default' : 'defaultDisable'}
-                  className="px-5 py-[13px]"
-                >
-                  Save
-                </Button>
-              </div>
             </div>
           </TabsContent>
+          <div className="flex shrink-0 justify-end bg-[#111111] px-6 py-4">
+            <Button
+              onClick={save}
+              disabled={!isOverallValid}
+              variant={isOverallValid ? 'default' : 'defaultDisable'}
+              className="px-5 py-[13px]"
+            >
+              Save
+            </Button>
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className={`relative rounded-(--radius) border`}>
+    <div className="relative border">
       <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   )
@@ -75,7 +75,7 @@ const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      'overflow-wrap break-word border-border p-4 align-middle break-all not-last:border-r',
+      'overflow-wrap break-word border-border text-text-secondary p-4 align-middle break-all not-last:border-r',
       className
     )}
     {...props}

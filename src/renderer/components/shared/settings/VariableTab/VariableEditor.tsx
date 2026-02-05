@@ -105,7 +105,7 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <input
                     type="text"
                     value={variable.key}
-                    className={cn('w-full bg-transparent outline-hidden', {
+                    className={cn('text-text-secondary w-full bg-transparent outline-hidden', {
                       'text-danger': invalidVariableKeys.has(variable.key),
                     })}
                     placeholder="Enter variable key"
@@ -116,9 +116,12 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <SecretInput
                     secret={variable.secret}
                     value={variable.value}
-                    className={cn('w-full border-none bg-transparent outline-hidden', {
-                      'text-danger': invalidVariableKeys.has(variable.key),
-                    })}
+                    className={cn(
+                      'text-text-secondary w-full border-none bg-transparent outline-hidden',
+                      {
+                        'text-danger': invalidVariableKeys.has(variable.key),
+                      }
+                    )}
                     placeholder="Enter variable value"
                     onChange={(e) => update(index, { value: e.target.value })}
                   />
@@ -127,13 +130,14 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <input
                     type="text"
                     value={variable.description}
-                    className="w-full bg-transparent outline-hidden"
+                    className="text-text-secondary w-full bg-transparent outline-hidden"
                     placeholder="Enter variable description"
                     onChange={(e) => update(index, { description: e.target.value })}
                   />
                 </TableCell>
                 <TableCell className="text-center">
                   <Checkbox
+                    className="data-[state=checked]:border-text-secondary data-[state=checked]:bg-text-secondary cursor-pointer"
                     checked={variable.secret}
                     onCheckedChange={(checked) => update(index, { secret: Boolean(checked) })}
                   />
@@ -142,7 +146,7 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="hover:text-accent-primary active:text-accent-secondary w-5 hover:bg-transparent"
+                    className="text-text-secondary hover:text-foreground w-5 hover:bg-transparent"
                     onClick={() => remove(index)}
                   >
                     <Trash2 />
