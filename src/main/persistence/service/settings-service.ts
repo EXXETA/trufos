@@ -3,18 +3,40 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { Initializable } from 'main/shared/initializable';
 import { SemVer } from 'main/util/semver';
+import { BrowserWindowConstructorOptions } from 'electron';
 
-const VERSION = new SemVer(1, 0, 0);
+const VERSION = new SemVer(1, 1, 0);
 
-export type SettingsObject = {
+type VersionedObject = { version: string };
+
+export interface SettingsObject {
   /** The index of the currently opened collection inside the collections array */
   currentCollectionIndex: number;
 
   /** A list of all the collection directories that have been opened */
   collections: string[];
-};
+
+  /** The state of the main window (size and position) */
+  windowState?: Pick<BrowserWindowConstructorOptions, 'width' | 'height' | 'x' | 'y'>;
+}
 
 type SettingsInfoFile = SettingsObject & { version: typeof VERSION.string };
+
+interface SettingsFile_V_1_0_0 {
+  /** The index of the currently opened collection inside the collections array */
+  currentCollectionIndex: number;
+
+  /** A list of all the collection directories that have been opened */
+  collections: string[];
+
+  version: '1.0.0';
+}
+
+type SettingsMigrator<I, O> = (old: I) => O;
+
+const MIGRATORS = {
+  '1.0.0': (old: SettingsFile_V_1_0_0): SettingsInfoFile => ({ ...old, version: VERSION.string }),
+} as const;
 
 /**
  * A service that handles the global settings of the application. These settings are not specific to
@@ -57,6 +79,14 @@ export class SettingsService implements Initializable {
   }
 
   /**
+   * Updates the settings with the given partial settings and writes them to the settings file.
+   * @param partial The partial settings to update the current settings with
+   */
+  public async updateSettings(partial: Partial<SettingsObject>) {
+    await this.setSettings({ ...this._settings, ...partial });
+  }
+
+  /**
    * A copy of the current settings that can be modified.
    */
   public get modifiableSettings(): SettingsObject {
@@ -70,6 +100,22 @@ export class SettingsService implements Initializable {
   }
 
   private async readSettings() {
-    this._settings = JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
+    this._settings = this.migrateSettings(
+      JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))
+    );
+  }
+
+  private migrateSettings(old: VersionedObject): SettingsInfoFile {
+    while (old.version !== VERSION.string) {
+      const migrator = MIGRATORS[old.version as keyof typeof MIGRATORS] as SettingsMigrator<
+        VersionedObject,
+        SettingsInfoFile
+      >;
+      if (!migrator) {
+        throw new Error(`No migrator found for version ${old.version}`);
+      }
+      old = migrator(old);
+    }
+    return old as SettingsInfoFile;
   }
 }

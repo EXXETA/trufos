@@ -30,17 +30,20 @@ process.on('unhandledRejection', showError);
 
 const createWindow = async () => {
   try {
+    const settingsService = SettingsService.instance;
+    const environmentService = EnvironmentService.instance;
+    const mainEventService = MainEventService.instance;
+
     // initialize services in correct order
     await app.whenReady();
     if (!safeStorage.isEncryptionAvailable()) throw new Error('Safe storage is not available');
-    await SettingsService.instance.init();
-    await EnvironmentService.instance.init();
-    MainEventService.instance.updateApp(); // check for updates in the background
+    await settingsService.init();
+    await environmentService.init();
+    mainEventService.updateApp(); // check for updates in the background
 
     // create the browser window
     const mainWindow = new BrowserWindow({
-      width: 1024,
-      height: 728,
+      ...settingsService.settings.windowState,
       minWidth: 1024,
       minHeight: 728,
       webPreferences: {
@@ -64,17 +67,25 @@ const createWindow = async () => {
       if (!isClosing) {
         isClosing = true;
         event.preventDefault();
-        mainWindow?.webContents.send('before-close');
+        setImmediate(() => mainWindow.webContents.send('before-close'));
 
-        // Wait for the renderer to respond or timeout
-        try {
-          await new Promise<void>((resolve, reject) => {
-            ipcMain.once('ready-to-close', () => resolve());
-            setTimeout(() => reject(new Error('Timeout')), 30000);
-          });
-        } catch (error) {
-          logger.error('Could not handle close event in renderer:', error);
+        async function saveWindowState() {
+          try {
+            const [width, height] = mainWindow.getSize();
+            const [x, y] = mainWindow.getPosition();
+            await settingsService.updateSettings({ windowState: { width, height, x, y } });
+          } catch (error) {
+            logger.error('Could not save window state on close:', error);
+          }
         }
+
+        // save settings and wait for renderer to be ready to close in parallel
+        await Promise.race([
+          Promise.allSettled([saveWindowState(), once(ipcMain, 'ready-to-close')]),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout during close')), 30000)
+          ),
+        ]);
 
         // close app
         mainWindow.close();
