@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, FC, PropsWithChildren } from 'react';
 import { Loader2 } from 'lucide-react';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import {
@@ -9,23 +9,16 @@ import {
 import { REQUEST_MODEL } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
 
-interface CollectionStoreProviderProps {
-  children: ReactNode;
-}
-
 const rendererEventService = RendererEventService.instance;
 
-export const CollectionStoreProvider = ({ children }: CollectionStoreProviderProps) => {
+export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => {
   const storeRef = useRef<ReturnType<typeof createCollectionStore> | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    let isActive = true;
-
     const initializeStore = async () => {
       try {
         const collection = await rendererEventService.loadCollection();
-        if (!isActive) return;
 
         // Create store with loaded collection
         storeRef.current = createCollectionStore(collection);
@@ -53,10 +46,6 @@ export const CollectionStoreProvider = ({ children }: CollectionStoreProviderPro
     };
 
     initializeStore();
-
-    return () => {
-      isActive = false;
-    };
   }, []);
 
   if (!ready || !storeRef.current) {

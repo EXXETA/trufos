@@ -75,17 +75,14 @@ const buildCollectionItemMaps = (collection: Collection) => {
 };
 
 // Factory function to create a collection store with initial data
-export const createCollectionStore = (initialCollection: Collection) => {
-  console.debug('Creating collection store with collection', initialCollection);
-
-  const { requests, folders } = buildCollectionItemMaps(initialCollection);
+export const createCollectionStore = (collection: Collection) => {
+  console.debug('Creating collection store with collection', collection);
 
   return createStore<CollectionState & CollectionStateActions>()(
     immer((set, get) => ({
-      collection: initialCollection,
-      requests,
-      folders,
+      collection,
       openFolders: new Set(),
+      ...buildCollectionItemMaps(collection),
 
       initialize: (collection) => {
         console.debug('Initializing collection store with collection', collection);
@@ -100,6 +97,11 @@ export const createCollectionStore = (initialCollection: Collection) => {
           if (state.collection?.id !== collection.id) {
             state.selectedRequestId = undefined;
             state.openFolders = new Set();
+          } else {
+            if (state.selectedRequestId != null && !state.requests.has(state.selectedRequestId)) {
+              state.selectedRequestId = undefined;
+            }
+            state.openFolders = state.openFolders.intersection(new Set(folders.keys()));
           }
           console.info('Initialized collection:', collection);
         });
@@ -425,13 +427,7 @@ export const useCollectionStore = <T>(
   return useStore(store, selector);
 };
 
-export const useCollectionActions = () => {
-  const store = useContext(CollectionStoreContext);
-  if (!store) {
-    throw new Error('useCollectionActions must be used within CollectionStoreProvider');
-  }
-  return useStore(store, useActions());
-};
+export const useCollectionActions = () => useCollectionStore(useActions());
 
 // Export context for the provider to access the raw store
 export { CollectionStoreContext };
