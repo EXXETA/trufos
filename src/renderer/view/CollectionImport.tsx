@@ -71,7 +71,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 }) => {
   const { changeCollection } = useCollectionActions();
 
-  const [strategy, setStrategy] = useState<ImportStrategyWithTrufos>('Postman');
+  const [strategy, setStrategy] = useState<ImportStrategyWithTrufos>('Trufos');
   const [srcEntry, setSrcEntry, resetSrcEntry] = useStateResettable<DroppedEntryInfo>();
   const [targetEntry, setTargetEntry, resetTargetEntry] = useStateResettable<DroppedEntryInfo>();
   const [title, setTitle, resetTitle] = useStateResettable('');
