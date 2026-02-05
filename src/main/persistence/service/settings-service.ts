@@ -5,7 +5,7 @@ import { Initializable } from 'main/shared/initializable';
 import { SemVer } from 'main/util/semver';
 import { BrowserWindowConstructorOptions } from 'electron';
 
-const VERSION = new SemVer(1, 1, 0);
+export const VERSION = new SemVer(1, 1, 0);
 
 type VersionedObject = { version: string };
 
