@@ -5,6 +5,7 @@ import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { VariableMap } from 'shim/objects/variables';
 import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-1-0';
+import { SettingsService } from '../settings-service';
 
 export { createGitIgnore, GIT_IGNORE_FILE_NAME } from './v2-0-0';
 export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v2-1-0';
@@ -26,7 +27,7 @@ export function toInfoFile(object: TrufosObject): InfoFile {
     case 'request':
       return omit(infoFile, 'type', 'parentId', 'draft');
     case 'collection':
-      return omit(infoFile, 'type', 'dirPath', 'children');
+      return omit(infoFile, 'type', 'isDefault', 'dirPath', 'children');
     case 'folder':
       return omit(infoFile, 'type', 'parentId', 'children');
   }
@@ -40,6 +41,7 @@ export function fromCollectionInfoFile(
   delete infoFile.version;
   return Object.assign(infoFile, {
     type: 'collection' as const,
+    isDefault: SettingsService.DEFAULT_COLLECTION_DIR === dirPath,
     dirPath,
     children,
   });

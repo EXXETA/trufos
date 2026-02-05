@@ -24,6 +24,7 @@ function getExampleCollection(): Collection {
     id: randomUUID(),
     type: 'collection',
     title: 'collection',
+    isDefault: false,
     children: [],
     variables: {},
     environments: {},
