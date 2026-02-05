@@ -14,5 +14,5 @@ jobs:
         uses: Namchee/conventional-pr@v0.15.6
         with:
           access_token: ${{ secrets.GITHUB_TOKEN }}
-          branch_pattern: '(feature|fix|chore|refactor)\/.*'
+          branch_pattern: '(feature|feat|fix|chore|refactor)\/.*'
           title_pattern: ''
