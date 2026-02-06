@@ -85,23 +85,30 @@ export class PersistenceService {
    * @param object trufos object to be renamed
    * @param title new title of the object
    */
-  public async rename(object: Folder | TrufosRequest | Collection, title: string) {
+  public async rename(object: TrufosObject, title: string) {
     object.title = title;
-    const oldDirPath = this.getOrCreateDirPath(object);
-    this.idToPathMap.delete(object.id); // force recreation of path after rename
-    const newDirPath = this.getOrCreateDirPath(object);
 
-    if (oldDirPath !== newDirPath) {
-      logger.info('Renaming object at', oldDirPath, 'to', newDirPath);
-      await fs.rename(oldDirPath, newDirPath);
-      this.idToPathMap.set(object.id, newDirPath);
-      if (!isRequest(object)) {
-        for (const child of object.children) {
-          this.updatePathMapRecursively(child, newDirPath);
+    // do not rename collection directories
+    let newDirPath: string;
+    if (!isCollection(object)) {
+      const oldDirPath = this.getOrCreateDirPath(object);
+      this.idToPathMap.delete(object.id); // force recreation of path after rename
+      newDirPath = this.getOrCreateDirPath(object);
+
+      if (oldDirPath !== newDirPath) {
+        logger.info('Renaming object at', oldDirPath, 'to', newDirPath);
+        await fs.rename(oldDirPath, newDirPath);
+        this.idToPathMap.set(object.id, newDirPath);
+        if (!isRequest(object)) {
+          for (const child of object.children) {
+            this.updatePathMapRecursively(child, newDirPath);
+          }
         }
+      } else {
+        logger.info('Title changed but directory name unchanged for object', object.id);
       }
     } else {
-      logger.info('Title changed but directory name unchanged for object', object.id);
+      newDirPath = object.dirPath;
     }
 
     // Persist new title to the info file so that a reload reflects the change.

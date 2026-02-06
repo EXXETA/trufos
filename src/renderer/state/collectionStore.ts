@@ -1,3 +1,5 @@
+import { createContext, useContext } from 'react';
+import { type StoreApi, useStore } from 'zustand';
 import { REQUEST_MODEL } from '@/lib/monaco/models';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { isRequestInAParentFolder, setRequestTextBody } from '@/state/helper/collectionUtil';
@@ -12,25 +14,11 @@ import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
-import { create } from 'zustand';
+import { createStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { parseUrl } from 'shim/objects/url';
 
 const eventService = RendererEventService.instance;
-eventService.on('before-close', async () => {
-  try {
-    console.info('Saving current request body');
-    const request = selectRequest(useCollectionStore.getState());
-    if (request != null && request.draft) {
-      console.debug(`Saving request with ID ${request.id}`);
-      await eventService.saveRequest(request, REQUEST_MODEL.getValue());
-    }
-  } catch (error) {
-    console.error('Error while saving request before closing:', error);
-  } finally {
-    eventService.emit('ready-to-close');
-  }
-});
 
 interface CollectionState {
   /** The currently selected collection */
@@ -52,355 +40,397 @@ interface CollectionState {
   openFolders: Set<Folder['id']>;
 }
 
-export const useCollectionStore = create<CollectionState & CollectionStateActions>()(
-  immer((set, get) => ({
-    requests: new Map(),
-    folders: new Map(),
-    openFolders: new Set(),
+type CollectionStore = StoreApi<CollectionState & CollectionStateActions>;
 
-    initialize: (collection) => {
-      console.debug('Initializing collection store with collection', collection);
-      const requests = new Map<TrufosRequest['id'], TrufosRequest>();
-      const folders = new Map<Folder['id'], Folder>();
-      const { initialize: initializeVariables } = useVariableStore.getState();
-      const { initialize: initializeEnvironments } = useEnvironmentStore.getState();
+// Context for the collection store
+const CollectionStoreContext = createContext<CollectionStore | null>(null);
 
-      const stack = [...collection.children];
-      while (stack.length > 0) {
-        const current = stack.pop()!;
-        if (current.type === 'folder') {
-          folders.set(current.id, current);
-          stack.push(...current.children);
-        } else if (current.type === 'request') {
-          requests.set(current.id, current);
+export const CollectionStoreProvider = CollectionStoreContext.Provider;
+
+/**
+ * Builds maps of requests and folders from a collection's children tree.
+ * Also initializes variable and environment stores.
+ */
+const buildCollectionItemMaps = (collection: Collection) => {
+  const requests = new Map<TrufosRequest['id'], TrufosRequest>();
+  const folders = new Map<Folder['id'], Folder>();
+  const { initialize: initializeVariables } = useVariableStore.getState();
+  const { initialize: initializeEnvironments } = useEnvironmentStore.getState();
+
+  const stack = [...collection.children];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (current.type === 'folder') {
+      folders.set(current.id, current);
+      stack.push(...current.children);
+    } else if (current.type === 'request') {
+      requests.set(current.id, current);
+    }
+  }
+
+  initializeVariables(collection.variables);
+  initializeEnvironments(collection.environments);
+
+  return { requests, folders };
+};
+
+// Factory function to create a collection store with initial data
+export const createCollectionStore = (collection: Collection) => {
+  console.debug('Creating collection store with collection', collection);
+
+  return createStore<CollectionState & CollectionStateActions>()(
+    immer((set, get) => ({
+      collection,
+      openFolders: new Set(),
+      ...buildCollectionItemMaps(collection),
+
+      initialize: (collection) => {
+        console.debug('Initializing collection store with collection', collection);
+        const { requests, folders } = buildCollectionItemMaps(collection);
+
+        // (re)set initial state
+        set((state) => {
+          state.collection = collection;
+          state.requests = requests;
+          state.folders = folders;
+
+          if (state.collection?.id !== collection.id) {
+            state.selectedRequestId = undefined;
+            state.openFolders = new Set();
+          } else {
+            if (state.selectedRequestId != null && !state.requests.has(state.selectedRequestId)) {
+              state.selectedRequestId = undefined;
+            }
+            state.openFolders = state.openFolders.intersection(new Set(folders.keys()));
+          }
+          console.info('Initialized collection:', collection);
+        });
+      },
+
+      changeCollection: async (collection: Collection | string) => {
+        const { setSelectedRequest, initialize } = get();
+        await setSelectedRequest(); // deselect current request and persist unsaved changes
+        const dirPath = typeof collection === 'string' ? collection : collection.dirPath;
+        console.info('Opening collection at', dirPath);
+        initialize(await eventService.openCollection(dirPath));
+      },
+
+      addNewRequest: async (title, parentId) => {
+        const request = await eventService.saveRequest({
+          url: parseUrl('http://'),
+          method: RequestMethod.GET,
+          draft: true,
+          id: null,
+          parentId: parentId ?? get().collection.id,
+          type: 'request',
+          title: title ?? (Math.random() + 1).toString(36).substring(7),
+          headers: [],
+          body: {
+            type: RequestBodyType.TEXT,
+            mimeType: 'text/plain',
+          },
+        });
+        console.info('Created new request with ID', request.id);
+
+        set((state) => {
+          state.requests.set(request.id, request);
+          selectParent(state, request.parentId).children.push(request);
+        });
+
+        get().setSelectedRequest(request.id);
+      },
+
+      updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) => {
+        set((state) => {
+          const request = selectRequest(state);
+          if (request == null) return;
+
+          if (overwrite) {
+            state.requests.set(state.selectedRequestId, updatedRequest as TrufosRequest);
+          } else {
+            state.requests.set(state.selectedRequestId, {
+              ...request,
+              draft: true,
+              ...updatedRequest,
+            });
+          }
+        });
+      },
+
+      setRequestBody: (body) => {
+        const { updateRequest } = get();
+        updateRequest({ body });
+      },
+
+      setRequestBodyMimeType(mimeType?: string) {
+        const { body } = selectRequest(get());
+        const { setRequestBody } = get();
+        setRequestBody({ ...body, mimeType });
+      },
+
+      setRequestEditor: (requestEditor) => set({ requestEditor }),
+
+      formatRequestEditorText: async () => {
+        const { requestEditor } = get();
+        if (requestEditor != null) {
+          await requestEditor.getAction('editor.action.formatDocument').run();
         }
-      }
+      },
 
-      // (re)set initial state
-      set((state) => {
-        state.collection = collection;
-        state.requests = requests;
-        state.folders = folders;
-        initializeVariables(collection.variables);
-        initializeEnvironments(collection.environments);
+      setSelectedRequest: async (id) => {
+        console.debug('Setting selected request to', id);
+        const state = get();
+        const { selectedRequestId, requests } = state;
+        const oldRequest = selectRequest(state);
+        if (selectedRequestId === id) return;
 
-        if (state.collection.id !== collection.id) {
-          state.selectedRequestId = undefined;
-          state.openFolders = new Set();
+        // save current request body and load new request body
+        if (oldRequest != null) {
+          await eventService.saveRequest(oldRequest, REQUEST_MODEL.getValue());
         }
-        console.info('Initialized collection:', collection);
-      });
-    },
+        if (id != null) {
+          const request = requests.get(id);
+          if (request == null) {
+            console.warn('Request with ID', id, 'not found');
+            id = undefined;
+          }
+          await setRequestTextBody(request);
+        } else {
+          REQUEST_MODEL.setValue('');
+        }
+        set({ selectedRequestId: id });
+      },
 
-    changeCollection: async (collection: Collection | string) => {
-      const { setSelectedRequest, initialize } = get();
-      await setSelectedRequest(); // deselect current request and persist unsaved changes
-      const dirPath = typeof collection === 'string' ? collection : collection.dirPath;
-      console.info('Opening collection at', dirPath);
-      initialize(await eventService.openCollection(dirPath));
-    },
+      deleteRequest: async (id) => {
+        await eventService.deleteObject(selectRequest(get(), id));
 
-    addNewRequest: async (title, parentId) => {
-      const request = await eventService.saveRequest({
-        url: parseUrl('http://'),
-        method: RequestMethod.GET,
-        draft: true,
-        id: null,
-        parentId: parentId ?? get().collection.id,
-        type: 'request',
-        title: title ?? (Math.random() + 1).toString(36).substring(7),
-        headers: [],
-        body: {
-          type: RequestBodyType.TEXT,
-          mimeType: 'text/plain',
-        },
-      });
-      console.info('Created new request with ID', request.id);
+        set((state) => {
+          if (state.selectedRequestId === id) state.selectedRequestId = undefined;
+          const request = selectRequest(state, id);
+          const parent = selectParent(state, request.parentId);
+          parent.children = parent.children.filter((child) => child.id !== id);
+          state.requests.delete(id);
+        });
+      },
 
-      set((state) => {
-        state.requests.set(request.id, request);
-        selectParent(state, request.parentId).children.push(request);
-      });
-
-      get().setSelectedRequest(request.id);
-    },
-
-    updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) => {
-      set((state) => {
-        const request = selectRequest(state);
+      renameRequest: async (id: TrufosRequest['id'], title: string) => {
+        const request = selectRequest(get(), id);
         if (request == null) return;
 
-        if (overwrite) {
-          state.requests.set(state.selectedRequestId, updatedRequest as TrufosRequest);
-        } else {
-          state.requests.set(state.selectedRequestId, {
+        await eventService.rename(request, title);
+        set((state) => {
+          state.requests.set(id, {
             ...request,
-            draft: true,
-            ...updatedRequest,
+            title,
           });
-        }
-      });
-    },
-
-    setRequestBody: (body) => {
-      const { updateRequest } = get();
-      updateRequest({ body });
-    },
-
-    setRequestBodyMimeType(mimeType?: string) {
-      const { body } = selectRequest(get());
-      const { setRequestBody } = get();
-      setRequestBody({ ...body, mimeType });
-    },
-
-    setRequestEditor: (requestEditor) => set({ requestEditor }),
-
-    formatRequestEditorText: async () => {
-      const { requestEditor } = get();
-      if (requestEditor != null) {
-        await requestEditor.getAction('editor.action.formatDocument').run();
-      }
-    },
-
-    setSelectedRequest: async (id) => {
-      console.debug('Setting selected request to', id);
-      const state = get();
-      const { selectedRequestId, requests } = state;
-      const oldRequest = selectRequest(state);
-      if (selectedRequestId === id) return;
-
-      // save current request body and load new request body
-      if (oldRequest != null) {
-        await eventService.saveRequest(oldRequest, REQUEST_MODEL.getValue());
-      }
-      if (id != null) {
-        const request = requests.get(id);
-        if (request == null) {
-          console.warn('Request with ID', id, 'not found');
-          id = undefined;
-        }
-        await setRequestTextBody(request);
-      } else {
-        REQUEST_MODEL.setValue('');
-      }
-      set({ selectedRequestId: id });
-    },
-
-    deleteRequest: async (id) => {
-      await eventService.deleteObject(selectRequest(get(), id));
-
-      set((state) => {
-        if (state.selectedRequestId === id) state.selectedRequestId = undefined;
-        const request = selectRequest(state, id);
-        const parent = selectParent(state, request.parentId);
-        parent.children = parent.children.filter((child) => child.id !== id);
-        state.requests.delete(id);
-      });
-    },
-
-    renameRequest: async (id: TrufosRequest['id'], title: string) => {
-      const request = selectRequest(get(), id);
-      if (request == null) return;
-
-      await eventService.rename(request, title);
-      set((state) => {
-        state.requests.set(id, {
-          ...request,
-          title,
         });
-      });
-    },
+      },
 
-    copyRequest: async (id) => {
-      const request = selectRequest(get(), id);
-      if (request === null) return;
+      copyRequest: async (id) => {
+        const request = selectRequest(get(), id);
+        if (request === null) return;
 
-      await eventService.copyRequest(request);
+        await eventService.copyRequest(request);
 
-      const collection = await eventService.loadCollection(true);
-      const { initialize } = get();
-      initialize(collection);
-    },
+        const collection = await eventService.loadCollection(true);
+        const { initialize } = get();
+        initialize(collection);
+      },
 
-    addHeader: () =>
-      set((state) => {
-        selectHeaders(state).push({ key: '', value: '', isActive: true });
-        selectRequest(state).draft = true;
-      }),
+      addHeader: () =>
+        set((state) => {
+          selectHeaders(state).push({ key: '', value: '', isActive: true });
+          selectRequest(state).draft = true;
+        }),
 
-    updateHeader: (index, updatedHeader) =>
-      set((state) => {
-        const headers = selectHeaders(state);
-        headers[index] = { ...headers[index], ...updatedHeader };
-        selectRequest(state).draft = true;
-      }),
+      updateHeader: (index, updatedHeader) =>
+        set((state) => {
+          const headers = selectHeaders(state);
+          headers[index] = { ...headers[index], ...updatedHeader };
+          selectRequest(state).draft = true;
+        }),
 
-    deleteHeader: (index) =>
-      set((state) => {
-        selectHeaders(state).splice(index, 1);
-        selectRequest(state).draft = true;
-      }),
+      deleteHeader: (index) =>
+        set((state) => {
+          selectHeaders(state).splice(index, 1);
+          selectRequest(state).draft = true;
+        }),
 
-    clearHeaders: () =>
-      set((state) => {
-        selectRequest(state).headers = [];
-        selectRequest(state).draft = true;
-      }),
+      clearHeaders: () =>
+        set((state) => {
+          selectRequest(state).headers = [];
+          selectRequest(state).draft = true;
+        }),
 
-    addQueryParam: () =>
-      set((state) => {
-        selectQueryParams(state).push({ key: '', value: '', isActive: true });
-        selectRequest(state).draft = true;
-      }),
+      addQueryParam: () =>
+        set((state) => {
+          selectQueryParams(state).push({ key: '', value: '', isActive: true });
+          selectRequest(state).draft = true;
+        }),
 
-    updateQueryParam: (index, updatedParam) =>
-      set((state) => {
-        const queryParam = selectQueryParam(state, index);
-        selectQueryParams(state)[index] = { ...queryParam, ...updatedParam };
-        selectRequest(state).draft = true;
-      }),
+      updateQueryParam: (index, updatedParam) =>
+        set((state) => {
+          const queryParam = selectQueryParam(state, index);
+          selectQueryParams(state)[index] = { ...queryParam, ...updatedParam };
+          selectRequest(state).draft = true;
+        }),
 
-    deleteQueryParam: (index) =>
-      set((state) => {
-        selectQueryParams(state).splice(index, 1);
-        selectRequest(state).draft = true;
-      }),
+      deleteQueryParam: (index) =>
+        set((state) => {
+          selectQueryParams(state).splice(index, 1);
+          selectRequest(state).draft = true;
+        }),
 
-    clearQueryParams: () =>
-      set((state) => {
-        selectRequest(state).url.query = [];
-        selectRequest(state).draft = true;
-      }),
+      clearQueryParams: () =>
+        set((state) => {
+          selectRequest(state).url.query = [];
+          selectRequest(state).draft = true;
+        }),
 
-    setQueryParamActive: (index, isActive) =>
-      set((state) => {
-        const queryParam = selectQueryParam(state, index);
-        queryParam.isActive = isActive ?? !queryParam.isActive;
-        selectRequest(state).draft = true;
-      }),
+      setQueryParamActive: (index, isActive) =>
+        set((state) => {
+          const queryParam = selectQueryParam(state, index);
+          queryParam.isActive = isActive ?? !queryParam.isActive;
+          selectRequest(state).draft = true;
+        }),
 
-    setDraftFlag: () =>
-      set((state) => {
-        selectRequest(state).draft = true;
-      }),
+      setDraftFlag: () =>
+        set((state) => {
+          selectRequest(state).draft = true;
+        }),
 
-    addNewFolder: async (title?, parentId?) => {
-      await eventService.saveFolder({
-        id: null,
-        parentId: parentId ?? get().collection.id,
-        type: 'folder',
-        title: title ?? (Math.random() + 1).toString(36).substring(7),
-        children: [],
-      });
-
-      const collection = await eventService.loadCollection(true);
-      const { setFolderOpen, initialize } = get();
-      if (parentId) {
-        setFolderOpen(parentId);
-      }
-      initialize(collection);
-    },
-
-    deleteFolder: async (id) => {
-      const folder = selectFolder(get(), id);
-      console.info('Deleting folder', folder);
-      await eventService.deleteObject(folder);
-
-      const collection = await eventService.loadCollection(true);
-      get().initialize(collection);
-      set((state) => {
-        state.openFolders.delete(id);
-        if (isRequestInAParentFolder(state.selectedRequestId, folder)) {
-          state.selectedRequestId = undefined;
-        }
-      });
-    },
-
-    renameFolder: async (id: Folder['id'], title: string) => {
-      const folder = selectFolder(get(), id);
-      if (folder == null) return;
-
-      await eventService.rename(folder, title);
-      set((state) => {
-        state.folders.set(id, {
-          ...folder,
-          title: title,
+      addNewFolder: async (title?, parentId?) => {
+        await eventService.saveFolder({
+          id: null,
+          parentId: parentId ?? get().collection.id,
+          type: 'folder',
+          title: title ?? (Math.random() + 1).toString(36).substring(7),
+          children: [],
         });
-      });
-    },
 
-    copyFolder: async (id) => {
-      const folder = selectFolder(get(), id);
-      if (folder === null) return;
+        const collection = await eventService.loadCollection(true);
+        const { setFolderOpen, initialize } = get();
+        if (parentId) {
+          setFolderOpen(parentId);
+        }
+        initialize(collection);
+      },
 
-      await eventService.copyFolder(folder);
+      deleteFolder: async (id) => {
+        const folder = selectFolder(get(), id);
+        console.info('Deleting folder', folder);
+        await eventService.deleteObject(folder);
 
-      const collection = await eventService.loadCollection(true);
-      const { initialize } = get();
-      initialize(collection);
-    },
+        const collection = await eventService.loadCollection(true);
+        get().initialize(collection);
+        set((state) => {
+          state.openFolders.delete(id);
+          if (isRequestInAParentFolder(state.selectedRequestId, folder)) {
+            state.selectedRequestId = undefined;
+          }
+        });
+      },
 
-    isFolderOpen: (id) => get().openFolders.has(id),
+      renameFolder: async (id: Folder['id'], title: string) => {
+        const folder = selectFolder(get(), id);
+        if (folder == null) return;
 
-    setFolderOpen: (id) => {
-      set((state) => {
-        state.openFolders.add(id);
-      });
-    },
+        await eventService.rename(folder, title);
+        set((state) => {
+          state.folders.set(id, {
+            ...folder,
+            title: title,
+          });
+        });
+      },
 
-    setFolderClose: (id) => {
-      set((state) => {
-        state.openFolders.delete(id);
-      });
-    },
+      copyFolder: async (id) => {
+        const folder = selectFolder(get(), id);
+        if (folder === null) return;
 
-    updateAuthorization: (object, updatedFields) => {
-      set((state) => {
-        object = selectObject(state, object);
-        if (updatedFields == null) {
-          delete object.auth;
-        } else if (object.auth == null) {
-          object.auth = updatedFields as AuthorizationInformation;
-        } else {
-          object.auth = { ...object.auth, ...updatedFields };
+        await eventService.copyFolder(folder);
+
+        const collection = await eventService.loadCollection(true);
+        const { initialize } = get();
+        initialize(collection);
+      },
+
+      isFolderOpen: (id) => get().openFolders.has(id),
+
+      setFolderOpen: (id) => {
+        set((state) => {
+          state.openFolders.add(id);
+        });
+      },
+
+      setFolderClose: (id) => {
+        set((state) => {
+          state.openFolders.delete(id);
+        });
+      },
+
+      updateAuthorization: (object, updatedFields) => {
+        set((state) => {
+          object = selectObject(state, object);
+          if (updatedFields == null) {
+            delete object.auth;
+          } else if (object.auth == null) {
+            object.auth = updatedFields as AuthorizationInformation;
+          } else {
+            object.auth = { ...object.auth, ...updatedFields };
+          }
+
+          if (isRequest(object)) {
+            object.draft = true;
+          }
+        });
+      },
+
+      closeCollection: async (dirPath?: string) => {
+        const { initialize, collection: activeCollection } = get();
+        const targetPath = dirPath ?? activeCollection?.dirPath;
+
+        if (!targetPath) {
+          console.warn('No collection path provided or active collection found.');
+          return;
         }
 
-        if (isRequest(object)) {
-          object.draft = true;
-        }
-      });
-    },
+        console.info('Closing collection at', targetPath);
 
-    closeCollection: async (dirPath?: string) => {
-      const { initialize, collection: activeCollection } = get();
-      const targetPath = dirPath ?? activeCollection?.dirPath;
+        const nextCollection = await eventService.closeCollection(targetPath);
 
-      if (!targetPath) {
-        console.warn('No collection path provided or active collection found.');
-        return;
-      }
+        initialize(nextCollection);
+      },
 
-      console.info('Closing collection at', targetPath);
+      renameCollection: async (title: string) => {
+        const current = get().collection;
+        if (!current) return;
 
-      const closedCollection = await eventService.closeCollection(targetPath);
+        await eventService.rename(current as Collection, title);
 
-      const nextCollection = closedCollection ?? activeCollection;
+        set((state) => {
+          state.collection.title = title;
+        });
+      },
+    }))
+  );
+};
 
-      initialize(nextCollection);
-    },
+// Hook to access the collection store from context
+export const useCollectionStore = <T>(
+  selector: (state: CollectionState & CollectionStateActions) => T
+): T => {
+  const store = useContext(CollectionStoreContext);
+  if (!store) {
+    throw new Error('useCollectionStore must be used within CollectionStoreProvider');
+  }
+  return useStore(store, selector);
+};
 
-    renameCollection: async (title: string) => {
-      const current = get().collection;
-      if (!current) return;
+export const useCollectionActions = () => useCollectionStore(useActions());
 
-      await eventService.rename(current, title);
-
-      set((state) => {
-        state.collection.title = title;
-      });
-    },
-  }))
-);
+// Export context for the provider to access the raw store
+export { CollectionStoreContext };
 
 const selectParent = (state: CollectionState, parentId: string) => {
   if (state.collection.id === parentId) return state.collection;
@@ -421,4 +451,3 @@ export const selectRequest = (state: CollectionState, requestId?: TrufosRequest[
   state.requests.get(requestId ?? state.selectedRequestId);
 export const selectFolder = (state: CollectionState, folderId: Folder['id']) =>
   state.folders.get(folderId);
-export const useCollectionActions = () => useCollectionStore(useActions());
