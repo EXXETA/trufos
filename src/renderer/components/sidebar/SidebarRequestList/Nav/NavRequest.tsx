@@ -14,7 +14,7 @@ export const NavRequest = ({ requestId, depth = 0 }: NavRequestProps) => {
 
   return (
     <SidebarMenuItem
-      className={`hover:bg-divider overflow-x-hidden ${isHighlighted && 'bg-divider'}`}
+      className={`group hover:bg-divider overflow-x-hidden ${isHighlighted && 'bg-divider'}`}
     >
       <SidebarMenuSubButton asChild isActive={requestId === selectedRequestId}>
         <RequestView requestId={requestId} depth={depth} />
