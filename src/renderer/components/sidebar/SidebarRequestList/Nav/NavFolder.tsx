@@ -32,6 +32,7 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
           <SidebarMenuSubButton
             className={cn(
               'sidebar-request-list-item',
+              'group',
               'flex',
               'items-center',
               'py-2',
@@ -52,12 +53,14 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
               <SmallArrow size={24} />
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 flex-1 items-center gap-1">
               <FolderIcon size={16} />
-              <span>{folder.title}</span>
+              <span className="truncate">{folder.title}</span>
             </div>
 
-            <FolderDropdown folder={folder} />
+            <div className="sidebar-row-menu flex h-4 w-4 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+              <FolderDropdown folder={folder} />
+            </div>
           </SidebarMenuSubButton>
         </CollapsibleTrigger>
 
