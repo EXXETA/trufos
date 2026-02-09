@@ -21,7 +21,7 @@ const TabsList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
-    className={cn('bg-background text-muted-foreground h-10 rounded-md rounded-b-none', className)}
+    className={cn('bg-background flex h-10 gap-2 rounded-md rounded-b-none', className)}
     {...props}
   />
 ));
@@ -36,24 +36,18 @@ const TabsTrigger = React.forwardRef<
     className={cn(
       'cursor-pointer',
       'inline-flex h-[36px] items-center justify-center rounded-[24px] whitespace-nowrap',
-      'px-3 py-1.5',
-      'ring-offset-background text-sm font-medium transition-all focus-visible:outline-hidden',
+      'px-5 py-1.5',
+      'ring-offset-background text-muted-foreground text-sm font-medium transition-all focus-visible:outline-hidden',
       'focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2',
       'disabled:pointer-events-none disabled:opacity-50',
-      'hover:outline-solid',
-      'hover:outline-2',
-      'hover:outline-accent-primary',
       'data-[state=active]:bg-accent-tertiary data-[state=active]:text-accent-primary',
-      'data-[state=active]:font-bold data-[state=active]:shadow-xs',
-      'data-[state=active]:active:outline-solid',
-      'data-[state=active]:active:outline-2',
-      'data-[state=active]:active:outline-accent-secondary',
-      'data-[state=active]:active:text-accent-secondary',
+      'data-[state=active]:shadow-xs',
       className
     )}
     {...props}
   />
 ));
+
 TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
 const TabsContent = React.forwardRef<

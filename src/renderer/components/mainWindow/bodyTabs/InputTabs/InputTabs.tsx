@@ -14,19 +14,28 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
   const { className } = props;
 
   const headers = useCollectionStore((state) => selectRequest(state).headers);
+  const queryParams = useCollectionStore((state) => selectRequest(state).url.query);
 
-  const activeRowCount = useMemo(
+  const activeHeaderCount = useMemo(
     () => headers.filter((header) => header.isActive).length,
     [headers]
+  );
+
+  const activeParamsCount = useMemo(
+    () => queryParams.filter((param) => param.isActive).length,
+    [queryParams]
   );
 
   return (
     <Tabs className={className} defaultValue="body">
       <TabsList>
         <TabsTrigger value="body">Body</TabsTrigger>
-        <TabsTrigger value="queryParams">Params</TabsTrigger>
+        <TabsTrigger value="queryParams">
+          {activeParamsCount === 0 ? 'Parameters' : `Parameters (${activeParamsCount})`}
+        </TabsTrigger>
+
         <TabsTrigger value="headers">
-          {activeRowCount === 0 ? 'Headers' : `Headers (${activeRowCount})`}
+          {activeHeaderCount === 0 ? 'Headers' : `Headers (${activeHeaderCount})`}
         </TabsTrigger>
         <TabsTrigger value="authorization">Auth</TabsTrigger>
       </TabsList>
