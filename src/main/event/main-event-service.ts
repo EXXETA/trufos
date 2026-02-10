@@ -89,7 +89,19 @@ export class MainEventService implements IEventService {
   }
 
   async saveRequest(request: TrufosRequest, textBody?: string) {
-    return await persistenceService.saveRequest(request, textBody);
+    const result = await persistenceService.saveRequest(request, textBody);
+    
+    // Update indices after saving new request
+    const collection = environmentService.currentCollection;
+    const parent = request.parentId === collection.id 
+      ? collection 
+      : persistenceService.findNodeById(collection, request.parentId);
+    
+    if (parent) {
+      await persistenceService.persistIndices(parent);
+    }
+    
+    return result;
   }
 
   async copyRequest(request: TrufosRequest): Promise<TrufosRequest> {
@@ -136,6 +148,16 @@ export class MainEventService implements IEventService {
 
   async saveFolder(folder: Folder) {
     await persistenceService.saveFolder(folder);
+    
+    // Update indices after saving new folder
+    const collection = environmentService.currentCollection;
+    const parent = folder.parentId === collection.id 
+      ? collection 
+      : persistenceService.findNodeById(collection, folder.parentId);
+    
+    if (parent) {
+      await persistenceService.persistIndices(parent);
+    }
   }
 
   async copyFolder(folder: Folder): Promise<Folder> {
