@@ -655,7 +655,7 @@ export class PersistenceService {
     return null;
   }
 
-  private findNodeById(
+  public findNodeById(
     node: Collection | Folder,
     id: string
   ): Collection | Folder | null {
@@ -669,7 +669,7 @@ export class PersistenceService {
     return null;
   }
 
-  private async persistIndices(parent: Collection | Folder) {
+  public async persistIndices(parent: Collection | Folder) {
     for (let i = 0; i < parent.children.length; i++) {
       parent.children[i].index = i;
       await this.saveInfoFile(parent.children[i], this.getOrCreateDirPath(parent.children[i]));

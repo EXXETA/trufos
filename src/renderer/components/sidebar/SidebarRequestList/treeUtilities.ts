@@ -86,13 +86,15 @@ export function getProjection(
   const depthOffset = Math.round(dragOffsetX / INDENTATION_WIDTH);
   const projectedDepth = activeItem.depth + depthOffset;
 
-  // Special case: if dropping directly on a closed folder with minimal offset,
+  // Special case: if dropping directly on a closed folder with positive horizontal drag,
   // put it inside that folder
+  // Only trigger if: same depth AND intentional right drag (not just hovering)
   if (
     overItem.type === 'folder' &&
     openFolders &&
     !openFolders.has(overItem.id) &&
-    Math.abs(dragOffsetX) < INDENTATION_WIDTH
+    activeItem.depth === overItem.depth &&  // Must be at same level
+    dragOffsetX > INDENTATION_WIDTH / 2     // Must drag RIGHT (not just hover)
   ) {
     return {
       depth: overItem.depth + 1,

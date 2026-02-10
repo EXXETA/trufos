@@ -116,12 +116,14 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       addNewRequest: async (title, parentId) => {
+        const actualParentId = parentId ?? get().collection.id;
+        
         const request = await eventService.saveRequest({
           url: parseUrl('http://'),
           method: RequestMethod.GET,
           draft: true,
           id: null,
-          parentId: parentId ?? get().collection.id,
+          parentId: actualParentId,
           type: 'request',
           title: title ?? (Math.random() + 1).toString(36).substring(7),
           headers: [],
@@ -132,10 +134,15 @@ export const createCollectionStore = (collection: Collection) => {
         });
         console.info('Created new request with ID', request.id);
 
-        set((state) => {
-          state.requests.set(request.id, request);
-          selectParent(state, request.parentId).children.push(request);
-        });
+        // Reload collection to get updated indices
+        const collection = await eventService.loadCollection(true);
+        const { initialize, setFolderOpen } = get();
+        initialize(collection);
+        
+        // Keep parent folder open if item was added to folder
+        if (actualParentId !== get().collection.id) {
+          setFolderOpen(actualParentId);
+        }
 
         get().setSelectedRequest(request.id);
       },
@@ -308,6 +315,7 @@ export const createCollectionStore = (collection: Collection) => {
           children: [],
         });
 
+        // Reload collection to get correct indices
         const collection = await eventService.loadCollection(true);
         const { setFolderOpen, initialize } = get();
         if (parentId) {
