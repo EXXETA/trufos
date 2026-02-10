@@ -21,11 +21,17 @@ export const NavRequest = ({ requestId, depth = 0 }: NavRequestProps) => {
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.4 : 1,
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="cursor-grab">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="relative cursor-grab active:cursor-grabbing"
+    >
       <SidebarMenuItem
         className={`hover:bg-divider overflow-x-hidden ${isHighlighted && 'bg-divider'}`}
       >

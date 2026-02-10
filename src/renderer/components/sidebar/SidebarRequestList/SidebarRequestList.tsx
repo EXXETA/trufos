@@ -1,38 +1,37 @@
-import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensors, useSensor, useDroppable } from '@dnd-kit/core';
+import { useContext, useMemo, useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  DragStartEvent,
+  DragEndEvent,
+  DragOverlay,
+  PointerSensor,
+  useSensors,
+  useSensor,
+} from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import {
+  useCollectionActions,
+  useCollectionStore,
+  CollectionStoreContext,
+} from '@/state/collectionStore';
 import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
-import { NavFolder, DROPPABLE_FOLDER_PREFIX } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
-import { TrufosRequest } from 'shim/objects/request';
-import { Folder } from 'shim/objects/folder';
+import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
+import { flattenTree, removeChildrenOf, getProjection } from './treeUtilities';
+import { FolderIcon, SmallArrow } from '@/components/icons';
+import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
-
-/**
- * Render the children of a folder or collection, wrapped in a SortableContext.
- * @param children The children to render
- * @param depth
- */
-export function renderChildren(children: (TrufosRequest | Folder)[], depth = 0) {
-  const ids = children.map((child) => child.id);
-  return (
-    <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-      {children.map((child) => {
-        if (child.type === 'request') {
-          return <NavRequest key={child.id} requestId={child.id} depth={depth + 1} />;
-        } else if (child.type === 'folder') {
-          return <NavFolder key={child.id} folderId={child.id} depth={depth + 1} />;
-        }
-        return null;
-      })}
-    </SortableContext>
-  );
-}
 
 export const SidebarRequestList = () => {
   const children = useCollectionStore((state) => state.collection.children);
   const collectionId = useCollectionStore((state) => state.collection.id);
+  const openFolders = useCollectionStore((state) => state.openFolders);
+  const folders = useCollectionStore((state) => state.folders);
   const { moveItem } = useCollectionActions();
+  const store = useContext(CollectionStoreContext);
+
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -40,118 +39,155 @@ export const SidebarRequestList = () => {
     })
   );
 
-  // Droppable zone at collection root for dragging items out of folders
-  const { setNodeRef: setRootDropRef, isOver: isRootOver } = useDroppable({
-    id: `collection-root-${collectionId}`,
-  });
+  // Flatten the tree for a single SortableContext.
+  // We pass the folders Map so flattenTree reads up-to-date children
+  // (immer may not propagate Map mutations into tree references).
+  const flattenedItems = useMemo(
+    () => flattenTree(children, openFolders, collectionId, folders),
+    [children, openFolders, collectionId, folders]
+  );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!active || !over) return;
+  // During drag: remove children of the dragged folder so they travel with it
+  const sortableItems = useMemo(() => {
+    if (!activeId) return flattenedItems;
+    return removeChildrenOf(flattenedItems, [activeId]);
+  }, [flattenedItems, activeId]);
 
-    const state = useCollectionStore.getState();
-    const activeId = active.id as string;
-    const overId = over.id as string;
+  const sortableIds = useMemo(() => sortableItems.map((item) => item.id), [sortableItems]);
 
-    // Guard: Can't drop on self
-    if (activeId === overId) return;
-
-    const activeItem = state.folders.get(activeId) ?? state.requests.get(activeId);
-    if (!activeItem) {
-      console.warn('Active item not found:', activeId);
-      return;
-    }
-
-    // Guard: Can't drop folder into its own descendants
-    if (activeItem.type === 'folder') {
-      const isDescendant = (folderId: string, targetId: string): boolean => {
-        const folder = state.folders.get(folderId);
-        if (!folder) return false;
-        for (const child of folder.children) {
-          if (child.id === targetId) return true;
-          if (child.type === 'folder' && isDescendant(child.id, targetId)) return true;
-        }
-        return false;
-      };
-
-      if (isDescendant(activeId, overId)) {
-        console.warn('Cannot drop folder into its own descendant');
-        return;
-      }
-    }
-
-    // Drop into collection root (move to top level)
-    if (overId.startsWith('collection-root-')) {
-      const targetCollectionId = overId.replace('collection-root-', '');
-      if (activeItem.parentId === targetCollectionId) {
-        console.warn('Already at collection root');
-        return;
-      }
-      moveItem(activeId, targetCollectionId, state.collection.children.length);
-      return;
-    }
-
-    // Drop into a folder via its droppable zone
-    if (overId.startsWith(DROPPABLE_FOLDER_PREFIX)) {
-      const targetFolderId = overId.slice(DROPPABLE_FOLDER_PREFIX.length);
-      if (targetFolderId === activeId) return;
-
-      // Guard: Don't drop back into current parent at the end
-      if (targetFolderId === activeItem.parentId) {
-        console.warn('Already in this folder');
-        return;
-      }
-
-      const targetChildren = state.folders.get(targetFolderId)?.children ?? [];
-      moveItem(activeId, targetFolderId, targetChildren.length);
-      return;
-    }
-
-    const getParentId = (id: string) =>
-      state.requests.get(id)?.parentId ?? state.folders.get(id)?.parentId;
-
-    const overParentId = getParentId(overId);
-    if (!overParentId) {
-      console.warn('Over parent not found for:', overId);
-      return;
-    }
-
-    const getChildren = (parentId: string) => {
-      if (parentId === state.collection.id) return state.collection.children;
-      return state.folders.get(parentId)?.children ?? [];
-    };
-
-    const overSiblings = getChildren(overParentId);
-    const overIndex = overSiblings.findIndex((c) => c.id === overId);
-    if (overIndex === -1) {
-      console.warn('Over item not found in parent children:', overId);
-      return;
-    }
-
-    moveItem(activeId, overParentId, overIndex);
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    setActiveId(active.id as string);
   };
 
+  const handleDragEnd = ({ active, over, delta }: DragEndEvent) => {
+    if (!over || active.id === over.id) {
+      setActiveId(null);
+      return;
+    }
+
+    const activeIdStr = active.id as string;
+    const overIdStr = over.id as string;
+
+    const projection = getProjection(
+      sortableItems,
+      activeIdStr,
+      overIdStr,
+      delta.x,
+      collectionId,
+      openFolders
+    );
+
+    // Guard: can't drop a folder into its own descendants
+    if (store) {
+      const state = store.getState();
+      const activeItem = state.folders.get(activeIdStr);
+      if (activeItem?.type === 'folder' && projection.parentId !== collectionId) {
+        const isDescendant = (folderId: string, targetId: string): boolean => {
+          if (folderId === targetId) return true;
+          const folder = state.folders.get(folderId);
+          if (!folder) return false;
+          return folder.children.some(
+            (child) =>
+              child.id === targetId || (child.type === 'folder' && isDescendant(child.id, targetId))
+          );
+        };
+        if (isDescendant(activeIdStr, projection.parentId)) {
+          setActiveId(null);
+          return;
+        }
+      }
+    }
+
+    moveItem(activeIdStr, projection.parentId, projection.newIndex);
+    setActiveId(null);
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+  };
+
+  // Find the active item for the DragOverlay preview
+  const activeItem = activeId ? flattenedItems.find((item) => item.id === activeId) : null;
+
   return (
-    <SidebarContent className={'tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-y-auto'}>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SidebarMenu className="gap-0">
-          {renderChildren(children)}
-          {/* Drop zone for moving items to collection root */}
-          <div
-            ref={setRootDropRef}
-            className={cn(
-              'h-16 w-full transition-colors',
-              isRootOver && 'bg-accent/20 border-2 border-accent border-dashed rounded'
+    <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+          <SidebarMenu className="gap-0">
+            {sortableItems.map((item) =>
+              item.type === 'folder' ? (
+                <NavFolder key={item.id} folderId={item.id} depth={item.depth + 1} />
+              ) : (
+                <NavRequest key={item.id} requestId={item.id} depth={item.depth + 1} />
+              )
             )}
-          >
-            {isRootOver && (
-              <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                Drop here to move to collection root
-              </div>
-            )}
-          </div>
-        </SidebarMenu>
+          </SidebarMenu>
+        </SortableContext>
+        <DragOverlay dropAnimation={null}>
+          {activeItem ? <DragOverlayContent itemId={activeItem.id} /> : null}
+        </DragOverlay>
       </DndContext>
     </SidebarContent>
+  );
+};
+
+/** Drag overlay that looks like the actual sidebar items */
+const DragOverlayContent = ({ itemId }: { itemId: string }) => {
+  const request = useCollectionStore((state) => state.requests.get(itemId));
+  const folder = useCollectionStore((state) => state.folders.get(itemId));
+
+  if (folder) {
+    return <DragOverlayFolder folder={folder} />;
+  }
+
+  if (request) {
+    return <DragOverlayRequest request={request} />;
+  }
+
+  return null;
+};
+
+const DragOverlayFolder = ({ folder }: { folder: any }) => {
+  return (
+    <div
+      className={cn(
+        'sidebar-request-list-item',
+        'flex items-center gap-1 px-5 py-2',
+        'bg-background border-accent rounded border shadow-lg',
+        'cursor-grabbing'
+      )}
+    >
+      <div className="flex h-6 w-6 items-center justify-center">
+        <SmallArrow size={24} />
+      </div>
+      <div className="flex items-center gap-1">
+        <FolderIcon size={16} />
+        <span>{folder.title}</span>
+      </div>
+    </div>
+  );
+};
+
+const DragOverlayRequest = ({ request }: { request: any }) => {
+  return (
+    <div
+      className={cn(
+        'sidebar-request-list-item',
+        'flex gap-2 px-5 py-3.5',
+        'bg-background border-accent rounded border shadow-lg',
+        'cursor-grabbing'
+      )}
+    >
+      <div className={cn('text-xs leading-3 font-bold', httpMethodColor(request.method))}>
+        {request.method}
+      </div>
+      <p className="text-xs leading-3">{request.title ?? request.url}</p>
+    </div>
   );
 };
