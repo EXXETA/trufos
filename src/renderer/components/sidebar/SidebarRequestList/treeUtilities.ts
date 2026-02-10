@@ -93,8 +93,8 @@ export function getProjection(
     overItem.type === 'folder' &&
     openFolders &&
     !openFolders.has(overItem.id) &&
-    activeItem.depth === overItem.depth &&  // Must be at same level
-    dragOffsetX > INDENTATION_WIDTH / 2     // Must drag RIGHT (not just hover)
+    activeItem.depth === overItem.depth && // Must be at same level
+    dragOffsetX > INDENTATION_WIDTH / 2 // Must drag RIGHT (not just hover)
   ) {
     return {
       depth: overItem.depth + 1,

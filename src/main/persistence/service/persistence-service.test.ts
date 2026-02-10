@@ -959,4 +959,129 @@ describe('PersistenceService', () => {
     expect((loadedFolder.children[1] as any).index).toBe(10);
     expect((loadedFolder.children[2] as any).index).toBeUndefined();
   });
+
+  it('reorderItem() should reorder items within same parent', async () => {
+    // Arrange
+    const request1 = getExampleRequest(collection.id);
+    request1.title = 'Request1';
+    request1.index = 0;
+    const request2 = getExampleRequest(collection.id);
+    request2.title = 'Request2';
+    request2.index = 1;
+    collection.children.push(request1, request2);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act - move request2 to position 0
+    await persistenceService.reorderItem(collection, request2.id, collection.id, 0);
+
+    // Assert
+    expect(collection.children.map((c) => c.title)).toEqual(['Request2', 'Request1']);
+    expect(collection.children[0].index).toBe(0);
+    expect(collection.children[1].index).toBe(1);
+
+    // Verify persisted to filesystem
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+    expect(loaded.children.map((c) => c.title)).toEqual(['Request2', 'Request1']);
+  });
+
+  it('reorderItem() should move item to different parent', async () => {
+    // Arrange
+    const folder = getExampleFolder(collection.id);
+    folder.title = 'Folder';
+    const request = getExampleRequest(collection.id);
+    request.title = 'Request';
+    collection.children.push(folder, request);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act - move request into folder
+    await persistenceService.reorderItem(collection, request.id, folder.id, 0);
+
+    // Assert
+    expect(collection.children.map((c) => c.title)).toEqual(['Folder']);
+    expect(folder.children.map((c) => c.title)).toEqual(['Request']);
+    expect(request.parentId).toBe(folder.id);
+    expect(folder.children[0].index).toBe(0);
+
+    // Verify persisted to filesystem
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+    const loadedFolder = loaded.children[0] as Folder;
+    expect(loadedFolder.children.map((c) => c.title)).toEqual(['Request']);
+  });
+
+  it('reorderItem() should move folder into another folder', async () => {
+    // Arrange
+    const folder1 = getExampleFolder(collection.id);
+    folder1.title = 'Folder1';
+    const folder2 = getExampleFolder(collection.id);
+    folder2.title = 'Folder2';
+    collection.children.push(folder1, folder2);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act - move folder2 into folder1
+    await persistenceService.reorderItem(collection, folder2.id, folder1.id, 0);
+
+    // Assert
+    expect(collection.children.map((c) => c.title)).toEqual(['Folder1']);
+    expect(folder1.children.map((c) => c.title)).toEqual(['Folder2']);
+    expect(folder2.parentId).toBe(folder1.id);
+
+    // Verify persisted to filesystem
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+    const loadedFolder1 = loaded.children[0] as Folder;
+    expect(loadedFolder1.children.map((c) => c.title)).toEqual(['Folder2']);
+  });
+
+  it('reorderItem() should update indices for both old and new parent', async () => {
+    // Arrange
+    const folder1 = getExampleFolder(collection.id);
+    folder1.title = 'Folder1';
+    const folder2 = getExampleFolder(collection.id);
+    folder2.title = 'Folder2';
+    const request1 = getExampleRequest(folder1.id);
+    request1.title = 'Request1';
+    const request2 = getExampleRequest(folder1.id);
+    request2.title = 'Request2';
+    folder1.children.push(request1, request2);
+    collection.children.push(folder1, folder2);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act - move request2 from folder1 to folder2
+    await persistenceService.reorderItem(collection, request2.id, folder2.id, 0);
+
+    // Assert
+    expect(folder1.children.map((c) => c.title)).toEqual(['Request1']);
+    expect(folder2.children.map((c) => c.title)).toEqual(['Request2']);
+    expect(folder1.children[0].index).toBe(0);
+    expect(folder2.children[0].index).toBe(0);
+
+    // Verify persisted to filesystem
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+    const loadedFolder1 = loaded.children.find((c) => c.title === 'Folder1') as Folder;
+    const loadedFolder2 = loaded.children.find((c) => c.title === 'Folder2') as Folder;
+    expect(loadedFolder1.children[0].index).toBe(0);
+    expect(loadedFolder2.children[0].index).toBe(0);
+  });
+
+  it('reorderItem() should handle moving item to specific index in new parent', async () => {
+    // Arrange
+    const folder = getExampleFolder(collection.id);
+    const request1 = getExampleRequest(folder.id);
+    request1.title = 'Request1';
+    const request2 = getExampleRequest(folder.id);
+    request2.title = 'Request2';
+    folder.children.push(request1, request2);
+    const request3 = getExampleRequest(collection.id);
+    request3.title = 'Request3';
+    collection.children.push(folder, request3);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act - move request3 into folder at index 1 (between request1 and request2)
+    await persistenceService.reorderItem(collection, request3.id, folder.id, 1);
+
+    // Assert
+    expect(folder.children.map((c) => c.title)).toEqual(['Request1', 'Request3', 'Request2']);
+    expect(folder.children[0].index).toBe(0);
+    expect(folder.children[1].index).toBe(1);
+    expect(folder.children[2].index).toBe(2);
+  });
 });

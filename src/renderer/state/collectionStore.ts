@@ -117,7 +117,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       addNewRequest: async (title, parentId) => {
         const actualParentId = parentId ?? get().collection.id;
-        
+
         const request = await eventService.saveRequest({
           url: parseUrl('http://'),
           method: RequestMethod.GET,
@@ -138,7 +138,7 @@ export const createCollectionStore = (collection: Collection) => {
         const collection = await eventService.loadCollection(true);
         const { initialize, setFolderOpen } = get();
         initialize(collection);
-        
+
         // Keep parent folder open if item was added to folder
         if (actualParentId !== get().collection.id) {
           setFolderOpen(actualParentId);
@@ -451,7 +451,10 @@ export const createCollectionStore = (collection: Collection) => {
 
           // Validate newIndex
           if (newIndex < 0 || newIndex > newParent.children.length) {
-            console.error('moveItem: invalid newIndex', { newIndex, max: newParent.children.length });
+            console.error('moveItem: invalid newIndex', {
+              newIndex,
+              max: newParent.children.length,
+            });
             oldParent.children.splice(oldIndex, 0, moved); // Rollback
             return;
           }
