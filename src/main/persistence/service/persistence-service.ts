@@ -655,10 +655,7 @@ export class PersistenceService {
     return null;
   }
 
-  public findNodeById(
-    node: Collection | Folder,
-    id: string
-  ): Collection | Folder | null {
+  public findNodeById(node: Collection | Folder, id: string): Collection | Folder | null {
     if (node.id === id) return node;
     for (const child of node.children) {
       if (isFolder(child)) {
