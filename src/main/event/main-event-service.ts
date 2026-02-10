@@ -169,6 +169,15 @@ export class MainEventService implements IEventService {
     return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
   }
 
+  async moveItem(itemId: string, newParentId: string, newIndex: number): Promise<void> {
+    await persistenceService.reorderItem(
+      environmentService.currentCollection,
+      itemId,
+      newParentId,
+      newIndex
+    );
+  }
+
   async rename(object: TrufosObject, newTitle: string): Promise<void> {
     await persistenceService.rename(object, newTitle);
   }

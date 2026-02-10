@@ -168,6 +168,15 @@ export interface IEventService {
   rename(object: TrufosObject, newTitle: string): Promise<void>;
 
   /**
+   * Move an item (request or folder) to a new position within the collection.
+   * Handles both reordering within the same parent and moving between parents.
+   * @param itemId The ID of the item to move.
+   * @param newParentId The ID of the target parent (folder or collection).
+   * @param newIndex The target index within the new parent's children.
+   */
+  moveItem(itemId: string, newParentId: string, newIndex: number): Promise<void>;
+
+  /**
    * Trigger the application update process in the background.
    * Will show a dialog to the user if an update is available.
    */

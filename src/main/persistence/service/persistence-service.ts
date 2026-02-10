@@ -81,6 +81,47 @@ export class PersistenceService {
   }
 
   /**
+   * Moves and/or reorders an item within the collection tree.
+   * Handles filesystem moves when the parent changes and persists updated indices.
+   * @param collection The root collection.
+   * @param itemId The ID of the item to move.
+   * @param newParentId The ID of the target parent (folder or collection).
+   * @param newIndex The target index within the new parent's children.
+   */
+  public async reorderItem(
+    collection: Collection,
+    itemId: string,
+    newParentId: string,
+    newIndex: number
+  ) {
+    const found = this.findItemAndParent(collection, itemId);
+    if (!found) throw new Error(`Item with ID ${itemId} not found in collection`);
+    const { item, parent: oldParent } = found;
+
+    const newParent = this.findNodeById(collection, newParentId) as Collection | Folder;
+    if (!newParent) throw new Error(`Parent with ID ${newParentId} not found in collection`);
+
+    const parentChanged = oldParent.id !== newParent.id;
+
+    if (parentChanged) {
+      await this.moveChild(item, oldParent, newParent);
+      // moveChild pushes to end — move to the correct position
+      newParent.children.pop();
+      newParent.children.splice(newIndex, 0, item);
+      item.parentId = newParentId;
+    } else {
+      const oldIndex = oldParent.children.findIndex((c: Folder | TrufosRequest) => c.id === itemId);
+      oldParent.children.splice(oldIndex, 1);
+      oldParent.children.splice(newIndex, 0, item);
+    }
+
+    await this.persistIndices(newParent);
+    if (parentChanged) {
+      await this.persistIndices(oldParent);
+    }
+  }
+
+  /**
    * Renames a trufos object on the file system.
    * @param object trufos object to be renamed
    * @param title new title of the object
@@ -598,5 +639,40 @@ export class PersistenceService {
       dirPath = dirPath.slice(0, -1);
     }
     return dirPath;
+  }
+
+  private findItemAndParent(
+    node: Collection | Folder,
+    itemId: string
+  ): { item: Folder | TrufosRequest; parent: Collection | Folder } | null {
+    for (const child of node.children) {
+      if (child.id === itemId) return { item: child, parent: node };
+      if (isFolder(child)) {
+        const result = this.findItemAndParent(child, itemId);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+
+  private findNodeById(
+    node: Collection | Folder,
+    id: string
+  ): Collection | Folder | null {
+    if (node.id === id) return node;
+    for (const child of node.children) {
+      if (isFolder(child)) {
+        const result = this.findNodeById(child, id);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+
+  private async persistIndices(parent: Collection | Folder) {
+    for (let i = 0; i < parent.children.length; i++) {
+      parent.children[i].index = i;
+      await this.saveInfoFile(parent.children[i], this.getOrCreateDirPath(parent.children[i]));
+    }
   }
 }
