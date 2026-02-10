@@ -202,4 +202,12 @@ export interface CollectionStateActions {
    * @param dirPath Optional path of the collection to close.
    */
   closeCollection(dirPath?: string): Promise<void>;
+
+  /**
+   * Move an item (request or folder) to a new position, optionally changing its parent.
+   * @param itemId The ID of the item to move.
+   * @param newParentId The ID of the target parent (folder or collection).
+   * @param newIndex The target index within the new parent's children.
+   */
+  moveItem(itemId: string, newParentId: string, newIndex: number): Promise<void>;
 }
