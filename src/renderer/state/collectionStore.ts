@@ -412,6 +412,28 @@ export const createCollectionStore = (collection: Collection) => {
           state.collection.title = title;
         });
       },
+
+      moveItem: async (itemId, newParentId, newIndex) => {
+        set((state) => {
+          const item = state.requests.get(itemId) ?? state.folders.get(itemId);
+          if (!item) return;
+
+          const oldParent = selectParent(state, item.parentId);
+          const newParent = selectParent(state, newParentId);
+
+          const oldIndex = oldParent.children.findIndex((c) => c.id === itemId);
+          if (oldIndex === -1) return;
+          const [moved] = oldParent.children.splice(oldIndex, 1);
+
+          newParent.children.splice(newIndex, 0, moved);
+
+          if (item.parentId !== newParentId) {
+            item.parentId = newParentId;
+          }
+        });
+
+        await eventService.moveItem(itemId, newParentId, newIndex);
+      },
     }))
   );
 };
