@@ -123,6 +123,20 @@ export class MainEventService implements IEventService {
 
   async deleteObject(object: TrufosObject) {
     await persistenceService.delete(object);
+
+    // Remove the item from its parent's children in the in-memory tree
+    // so that subsequent persistIndices calls don't recreate the deleted directory
+    if (object.type !== 'collection') {
+      const collection = environmentService.currentCollection;
+      const parent =
+        object.parentId === collection.id
+          ? collection
+          : persistenceService.findNodeById(collection, object.parentId);
+
+      if (parent) {
+        parent.children = parent.children.filter((child) => child.id !== object.id);
+      }
+    }
   }
 
   async getActiveEnvironmentVariables() {
