@@ -83,6 +83,11 @@ export class PersistenceService {
   /**
    * Moves and/or reorders an item within the collection tree.
    * Handles filesystem moves when the parent changes and persists updated indices.
+   *
+   * IMPORTANT: All in-memory tree mutations are done synchronously BEFORE any
+   * async I/O. This prevents race conditions when multiple IPC calls overlap
+   * at await points (e.g. rapid successive drags).
+   *
    * @param collection The root collection.
    * @param itemId The ID of the item to move.
    * @param newParentId The ID of the target parent (folder or collection).
@@ -103,16 +108,27 @@ export class PersistenceService {
 
     const parentChanged = oldParent.id !== newParent.id;
 
+    // Capture old filesystem path BEFORE any in-memory changes
+    const oldChildDirPath = parentChanged ? this.getOrCreateDirPath(item) : undefined;
+
+    // === Synchronous in-memory tree mutations (no race possible) ===
     if (parentChanged) {
-      await this.moveChild(item, oldParent, newParent);
-      // moveChild pushes to end — move to the correct position
-      newParent.children.pop();
+      oldParent.children = oldParent.children.filter((c) => c.id !== item.id);
       newParent.children.splice(newIndex, 0, item);
       item.parentId = newParentId;
     } else {
       const oldIndex = oldParent.children.findIndex((c: Folder | TrufosRequest) => c.id === itemId);
       oldParent.children.splice(oldIndex, 1);
       oldParent.children.splice(newIndex, 0, item);
+    }
+
+    // === Async filesystem operations (tree is already consistent) ===
+    if (parentChanged) {
+      const childDirName = this.getDirName(item);
+      const newParentDirPath = this.getOrCreateDirPath(newParent);
+      const newChildDirPath = path.join(newParentDirPath, childDirName);
+      await fs.rename(oldChildDirPath!, newChildDirPath);
+      this.updatePathMapRecursively(item, newParentDirPath);
     }
 
     await this.persistIndices(newParent);
