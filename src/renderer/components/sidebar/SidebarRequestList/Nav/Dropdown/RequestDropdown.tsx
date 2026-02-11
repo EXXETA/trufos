@@ -9,18 +9,19 @@ import { handleMouseEvent } from '@/util/callback-util';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useState } from 'react';
 import { TrufosRequest } from 'shim/objects/request';
-import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
 import { cn } from '@/lib/utils';
 import { MoreIcon } from '@/components/icons';
+import { InlineRenameInput } from '@/components/inlinerename';
 
 export interface RequestDropdownProps {
   request: TrufosRequest;
+  isEditing: boolean;
+  setIsEditing: (editing: boolean) => void;
 }
 
-export const RequestDropdown = ({ request }: RequestDropdownProps) => {
-  const { copyRequest, deleteRequest } = useCollectionActions();
+export const RequestDropdown = ({ request, isEditing, setIsEditing }: RequestDropdownProps) => {
+  const { copyRequest, deleteRequest, renameRequest } = useCollectionActions();
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
-  const [renameModalIsOpen, setRenameModalIsOpen] = useState(false);
 
   return (
     <div>
@@ -39,9 +40,7 @@ export const RequestDropdown = ({ request }: RequestDropdownProps) => {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent className="w-48 rounded-lg" side="right" align="start">
-          <DropdownMenuItem onClick={handleMouseEvent(() => setRenameModalIsOpen(true))}>
-            Rename Request
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setIsEditing(true)}>Rename Request</DropdownMenuItem>
 
           <DropdownMenuItem onClick={handleMouseEvent(() => copyRequest(request.id))}>
             Copy Request
@@ -56,11 +55,16 @@ export const RequestDropdown = ({ request }: RequestDropdownProps) => {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {renameModalIsOpen && (
-        <NamingModal
-          trufosObject={request}
-          createType={null}
-          onClose={() => setRenameModalIsOpen(false)}
+      {isEditing && (
+        <InlineRenameInput
+          initialValue={request.title} // use the current title
+          autoEdit
+          onSave={(newTitle) => {
+            renameRequest(request.id, newTitle); // call the store action
+            setIsEditing(false);
+          }}
+          onCancel={() => setIsEditing(false)}
+          className="w-full"
         />
       )}
     </div>

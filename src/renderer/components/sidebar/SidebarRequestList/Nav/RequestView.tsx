@@ -5,6 +5,7 @@ import { handleMouseEvent } from '@/util/callback-util';
 import { cn } from '@/lib/utils';
 import { RequestDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/RequestDropdown';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
+import { useState } from 'react';
 
 export interface NavRequestProps {
   requestId: TrufosRequest['id'];
@@ -14,6 +15,7 @@ export interface NavRequestProps {
 export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
   const { setSelectedRequest } = useCollectionActions();
   const request = useCollectionStore((state) => selectRequest(state, requestId));
+  const [isEditing, setIsEditing] = useState(false);
 
   return (
     <div className={cn('hover:[background-color:#333333]')}>
@@ -33,9 +35,11 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
           {request.method}
         </div>
 
-        <p className="text-xs leading-3">{request.title ?? request.url}</p>
+        <p className={cn('text-xs leading-3', isEditing && 'hidden')}>
+          {request.title ?? request.url}
+        </p>
 
-        <RequestDropdown request={request} />
+        <RequestDropdown request={request} isEditing={isEditing} setIsEditing={setIsEditing} />
       </span>
     </div>
   );
