@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
+import { AddIcon, CheckedIcon, DeleteIcon, SwapIcon } from '@/components/icons';
 import { Divider } from '@/components/shared/Divider';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TrufosHeader } from 'shim/objects/headers';
@@ -84,7 +84,7 @@ export const HeaderTab = () => {
                 />
                 {allSelected && (
                   <div className="pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center">
-                    <CheckedIcon size={16} viewBox="0 0 16 16" color="var(--accent-primary)" />
+                    <CheckedIcon size={24} viewBox="0 0 16 16" color="var(--accent-primary)" />
                   </div>
                 )}
               </div>
@@ -92,12 +92,12 @@ export const HeaderTab = () => {
             </Button>
 
             <Button
-              className="h-fit gap-2 hover:bg-transparent"
+              className="h-fit gap-3 hover:bg-transparent"
               size="sm"
               variant="ghost"
               onClick={handleDeleteSelected}
             >
-              <DeleteIcon size={20} viewBox="0 4 24 24" />
+              <DeleteIcon size={24} viewBox="0 4 24 24" />
               Delete Selected
             </Button>
           </div>
@@ -111,8 +111,18 @@ export const HeaderTab = () => {
           <Table className="w-full table-auto">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-auto">Key</TableHead>
-                <TableHead className="w-full">Value</TableHead>
+                <TableHead className="w-auto">
+                  <div className="flex items-center gap-3">
+                    Name
+                    <SwapIcon size={18} viewBox="9 7 15 18" />
+                  </div>
+                </TableHead>
+                <TableHead className="w-full">
+                  <div className="flex items-center gap-3">
+                    Value
+                    <SwapIcon size={18} viewBox="9 7 15 18" />
+                  </div>
+                </TableHead>
                 <TableHead className="w-16"> {/* Action Column */} </TableHead>
               </TableRow>
             </TableHeader>
