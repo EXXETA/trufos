@@ -78,7 +78,7 @@ describe('MainEventService', () => {
       expect(reorderItemSpy).toHaveBeenCalledWith(collection, request.id, collection.id, 0);
     });
 
-    it('should update indices after moving item', async () => {
+    it('should delegate to reorderItem on persistence service', async () => {
       // Arrange
       const { MainEventService } = await import('./main-event-service');
       const { PersistenceService } = await import('../persistence/service/persistence-service');
@@ -95,10 +95,9 @@ describe('MainEventService', () => {
         dirPath: '/test/path',
       };
 
-      const persistIndicesSpy = vi
-        .spyOn(PersistenceService.instance, 'persistIndices')
+      const reorderItemSpy = vi
+        .spyOn(PersistenceService.instance, 'reorderItem')
         .mockResolvedValue(undefined);
-      vi.spyOn(PersistenceService.instance, 'reorderItem').mockResolvedValue(undefined);
       vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
 
       const eventService = new MainEventService();
@@ -106,8 +105,8 @@ describe('MainEventService', () => {
       // Act
       await eventService.moveItem('item-id', collection.id, 0);
 
-      // Assert
-      expect(persistIndicesSpy).toHaveBeenCalled();
+      // Assert — reorderItem handles persistence internally
+      expect(reorderItemSpy).toHaveBeenCalledWith(collection, 'item-id', collection.id, 0);
     });
   });
 
@@ -159,7 +158,8 @@ describe('MainEventService', () => {
 
       // Assert
       expect(saveRequestSpy).toHaveBeenCalledWith(request, undefined);
-      expect(findNodeByIdSpy).toHaveBeenCalledWith(collection, request.parentId);
+      // parentId === collection.id, so findNodeById is NOT called (direct branch)
+      expect(findNodeByIdSpy).not.toHaveBeenCalled();
       expect(persistIndicesSpy).toHaveBeenCalledWith(collection);
     });
   });
