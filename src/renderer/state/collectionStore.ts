@@ -116,12 +116,14 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       addNewRequest: async (title, parentId) => {
+        const actualParentId = parentId ?? get().collection.id;
+
         const request = await eventService.saveRequest({
           url: parseUrl('http://'),
           method: RequestMethod.GET,
           draft: true,
           id: null,
-          parentId: parentId ?? get().collection.id,
+          parentId: actualParentId,
           type: 'request',
           title: title ?? (Math.random() + 1).toString(36).substring(7),
           headers: [],
@@ -132,10 +134,15 @@ export const createCollectionStore = (collection: Collection) => {
         });
         console.info('Created new request with ID', request.id);
 
-        set((state) => {
-          state.requests.set(request.id, request);
-          selectParent(state, request.parentId).children.push(request);
-        });
+        // Reload collection to get updated indices
+        const collection = await eventService.loadCollection(true);
+        const { initialize, setFolderOpen } = get();
+        initialize(collection);
+
+        // Keep parent folder open if item was added to folder
+        if (actualParentId !== get().collection.id) {
+          setFolderOpen(actualParentId);
+        }
 
         get().setSelectedRequest(request.id);
       },
@@ -308,6 +315,7 @@ export const createCollectionStore = (collection: Collection) => {
           children: [],
         });
 
+        // Reload collection to get correct indices
         const collection = await eventService.loadCollection(true);
         const { setFolderOpen, initialize } = get();
         if (parentId) {
@@ -411,6 +419,82 @@ export const createCollectionStore = (collection: Collection) => {
         set((state) => {
           state.collection.title = title;
         });
+      },
+
+      moveItem: async (itemId, newParentId, newIndex) => {
+        // Snapshot state for rollback on error
+        const snapshot = get();
+        const item = snapshot.requests.get(itemId) ?? snapshot.folders.get(itemId);
+        if (!item) {
+          console.error('moveItem: item not found', itemId);
+          return;
+        }
+
+        const oldParentId = item.parentId;
+        const oldParent = selectParent(snapshot, oldParentId);
+        const oldIndex = oldParent.children.findIndex((c) => c.id === itemId);
+
+        // Optimistic update
+        set((state) => {
+          const item = state.requests.get(itemId) ?? state.folders.get(itemId);
+          if (!item) return;
+
+          const oldParent = selectParent(state, item.parentId);
+          const newParent = selectParent(state, newParentId);
+
+          const oldIndex = oldParent.children.findIndex((c) => c.id === itemId);
+          if (oldIndex === -1) {
+            console.error('moveItem: item not found in parent children');
+            return;
+          }
+          const [moved] = oldParent.children.splice(oldIndex, 1);
+
+          // Validate newIndex
+          if (newIndex < 0 || newIndex > newParent.children.length) {
+            console.error('moveItem: invalid newIndex', {
+              newIndex,
+              max: newParent.children.length,
+            });
+            oldParent.children.splice(oldIndex, 0, moved); // Rollback
+            return;
+          }
+
+          newParent.children.splice(newIndex, 0, moved);
+
+          if (item.parentId !== newParentId) {
+            item.parentId = newParentId;
+          }
+        });
+
+        // Backend call with error handling
+        try {
+          await eventService.moveItem(itemId, newParentId, newIndex);
+        } catch (error) {
+          console.error('moveItem backend failed, rolling back:', error);
+
+          // Rollback to snapshot
+          set((state) => {
+            const item = state.requests.get(itemId) ?? state.folders.get(itemId);
+            if (!item) return;
+
+            const currentParent = selectParent(state, item.parentId);
+            const originalParent = selectParent(state, oldParentId);
+
+            // Remove from current position
+            const currentIndex = currentParent.children.findIndex((c) => c.id === itemId);
+            if (currentIndex !== -1) {
+              const [moved] = currentParent.children.splice(currentIndex, 1);
+
+              // Put back at original position
+              originalParent.children.splice(oldIndex, 0, moved);
+
+              // Restore parentId
+              item.parentId = oldParentId;
+            }
+          });
+
+          throw error; // Re-throw for caller
+        }
       },
     }))
   );

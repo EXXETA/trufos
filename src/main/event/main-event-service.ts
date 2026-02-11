@@ -89,7 +89,20 @@ export class MainEventService implements IEventService {
   }
 
   async saveRequest(request: TrufosRequest, textBody?: string) {
-    return await persistenceService.saveRequest(request, textBody);
+    const result = await persistenceService.saveRequest(request, textBody);
+
+    // Update indices after saving new request
+    const collection = environmentService.currentCollection;
+    const parent =
+      request.parentId === collection.id
+        ? collection
+        : persistenceService.findNodeById(collection, request.parentId);
+
+    if (parent) {
+      await persistenceService.persistIndices(parent);
+    }
+
+    return result;
   }
 
   async copyRequest(request: TrufosRequest): Promise<TrufosRequest> {
@@ -110,6 +123,20 @@ export class MainEventService implements IEventService {
 
   async deleteObject(object: TrufosObject) {
     await persistenceService.delete(object);
+
+    // Remove the item from its parent's children in the in-memory tree
+    // so that subsequent persistIndices calls don't recreate the deleted directory
+    if (object.type !== 'collection') {
+      const collection = environmentService.currentCollection;
+      const parent =
+        object.parentId === collection.id
+          ? collection
+          : persistenceService.findNodeById(collection, object.parentId);
+
+      if (parent) {
+        parent.children = parent.children.filter((child) => child.id !== object.id);
+      }
+    }
   }
 
   async getActiveEnvironmentVariables() {
@@ -136,6 +163,17 @@ export class MainEventService implements IEventService {
 
   async saveFolder(folder: Folder) {
     await persistenceService.saveFolder(folder);
+
+    // Update indices after saving new folder
+    const collection = environmentService.currentCollection;
+    const parent =
+      folder.parentId === collection.id
+        ? collection
+        : persistenceService.findNodeById(collection, folder.parentId);
+
+    if (parent) {
+      await persistenceService.persistIndices(parent);
+    }
   }
 
   async copyFolder(folder: Folder): Promise<Folder> {
@@ -167,6 +205,15 @@ export class MainEventService implements IEventService {
     title?: string
   ) {
     return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
+  }
+
+  async moveItem(itemId: string, newParentId: string, newIndex: number): Promise<void> {
+    await persistenceService.reorderItem(
+      environmentService.currentCollection,
+      itemId,
+      newParentId,
+      newIndex
+    );
   }
 
   async rename(object: TrufosObject, newTitle: string): Promise<void> {
