@@ -1,16 +1,21 @@
 import { Button } from '@/components/ui/button';
-import { AddIcon, DeleteIcon } from '@/components/icons';
+import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
 import { Divider } from '@/components/shared/Divider';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { HeaderRow } from './HeaderRow';
+import { cn } from '@/lib/utils';
 
 export const HeaderTab = () => {
-  const { addHeader, deleteHeader, clearHeaders, updateHeader, setDraftFlag } =
-    useCollectionActions();
+  const { addHeader, deleteHeader, updateHeader, setDraftFlag } = useCollectionActions();
   const headers = useCollectionStore((state) => selectRequest(state).headers);
+
+  const allSelected = useMemo(
+    () => headers.length > 0 && headers.every((h) => h.isActive),
+    [headers]
+  );
 
   const handleAddHeader = useCallback(() => {
     addHeader();
@@ -25,10 +30,21 @@ export const HeaderTab = () => {
     [deleteHeader, setDraftFlag]
   );
 
-  const handleDeleteAllHeaders = useCallback(() => {
-    clearHeaders();
+  const handleSelectAll = useCallback(() => {
+    headers.forEach((_, index) => {
+      updateHeader(index, { isActive: !allSelected });
+    });
     setDraftFlag();
-  }, [clearHeaders, setDraftFlag]);
+  }, [headers, allSelected, updateHeader, setDraftFlag]);
+
+  const handleDeleteSelected = useCallback(() => {
+    for (let i = headers.length - 1; i >= 0; i--) {
+      if (headers[i].isActive) {
+        deleteHeader(i);
+      }
+    }
+    setDraftFlag();
+  }, [headers, deleteHeader, setDraftFlag]);
 
   const handleUpdateHeader = useCallback(
     (index: number, updatedFields: Partial<TrufosHeader>) => {
@@ -41,25 +57,50 @@ export const HeaderTab = () => {
   return (
     <div className="relative h-full p-4">
       <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
-        <div className="flex">
+        <div className="flex justify-between">
           <Button
             className="h-fit gap-1 hover:bg-transparent"
-            size={'sm'}
-            variant={'ghost'}
+            size="sm"
+            variant="ghost"
             onClick={handleAddHeader}
           >
             <AddIcon />
             Add Header
           </Button>
-          <Button
-            className="h-fit gap-1 hover:bg-transparent"
-            size={'sm'}
-            variant={'ghost'}
-            onClick={handleDeleteAllHeaders}
-          >
-            <DeleteIcon />
-            Delete All
-          </Button>
+
+          <div className="flex gap-2">
+            <Button
+              className="h-fit gap-2 hover:bg-transparent"
+              size="sm"
+              variant="ghost"
+              onClick={handleSelectAll}
+            >
+              <div className="relative h-4 w-4 shrink-0">
+                <div
+                  className={cn('h-4 w-4 rounded-[2px] border', {
+                    'border-accent-primary bg-accent-tertiary': allSelected,
+                    'border-text-primary bg-transparent': !allSelected,
+                  })}
+                />
+                {allSelected && (
+                  <div className="pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center">
+                    <CheckedIcon size={16} viewBox="0 0 16 16" color="var(--accent-primary)" />
+                  </div>
+                )}
+              </div>
+              Select All
+            </Button>
+
+            <Button
+              className="h-fit gap-2 hover:bg-transparent"
+              size="sm"
+              variant="ghost"
+              onClick={handleDeleteSelected}
+            >
+              <DeleteIcon size={20} viewBox="0 4 24 24" />
+              Delete Selected
+            </Button>
+          </div>
         </div>
 
         <Divider className="mt-2" />
