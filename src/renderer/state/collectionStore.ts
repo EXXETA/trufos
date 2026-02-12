@@ -239,7 +239,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       addHeader: () =>
         set((state) => {
-          selectHeaders(state).push({ key: '', value: '', isActive: true });
+          selectHeaders(state).push({ key: '', value: '', isActive: false });
           selectRequest(state).draft = true;
         }),
 
