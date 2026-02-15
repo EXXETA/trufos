@@ -1,14 +1,17 @@
 import { app, dialog, ipcMain } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
-import { IEventService, ImportStrategy } from 'shim/event-service';
-import { TrufosObject } from 'shim/objects';
-import { Folder } from 'shim/objects/folder';
-import { TrufosRequest } from 'shim/objects/request';
-import { VariableMap } from 'shim/objects/variables';
+import type { IEventService, ImportStrategy } from 'shim/event-service';
+import type {
+  Collection,
+  TrufosObject,
+  Folder,
+  TrufosRequest,
+  VariableMap,
+  EnvironmentMap,
+} from 'shim/objects';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import './stream-events';
-import { EnvironmentMap } from 'shim/objects/environment';
 import { ImportService } from 'main/import/service/import-service';
 import { updateElectronApp } from 'update-electron-app';
 
@@ -89,20 +92,7 @@ export class MainEventService implements IEventService {
   }
 
   async saveRequest(request: TrufosRequest, textBody?: string) {
-    const result = await persistenceService.saveRequest(request, textBody);
-
-    // Update indices after saving new request
-    const collection = environmentService.currentCollection;
-    const parent =
-      request.parentId === collection.id
-        ? collection
-        : persistenceService.findNodeById(collection, request.parentId);
-
-    if (parent) {
-      await persistenceService.persistIndices(parent);
-    }
-
-    return result;
+    return await persistenceService.saveRequest(request, textBody);
   }
 
   async copyRequest(request: TrufosRequest): Promise<TrufosRequest> {
@@ -123,20 +113,6 @@ export class MainEventService implements IEventService {
 
   async deleteObject(object: TrufosObject) {
     await persistenceService.delete(object);
-
-    // Remove the item from its parent's children in the in-memory tree
-    // so that subsequent persistIndices calls don't recreate the deleted directory
-    if (object.type !== 'collection') {
-      const collection = environmentService.currentCollection;
-      const parent =
-        object.parentId === collection.id
-          ? collection
-          : persistenceService.findNodeById(collection, object.parentId);
-
-      if (parent) {
-        parent.children = parent.children.filter((child) => child.id !== object.id);
-      }
-    }
   }
 
   async getActiveEnvironmentVariables() {
@@ -163,17 +139,6 @@ export class MainEventService implements IEventService {
 
   async saveFolder(folder: Folder) {
     await persistenceService.saveFolder(folder);
-
-    // Update indices after saving new folder
-    const collection = environmentService.currentCollection;
-    const parent =
-      folder.parentId === collection.id
-        ? collection
-        : persistenceService.findNodeById(collection, folder.parentId);
-
-    if (parent) {
-      await persistenceService.persistIndices(parent);
-    }
   }
 
   async copyFolder(folder: Folder): Promise<Folder> {
@@ -207,13 +172,21 @@ export class MainEventService implements IEventService {
     return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
   }
 
-  async moveItem(itemId: string, newParentId: string, newIndex: number): Promise<void> {
-    await persistenceService.reorderItem(
-      environmentService.currentCollection,
-      itemId,
-      newParentId,
-      newIndex
-    );
+  async moveItem(
+    child: Folder | TrufosRequest,
+    oldParent: Folder | Collection,
+    newParent: Folder | Collection,
+    position?: number
+  ) {
+    await persistenceService.moveChild(child, oldParent, newParent, position);
+  }
+
+  async reorderItem<T extends Folder | Collection>(
+    parent: T,
+    childId: string,
+    newIndex: number
+  ): Promise<T> {
+    return await persistenceService.reorderItem(parent, childId, newIndex);
   }
 
   async rename(object: TrufosObject, newTitle: string): Promise<void> {

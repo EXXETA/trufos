@@ -65,5 +65,7 @@ export class RendererEventService implements IEventService {
   importCollection = createEventMethod('importCollection');
   rename = createEventMethod('rename');
   moveItem = createEventMethod('moveItem');
+  // @ts-expect-error - typing does not work for genric methods
+  reorderItem = createEventMethod('reorderItem');
   updateApp = createEventMethod('updateApp');
 }

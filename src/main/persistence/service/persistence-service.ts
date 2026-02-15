@@ -31,7 +31,12 @@ import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
 import { SettingsService } from './settings-service';
 import { sanitizeTitle } from 'shim/fs';
-import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
+import {
+  DRAFT_DIR_NAME,
+  ORDER_FILE_NAME,
+  OrderFile,
+  SECRETS_FILE_NAME,
+} from 'main/persistence/constants';
 
 const secretService = SecretService.instance;
 
@@ -62,79 +67,76 @@ export class PersistenceService {
    * @param child the child object that gets moved
    * @param oldParent the parent object the child is currently in
    * @param newParent the parent object the child gets moved to
+   * @param position OPTIONAL: the new position of the child in the new parent. If not provided, the child will be added to the end of the new parent's children
    */
   public async moveChild(
     child: Folder | TrufosRequest,
     oldParent: Folder | Collection,
-    newParent: Folder | Collection
+    newParent: Folder | Collection,
+    position?: number
   ) {
+    if (oldParent.id === newParent.id) {
+      logger.info('Old parent and new parent are the same. No need to move child', child.id);
+      return;
+    }
+
     const childDirName = this.getDirName(child);
     const oldChildDirPath = this.getOrCreateDirPath(child);
+    const oldParentDirPath = this.getOrCreateDirPath(oldParent);
     const newParentDirPath = this.getOrCreateDirPath(newParent);
     const newChildDirPath = path.join(newParentDirPath, childDirName);
 
-    oldParent.children = oldParent.children.filter((c) => c.id !== child.id);
-    newParent.children.push(child);
-    await fs.rename(oldChildDirPath, newChildDirPath);
+    const removeFromOldParent = async () => {
+      oldParent.children = oldParent.children.filter((c) => c.id !== child.id);
+      const order = await this.loadOrderFile(oldParentDirPath);
+      const index = order.indexOf(child.id);
+      if (index !== -1) {
+        order.splice(index, 1);
+        await this.saveOrderFile(oldParentDirPath, order);
+      }
+    };
 
+    const addToNewParent = async () => {
+      if (position == null) {
+        newParent.children.push(child);
+      } else {
+        newParent.children.splice(position, 0, child);
+        const order = await this.loadOrderFile(newParentDirPath);
+        order.splice(position, 0, child.id);
+        await this.saveOrderFile(newParentDirPath, order);
+      }
+    };
+
+    // do in parallel as all are independent operations on the FS
+    await Promise.all([
+      removeFromOldParent(),
+      addToNewParent(),
+      fs.rename(oldChildDirPath, newChildDirPath),
+    ]);
+
+    // update path lookup for child and all its descendants
     this.updatePathMapRecursively(child, newParentDirPath);
   }
 
   /**
-   * Moves and/or reorders an item within the collection tree.
-   * Handles filesystem moves when the parent changes and persists updated indices.
-   *
-   * IMPORTANT: All in-memory tree mutations are done synchronously BEFORE any
-   * async I/O. This prevents race conditions when multiple IPC calls overlap
-   * at await points (e.g. rapid successive drags).
-   *
-   * @param collection The root collection.
-   * @param itemId The ID of the item to move.
-   * @param newParentId The ID of the target parent (folder or collection).
-   * @param newIndex The target index within the new parent's children.
+   * Reorders a child object within its parent folder or collection.
+   * @param parent the parent folder or collection
+   * @param childId the ID of the child object to reorder
+   * @param newIndex the new index of the child object within the parent's children array
+   * @returns the updated parent folder or collection
    */
-  public async reorderItem(
-    collection: Collection,
-    itemId: string,
-    newParentId: string,
+  public async reorderItem<T extends Folder | Collection>(
+    parent: T,
+    childId: string,
     newIndex: number
-  ) {
-    const found = this.findItemAndParent(collection, itemId);
-    if (!found) throw new Error(`Item with ID ${itemId} not found in collection`);
-    const { item, parent: oldParent } = found;
-
-    const newParent = this.findNodeById(collection, newParentId) as Collection | Folder;
-    if (!newParent) throw new Error(`Parent with ID ${newParentId} not found in collection`);
-
-    const parentChanged = oldParent.id !== newParent.id;
-
-    // Capture old filesystem path BEFORE any in-memory changes
-    const oldChildDirPath = parentChanged ? this.getOrCreateDirPath(item) : undefined;
-
-    // === Synchronous in-memory tree mutations (no race possible) ===
-    if (parentChanged) {
-      oldParent.children = oldParent.children.filter((c) => c.id !== item.id);
-      newParent.children.splice(newIndex, 0, item);
-      item.parentId = newParentId;
-    } else {
-      const oldIndex = oldParent.children.findIndex((c: Folder | TrufosRequest) => c.id === itemId);
-      oldParent.children.splice(oldIndex, 1);
-      oldParent.children.splice(newIndex, 0, item);
-    }
-
-    // === Async filesystem operations (tree is already consistent) ===
-    if (parentChanged) {
-      const childDirName = this.getDirName(item);
-      const newParentDirPath = this.getOrCreateDirPath(newParent);
-      const newChildDirPath = path.join(newParentDirPath, childDirName);
-      await fs.rename(oldChildDirPath!, newChildDirPath);
-      this.updatePathMapRecursively(item, newParentDirPath);
-    }
-
-    await this.persistIndices(newParent);
-    if (parentChanged) {
-      await this.persistIndices(oldParent);
-    }
+  ): Promise<T> {
+    const parentDirPath = this.getOrCreateDirPath(parent);
+    const order = await this.loadOrderFile(parentDirPath);
+    const oldIndex = order.indexOf(childId);
+    if (oldIndex !== -1) order.splice(oldIndex, 1);
+    order.splice(newIndex, 0, childId);
+    await this.saveOrderFile(parentDirPath, order);
+    return parent;
   }
 
   /**
@@ -315,10 +317,7 @@ export class PersistenceService {
     await this.saveSecrets(object, dirPath);
 
     // write the info file
-    await fs.writeFile(
-      path.join(dirPath, this.getInfoFileName(object.type)),
-      JSON.stringify(toInfoFile(object), null, 2)
-    );
+    await this.writeJson(path.join(dirPath, this.getInfoFileName(object.type)), toInfoFile(object));
   }
 
   /**
@@ -518,9 +517,26 @@ export class PersistenceService {
       }
     }
 
+    const order = await this.loadOrderFile(parentDirPath);
+    const orderLookup = new Map(order.map((id, index) => [id, index]));
     return children.sort(
-      (a, b) => (a.index ?? Number.POSITIVE_INFINITY) - (b.index ?? Number.POSITIVE_INFINITY)
+      (a, b) =>
+        (orderLookup.get(a.id) ?? Number.POSITIVE_INFINITY) -
+        (orderLookup.get(b.id) ?? Number.POSITIVE_INFINITY)
     );
+  }
+
+  private async loadOrderFile(dirPath: string): Promise<string[]> {
+    const filePath = path.join(dirPath, ORDER_FILE_NAME);
+    if (!(await exists(filePath))) {
+      return [];
+    }
+
+    return await OrderFile.parseAsync(JSON.parse(await fs.readFile(filePath, 'utf8')));
+  }
+
+  private async saveOrderFile(dirPath: string, children: string[]) {
+    await this.writeJson(path.join(dirPath, ORDER_FILE_NAME), children);
   }
 
   private async load<T extends TrufosRequest | Folder>(
@@ -657,35 +673,7 @@ export class PersistenceService {
     return dirPath;
   }
 
-  private findItemAndParent(
-    node: Collection | Folder,
-    itemId: string
-  ): { item: Folder | TrufosRequest; parent: Collection | Folder } | null {
-    for (const child of node.children) {
-      if (child.id === itemId) return { item: child, parent: node };
-      if (isFolder(child)) {
-        const result = this.findItemAndParent(child, itemId);
-        if (result) return result;
-      }
-    }
-    return null;
-  }
-
-  public findNodeById(node: Collection | Folder, id: string): Collection | Folder | null {
-    if (node.id === id) return node;
-    for (const child of node.children) {
-      if (isFolder(child)) {
-        const result = this.findNodeById(child, id);
-        if (result) return result;
-      }
-    }
-    return null;
-  }
-
-  public async persistIndices(parent: Collection | Folder) {
-    for (let i = 0; i < parent.children.length; i++) {
-      parent.children[i].index = i;
-      await this.saveInfoFile(parent.children[i], this.getOrCreateDirPath(parent.children[i]));
-    }
+  private async writeJson(filePath: string, value: unknown) {
+    await fs.writeFile(filePath, JSON.stringify(value, null, 2));
   }
 }
