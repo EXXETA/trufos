@@ -203,30 +203,5 @@ export interface CollectionStateActions {
    */
   closeCollection(dirPath?: string): Promise<void>;
 
-  /**
-   * Moves a child object from one parent to another on the file system.
-   * @param child the child object that gets moved
-   * @param oldParent the parent object the child is currently in
-   * @param newParent the parent object the child gets moved to
-   * @param position OPTIONAL: the new position of the child in the new parent. If not provided, the child will be added to the end of the new parent's children
-   */
-  moveItem(
-    child: Folder | TrufosRequest,
-    oldParent: Folder | Collection,
-    newParent: Folder | Collection,
-    position?: number
-  ): Promise<void>;
-
-  /**
-   * Reorders a child object within its parent folder or collection.
-   * @param parent the parent folder or collection
-   * @param childId the ID of the child object to reorder
-   * @param newIndex the new index of the child object within the parent's children array
-   * @returns the updated parent folder or collection
-   */
-  reorderItem<T extends Folder | Collection>(
-    parent: T,
-    childId: string,
-    newIndex: number
-  ): Promise<T>;
+  moveItem(itemId: string, newParentId: string, position: number): Promise<void>;
 }

@@ -422,7 +422,24 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       moveItem: async (itemId, newParentId, newIndex) => {
-        await eventService.moveItem(itemId, newParentId, newIndex);
+        console.info(`Moving item ${itemId} to parent ${newParentId} at position ${newIndex}`);
+        const state = get();
+        const item = selectRequest(state, itemId) ?? selectFolder(state, itemId);
+        const newParent = selectParent(state, newParentId);
+
+        if (item.parentId === newParentId) {
+          const parent = await eventService.reorderItem(newParent, itemId, newIndex);
+          if (isCollection(parent)) {
+            state.collection = parent;
+          } else {
+            state.folders.set(parent.id, parent);
+          }
+        } else {
+          if (isRequest(item)) await eventService.saveRequest(item);
+          const oldParent = selectParent(state, item.parentId);
+          await eventService.moveItem(item, oldParent, newParent, newIndex);
+          state.initialize(await eventService.loadCollection(true)); // reload collection
+        }
       },
     }))
   );
@@ -445,7 +462,7 @@ export const useCollectionActions = () => useCollectionStore(useActions());
 export { CollectionStoreContext };
 
 const selectParent = (state: CollectionState, parentId: string) => {
-  if (state.collection.id === parentId) return state.collection;
+  if (state.collection.id === parentId) return state.collection as Collection;
   return state.folders.get(parentId)!;
 };
 const selectObject = <T extends TrufosObject>(state: CollectionState, object: T) =>

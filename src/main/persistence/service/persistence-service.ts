@@ -80,6 +80,9 @@ export class PersistenceService {
       return;
     }
 
+    logger.info(
+      `Moving child ${child.id} from parent ${oldParent.id} to parent ${newParent.id} at position ${position}`
+    );
     const childDirName = this.getDirName(child);
     const oldChildDirPath = this.getOrCreateDirPath(child);
     const oldParentDirPath = this.getOrCreateDirPath(oldParent);
@@ -130,12 +133,14 @@ export class PersistenceService {
     childId: string,
     newIndex: number
   ): Promise<T> {
+    logger.info(`Reordering child ${childId} in parent ${parent.id} to position ${newIndex}`);
     const parentDirPath = this.getOrCreateDirPath(parent);
     const order = await this.loadOrderFile(parentDirPath);
     const oldIndex = order.indexOf(childId);
     if (oldIndex !== -1) order.splice(oldIndex, 1);
     order.splice(newIndex, 0, childId);
     await this.saveOrderFile(parentDirPath, order);
+    this.sortChildrenArray(parent.children, order);
     return parent;
   }
 
@@ -410,6 +415,12 @@ export class PersistenceService {
     // delete object
     this.idToPathMap.delete(object.id);
     await fs.rm(dirPath, { recursive: true });
+
+    // remove from parent's order
+    if (!isCollection(object)) {
+      const parentDirPath = this.idToPathMap.get(object.parentId)!;
+      await this.modifyOrder(parentDirPath, (order) => order.filter((id) => id !== object.id));
+    }
   }
 
   /**
@@ -517,7 +528,13 @@ export class PersistenceService {
       }
     }
 
-    const order = await this.loadOrderFile(parentDirPath);
+    return this.sortChildrenArray(children, await this.loadOrderFile(parentDirPath));
+  }
+
+  private sortChildrenArray(
+    children: (Folder | TrufosRequest)[],
+    order: string[]
+  ): (Folder | TrufosRequest)[] {
     const orderLookup = new Map(order.map((id, index) => [id, index]));
     return children.sort(
       (a, b) =>
@@ -537,6 +554,11 @@ export class PersistenceService {
 
   private async saveOrderFile(dirPath: string, children: string[]) {
     await this.writeJson(path.join(dirPath, ORDER_FILE_NAME), children);
+  }
+
+  private async modifyOrder(dirPath: string, transform: (order: string[]) => string[]) {
+    const filePath = path.join(dirPath, ORDER_FILE_NAME);
+    await this.writeJson(filePath, transform(await this.loadOrderFile(dirPath)));
   }
 
   private async load<T extends TrufosRequest | Folder>(

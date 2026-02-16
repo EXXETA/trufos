@@ -8,6 +8,7 @@ import { InfoFileMigrator as V1_3_0 } from './v1-3-0';
 import { InfoFileMigrator as V1_4_0 } from './v1-4-0';
 import { InfoFileMigrator as V2_0_0 } from './v2-0-0';
 import { InfoFileMigrator as V2_1_0 } from './v2-1-0';
+import { InfoFileMigrator as V2_2_0 } from './v2-2-0';
 import { SemVer } from 'main/util/semver';
 
 // add new migrators here
@@ -19,6 +20,7 @@ const MIGRATOR_ARRAY = [
   new V1_4_0(),
   new V2_0_0(),
   new V2_1_0(),
+  new V2_2_0(),
 ];
 
 const MIGRATORS = new Map<string, AbstractInfoFileMigrator<VersionedObject, VersionedObject>>(

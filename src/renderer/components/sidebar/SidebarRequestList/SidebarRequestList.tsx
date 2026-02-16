@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -10,11 +10,7 @@ import {
   useSensor,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import {
-  useCollectionActions,
-  useCollectionStore,
-  CollectionStoreContext,
-} from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
 import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
@@ -29,7 +25,6 @@ export const SidebarRequestList = () => {
   const openFolders = useCollectionStore((state) => state.openFolders);
   const folders = useCollectionStore((state) => state.folders);
   const { moveItem } = useCollectionActions();
-  const store = useContext(CollectionStoreContext);
 
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -59,7 +54,7 @@ export const SidebarRequestList = () => {
     setActiveId(active.id as string);
   };
 
-  const handleDragEnd = ({ active, over, delta }: DragEndEvent) => {
+  const handleDragEnd = async ({ active, over, delta }: DragEndEvent) => {
     if (!over || active.id === over.id) {
       setActiveId(null);
       return;
@@ -77,28 +72,7 @@ export const SidebarRequestList = () => {
       openFolders
     );
 
-    // Guard: can't drop a folder into its own descendants
-    if (store) {
-      const state = store.getState();
-      const activeItem = state.folders.get(activeIdStr);
-      if (activeItem?.type === 'folder' && projection.parentId !== collectionId) {
-        const isDescendant = (folderId: string, targetId: string): boolean => {
-          if (folderId === targetId) return true;
-          const folder = state.folders.get(folderId);
-          if (!folder) return false;
-          return folder.children.some(
-            (child) =>
-              child.id === targetId || (child.type === 'folder' && isDescendant(child.id, targetId))
-          );
-        };
-        if (isDescendant(activeIdStr, projection.parentId)) {
-          setActiveId(null);
-          return;
-        }
-      }
-    }
-
-    moveItem(activeIdStr, projection.parentId, projection.newIndex);
+    await moveItem(activeIdStr, projection.parentId, projection.newIndex);
     setActiveId(null);
   };
 
