@@ -12,9 +12,7 @@ describe('SaveButton', () => {
     // Arrange
     const onClickMock = vi.fn();
     const user = userEvent.setup();
-    const { getByRole } = render(
-      <SaveButton isDisabled={false} onClick={onClickMock} />
-    );
+    const { getByRole } = render(<SaveButton isDisabled={false} onClick={onClickMock} />);
 
     // Act
     await user.click(getByRole('button'));
@@ -27,9 +25,7 @@ describe('SaveButton', () => {
     // Arrange
     const onClickMock = vi.fn();
     const user = userEvent.setup();
-    const { getByRole } = render(
-      <SaveButton isDisabled={true} onClick={onClickMock} />
-    );
+    const { getByRole } = render(<SaveButton isDisabled={true} onClick={onClickMock} />);
 
     // Act
     await user.click(getByRole('button'));
