@@ -1,15 +1,15 @@
 import { Button } from '@/components/ui/button';
-import { AddIcon, CheckedIcon, DeleteIcon, SwapIcon } from '@/components/icons';
+import { AddIcon, DeleteIcon, SwapIcon } from '@/components/icons';
+import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
 import { Divider } from '@/components/shared/Divider';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useCallback, useMemo } from 'react';
 import { HeaderRow } from './HeaderRow';
-import { cn } from '@/lib/utils';
 
 export const HeaderTab = () => {
-  const { addHeader, deleteHeader, updateHeader, setDraftFlag } = useCollectionActions();
+  const { addHeader, deleteHeader, updateHeader } = useCollectionActions();
   const headers = useCollectionStore((state) => selectRequest(state).headers);
 
   const allSelected = useMemo(
@@ -19,23 +19,20 @@ export const HeaderTab = () => {
 
   const handleAddHeader = useCallback(() => {
     addHeader();
-    setDraftFlag();
-  }, [addHeader, setDraftFlag]);
+  }, [addHeader]);
 
   const handleDeleteHeader = useCallback(
     (index: number) => {
       deleteHeader(index);
-      setDraftFlag();
     },
-    [deleteHeader, setDraftFlag]
+    [deleteHeader]
   );
 
   const handleSelectAll = useCallback(() => {
     headers.forEach((_, index) => {
       updateHeader(index, { isActive: !allSelected });
     });
-    setDraftFlag();
-  }, [headers, allSelected, updateHeader, setDraftFlag]);
+  }, [headers, allSelected, updateHeader]);
 
   const handleDeleteSelected = useCallback(() => {
     for (let i = headers.length - 1; i >= 0; i--) {
@@ -43,15 +40,13 @@ export const HeaderTab = () => {
         deleteHeader(i);
       }
     }
-    setDraftFlag();
-  }, [headers, deleteHeader, setDraftFlag]);
+  }, [headers, deleteHeader]);
 
   const handleUpdateHeader = useCallback(
     (index: number, updatedFields: Partial<TrufosHeader>) => {
       updateHeader(index, updatedFields);
-      setDraftFlag();
     },
-    [updateHeader, setDraftFlag]
+    [updateHeader]
   );
 
   return (
@@ -75,19 +70,7 @@ export const HeaderTab = () => {
               variant="ghost"
               onClick={handleSelectAll}
             >
-              <div className="relative h-4 w-4 shrink-0">
-                <div
-                  className={cn('h-4 w-4 rounded-[2px] border', {
-                    'border-accent-primary bg-accent-tertiary': allSelected,
-                    'border-text-primary bg-transparent': !allSelected,
-                  })}
-                />
-                {allSelected && (
-                  <div className="pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center">
-                    <CheckedIcon size={24} viewBox="0 0 16 16" color="var(--accent-primary)" />
-                  </div>
-                )}
-              </div>
+              <ActiveCheckbox checked={allSelected} onChange={() => handleSelectAll()} />
               Select All
             </Button>
 

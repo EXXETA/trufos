@@ -5,7 +5,6 @@ import { HeaderTab } from './HeaderTab';
 const addHeaderMock = vi.fn();
 const deleteHeaderMock = vi.fn();
 const updateHeaderMock = vi.fn();
-const setDraftFlagMock = vi.fn();
 
 let mockHeaders: any[] = [];
 
@@ -14,7 +13,6 @@ vi.mock('@/state/collectionStore', () => ({
     addHeader: addHeaderMock,
     deleteHeader: deleteHeaderMock,
     updateHeader: updateHeaderMock,
-    setDraftFlag: setDraftFlagMock,
   }),
   useCollectionStore: (selector) =>
     selector({
@@ -50,7 +48,6 @@ describe('HeaderTab', () => {
     expect(updateHeaderMock).toHaveBeenCalledWith(0, { isActive: true });
     expect(updateHeaderMock).toHaveBeenCalledWith(1, { isActive: true });
     expect(updateHeaderMock).toHaveBeenCalledWith(2, { isActive: true });
-    expect(setDraftFlagMock).toHaveBeenCalled();
   });
 
   it('should deselect all headers when all are already selected', () => {
@@ -68,7 +65,6 @@ describe('HeaderTab', () => {
     expect(updateHeaderMock).toHaveBeenCalledTimes(2);
     expect(updateHeaderMock).toHaveBeenCalledWith(0, { isActive: false });
     expect(updateHeaderMock).toHaveBeenCalledWith(1, { isActive: false });
-    expect(setDraftFlagMock).toHaveBeenCalled();
   });
 
   it('should only delete active headers when Delete Selected is clicked', () => {
@@ -87,7 +83,6 @@ describe('HeaderTab', () => {
     expect(deleteHeaderMock).toHaveBeenCalledTimes(2);
     expect(deleteHeaderMock).toHaveBeenCalledWith(2);
     expect(deleteHeaderMock).toHaveBeenCalledWith(1);
-    expect(setDraftFlagMock).toHaveBeenCalled();
   });
 
   it('should not delete anything when no headers are selected', () => {
