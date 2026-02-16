@@ -10,7 +10,7 @@ describe('HttpMethodSelect', () => {
   });
 
   it('should display the initially selected method', () => {
-    // Arrange: Render die Component mit GET als ausgewählte Methode
+    // Arrange
     const onHttpMethodChangeMock = vi.fn();
     const { getByText } = render(
       <HttpMethodSelect
@@ -19,12 +19,12 @@ describe('HttpMethodSelect', () => {
       />
     );
 
-    // Assert: Überprüfe dass "GET" im UI angezeigt wird
+    // Assert
     expect(getByText('GET')).toBeDefined();
   });
 
   it('should call onHttpMethodChange when selecting a different method', async () => {
-    // Arrange: Setup user interaction, mock callback, render mit GET
+    // Arrange
     const user = userEvent.setup();
     const onHttpMethodChangeMock = vi.fn();
     const { getByRole, findByText } = render(
@@ -34,22 +34,19 @@ describe('HttpMethodSelect', () => {
       />
     );
 
-    // Act: Click auf das Dropdown (combobox) um es zu öffnen
+    // Act
     const dropdown = getByRole('combobox');
     await user.click(dropdown);
-
-    // Act: Warte bis "POST" Option erscheint (async weil in Portal gerendert)
-    // findByText ist async und wartet bis das Element erscheint
     const postOption = await findByText('POST');
     await user.click(postOption);
 
-    // Assert: Überprüfe dass der callback mit POST aufgerufen wurde
+    // Assert
     expect(onHttpMethodChangeMock).toHaveBeenCalledTimes(1);
     expect(onHttpMethodChangeMock).toHaveBeenCalledWith(RequestMethod.POST);
   });
 
   it('should work with different starting methods', async () => {
-    // Arrange: Teste mit DELETE als Start-Methode
+    // Arrange
     const user = userEvent.setup();
     const onHttpMethodChangeMock = vi.fn();
     const { getByRole, getByText, findByText } = render(
@@ -59,17 +56,15 @@ describe('HttpMethodSelect', () => {
       />
     );
 
-    // Assert: DELETE wird initial angezeigt
+    // Assert
     expect(getByText('DELETE')).toBeDefined();
 
-    // Act: Öffne Dropdown und wähle PATCH
+    // Act
     await user.click(getByRole('combobox'));
-    
-    // Warte bis PATCH Option erscheint (async weil in Portal gerendert)
     const patchOption = await findByText('PATCH');
     await user.click(patchOption);
 
-    // Assert: Callback wurde mit PATCH aufgerufen
+    // Assert
     expect(onHttpMethodChangeMock).toHaveBeenCalledWith(RequestMethod.PATCH);
   });
 });
