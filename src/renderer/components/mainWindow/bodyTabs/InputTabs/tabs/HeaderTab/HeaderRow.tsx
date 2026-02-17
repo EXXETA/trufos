@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Command, CommandItem, CommandList, CommandGroup } from '@/components/ui/command';
 import { Button } from '@/components/ui/button';
-import { CheckedIcon, DeleteIcon } from '@/components/icons';
+import { DeleteIcon } from '@/components/icons';
 import { HEADER_VALUES, COMMON_HEADERS } from '@/constants';
-import { cn } from '@/lib/utils';
+import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -128,22 +128,10 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
 
       <TableCell className="w-16 text-right">
         <div className="flex items-center justify-center gap-2">
-          <div className="relative z-10 h-4 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={header.isActive}
-              onChange={(e) => handleUpdateHeader(index, { isActive: e.target.checked })}
-              className={cn('form-checkbox h-4 w-4 appearance-none rounded-[2px] border', {
-                'border-accent-primary bg-accent-tertiary': header.isActive,
-                'border-text-primary bg-transparent': !header.isActive,
-              })}
-            />
-            {header.isActive && (
-              <div className="pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center">
-                <CheckedIcon size={16} viewBox="0 0 16 16" color="var(--accent-primary)" />
-              </div>
-            )}
-          </div>
+          <ActiveCheckbox
+            checked={header.isActive}
+            onChange={(checked) => handleUpdateHeader(index, { isActive: checked })}
+          />
 
           <Button
             variant="ghost"
@@ -151,7 +139,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
             className="hover:text-accent-primary active:text-accent-secondary h-6 w-6 hover:bg-transparent"
             onClick={() => handleDeleteHeader(index)}
           >
-            <DeleteIcon />
+            <DeleteIcon size={30} />
           </Button>
         </div>
       </TableCell>

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { AddIcon, CheckedIcon, DeleteIcon } from '@/components/icons';
+import { AddIcon, DeleteIcon } from '@/components/icons';
+import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
 import { Divider } from '@/components/shared/Divider';
 import {
   Table,
@@ -9,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+
 import {
   selectQueryParams,
   useCollectionActions,
@@ -80,34 +81,10 @@ export const ParamsTab = () => {
 
                   <TableCell className="w-16 text-right">
                     <div className="flex items-center justify-center gap-2">
-                      <div className="relative z-10 h-4 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={param.isActive}
-                          onChange={(e) => setQueryParamActive(index, e.target.checked)}
-                          className={cn(
-                            'form-checkbox h-4 w-4 appearance-none rounded-[2px] border',
-                            {
-                              'border-accent-primary bg-accent-tertiary': param.isActive,
-                              'border-text-primary bg-transparent': !param.isActive,
-                            }
-                          )}
-                        />
-
-                        {param.isActive && (
-                          <div
-                            className={
-                              'pointer-events-none absolute top-0 left-0 flex h-4 w-4 rotate-6 items-center justify-center'
-                            }
-                          >
-                            <CheckedIcon
-                              size={16}
-                              viewBox={'0 0 16 16'}
-                              color={'var(--accent-primary)'}
-                            />
-                          </div>
-                        )}
-                      </div>
+                      <ActiveCheckbox
+                        checked={param.isActive}
+                        onChange={(checked) => setQueryParamActive(index, checked)}
+                      />
 
                       <Button
                         variant="ghost"
