@@ -72,8 +72,8 @@ export const SidebarRequestList = () => {
       openFolders
     );
 
-    await moveItem(activeIdStr, projection.parentId, projection.newIndex);
     setActiveId(null);
+    await moveItem(activeIdStr, projection.parentId, projection.newIndex);
   };
 
   const handleDragCancel = () => {
