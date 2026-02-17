@@ -1,7 +1,7 @@
 {
   "id": "dbba497e-b5a1-47f3-86d4-5461c01e034f",
   "title": "New Collection",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "variables": {
     "test": {
       "value": "I contain text",

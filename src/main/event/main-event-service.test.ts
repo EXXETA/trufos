@@ -7,6 +7,7 @@ import { Collection } from 'shim/objects/collection';
 import { TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { RequestBodyType } from 'shim/objects/request';
+import { Folder } from 'shim/objects/folder';
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -32,12 +33,11 @@ describe('MainEventService', () => {
     expect((await import('electron')).ipcMain.handle).toHaveBeenCalled();
   });
 
-  describe('moveItem', () => {
-    it('should call reorderItem on persistence service', async () => {
+  describe('reorderItem', () => {
+    it('should delegate to persistence service reorderItem', async () => {
       // Arrange
       const { MainEventService } = await import('./main-event-service');
       const { PersistenceService } = await import('../persistence/service/persistence-service');
-      const { EnvironmentService } = await import('../environment/service/environment-service');
 
       const collection: Collection = {
         id: randomUUID(),
@@ -48,6 +48,45 @@ describe('MainEventService', () => {
         variables: {},
         environments: {},
         dirPath: '/test/path',
+      };
+
+      const reorderItemSpy = vi
+        .spyOn(PersistenceService.instance, 'reorderItem')
+        .mockResolvedValue(collection);
+
+      const eventService = new MainEventService();
+
+      // Act
+      await eventService.reorderItem(collection, 'child-id', 0);
+
+      // Assert
+      expect(reorderItemSpy).toHaveBeenCalledWith(collection, 'child-id', 0);
+    });
+  });
+
+  describe('moveItem', () => {
+    it('should delegate to persistence service moveChild', async () => {
+      // Arrange
+      const { MainEventService } = await import('./main-event-service');
+      const { PersistenceService } = await import('../persistence/service/persistence-service');
+
+      const collection: Collection = {
+        id: randomUUID(),
+        type: 'collection',
+        title: 'Test Collection',
+        isDefault: false,
+        children: [],
+        variables: {},
+        environments: {},
+        dirPath: '/test/path',
+      };
+
+      const folder: Folder = {
+        id: randomUUID(),
+        type: 'folder',
+        title: 'Test Folder',
+        parentId: collection.id,
+        children: [],
       };
 
       const request: TrufosRequest = {
@@ -62,77 +101,31 @@ describe('MainEventService', () => {
         draft: false,
       };
 
-      collection.children.push(request);
-
-      const reorderItemSpy = vi
-        .spyOn(PersistenceService.instance, 'reorderItem')
+      const moveChildSpy = vi
+        .spyOn(PersistenceService.instance, 'moveChild')
         .mockResolvedValue(undefined);
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
 
       const eventService = new MainEventService();
 
       // Act
-      await eventService.moveItem(request.id, collection.id, 0);
+      await eventService.moveItem(request, collection, folder, 0);
 
       // Assert
-      expect(reorderItemSpy).toHaveBeenCalledWith(collection, request.id, collection.id, 0);
-    });
-
-    it('should delegate to reorderItem on persistence service', async () => {
-      // Arrange
-      const { MainEventService } = await import('./main-event-service');
-      const { PersistenceService } = await import('../persistence/service/persistence-service');
-      const { EnvironmentService } = await import('../environment/service/environment-service');
-
-      const collection: Collection = {
-        id: randomUUID(),
-        type: 'collection',
-        title: 'Test Collection',
-        isDefault: false,
-        children: [],
-        variables: {},
-        environments: {},
-        dirPath: '/test/path',
-      };
-
-      const reorderItemSpy = vi
-        .spyOn(PersistenceService.instance, 'reorderItem')
-        .mockResolvedValue(undefined);
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
-
-      const eventService = new MainEventService();
-
-      // Act
-      await eventService.moveItem('item-id', collection.id, 0);
-
-      // Assert — reorderItem handles persistence internally
-      expect(reorderItemSpy).toHaveBeenCalledWith(collection, 'item-id', collection.id, 0);
+      expect(moveChildSpy).toHaveBeenCalledWith(request, collection, folder, 0);
     });
   });
 
   describe('saveRequest', () => {
-    it('should update parent indices after saving new request', async () => {
+    it('should delegate to persistence service saveRequest', async () => {
       // Arrange
       const { MainEventService } = await import('./main-event-service');
       const { PersistenceService } = await import('../persistence/service/persistence-service');
-      const { EnvironmentService } = await import('../environment/service/environment-service');
-
-      const collection: Collection = {
-        id: randomUUID(),
-        type: 'collection',
-        title: 'Test Collection',
-        isDefault: false,
-        children: [],
-        variables: {},
-        environments: {},
-        dirPath: '/test/path',
-      };
 
       const request: TrufosRequest = {
         id: randomUUID(),
         type: 'request',
         title: 'New Request',
-        parentId: collection.id,
+        parentId: randomUUID(),
         method: RequestMethod.GET,
         url: { base: 'http://example.com', query: [] },
         headers: [],
@@ -143,24 +136,14 @@ describe('MainEventService', () => {
       const saveRequestSpy = vi
         .spyOn(PersistenceService.instance, 'saveRequest')
         .mockResolvedValue(request);
-      const persistIndicesSpy = vi
-        .spyOn(PersistenceService.instance, 'persistIndices')
-        .mockResolvedValue(undefined);
-      const findNodeByIdSpy = vi
-        .spyOn(PersistenceService.instance, 'findNodeById')
-        .mockReturnValue(collection);
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
 
       const eventService = new MainEventService();
 
       // Act
-      await eventService.saveRequest(request);
+      await eventService.saveRequest(request, 'body text');
 
       // Assert
-      expect(saveRequestSpy).toHaveBeenCalledWith(request, undefined);
-      // parentId === collection.id, so findNodeById is NOT called (direct branch)
-      expect(findNodeByIdSpy).not.toHaveBeenCalled();
-      expect(persistIndicesSpy).toHaveBeenCalledWith(collection);
+      expect(saveRequestSpy).toHaveBeenCalledWith(request, 'body text');
     });
   });
 });
