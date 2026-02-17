@@ -428,12 +428,19 @@ export const createCollectionStore = (collection: Collection) => {
         const newParent = selectParent(state, newParentId);
 
         if (item.parentId === newParentId) {
-          const parent = await eventService.reorderItem(newParent, itemId, newIndex);
-          if (isCollection(parent)) {
-            state.collection = parent;
-          } else {
-            state.folders.set(parent.id, parent);
-          }
+          // Reorder in frontend state (always has complete children list)
+          set((state) => {
+            const parent = isCollection(newParent)
+              ? state.collection
+              : state.folders.get(newParentId);
+            const children = parent.children;
+            const oldIndex = children.findIndex((c) => c.id === itemId);
+            if (oldIndex !== -1) children.splice(oldIndex, 1);
+            children.splice(newIndex, 0, item);
+          });
+
+          // Persist new order to backend
+          await eventService.reorderItem(newParent, itemId, newIndex);
         } else {
           if (isRequest(item)) await eventService.saveRequest(item);
           const oldParent = selectParent(state, item.parentId);
