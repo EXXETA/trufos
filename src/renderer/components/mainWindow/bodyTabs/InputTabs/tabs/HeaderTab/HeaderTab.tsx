@@ -3,7 +3,6 @@ import { AddIcon, DeleteIcon, SwapIcon } from '@/components/icons';
 import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
 import { Divider } from '@/components/shared/Divider';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TrufosHeader } from 'shim/objects/headers';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useCallback, useMemo } from 'react';
 import { HeaderRow } from './HeaderRow';
@@ -15,17 +14,6 @@ export const HeaderTab = () => {
   const allSelected = useMemo(
     () => headers.length > 0 && headers.every((h) => h.isActive),
     [headers]
-  );
-
-  const handleAddHeader = useCallback(() => {
-    addHeader();
-  }, [addHeader]);
-
-  const handleDeleteHeader = useCallback(
-    (index: number) => {
-      deleteHeader(index);
-    },
-    [deleteHeader]
   );
 
   const handleSelectAll = useCallback(() => {
@@ -42,13 +30,6 @@ export const HeaderTab = () => {
     }
   }, [headers, deleteHeader]);
 
-  const handleUpdateHeader = useCallback(
-    (index: number, updatedFields: Partial<TrufosHeader>) => {
-      updateHeader(index, updatedFields);
-    },
-    [updateHeader]
-  );
-
   return (
     <div className="relative h-full p-4">
       <div className="absolute top-[16px] right-[16px] left-[16px] z-10">
@@ -57,7 +38,7 @@ export const HeaderTab = () => {
             className="h-fit gap-1 hover:bg-transparent"
             size="sm"
             variant="ghost"
-            onClick={handleAddHeader}
+            onClick={addHeader}
           >
             <AddIcon />
             Add Header
@@ -80,7 +61,7 @@ export const HeaderTab = () => {
               variant="ghost"
               onClick={handleDeleteSelected}
             >
-              <DeleteIcon size={24} viewBox="0 4 24 24" />
+              <DeleteIcon size={24} />
               Delete Selected
             </Button>
           </div>
@@ -116,8 +97,8 @@ export const HeaderTab = () => {
                   key={index}
                   index={index}
                   header={header}
-                  handleUpdateHeader={handleUpdateHeader}
-                  handleDeleteHeader={handleDeleteHeader}
+                  handleUpdateHeader={updateHeader}
+                  handleDeleteHeader={deleteHeader}
                 />
               ))}
             </TableBody>

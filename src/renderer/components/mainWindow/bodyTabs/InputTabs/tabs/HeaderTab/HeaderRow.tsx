@@ -139,7 +139,7 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
             className="hover:text-accent-primary active:text-accent-secondary h-6 w-6 hover:bg-transparent"
             onClick={() => handleDeleteHeader(index)}
           >
-            <DeleteIcon size={30} viewBox="0 4 24 24" />
+            <DeleteIcon size={30} />
           </Button>
         </div>
       </TableCell>
