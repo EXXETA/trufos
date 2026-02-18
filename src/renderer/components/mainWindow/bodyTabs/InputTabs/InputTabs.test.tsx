@@ -4,6 +4,7 @@ import { vi, describe, it, expect, afterEach } from 'vitest';
 import { InputTabs } from './InputTabs';
 
 let mockHeaders: any[] = [];
+let mockQueryParams: any[] = [];
 
 // Mock child components to avoid their store dependencies
 vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab', () => ({
@@ -29,7 +30,9 @@ vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: (selector: any) =>
     selector({
       selectedRequestId: 'req-1',
-      requests: new Map([['req-1', { id: 'req-1', headers: mockHeaders }]]),
+      requests: new Map([
+        ['req-1', { id: 'req-1', headers: mockHeaders, url: { query: mockQueryParams } }],
+      ]),
     }),
   selectRequest: (state: any) => state.requests.get(state.selectedRequestId),
 }));
@@ -48,7 +51,7 @@ describe('InputTabs', () => {
 
     // Assert
     expect(getByText('Body')).toBeTruthy();
-    expect(getByText('Params')).toBeTruthy();
+    expect(getByText('Parameters')).toBeTruthy();
     expect(getByText('Headers')).toBeTruthy();
     expect(getByText('Auth')).toBeTruthy();
   });
@@ -71,7 +74,7 @@ describe('InputTabs', () => {
     const { getByText, queryByText } = render(<InputTabs className="" />);
 
     // Act
-    await user.click(getByText('Params'));
+    await user.click(getByText('Parameters'));
 
     // Assert
     expect(getByText('ParamsTab Content')).toBeTruthy();
