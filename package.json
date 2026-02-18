@@ -71,7 +71,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@electron-forge/publisher-github": "^7.11.1",
     "@electron-forge/shared-types": "^7.11.1",
-    "@monaco-editor/react": "4.8.0-rc.2",
+    "@monaco-editor/react": "4.8.0-rc.3",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
