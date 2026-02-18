@@ -6,12 +6,9 @@ import { InputTabs } from './InputTabs';
 let mockHeaders: any[] = [];
 
 // Mock child components to avoid their store dependencies
-vi.mock(
-  '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab',
-  () => ({
-    HeaderTab: () => <div>HeaderTab Content</div>,
-  })
-);
+vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab', () => ({
+  HeaderTab: () => <div>HeaderTab Content</div>,
+}));
 
 vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab', () => ({
   BodyTab: () => <div>BodyTab Content</div>,
@@ -126,9 +123,7 @@ describe('InputTabs', () => {
 
   it('should show "Headers" without count when no headers are active', () => {
     // Arrange
-    mockHeaders = [
-      { key: 'Content-Type', value: 'application/json', isActive: false },
-    ];
+    mockHeaders = [{ key: 'Content-Type', value: 'application/json', isActive: false }];
 
     // Act
     const { getByText } = render(<InputTabs className="" />);
