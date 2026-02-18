@@ -43,6 +43,5 @@ export const TrufosRequest = z.object({
   body: RequestBody,
   draft: z.boolean().optional(),
   auth: AuthorizationInformation.optional(),
-  index: z.number().optional(),
 });
 export type TrufosRequest = z.infer<typeof TrufosRequest>;

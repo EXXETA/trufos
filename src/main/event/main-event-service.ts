@@ -1,14 +1,17 @@
 import { app, dialog, ipcMain } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
-import { IEventService, ImportStrategy } from 'shim/event-service';
-import { TrufosObject } from 'shim/objects';
-import { Folder } from 'shim/objects/folder';
-import { TrufosRequest } from 'shim/objects/request';
-import { VariableMap } from 'shim/objects/variables';
+import type { IEventService, ImportStrategy } from 'shim/event-service';
+import type {
+  Collection,
+  TrufosObject,
+  Folder,
+  TrufosRequest,
+  VariableMap,
+  EnvironmentMap,
+} from 'shim/objects';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import './stream-events';
-import { EnvironmentMap } from 'shim/objects/environment';
 import { ImportService } from 'main/import/service/import-service';
 import { updateElectronApp } from 'update-electron-app';
 
@@ -167,6 +170,23 @@ export class MainEventService implements IEventService {
     title?: string
   ) {
     return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
+  }
+
+  async moveItem(
+    child: Folder | TrufosRequest,
+    oldParent: Folder | Collection,
+    newParent: Folder | Collection,
+    position?: number
+  ) {
+    await persistenceService.moveChild(child, oldParent, newParent, position);
+  }
+
+  async reorderItem<T extends Folder | Collection>(
+    parent: T,
+    childId: string,
+    newIndex: number
+  ): Promise<T> {
+    return await persistenceService.reorderItem(parent, childId, newIndex);
   }
 
   async rename(object: TrufosObject, newTitle: string): Promise<void> {

@@ -16,7 +16,7 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
   const request = useCollectionStore((state) => selectRequest(state, requestId));
 
   return (
-    <div className={cn('hover:[background-color:#333333]')}>
+    <div className={cn('hover:bg-[#333333]')}>
       <span
         className={cn(
           'sidebar-request-list-item',
@@ -35,7 +35,9 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
 
         <p className="text-xs leading-3">{request.title ?? request.url}</p>
 
-        <RequestDropdown request={request} />
+        <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+          <RequestDropdown request={request} />
+        </div>
       </span>
     </div>
   );

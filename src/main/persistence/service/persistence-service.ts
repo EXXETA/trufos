@@ -31,7 +31,12 @@ import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
 import { SettingsService } from './settings-service';
 import { sanitizeTitle } from 'shim/fs';
-import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
+import {
+  DRAFT_DIR_NAME,
+  ORDER_FILE_NAME,
+  OrderFile,
+  SECRETS_FILE_NAME,
+} from 'main/persistence/constants';
 
 const secretService = SecretService.instance;
 
@@ -62,22 +67,81 @@ export class PersistenceService {
    * @param child the child object that gets moved
    * @param oldParent the parent object the child is currently in
    * @param newParent the parent object the child gets moved to
+   * @param position OPTIONAL: the new position of the child in the new parent. If not provided, the child will be added to the end of the new parent's children
    */
   public async moveChild(
     child: Folder | TrufosRequest,
     oldParent: Folder | Collection,
-    newParent: Folder | Collection
+    newParent: Folder | Collection,
+    position?: number
   ) {
+    if (oldParent.id === newParent.id) {
+      logger.info('Old parent and new parent are the same. No need to move child', child.id);
+      return;
+    }
+
+    logger.info(
+      `Moving child ${child.id} from parent ${oldParent.id} to parent ${newParent.id} at position ${position}`
+    );
     const childDirName = this.getDirName(child);
     const oldChildDirPath = this.getOrCreateDirPath(child);
+    const oldParentDirPath = this.getOrCreateDirPath(oldParent);
     const newParentDirPath = this.getOrCreateDirPath(newParent);
     const newChildDirPath = path.join(newParentDirPath, childDirName);
 
-    oldParent.children = oldParent.children.filter((c) => c.id !== child.id);
-    newParent.children.push(child);
-    await fs.rename(oldChildDirPath, newChildDirPath);
+    const removeFromOldParent = async () => {
+      oldParent.children = oldParent.children.filter((c) => c.id !== child.id);
+      const order = await this.loadOrderFile(oldParentDirPath);
+      const index = order.indexOf(child.id);
+      if (index !== -1) {
+        order.splice(index, 1);
+        await this.saveOrderFile(oldParentDirPath, order);
+      }
+    };
 
+    const addToNewParent = async () => {
+      if (position == null) {
+        newParent.children.push(child);
+      } else {
+        newParent.children.splice(position, 0, child);
+        const order = await this.loadOrderFile(newParentDirPath);
+        order.splice(position, 0, child.id);
+        await this.saveOrderFile(newParentDirPath, order);
+      }
+    };
+
+    // do in parallel as all are independent operations on the FS
+    await Promise.all([
+      removeFromOldParent(),
+      addToNewParent(),
+      fs.rename(oldChildDirPath, newChildDirPath),
+    ]);
+
+    // update path lookup for child and all its descendants
     this.updatePathMapRecursively(child, newParentDirPath);
+  }
+
+  /**
+   * Reorders a child object within its parent folder or collection.
+   * @param parent the parent folder or collection
+   * @param childId the ID of the child object to reorder
+   * @param newIndex the new index of the child object within the parent's children array
+   * @returns the updated parent folder or collection
+   */
+  public async reorderItem<T extends Folder | Collection>(
+    parent: T,
+    childId: string,
+    newIndex: number
+  ): Promise<T> {
+    logger.info(`Reordering child ${childId} in parent ${parent.id} to position ${newIndex}`);
+    const parentDirPath = this.getOrCreateDirPath(parent);
+    const order = await this.loadOrderFile(parentDirPath);
+    const oldIndex = order.indexOf(childId);
+    if (oldIndex !== -1) order.splice(oldIndex, 1);
+    order.splice(newIndex, 0, childId);
+    await this.saveOrderFile(parentDirPath, order);
+    this.sortChildrenArray(parent.children, order);
+    return parent;
   }
 
   /**
@@ -258,10 +322,7 @@ export class PersistenceService {
     await this.saveSecrets(object, dirPath);
 
     // write the info file
-    await fs.writeFile(
-      path.join(dirPath, this.getInfoFileName(object.type)),
-      JSON.stringify(toInfoFile(object), null, 2)
-    );
+    await this.writeJson(path.join(dirPath, this.getInfoFileName(object.type)), toInfoFile(object));
   }
 
   /**
@@ -354,6 +415,12 @@ export class PersistenceService {
     // delete object
     this.idToPathMap.delete(object.id);
     await fs.rm(dirPath, { recursive: true });
+
+    // remove from parent's order
+    if (!isCollection(object)) {
+      const parentDirPath = this.idToPathMap.get(object.parentId)!;
+      await this.modifyOrder(parentDirPath, (order) => order.filter((id) => id !== object.id));
+    }
   }
 
   /**
@@ -461,9 +528,37 @@ export class PersistenceService {
       }
     }
 
+    return this.sortChildrenArray(children, await this.loadOrderFile(parentDirPath));
+  }
+
+  private sortChildrenArray(
+    children: (Folder | TrufosRequest)[],
+    order: string[]
+  ): (Folder | TrufosRequest)[] {
+    const orderLookup = new Map(order.map((id, index) => [id, index]));
     return children.sort(
-      (a, b) => (a.index ?? Number.POSITIVE_INFINITY) - (b.index ?? Number.POSITIVE_INFINITY)
+      (a, b) =>
+        (orderLookup.get(a.id) ?? Number.POSITIVE_INFINITY) -
+        (orderLookup.get(b.id) ?? Number.POSITIVE_INFINITY)
     );
+  }
+
+  private async loadOrderFile(dirPath: string): Promise<string[]> {
+    const filePath = path.join(dirPath, ORDER_FILE_NAME);
+    if (!(await exists(filePath))) {
+      return [];
+    }
+
+    return await OrderFile.parseAsync(JSON.parse(await fs.readFile(filePath, 'utf8')));
+  }
+
+  private async saveOrderFile(dirPath: string, children: string[]) {
+    await this.writeJson(path.join(dirPath, ORDER_FILE_NAME), children);
+  }
+
+  private async modifyOrder(dirPath: string, transform: (order: string[]) => string[]) {
+    const filePath = path.join(dirPath, ORDER_FILE_NAME);
+    await this.writeJson(filePath, transform(await this.loadOrderFile(dirPath)));
   }
 
   private async load<T extends TrufosRequest | Folder>(
@@ -598,5 +693,9 @@ export class PersistenceService {
       dirPath = dirPath.slice(0, -1);
     }
     return dirPath;
+  }
+
+  private async writeJson(filePath: string, value: unknown) {
+    await fs.writeFile(filePath, JSON.stringify(value, null, 2));
   }
 }

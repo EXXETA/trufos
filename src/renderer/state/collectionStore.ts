@@ -116,12 +116,14 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       addNewRequest: async (title, parentId) => {
+        const actualParentId = parentId ?? get().collection.id;
+
         const request = await eventService.saveRequest({
           url: parseUrl('http://'),
           method: RequestMethod.GET,
           draft: true,
           id: null,
-          parentId: parentId ?? get().collection.id,
+          parentId: actualParentId,
           type: 'request',
           title: title ?? (Math.random() + 1).toString(36).substring(7),
           headers: [],
@@ -132,10 +134,15 @@ export const createCollectionStore = (collection: Collection) => {
         });
         console.info('Created new request with ID', request.id);
 
-        set((state) => {
-          state.requests.set(request.id, request);
-          selectParent(state, request.parentId).children.push(request);
-        });
+        // TODO: consider adding request directly to state instead of reloading
+        const collection = await eventService.loadCollection(true);
+        const { initialize, setFolderOpen } = get();
+        initialize(collection);
+
+        // Keep parent folder open if item was added to folder
+        if (actualParentId !== get().collection.id) {
+          setFolderOpen(actualParentId);
+        }
 
         get().setSelectedRequest(request.id);
       },
@@ -308,6 +315,7 @@ export const createCollectionStore = (collection: Collection) => {
           children: [],
         });
 
+        // Reload collection to get correct indices
         const collection = await eventService.loadCollection(true);
         const { setFolderOpen, initialize } = get();
         if (parentId) {
@@ -412,6 +420,32 @@ export const createCollectionStore = (collection: Collection) => {
           state.collection.title = title;
         });
       },
+
+      moveItem: async (itemId, newParentId, newIndex) => {
+        console.info(`Moving item ${itemId} to parent ${newParentId} at position ${newIndex}`);
+        const state = get();
+        const item = selectRequest(state, itemId) ?? selectFolder(state, itemId);
+        const newParent = selectParent(state, newParentId);
+
+        if (item.parentId === newParentId) {
+          // Reorder in frontend state (always has complete children list)
+          set((state) => {
+            const parent = selectParent(state, newParentId);
+            const children = parent.children;
+            const oldIndex = children.findIndex((c) => c.id === itemId);
+            if (oldIndex !== -1) children.splice(oldIndex, 1);
+            children.splice(newIndex, 0, item);
+          });
+
+          // Persist new order to backend
+          await eventService.reorderItem(newParent, itemId, newIndex);
+        } else {
+          if (isRequest(item)) await eventService.saveRequest(item);
+          const oldParent = selectParent(state, item.parentId);
+          await eventService.moveItem(item, oldParent, newParent, newIndex);
+          state.initialize(await eventService.loadCollection(true)); // reload collection
+        }
+      },
     }))
   );
 };
@@ -433,7 +467,7 @@ export const useCollectionActions = () => useCollectionStore(useActions());
 export { CollectionStoreContext };
 
 const selectParent = (state: CollectionState, parentId: string) => {
-  if (state.collection.id === parentId) return state.collection;
+  if (state.collection.id === parentId) return state.collection as Collection;
   return state.folders.get(parentId)!;
 };
 const selectObject = <T extends TrufosObject>(state: CollectionState, object: T) =>

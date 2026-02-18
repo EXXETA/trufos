@@ -202,4 +202,6 @@ export interface CollectionStateActions {
    * @param dirPath Optional path of the collection to close.
    */
   closeCollection(dirPath?: string): Promise<void>;
+
+  moveItem(itemId: string, newParentId: string, position: number): Promise<void>;
 }

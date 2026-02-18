@@ -9,6 +9,5 @@ export const Folder = z.object({
   get children() {
     return z.union([Folder, TrufosRequest]).array();
   },
-  index: z.number().optional(),
 });
 export type Folder = z.infer<typeof Folder>;
