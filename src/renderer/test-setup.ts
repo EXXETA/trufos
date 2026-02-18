@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 
 /**
  * Global test setup for renderer tests
- * 
+ *
  * Mocks browser APIs that JSDOM doesn't implement but are required by UI libraries
  * like Radix UI (used in Select, Dropdown, etc.)
  */
