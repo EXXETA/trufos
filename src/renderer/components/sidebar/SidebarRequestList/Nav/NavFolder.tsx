@@ -13,6 +13,8 @@ interface NavFolderProps {
   depth?: number;
 }
 
+const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
+
 export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
   const { setFolderOpen, setFolderClose } = useCollectionActions();
   const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
@@ -70,7 +72,7 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
           <span>{folder.title}</span>
         </div>
 
-        <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+        <div onClick={stopPropagation} onPointerDown={stopPropagation}>
           <FolderDropdown folder={folder} />
         </div>
       </SidebarMenuSubButton>

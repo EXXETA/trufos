@@ -134,7 +134,7 @@ export const createCollectionStore = (collection: Collection) => {
         });
         console.info('Created new request with ID', request.id);
 
-        // Reload collection to get updated indices
+        // TODO: consider adding request directly to state instead of reloading
         const collection = await eventService.loadCollection(true);
         const { initialize, setFolderOpen } = get();
         initialize(collection);
@@ -430,9 +430,7 @@ export const createCollectionStore = (collection: Collection) => {
         if (item.parentId === newParentId) {
           // Reorder in frontend state (always has complete children list)
           set((state) => {
-            const parent = isCollection(newParent)
-              ? state.collection
-              : state.folders.get(newParentId);
+            const parent = selectParent(state, newParentId);
             const children = parent.children;
             const oldIndex = children.findIndex((c) => c.id === itemId);
             if (oldIndex !== -1) children.splice(oldIndex, 1);
