@@ -443,7 +443,30 @@ export const createCollectionStore = (collection: Collection) => {
           if (isRequest(item)) await eventService.saveRequest(item);
           const oldParent = selectParent(state, item.parentId);
           await eventService.moveItem(item, oldParent, newParent, newIndex);
-          state.initialize(await eventService.loadCollection(true)); // reload collection
+
+          // Update frontend state directly to preserve openFolders
+          set((state) => {
+            // Remove item from old parent
+            const oldParentState = selectParent(state, item.parentId);
+            oldParentState.children = oldParentState.children.filter((c) => c.id !== itemId);
+
+            // Add item to new parent at correct position
+            const newParentState = selectParent(state, newParentId);
+            const updatedItem = { ...item, parentId: newParentId };
+            newParentState.children.splice(newIndex, 0, updatedItem);
+
+            // Update maps
+            if (isRequest(item)) {
+              state.requests.set(itemId, updatedItem as TrufosRequest);
+            } else {
+              state.folders.set(itemId, updatedItem as Folder);
+            }
+
+            // Open the target folder so the moved item is visible
+            if (!isCollection(newParent)) {
+              state.openFolders.add(newParentId);
+            }
+          });
         }
       },
     }))
