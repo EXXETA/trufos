@@ -440,10 +440,35 @@ export const createCollectionStore = (collection: Collection) => {
           // Persist new order to backend
           await eventService.reorderItem(newParent, itemId, newIndex);
         } else {
-          if (isRequest(item)) await eventService.saveRequest(item);
           const oldParent = selectParent(state, item.parentId);
+
+          // Update frontend state immediately to avoid visual snap-back
+          set((state) => {
+            // Remove item from old parent
+            const oldParentState = selectParent(state, item.parentId);
+            oldParentState.children = oldParentState.children.filter((c) => c.id !== itemId);
+
+            // Add item to new parent at correct position
+            const newParentState = selectParent(state, newParentId);
+            const updatedItem = { ...item, parentId: newParentId };
+            newParentState.children.splice(newIndex, 0, updatedItem);
+
+            // Update maps
+            if (isRequest(item)) {
+              state.requests.set(itemId, updatedItem as TrufosRequest);
+            } else {
+              state.folders.set(itemId, updatedItem as Folder);
+            }
+
+            // Open the target folder so the moved item is visible
+            if (!isCollection(newParent)) {
+              state.openFolders.add(newParentId);
+            }
+          });
+
+          // Persist to backend
+          if (isRequest(item)) await eventService.saveRequest(item);
           await eventService.moveItem(item, oldParent, newParent, newIndex);
-          state.initialize(await eventService.loadCollection(true)); // reload collection
         }
       },
     }))
