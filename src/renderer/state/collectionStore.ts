@@ -440,11 +440,9 @@ export const createCollectionStore = (collection: Collection) => {
           // Persist new order to backend
           await eventService.reorderItem(newParent, itemId, newIndex);
         } else {
-          if (isRequest(item)) await eventService.saveRequest(item);
           const oldParent = selectParent(state, item.parentId);
-          await eventService.moveItem(item, oldParent, newParent, newIndex);
 
-          // Update frontend state directly to preserve openFolders
+          // Update frontend state immediately to avoid visual snap-back
           set((state) => {
             // Remove item from old parent
             const oldParentState = selectParent(state, item.parentId);
@@ -467,6 +465,10 @@ export const createCollectionStore = (collection: Collection) => {
               state.openFolders.add(newParentId);
             }
           });
+
+          // Persist to backend
+          if (isRequest(item)) await eventService.saveRequest(item);
+          await eventService.moveItem(item, oldParent, newParent, newIndex);
         }
       },
     }))
