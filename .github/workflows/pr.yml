@@ -16,3 +16,4 @@ jobs:
           access_token: ${{ secrets.GITHUB_TOKEN }}
           branch_pattern: '(feature|feat|fix|chore|refactor)\/.*'
           title_pattern: ''
+          issue: ${{ !startsWith(github.head_ref, 'chore/') }}
