@@ -5,8 +5,9 @@ nav_order: 2
 
 # Download
 
-We're currently working on prebuilt binaries for Windows, macOS, and Linux. In the meantime, you can
-[build the application yourself](#build-it-yourself).
+<div class="releases-container" id="releases-container">
+    <p class="status">Loading latest release...</p>
+</div>
 
 ## Build it yourself
 
@@ -19,12 +20,11 @@ recent yarn version.
 3. Run `yarn install --frozen-lockfile` to install all dependencies
 4. Run `yarn run make` to build the application for your platform
 5. The built application will be in the `out/make` directory
-    - Windows: a `Setup.exe` file
-    - macOS: a `.dmg` file
-    - Linux: currently a ZIP file (`.deb` file and Flatpak is planned)
+   - Windows: a `Setup.exe` file
+   - macOS: a `.dmg` file
+   - Linux: currently a ZIP file (`.deb` file and Flatpak is planned)
 
 ---
 
 [Node.js]: https://nodejs.org
-
 [Electron]: https://www.electronjs.org/
