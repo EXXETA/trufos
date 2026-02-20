@@ -1,0 +1,45 @@
+/* Dark theme overrides for releases section */
+/* This file is conditionally loaded when dark theme is active */
+
+.releases-container > .status {
+  color: #8b949e;
+}
+
+.release-latest {
+  border: 1px solid #30363d;
+  background-color: #0d1117;
+}
+
+.release-latest__date {
+  color: #8b949e;
+}
+
+.release-item {
+  border-color: #30363d;
+  background-color: #161b22;
+}
+
+.release-item:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.release-item__label {
+  color: #e6edf3;
+}
+
+.release-item__hint {
+  color: #8b949e;
+}
+
+.release-item__state {
+  color: #58a6ff;
+}
+
+.release-item--disabled {
+  background-color: #21262d;
+  border-color: #30363d;
+}
+
+.release-item--disabled .release-item__state {
+  color: #8b949e;
+}
