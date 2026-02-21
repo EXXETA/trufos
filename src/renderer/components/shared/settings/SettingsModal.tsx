@@ -66,26 +66,25 @@ export const SettingsModal = () => {
         <FiSettings className="ml-2 text-xl" />
       </DialogTrigger>
 
-      <DialogContent className="flex h-[80vh] max-w-4xl flex-col overflow-hidden p-0 lg:max-w-5xl">
+      <DialogContent className="flex h-[82vh] max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#1a1a1a] p-0 text-white shadow-[0_20px_80px_rgba(0,0,0,0.65)]">
         <Tabs defaultValue="variables" className="flex min-h-0 flex-1 flex-col">
           {/* Header - Fixed */}
-          <div className="shrink-0 bg-[#1F1F1F] px-6 pt-4 pb-3">
+          <div className="shrink-0 border-b border-[#2a2a2a] bg-[#222222] px-6 pt-5 pb-3">
             <DialogHeader>
-              <DialogTitle className="px-1 text-xl leading-tight font-bold">
+              <DialogTitle className="text-[20px] font-bold text-white">
                 Collection Settings
               </DialogTitle>
             </DialogHeader>
-            <TabsList className="mt-4 gap-1 bg-transparent p-1">
+            <TabsList className="mt-5 flex gap-3 bg-transparent p-0">
               <TabsTrigger
                 value="variables"
-                className="text-text-secondary rounded-full border border-transparent px-5 py-[10px] text-[15px] transition-colors hover:text-[#2F6F83] data-[state=active]:bg-[#193641] data-[state=active]:text-[#2F6F83]"
+                className="rounded-full px-5 py-[8px] text-[14px] font-medium text-[#999999] transition-all data-[state=active]:bg-[#163840] data-[state=active]:text-[#50daf0] data-[state=active]:shadow-none"
               >
                 Variables
               </TabsTrigger>
-
               <TabsTrigger
                 value="environments"
-                className="text-text-secondary rounded-full border border-transparent px-5 py-[10px] text-[15px] transition-colors hover:text-[#2F6F83] data-[state=active]:bg-[#193641] data-[state=active]:text-[#2F6F83]"
+                className="rounded-full px-5 py-[8px] text-[14px] font-medium text-[#999999] transition-all data-[state=active]:bg-[#163840] data-[state=active]:text-[#50daf0] data-[state=active]:shadow-none"
               >
                 Environments
               </TabsTrigger>
@@ -94,8 +93,8 @@ export const SettingsModal = () => {
 
           {/* Tabs - Takes remaining space */}
 
-          <TabsContent value="variables" className="m-0 min-h-0 flex-1 border-0 p-0">
-            <div className="h-full overflow-y-auto bg-[#111111] px-6 py-4">
+          <TabsContent value="variables" className="m-0 min-h-0 flex-1 p-0">
+            <div className="h-full overflow-y-auto bg-[#111111] pt-4 pb-6">
               <VariableEditor
                 variables={editorVariables}
                 onValidChange={setValid}
@@ -104,8 +103,8 @@ export const SettingsModal = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="environments" className="m-0 min-h-0 flex-1 border-0 p-0">
-            <div className="h-full overflow-y-auto bg-[#111111] px-6 py-4">
+          <TabsContent value="environments" className="m-0 min-h-0 flex-1 p-0">
+            <div className="h-full overflow-y-auto bg-[#111111] pt-4 pb-6">
               <EnvironmentEditor
                 environments={editorEnvironments}
                 selectedEnvironment={editorSelectedEnvironment}
@@ -115,12 +114,11 @@ export const SettingsModal = () => {
               />
             </div>
           </TabsContent>
-          <div className="flex shrink-0 justify-end bg-[#111111] px-6 py-4">
+          <div className="flex shrink-0 justify-end bg-[#111111] px-6 pt-4 pb-6">
             <Button
               onClick={save}
               disabled={!isOverallValid}
-              variant={isOverallValid ? 'default' : 'defaultDisable'}
-              className="px-5 py-[13px]"
+              className="h-[50px] rounded-full bg-[#7cc8df] px-5 text-[14px] font-semibold text-black shadow-sm transition-all hover:bg-[#8fd5ea] active:scale-[0.98] disabled:bg-[#2a2a2a] disabled:text-[#666]"
             >
               Save
             </Button>
