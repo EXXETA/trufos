@@ -1,4 +1,4 @@
-import { app } from 'electron/main';
+import { app } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { Context, createContext, Script } from 'node:vm';
 import { GlobalScriptingApi } from 'shim';
@@ -14,9 +14,16 @@ const SCRIPT_TIMEOUT_SECONDS = 5;
  * Scripts run in a Node.js vm context with access to the scripting API.
  */
 export class ScriptingService {
-  public static readonly instance = new ScriptingService();
+  public static _instance: ScriptingService | null = null;
 
-  private constructor() {
+  public static get instance() {
+    if (!ScriptingService._instance) {
+      ScriptingService._instance = new ScriptingService();
+    }
+    return ScriptingService._instance;
+  }
+
+  constructor() {
     const globalApi: GlobalScriptingApi = {
       trufos: {
         version: app.getVersion(),
