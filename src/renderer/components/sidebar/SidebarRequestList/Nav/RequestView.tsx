@@ -22,6 +22,7 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
           'sidebar-request-list-item',
           'cursor-pointer',
           'flex',
+          'min-w-0',
           'py-3.5',
           'gap-2',
           'w-full',
@@ -29,11 +30,13 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
         )}
         onClick={handleMouseEvent(() => setSelectedRequest(requestId))}
       >
-        <div className={cn('text-xs leading-3 font-bold', httpMethodColor(request.method))}>
+        <div className={cn('text-xs leading-3 font-normal', httpMethodColor(request.method))}>
           {request.method}
         </div>
 
-        <p className="text-xs leading-3">{request.title ?? request.url}</p>
+        <p className="font-lato truncate text-xs leading-3 text-[var(--text-secondary)]">
+          {request.title ?? request.url.base}
+        </p>
 
         <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
           <RequestDropdown request={request} />
