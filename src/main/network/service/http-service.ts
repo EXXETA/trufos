@@ -14,11 +14,13 @@ import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
 import process from 'node:process';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { ScriptingService } from 'main/scripting/scripting-service';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
 const persistenceService = PersistenceService.instance;
 const responseBodyService = ResponseBodyService.instance;
+const scriptingService = ScriptingService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
 
@@ -64,6 +66,11 @@ export class HttpService {
     const headers = await this.resolveVariablesInHeaders(
       this.trufosHeadersToUndiciHeaders(request.headers)
     );
+
+    // execute pre-request script if it exists
+    if (true) {
+      scriptingService.executeScript('trufos.variables["test"] = {value: "test"}'); // TODO: pass the actual script path here
+    }
 
     const { stream, size } = await this.readBody(request);
 
