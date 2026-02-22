@@ -2,15 +2,18 @@ import { HttpService } from './http-service';
 import { MockAgent } from 'undici';
 import fs from 'node:fs';
 import { TrufosRequest } from 'shim/objects/request';
-import { parseUrl, TrufosURL } from 'shim/objects/url';
+import { parseUrl } from 'shim/objects/url';
 import { randomUUID } from 'node:crypto';
 import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { AuthorizationType } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { PersistenceService } from 'main/persistence/service/persistence-service';
+import { ScriptingService } from 'main/scripting/scripting-service';
+import { Readable } from 'node:stream';
 
 const mockAgent = new MockAgent({ connections: 1 });
 const environmentService = EnvironmentService.instance;
@@ -20,6 +23,10 @@ describe('HttpService', () => {
   beforeAll(() => {
     mockAgent.disableNetConnect();
     mockAgent.enableCallHistory();
+  });
+
+  beforeEach(() => {
+    vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
   });
 
   it('fetchAsync() should make an HTTP call and return the body on read', async () => {
@@ -263,6 +270,37 @@ describe('HttpService', () => {
     expect(lastCall.headers['x-trace-id']).toEqual(['abc', 'def']);
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('fetchAsync() should execute scripts when provided', async () => {
+    // Arrange
+    const preScript = 'console.log("pre");';
+    const postScript = 'console.log("post");';
+    vi.spyOn(PersistenceService.instance, 'loadScript')
+      .mockResolvedValueOnce(Readable.from(preScript) as fs.ReadStream)
+      .mockResolvedValueOnce(Readable.from(postScript) as fs.ReadStream);
+    const executeSpy = vi.spyOn(ScriptingService.instance, 'executeScript');
+
+    const url = new URL('https://example.com/api/data');
+    const httpService = setupMockHttpService(url, 'OK');
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Scripted Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: null,
+    };
+
+    // Act
+    await httpService.fetchAsync(request);
+
+    // Assert
+    expect(executeSpy).toHaveBeenCalledTimes(2);
+    expect(executeSpy.mock.calls[0]?.[0]).toEqual(preScript);
+    expect(executeSpy.mock.calls[1]?.[0]).toEqual(postScript);
   });
 });
 

@@ -2,10 +2,10 @@ import { VariableObject } from './objects';
 
 export enum ScriptType {
   /** Executed before the request is sent. */
-  PreRequest = 'pre-request',
+  PRE_REQUEST = 'pre-request',
 
   /** Executed after the response is received. */
-  PostResponse = 'post-response',
+  POST_RESPONSE = 'post-response',
 }
 
 export interface GlobalScriptingApi {

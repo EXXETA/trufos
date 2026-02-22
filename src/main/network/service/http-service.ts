@@ -15,6 +15,8 @@ import { app } from 'electron';
 import process from 'node:process';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
+import { ScriptType } from 'shim/scripting';
+import { text } from 'node:stream/consumers';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -68,9 +70,7 @@ export class HttpService {
     );
 
     // execute pre-request script if it exists
-    if (true) {
-      scriptingService.executeScript('trufos.variables["test"] = {value: "test"}'); // TODO: pass the actual script path here
-    }
+    await this.executeScript(request, ScriptType.PRE_REQUEST);
 
     const { stream, size } = await this.readBody(request);
 
@@ -90,7 +90,10 @@ export class HttpService {
     });
 
     const duration = getDurationFromNow(now);
-    logger.info(`Received response in ${duration} milliseconds`);
+    logger.info(`Received response in ${duration}ms`);
+
+    // execute post-response script if it exists
+    await this.executeScript(request, ScriptType.POST_RESPONSE);
 
     // write the response body to a temporary file
     const bodyFile = fileSystemService.temporaryFile();
@@ -188,5 +191,13 @@ export class HttpService {
 
   private resolveVariablesInHeaderValues(values: string[]) {
     return Promise.all(values.map((value) => environmentService.setVariablesInString(value)));
+  }
+
+  private async executeScript(request: TrufosRequest, type: ScriptType) {
+    const stream = await persistenceService.loadScript(request, type);
+    if (stream != null) {
+      const script = await text(stream);
+      scriptingService.executeScript(script);
+    }
   }
 }

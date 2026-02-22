@@ -1,10 +1,9 @@
 import { app } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { Context, createContext, Script } from 'node:vm';
-import { EnvironmentMap, GlobalScriptingApi, VariableMap, VariableObject } from 'shim';
-import { performance } from 'node:perf_hooks';
+import { GlobalScriptingApi, VariableMap, VariableObject } from 'shim';
 import fs from 'node:fs/promises';
-import { get } from 'node:http';
+import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
 
 const environmentService = EnvironmentService.instance;
 
@@ -88,20 +87,18 @@ export class ScriptingService {
   public executeScript(code: string) {
     let script: Script;
     try {
-      const start = performance.now();
+      const now = getSteadyTimestamp();
       script = new Script(code);
-      const duration = (performance.now() - start).toFixed(2);
-      logger.debug(`Script compiled successfully after ${duration}ms`);
+      logger.debug(`Script compiled successfully after ${getDurationStringFromNow(now)}`);
     } catch (err) {
       // TODO: Show error to user instead of just logging it.
       logger.info('Script compilation error', err);
       return;
     }
     try {
-      const now = performance.now();
+      const now = getSteadyTimestamp();
       script.runInContext(this.context, { timeout: SCRIPT_TIMEOUT_SECONDS * 1000 });
-      const duration = (performance.now() - now).toFixed(2);
-      logger.debug(`Script executed successfully after ${duration}ms`);
+      logger.debug(`Script executed successfully after ${getDurationStringFromNow(now)}`);
     } catch (err) {
       // TODO: Show error to user instead of just logging it.
       logger.info('Script execution error', err);
