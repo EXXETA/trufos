@@ -307,14 +307,11 @@ export class PersistenceService {
   }
 
   public async saveScript(request: TrufosRequest, type: ScriptType, script: string) {
-    const dirPath = this.getOrCreateDirPath(request);
-    const filePath = path.join(dirPath, this.getScriptFileName(type));
-    await fs.writeFile(filePath, script);
+    await fs.writeFile(this.getScriptFilePath(request, type), script);
   }
 
   public async loadScript(request: TrufosRequest, type: ScriptType) {
-    const dirPath = this.getOrCreateDirPath(request);
-    const filePath = path.join(dirPath, this.getScriptFileName(type));
+    const filePath = this.getScriptFilePath(request, type);
     if (await exists(filePath)) {
       return createReadStream(filePath, 'utf-8');
     }
@@ -679,6 +676,12 @@ export class PersistenceService {
    */
   getInfoFileName(type: TrufosObject['type']) {
     return `${type}.json`;
+  }
+
+  private getScriptFilePath(request: TrufosRequest, type: ScriptType) {
+    let dirPath = this.getOrCreateDirPath(request);
+    if (request.draft) dirPath = this.getDraftDirPath(dirPath);
+    return path.join(dirPath, this.getScriptFileName(type));
   }
 
   /**
