@@ -9,6 +9,7 @@ import {
   VariableObject,
   EnvironmentMap,
 } from './objects';
+import { ScriptType } from './scripting';
 
 export type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
 
@@ -199,4 +200,12 @@ export interface IEventService {
    * Will show a dialog to the user if an update is available.
    */
   updateApp(): void;
+
+  /**
+   * Saves the script for the given request and script type to the file system.
+   * @param request The request the script belongs to.
+   * @param type The type of the script (e.g. pre-request)
+   * @param script The script content to save.
+   */
+  saveScript(request: TrufosRequest, type: ScriptType, script: string): Promise<void>;
 }

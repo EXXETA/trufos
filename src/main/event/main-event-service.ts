@@ -1,7 +1,6 @@
 import { app, dialog, ipcMain } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
-import type { IEventService, ImportStrategy } from 'shim/event-service';
 import type {
   Collection,
   TrufosObject,
@@ -9,11 +8,16 @@ import type {
   TrufosRequest,
   VariableMap,
   EnvironmentMap,
-} from 'shim/objects';
+  ScriptType,
+  IEventService,
+  ImportStrategy,
+} from 'shim';
 import { PersistenceService } from '../persistence/service/persistence-service';
-import './stream-events';
 import { ImportService } from 'main/import/service/import-service';
 import { updateElectronApp } from 'update-electron-app';
+
+// register stream events
+import './stream-events';
 
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
@@ -93,6 +97,10 @@ export class MainEventService implements IEventService {
 
   async saveRequest(request: TrufosRequest, textBody?: string) {
     return await persistenceService.saveRequest(request, textBody);
+  }
+
+  async saveScript(request: TrufosRequest, type: ScriptType, script: string) {
+    return await persistenceService.saveScript(request, type, script);
   }
 
   async copyRequest(request: TrufosRequest): Promise<TrufosRequest> {

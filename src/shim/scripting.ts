@@ -1,4 +1,12 @@
-import { EnvironmentObject, VariableObject } from './objects';
+import { VariableObject } from './objects';
+
+export enum ScriptType {
+  /** Executed before the request is sent. */
+  PreRequest = 'pre-request',
+
+  /** Executed after the response is received. */
+  PostResponse = 'post-response',
+}
 
 export interface GlobalScriptingApi {
   readonly trufos: {

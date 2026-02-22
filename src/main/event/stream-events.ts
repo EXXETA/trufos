@@ -34,7 +34,15 @@ ipcMain.handle(
         return id;
       }
       stream = createReadStream(filePath, encoding);
-    } else if ((stream = await persistenceService.loadTextBodyOfRequest(input, encoding)) == null) {
+    } else if (input.type === 'script') {
+      stream = await persistenceService.loadScript(input.request, input.source);
+    } else if (input.type === 'request') {
+      stream = await persistenceService.loadTextBodyOfRequest(input, encoding);
+    } else {
+      logger.error('Invalid stream input:', input);
+    }
+
+    if (stream == null) {
       setImmediate(() => sender.send('stream-end', id));
       return id;
     }

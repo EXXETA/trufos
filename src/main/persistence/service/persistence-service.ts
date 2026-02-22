@@ -37,6 +37,7 @@ import {
   OrderFile,
   SECRETS_FILE_NAME,
 } from 'main/persistence/constants';
+import { ScriptType } from 'shim';
 
 const secretService = SecretService.instance;
 
@@ -303,6 +304,20 @@ export class PersistenceService {
     }
 
     return folderCopy;
+  }
+
+  public async saveScript(request: TrufosRequest, type: ScriptType, script: string) {
+    const dirPath = this.getOrCreateDirPath(request);
+    const filePath = path.join(dirPath, this.getScriptFileName(type));
+    await fs.writeFile(filePath, script);
+  }
+
+  public async loadScript(request: TrufosRequest, type: ScriptType) {
+    const dirPath = this.getOrCreateDirPath(request);
+    const filePath = path.join(dirPath, this.getScriptFileName(type));
+    if (await exists(filePath)) {
+      return createReadStream(filePath, 'utf-8');
+    }
   }
 
   /**
@@ -664,6 +679,15 @@ export class PersistenceService {
    */
   getInfoFileName(type: TrufosObject['type']) {
     return `${type}.json`;
+  }
+
+  /**
+   * Gets the script file name for a given script type.
+   * @param type the type of the script
+   * @returns the script file name with file extension `.js`
+   */
+  private getScriptFileName(type: ScriptType) {
+    return `${type}-script.js`;
   }
 
   private isDirPathTaken(targetDirPath: string) {
