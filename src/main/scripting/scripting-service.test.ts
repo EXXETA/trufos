@@ -11,7 +11,7 @@ const mockState = vi.hoisted(() => {
     dirPath: string;
     type: 'collection';
     variables: VariableMap;
-    environments: Record<string, unknown>;
+    environments: Record<string, { variables: VariableMap }>;
     children: unknown[];
   } = {
     id: 'test-collection',
@@ -22,28 +22,29 @@ const mockState = vi.hoisted(() => {
       testVar: { value: 'testValue' },
       count: { value: '42' },
     } satisfies VariableMap,
-    environments: {},
+    environments: {
+      dev: {
+        variables: {
+          baseUrl: { value: 'http://localhost:3000' },
+        } satisfies VariableMap,
+      },
+    },
     children: [],
-  };
-  const environment: { variables: VariableMap } = {
-    variables: {
-      baseUrl: { value: 'http://localhost:3000' },
-    } satisfies VariableMap,
   };
 
   const environmentService = {
+    currentEnvironmentKey: 'dev' as string | undefined,
     get currentCollection() {
       return collection;
     },
     get currentEnvironment() {
-      return environment;
+      return this.currentEnvironmentKey
+        ? collection.environments[this.currentEnvironmentKey]
+        : undefined;
     },
-    setCollectionVariables: vi.fn((vars: VariableMap) => {
-      collection.variables = vars;
-    }),
   };
 
-  return { collection, environment, environmentService };
+  return { collection, environmentService };
 });
 
 vi.mock('main/environment/service/environment-service', () => ({
@@ -63,9 +64,14 @@ describe('ScriptingService', () => {
       testVar: { value: 'testValue' },
       count: { value: '42' },
     } satisfies VariableMap;
-    mockState.environment.variables = {
-      baseUrl: { value: 'http://localhost:3000' },
-    } satisfies VariableMap;
+    mockState.collection.environments = {
+      dev: {
+        variables: {
+          baseUrl: { value: 'http://localhost:3000' },
+        } satisfies VariableMap,
+      },
+    };
+    mockState.environmentService.currentEnvironmentKey = 'dev';
 
     vi.spyOn(app, 'getVersion').mockReturnValue('1.0.0');
 
@@ -134,13 +140,13 @@ describe('ScriptingService', () => {
   });
 
   describe('executeScript() - Variable Access and Mutation', () => {
-    it('should read trufos.variables from script', () => {
+    it('should read collection variables using getCollectionVariable()', () => {
       // Arrange
       const code = `
-        if (trufos.variables.testVar.value !== 'testValue') {
+        if (trufos.getCollectionVariable('testVar') !== 'testValue') {
           throw new Error('Failed to read testVar');
         }
-        if (trufos.variables.count.value !== '42') {
+        if (trufos.getCollectionVariable('count') !== '42') {
           throw new Error('Failed to read count');
         }
       `;
@@ -149,34 +155,56 @@ describe('ScriptingService', () => {
       expect(() => service.executeScript(code)).not.toThrow();
     });
 
-    it('should allow script to modify trufos.variables', () => {
+    it('should return undefined for non-existent collection variables', () => {
       // Arrange
       const code = `
-        trufos.variables = {
-          ...trufos.variables,
-          newVar: { value: 'newValue' },
-          testVar: { value: 'modified' },
-          count: { value: '100' },
-        };
+        if (trufos.getCollectionVariable('nonExistent') !== undefined) {
+          throw new Error('Non-existent variable should return undefined');
+        }
+      `;
+
+      // Act & Assert
+      expect(() => service.executeScript(code)).not.toThrow();
+    });
+
+    it('should allow script to modify collection variables with string value', () => {
+      // Arrange
+      const code = `
+        trufos.setCollectionVariable('testVar', 'modified');
+        trufos.setCollectionVariable('count', '100');
+        trufos.setCollectionVariable('newVar', 'newValue');
       `;
 
       // Act
       service.executeScript(code);
 
       // Assert
-      expect(mockState.environmentService.setCollectionVariables).toHaveBeenCalled();
-      const callArgs = mockState.environmentService.setCollectionVariables.mock.calls[0][0];
-      expect(callArgs).toHaveProperty('newVar');
-      expect(callArgs.newVar.value).toBe('newValue');
-      expect(callArgs.testVar.value).toBe('modified');
-      expect(callArgs.count.value).toBe('100');
+      expect(mockState.collection.variables.testVar.value).toBe('modified');
+      expect(mockState.collection.variables.count.value).toBe('100');
+      expect(mockState.collection.variables.newVar.value).toBe('newValue');
     });
 
-    it('should provide access to trufos.environment in script', () => {
+    it('should allow script to modify collection variables with VariableObject', () => {
       // Arrange
-
       const code = `
-        if (trufos.environment.variables.baseUrl.value !== 'http://localhost:3000') {
+        trufos.setCollectionVariable('testVar', { value: 'modified', description: 'Updated' });
+        trufos.setCollectionVariable('newVar', { value: 'newValue', description: 'New variable' });
+      `;
+
+      // Act
+      service.executeScript(code);
+
+      // Assert
+      expect(mockState.collection.variables.testVar.value).toBe('modified');
+      expect(mockState.collection.variables.testVar.description).toBe('Updated');
+      expect(mockState.collection.variables.newVar.value).toBe('newValue');
+      expect(mockState.collection.variables.newVar.description).toBe('New variable');
+    });
+
+    it('should provide access to current environment variables', () => {
+      // Arrange
+      const code = `
+        if (trufos.getEnvironmentVariable(undefined, 'baseUrl') !== 'http://localhost:3000') {
           throw new Error('Failed to read environment baseUrl');
         }
       `;
@@ -185,23 +213,68 @@ describe('ScriptingService', () => {
       expect(() => service.executeScript(code)).not.toThrow();
     });
 
-    it('should prevent direct assignment to trufos.environment', () => {
+    it('should provide access to named environment variables', () => {
       // Arrange
-
       const code = `
-        const original = trufos.environment;
-        try {
-          trufos.environment = { variables: {} };
-        } catch (e) {
-          // Expected in strict mode
-        }
-        if (trufos.environment !== original) {
-          throw new Error('trufos.environment should remain read-only');
+        if (trufos.getEnvironmentVariable('dev', 'baseUrl') !== 'http://localhost:3000') {
+          throw new Error('Failed to read named environment baseUrl');
         }
       `;
 
       // Act & Assert
       expect(() => service.executeScript(code)).not.toThrow();
+    });
+
+    it('should return undefined for non-existent environment variables', () => {
+      // Arrange
+      const code = `
+        if (trufos.getEnvironmentVariable(undefined, 'nonExistent') !== undefined) {
+          throw new Error('Non-existent environment variable should return undefined');
+        }
+      `;
+
+      // Act & Assert
+      expect(() => service.executeScript(code)).not.toThrow();
+    });
+
+    it('should allow script to set current environment variables with string value', () => {
+      // Arrange
+      const code = `
+        trufos.setEnvironmentVariable(undefined, 'baseUrl', 'http://localhost:4000');
+        trufos.setEnvironmentVariable(undefined, 'apiKey', 'secret123');
+      `;
+
+      // Act
+      service.executeScript(code);
+
+      // Assert
+      expect(mockState.collection.environments.dev.variables.baseUrl.value).toBe(
+        'http://localhost:4000'
+      );
+      expect(mockState.collection.environments.dev.variables.apiKey.value).toBe('secret123');
+    });
+
+    it('should allow script to set named environment variables with VariableObject', () => {
+      // Arrange
+      const code = `
+        trufos.setEnvironmentVariable('dev', 'baseUrl', { value: 'http://localhost:5000', description: 'Updated URL' });
+        trufos.setEnvironmentVariable('dev', 'newVar', { value: 'test', description: 'New env var' });
+      `;
+
+      // Act
+      service.executeScript(code);
+
+      // Assert
+      expect(mockState.collection.environments.dev.variables.baseUrl.value).toBe(
+        'http://localhost:5000'
+      );
+      expect(mockState.collection.environments.dev.variables.baseUrl.description).toBe(
+        'Updated URL'
+      );
+      expect(mockState.collection.environments.dev.variables.newVar.value).toBe('test');
+      expect(mockState.collection.environments.dev.variables.newVar.description).toBe(
+        'New env var'
+      );
     });
   });
 

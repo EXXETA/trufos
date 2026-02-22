@@ -1,14 +1,20 @@
-import { EnvironmentObject, VariableMap } from './objects';
+import { EnvironmentObject, VariableObject } from './objects';
 
 export interface GlobalScriptingApi {
   readonly trufos: {
     /** The current version of the app. */
     readonly version: string;
 
-    /** Global variables. Can be read and written to. */
-    variables: VariableMap;
+    getCollectionVariable(name: string): string | undefined;
 
-    /** Current environment and its variables. Can be read and written to. */
-    readonly environment?: EnvironmentObject;
+    setCollectionVariable(name: string, value: string | VariableObject): void;
+
+    getEnvironmentVariable(environment: string | undefined, name: string): string | undefined;
+
+    setEnvironmentVariable(
+      environment: string | undefined,
+      name: string,
+      value: string | VariableObject
+    ): void;
   };
 }

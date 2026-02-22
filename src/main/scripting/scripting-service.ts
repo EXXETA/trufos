@@ -1,9 +1,10 @@
 import { app } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { Context, createContext, Script } from 'node:vm';
-import { GlobalScriptingApi } from 'shim';
+import { EnvironmentMap, GlobalScriptingApi, VariableMap, VariableObject } from 'shim';
 import { performance } from 'node:perf_hooks';
 import fs from 'node:fs/promises';
+import { get } from 'node:http';
 
 const environmentService = EnvironmentService.instance;
 
@@ -24,17 +25,46 @@ export class ScriptingService {
   }
 
   constructor() {
+    function getVariable(map: VariableMap, name: string) {
+      return map[name]?.value;
+    }
+
+    function setVariable(map: VariableMap, name: string, value: string | VariableObject) {
+      if (typeof value === 'string') value = { value };
+      VariableObject.parse(value); // validate type and required properties
+      map[name] = { ...(map[name] ?? {}), ...value };
+    }
+
+    function getEnvironmentVariables(name?: string) {
+      const environment =
+        name == null
+          ? environmentService.currentEnvironment
+          : environmentService.currentCollection.environments[name];
+      return environment?.variables ?? {};
+    }
+
     const globalApi: GlobalScriptingApi = {
       trufos: {
         version: app.getVersion(),
-        get variables() {
-          return environmentService.currentCollection.variables;
+
+        getCollectionVariable(name: string) {
+          return getVariable(environmentService.currentCollection.variables, name);
         },
-        set variables(value) {
-          environmentService.setCollectionVariables(value);
+
+        setCollectionVariable(name: string, value: string | VariableObject) {
+          setVariable(environmentService.currentCollection.variables, name, value);
         },
-        get environment() {
-          return environmentService.currentEnvironment;
+
+        getEnvironmentVariable(environment, name) {
+          return getVariable(getEnvironmentVariables(environment), name);
+        },
+
+        setEnvironmentVariable(
+          environment: string | undefined,
+          name: string,
+          value: string | VariableObject
+        ) {
+          setVariable(getEnvironmentVariables(environment), name, value);
         },
       },
     };
@@ -44,6 +74,7 @@ export class ScriptingService {
   private readonly context: Context;
 
   public async executeScriptFromFile(filePath: string) {
+    logger.info(`Executing script from file: ${filePath}`);
     let code: string;
     try {
       code = await fs.readFile(filePath, 'utf-8');
@@ -55,7 +86,6 @@ export class ScriptingService {
   }
 
   public executeScript(code: string) {
-    logger.info('Executing script');
     let script: Script;
     try {
       const start = performance.now();
