@@ -440,10 +440,38 @@ export const createCollectionStore = (collection: Collection) => {
           // Persist new order to backend
           await eventService.reorderItem(newParent, itemId, newIndex);
         } else {
+          // Update frontend state immediately to avoid visual snap-back
+          set((state) => {
+            // Remove item from old parent
+            const oldParentState = selectParent(state, item.parentId);
+            oldParentState.children = oldParentState.children.filter((c) => c.id !== itemId);
+
+            // Add item to new parent at correct position
+            const newParentState = selectParent(state, newParentId);
+            const updatedItem = { ...item, parentId: newParentId };
+            newParentState.children.splice(newIndex, 0, updatedItem);
+
+            // Update maps
+            if (isRequest(updatedItem)) {
+              state.requests.set(itemId, updatedItem);
+            } else {
+              state.folders.set(itemId, updatedItem);
+            }
+
+            // Open the target folder so the moved item is visible
+            if (!isCollection(newParent)) {
+              state.openFolders.add(newParentId);
+            }
+          });
+
+          // Persist to backend
           if (isRequest(item)) await eventService.saveRequest(item);
-          const oldParent = selectParent(state, item.parentId);
-          await eventService.moveItem(item, oldParent, newParent, newIndex);
-          state.initialize(await eventService.loadCollection(true)); // reload collection
+          await eventService.moveItem(
+            item,
+            selectParent(state, item.parentId),
+            newParent,
+            newIndex
+          );
         }
       },
     }))
