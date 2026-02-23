@@ -341,23 +341,20 @@ describe('ScriptingService', () => {
       expect(instance1).toBe(instance2);
     });
 
-    it('should maintain context state across script executions', () => {
+    it('should NOT persist variables across script executions', () => {
       // Arrange
 
       // Act - First script: define a global variable
       service.executeScript('globalVar = 42;');
 
-      // Second script: access the variable definition
+      // Second script: try to access the variable from the first script
       const accessCode = `
-        if (typeof globalVar === 'undefined') {
-          throw new Error('Global variable should be accessible across scripts');
-        }
-        if (globalVar !== 42) {
-          throw new Error('Global variable value was lost');
+        if (typeof globalVar !== 'undefined') {
+          throw new Error('Variables should NOT persist across script executions');
         }
       `;
 
-      // Assert - Context is shared between script executions
+      // Assert - Each execution gets a fresh context
       expect(() => service.executeScript(accessCode)).not.toThrow();
     });
   });
@@ -391,21 +388,37 @@ describe('ScriptingService', () => {
       expect(() => service.executeScript(code)).not.toThrow();
     });
 
-    it('should isolate each script execution context', () => {
+    it('should allow same const variable names in different script executions', () => {
       // Arrange
 
-      // Act
-      service.executeScript('const localVar = 123;');
+      // Act - First script: declare a const variable
+      service.executeScript('const key = "counter";');
 
-      // Try to access localVar in another script - should succeed
-      const accessCode = `
-        if (localVar !== 123) {
-          throw new Error('localVar should be accessible across executions');
-        }
+      // Second script: declare same const variable - should NOT throw "already declared" error
+      const secondCode = `const key = "counter";`;
+
+      // Assert - Should not throw because each execution gets a fresh context
+      expect(() => service.executeScript(secondCode)).not.toThrow();
+    });
+
+    it('should provide fresh trufos API in each script execution', () => {
+      // Arrange
+
+      // Act - First script: use trufos API
+      service.executeScript(`trufos.setCollectionVariable('counter', '1');`);
+
+      // Verify the collection variable was set
+      expect(mockState.collection.variables.counter.value).toBe('1');
+
+      // Second script: use trufos API - should work because trufos is always available
+      const secondCode = `
+        const currentValue = trufos.getCollectionVariable('counter');
+        trufos.setCollectionVariable('counter', String(parseInt(currentValue) + 1));
       `;
 
       // Assert
-      expect(() => service.executeScript(accessCode)).not.toThrow();
+      expect(() => service.executeScript(secondCode)).not.toThrow();
+      expect(mockState.collection.variables.counter.value).toBe('2');
     });
   });
 });

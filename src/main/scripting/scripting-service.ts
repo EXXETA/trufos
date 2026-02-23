@@ -1,6 +1,6 @@
 import { app } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { Context, createContext, Script } from 'node:vm';
+import { createContext, Script } from 'node:vm';
 import { GlobalScriptingApi, VariableMap, VariableObject } from 'shim';
 import fs from 'node:fs/promises';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
@@ -16,46 +16,22 @@ const SCRIPT_TIMEOUT_SECONDS = 5;
 export class ScriptingService {
   public static _instance: ScriptingService | null = null;
 
-  public static get instance() {
-    if (!ScriptingService._instance) {
-      ScriptingService._instance = new ScriptingService();
-    }
-    return ScriptingService._instance;
-  }
-
-  constructor() {
-    function getVariable(map: VariableMap, name: string) {
-      return map[name]?.value;
-    }
-
-    function setVariable(map: VariableMap, name: string, value: string | VariableObject) {
-      if (typeof value === 'string') value = { value };
-      VariableObject.parse(value); // validate type and required properties
-      map[name] = { ...(map[name] ?? {}), ...value };
-    }
-
-    function getEnvironmentVariables(name?: string) {
-      const environment =
-        name == null
-          ? environmentService.currentEnvironment
-          : environmentService.currentCollection.environments[name];
-      return environment?.variables ?? {};
-    }
-
-    const globalApi: GlobalScriptingApi = {
+  private get api() {
+    return Object.freeze<GlobalScriptingApi>({
       trufos: {
         version: app.getVersion(),
 
         getCollectionVariable(name: string) {
-          return getVariable(environmentService.currentCollection.variables, name);
+          return ScriptingService.getVariable(environmentService.currentCollection.variables, name);
         },
 
         setCollectionVariable(name: string, value: string | VariableObject) {
-          setVariable(environmentService.currentCollection.variables, name, value);
+          ScriptingService.setVariable(environmentService.currentCollection.variables, name, value);
         },
 
         getEnvironmentVariable(environment, name) {
-          return getVariable(getEnvironmentVariables(environment), name);
+          const variables = ScriptingService.getEnvironmentVariables(environment);
+          return ScriptingService.getVariable(variables, name);
         },
 
         setEnvironmentVariable(
@@ -63,14 +39,37 @@ export class ScriptingService {
           name: string,
           value: string | VariableObject
         ) {
-          setVariable(getEnvironmentVariables(environment), name, value);
+          const variables = ScriptingService.getEnvironmentVariables(environment);
+          ScriptingService.setVariable(variables, name, value);
         },
       },
-    };
-    this.context = createContext(Object.freeze(globalApi));
+    });
   }
 
-  private readonly context: Context;
+  public static get instance() {
+    if (!ScriptingService._instance) {
+      ScriptingService._instance = new ScriptingService();
+    }
+    return ScriptingService._instance;
+  }
+
+  private static getVariable(map: VariableMap, name: string) {
+    return map[name]?.value;
+  }
+
+  private static setVariable(map: VariableMap, name: string, value: string | VariableObject) {
+    if (typeof value === 'string') value = { value };
+    VariableObject.parse(value); // validate type and required properties
+    map[name] = { ...(map[name] ?? {}), ...value };
+  }
+
+  private static getEnvironmentVariables(name?: string) {
+    const environment =
+      name == null
+        ? environmentService.currentEnvironment
+        : environmentService.currentCollection.environments[name];
+    return environment?.variables ?? {};
+  }
 
   public async executeScriptFromFile(filePath: string) {
     logger.info(`Executing script from file: ${filePath}`);
@@ -96,8 +95,9 @@ export class ScriptingService {
       return;
     }
     try {
+      const context = createContext(this.api, { name: 'Trufos Scripting Context' });
       const now = getSteadyTimestamp();
-      script.runInContext(this.context, { timeout: SCRIPT_TIMEOUT_SECONDS * 1000 });
+      script.runInContext(context, { timeout: SCRIPT_TIMEOUT_SECONDS * 1000 });
       logger.debug(`Script executed successfully after ${getDurationStringFromNow(now)}`);
     } catch (err) {
       // TODO: Show error to user instead of just logging it.
