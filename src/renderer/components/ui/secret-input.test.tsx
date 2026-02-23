@@ -1,13 +1,9 @@
-import { render, cleanup } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, afterEach } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 import { SecretInput } from './secret-input';
 
 describe('SecretInput', () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it('should display value as visible text when secret is false', () => {
     // Arrange
     const { getByDisplayValue, queryByText } = render(

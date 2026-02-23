@@ -1,14 +1,10 @@
-import { render, cleanup } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, afterEach } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 import { UrlInput } from './UrlInput';
 import { parseUrl } from 'shim/objects/url';
 
 describe('UrlInput', () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it('should display the initial URL', () => {
     // Arrange
     const url = parseUrl('https://example.com');

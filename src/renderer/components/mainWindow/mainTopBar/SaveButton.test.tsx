@@ -1,13 +1,9 @@
-import { render, cleanup } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, afterEach } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 import { SaveButton } from './SaveButton';
 
 describe('SaveButton', () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it('should call onClick when not disabled', async () => {
     // Arrange
     const onClickMock = vi.fn();

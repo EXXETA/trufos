@@ -1,14 +1,10 @@
-import { render, cleanup } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, afterEach } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 import { HttpMethodSelect } from './HttpMethodSelect';
 import { RequestMethod } from 'shim/objects/request-method';
 
 describe('HttpMethodSelect', () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it('should display the initially selected method', () => {
     // Arrange
     const onHttpMethodChangeMock = vi.fn();

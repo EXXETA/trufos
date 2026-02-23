@@ -1,14 +1,10 @@
-import { render, cleanup } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, afterEach } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 import { VariableEditor } from './VariableEditor';
 import { VariableObjectWithKey } from 'shim/objects/variables';
 
 describe('VariableEditor', () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it('should add a new variable when Add Variable button is clicked', async () => {
     // Arrange
     const user = userEvent.setup();

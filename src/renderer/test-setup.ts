@@ -1,4 +1,5 @@
-import { vi } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import { vi, afterEach } from 'vitest';
 
 /**
  * Global test setup for renderer tests
@@ -14,3 +15,7 @@ HTMLElement.prototype.setPointerCapture = vi.fn();
 
 // Scroll APIs (used by Radix UI for keyboard navigation)
 HTMLElement.prototype.scrollIntoView = vi.fn();
+
+afterEach(() => {
+  cleanup();
+});

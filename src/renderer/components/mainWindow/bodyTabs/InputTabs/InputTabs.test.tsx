@@ -1,10 +1,12 @@
-import { render, cleanup } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, afterEach } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
+import { TrufosHeader } from 'shim/objects/headers';
+import { TrufosQueryParam } from 'shim/objects/query-param';
 import { InputTabs } from './InputTabs';
 
-let mockHeaders: any[] = [];
-let mockQueryParams: any[] = [];
+let mockHeaders: TrufosHeader[] = [];
+let mockQueryParams: TrufosQueryParam[] = [];
 
 // Mock child components to avoid their store dependencies
 vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab', () => ({
@@ -38,10 +40,6 @@ vi.mock('@/state/collectionStore', () => ({
 }));
 
 describe('InputTabs', () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it('should render all four tab buttons', () => {
     // Arrange
     mockHeaders = [];

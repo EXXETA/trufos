@@ -1,13 +1,9 @@
-import { render, cleanup } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, afterEach } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 import { SimpleSelect } from './SimpleSelect';
 
 describe('SimpleSelect', () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it('should display the selected value', () => {
     // Arrange
     const items: [string, string][] = [
