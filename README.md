@@ -21,8 +21,7 @@ that is fast, user-friendly, and customizable. Below is an overview of current a
 | Third party collection import                 | 🚧 Partially   | Currently supports Postman                               |
 | Environment & variable management             | ✅ Implemented | Named environments with scoped variables                 |
 | Authentication (JWT, OAuth 2.0, Basic)        | ✅ Implemented | Strategy factory incl. OAuth2 client credentials         |
-| Scripting (custom request/response handling)  | 🛠 Planned     | Script engine & sandbox design in progress               |
-| Plugin architecture / extensions              | 🛠 Planned     | Extensible API for third-party integrations              |
+| Scripting (custom request/response handling)  | 🚧 In Progress | Running scripts before and after requests                |
 
 If you would like to contribute to this project, please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 
@@ -32,7 +31,7 @@ If you would like to contribute to this project, please check out our [Contribut
 
 ## Installation
 
-Grab the latest release from the [GitHub Releases](https://github.com/EXXETA/trufos/releases) page and install it for your platform:
+Grab the latest release from the [GitHub Releases](https://github.com/EXXETA/trufos/releases) or our [Download](https://exxeta.github.io/trufos/download) page and install it for your platform:
 
 - Windows: Download the `Setup.exe` installer
 - macOS: Download the `.dmg` image
@@ -104,18 +103,6 @@ Trufos uses IPC push streams to process large request/response bodies incrementa
 | `yarn lint`           | Run ESLint over TypeScript & React sources        |
 | `yarn prettier`       | Format code (TS/TSX) with Prettier                |
 | `yarn prettier-check` | Check formatting without writing changes          |
-
-### Roadmap (High-Level)
-
-| Item                                      | Status  | Notes                                            |
-| ----------------------------------------- | ------- | ------------------------------------------------ |
-| Scripting engine (request/response hooks) | Planned | Execution sandbox & dependency management design |
-| Plugin architecture                       | Planned | Public extension API & lifecycle hooks           |
-| More auth strategies (Hawk, NTLM, etc.)   | Planned | Evaluating demand & libraries                    |
-| Linux native packaging (`.deb`)           | Planned | Electron Forge configuration WIP                 |
-| Improved collection diff tooling          | Planned | Visual diff & merge assistance                   |
-| Performance profiling view                | Planned | Inspect timing & size insights                   |
-| Accessibility enhancements                | Planned | WCAG compliance audit scheduled                  |
 
 ## FAQ
 
