@@ -11014,7 +11014,6 @@ __metadata:
     globals: "npm:^17.3.0"
     immer: "npm:^11.1.4"
     jsdom: "npm:^28.1.0"
-    lru-cache: "npm:^11.2.6"
     lucide-react: "npm:^0.574.0"
     memfs: "npm:^4.56.10"
     mime-types: "npm:^3.0.2"
