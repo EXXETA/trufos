@@ -1,11 +1,11 @@
-import undici, { Agent, Dispatcher } from 'undici';
+import undici, { Agent, Dispatcher, FormData } from 'undici';
 import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { pipeline } from 'node:stream/promises';
 import fs from 'node:fs';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
 import { TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
@@ -14,6 +14,7 @@ import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
 import process from 'node:process';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { buffer } from 'node:stream/consumers';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -21,11 +22,6 @@ const persistenceService = PersistenceService.instance;
 const responseBodyService = ResponseBodyService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
-
-type RequestBodyResult = {
-  stream: Readable | null;
-  size?: number;
-};
 
 /**
  * Singleton service for making HTTP requests
@@ -65,7 +61,7 @@ export class HttpService {
       this.trufosHeadersToUndiciHeaders(request.headers)
     );
 
-    const { stream, size } = await this.readBody(request);
+    const [body, size] = await this.readBody(request);
 
     // measure duration of the request
     const now = getSteadyTimestamp();
@@ -73,13 +69,13 @@ export class HttpService {
       dispatcher: this._dispatcher,
       method: request.method,
       headers: {
-        ['content-type']: this.getContentType(request),
+        ['content-type']: this.getContentType(request.body),
         ['authorization']: authorization,
         ['content-length']: size?.toString(),
         ['user-agent']: `Trufos/${app.getVersion()} (${process.platform} ${process.getSystemVersion()}; ${process.arch})`,
         ...headers,
       },
-      body: stream,
+      body,
     });
 
     const duration = getDurationFromNow(now);
@@ -117,42 +113,65 @@ export class HttpService {
    * @param request request object
    * @returns request body as stream or null if there is no body
    */
-  private async readBody(request: TrufosRequest): Promise<RequestBodyResult> {
+  private async readBody(request: TrufosRequest): Promise<[(Readable | FormData)?, number?]> {
     if (request.body == null) {
-      return { stream: null };
+      return [];
     }
 
     switch (request.body.type) {
       case RequestBodyType.TEXT: {
         const requestBodyStream = await persistenceService.loadTextBodyOfRequest(request);
-        return {
-          stream: environmentService.setVariablesInStream(requestBodyStream) as Readable,
-        };
+        return [environmentService.setVariablesInStream(requestBodyStream) as Readable];
       }
       case RequestBodyType.FILE:
-        if (request.body.filePath == null) return { stream: null };
-        const stats = fs.statSync(request.body.filePath);
-        const fileStream = await fileSystemService.readFile(request.body.filePath);
-        return {
-          stream: fileStream,
-          size: stats.size,
-        };
+        return this.readFileBody(request.body.filePath);
+      case RequestBodyType.FORM_DATA:
+        const form = new FormData();
+        for (const field of request.body.fields) {
+          switch (field.value.type) {
+            case RequestBodyType.TEXT:
+              form.append(
+                field.key,
+                await environmentService.setVariablesInString(field.value.text ?? '')
+              );
+              break;
+            case RequestBodyType.FILE:
+              const [body] = await this.readFileBody(field.value.filePath);
+              if (body != null) {
+                const fileName = field.value.fileName ?? 'file';
+                const mimeType = this.getContentType(field.value);
+                const value = new File([await buffer(body)], fileName, { type: mimeType });
+                form.append(field.key, value);
+              }
+              break;
+            default:
+              throw new Error('Unknown form data field value type');
+          }
+        }
+        return [form];
       default:
         throw new Error('Unknown body type');
     }
   }
 
+  private async readFileBody(filePath?: string): Promise<[Readable?, number?]> {
+    if (filePath == null) return [];
+    return [await fileSystemService.readFile(filePath), fs.statSync(filePath).size];
+  }
+
   /**
    * Get the content type of the request body
-   * @param request request object
+   * @param body request body
    */
-  private getContentType(request: TrufosRequest) {
-    if (request.body != null) {
-      switch (request.body.type) {
+  private getContentType(body?: RequestBody) {
+    if (body != null) {
+      switch (body.type) {
         case RequestBodyType.TEXT:
-          return request.body.mimeType ?? 'text/plain';
+          return body.mimeType ?? 'text/plain';
         case RequestBodyType.FILE:
-          return request.body.mimeType ?? 'application/octet-stream';
+          return body.mimeType ?? 'application/octet-stream';
+        case RequestBodyType.FORM_DATA:
+          return 'multipart/form-data';
       }
     }
   }

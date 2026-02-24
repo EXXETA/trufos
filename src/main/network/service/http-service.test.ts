@@ -1,8 +1,8 @@
 import { HttpService } from './http-service';
-import { MockAgent } from 'undici';
+import { MockAgent, FormData } from 'undici';
 import fs from 'node:fs';
-import { TrufosRequest } from 'shim/objects/request';
-import { parseUrl, TrufosURL } from 'shim/objects/url';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { parseUrl } from 'shim/objects/url';
 import { randomUUID } from 'node:crypto';
 import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
@@ -11,10 +11,12 @@ import { AuthorizationType } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { FileSystemService } from 'main/filesystem/filesystem-service';
 
 const mockAgent = new MockAgent({ connections: 1 });
 const environmentService = EnvironmentService.instance;
 const responseBodyService = ResponseBodyService.instance;
+const fileSystemService = FileSystemService.instance;
 
 describe('HttpService', () => {
   beforeAll(() => {
@@ -263,6 +265,148 @@ describe('HttpService', () => {
     expect(lastCall.headers['x-trace-id']).toEqual(['abc', 'def']);
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('fetchAsync() should send form data with text fields', async () => {
+    // Arrange
+    const url = new URL('https://example.com/formtext');
+    const mockClient = mockAgent.get(url.origin);
+    mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
+    const httpService = new HttpService(mockAgent);
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Form Data Text Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: {
+        type: RequestBodyType.FORM_DATA,
+        fields: [
+          {
+            key: 'name',
+            value: { type: RequestBodyType.TEXT, text: 'John', mimeType: 'text/plain' },
+          },
+          {
+            key: 'email',
+            value: { type: RequestBodyType.TEXT, text: 'john@example.com', mimeType: 'text/plain' },
+          },
+        ],
+      },
+    };
+
+    // Act
+    await httpService.fetchAsync(request);
+
+    // Assert
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    const body: FormData = lastCall.body as unknown as FormData;
+    expect(body).toBeInstanceOf(FormData);
+    expect(body.get('name')).toEqual('John');
+  });
+
+  it('fetchAsync() should send form data with file fields', async () => {
+    // Arrange
+    const url = new URL('https://example.com/formfile');
+    const mockClient = mockAgent.get(url.origin);
+    mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
+    const httpService = new HttpService(mockAgent);
+
+    const fileContent = 'test file content';
+    const { Readable } = require('node:stream');
+    vi.spyOn(fileSystemService, 'readFile').mockResolvedValue(Readable.from([fileContent]));
+    vi.spyOn(fs, 'statSync').mockReturnValue({ size: fileContent.length } as fs.Stats);
+
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Form Data File Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: {
+        type: RequestBodyType.FORM_DATA,
+        fields: [
+          {
+            key: 'file',
+            value: {
+              type: RequestBodyType.FILE,
+              filePath: '/mock/test.txt',
+              fileName: 'test.txt',
+              mimeType: 'text/plain',
+            },
+          },
+        ],
+      },
+    };
+
+    // Act
+    await httpService.fetchAsync(request);
+
+    // Assert
+    const lastCall = mockAgent.getCallHistory().lastCall();
+    expect(lastCall).toBeDefined();
+    const body: FormData = lastCall.body as unknown as FormData;
+    expect(body).toBeInstanceOf(FormData);
+    const file = body.get('file') as Blob as File;
+    expect(file).toBeInstanceOf(File);
+    expect(await file.arrayBuffer()).toEqual(Buffer.from(fileContent).buffer);
+  });
+
+  it('fetchAsync() should replace variables in form data fields', async () => {
+    // Arrange
+    const variables = new Map([
+      ['username', 'alice'],
+      ['token', 'secret123'],
+    ]);
+    const spy = vi
+      .spyOn(environmentService, 'setVariablesInString')
+      .mockImplementation((input: string) =>
+        TemplateReplaceStream.replaceStringAsync(input, variables)
+      );
+
+    const url = new URL('https://example.com/formvars');
+    const mockClient = mockAgent.get(url.origin);
+    mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
+    const httpService = new HttpService(mockAgent);
+
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Form Data Variables Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: {
+        type: RequestBodyType.FORM_DATA,
+        fields: [
+          {
+            key: 'user',
+            value: { type: RequestBodyType.TEXT, text: '{{ username }}', mimeType: 'text/plain' },
+          },
+          {
+            key: 'apikey',
+            value: { type: RequestBodyType.TEXT, text: '{{ token }}', mimeType: 'text/plain' },
+          },
+        ],
+      },
+    };
+
+    // Act
+    await httpService.fetchAsync(request);
+
+    // Assert
+    const lastCall = mockAgent.getCallHistory().lastCall();
+    expect(lastCall).toBeDefined();
+    const body: FormData = lastCall.body as unknown as FormData;
+    expect(body).toBeInstanceOf(FormData);
+    expect(spy).toHaveBeenCalled();
+    expect(body.get('user')).toEqual('alice');
+    expect(body.get('apikey')).toEqual('secret123');
   });
 });
 

@@ -1,5 +1,6 @@
 import {
   TrufosURL,
+  RequestBody,
   VariableMap,
   EnvironmentMap,
   RequestMethod,
@@ -10,43 +11,10 @@ import {
 } from 'shim/objects';
 import { SemVer } from 'main/util/semver';
 import { AbstractInfoFileMigrator } from './migrator';
-import {
-  InfoFile as OldInfoFile,
-  RequestInfoFile as OldRequestInfoFile,
-  FolderInfoFile as OldFolderInfoFile,
-  VERSION as OLD_VERSION,
-} from './v2-1-0';
+import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v2-2-0';
 import z from 'zod';
 
-export const VERSION = new SemVer(2, 2, 0);
-
-export enum RequestBodyType {
-  TEXT = 'text',
-  FILE = 'file',
-}
-
-export const TextBody = z.object({
-  type: z.literal(RequestBodyType.TEXT),
-  text: z.string().optional(),
-  mimeType: z.string(),
-});
-export type TextBody = z.infer<typeof TextBody>;
-
-export const FileBody = z.object({
-  type: z.literal(RequestBodyType.FILE),
-  filePath: z.string().optional(),
-  fileName: z.string().optional(),
-  mimeType: z.string().optional(),
-});
-export type FileBody = z.infer<typeof FileBody>;
-
-export enum FormDataValueType {
-  TEXT = 'text',
-  FILE = 'file',
-}
-
-export const RequestBody = z.discriminatedUnion('type', [TextBody, FileBody]);
-export type RequestBody = z.infer<typeof RequestBody>;
+export const VERSION = new SemVer(2, 3, 0);
 
 export const InfoFileBase = z.object({
   id: z.string(),
@@ -78,19 +46,15 @@ export const InfoFile = z.union([RequestInfoFile, FolderInfoFile, CollectionInfo
 export type InfoFile = z.infer<typeof InfoFile>;
 
 /**
- * Migrates schema `v2.1.0` to `v2.2.0`.
+ * Migrates schema `v2.2.0` to `v2.3.0`.
  *
  * Changes:
- * - Drops index property from info files as it's not persisted in a separate file on parent level
+ * - Support for form-data request bodies. Does not change anything in the schema directly, but if body contains form-data, it cannot be read by older versions anymore.
  */
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
   async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
-    if (type !== 'collection') {
-      // just drop index as frontend doesn't support reordering yet anyway
-      delete (old as OldRequestInfoFile | OldFolderInfoFile).index;
-    }
     return Object.assign(old, { version: VERSION.toString() });
   }
 }

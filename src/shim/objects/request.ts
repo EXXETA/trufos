@@ -9,11 +9,12 @@ export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 export enum RequestBodyType {
   TEXT = 'text',
   FILE = 'file',
+  FORM_DATA = 'form-data',
 }
 
 export const TextBody = z.object({
   type: z.literal(RequestBodyType.TEXT),
-  /** The body content as a string. Used for importing from third party collections. Usually, this is only stored on the file system */
+  /** The body content as a string. Used for form data content or importing from third party collections. Usually, this is only stored on the file system */
   text: z.string().optional(),
   /** The mime type of the file content, e.g. "application/json". May include an encoding */
   mimeType: z.string(),
@@ -29,7 +30,23 @@ export const FileBody = z.object({
 });
 export type FileBody = z.infer<typeof FileBody>;
 
-export const RequestBody = z.discriminatedUnion('type', [TextBody, FileBody]);
+export enum FormDataValueType {
+  TEXT = 'text',
+  FILE = 'file',
+}
+
+export const FormDataBody = z.object({
+  type: z.literal(RequestBodyType.FORM_DATA),
+  fields: z.array(
+    z.object({
+      key: z.string(),
+      value: z.discriminatedUnion('type', [TextBody, FileBody]),
+    })
+  ),
+});
+export type FormDataBody = z.infer<typeof FormDataBody>;
+
+export const RequestBody = z.discriminatedUnion('type', [TextBody, FileBody, FormDataBody]);
 export type RequestBody = z.infer<typeof RequestBody>;
 
 export const TrufosRequest = z.object({
