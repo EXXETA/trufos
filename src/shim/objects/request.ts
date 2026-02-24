@@ -9,6 +9,7 @@ export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 export enum RequestBodyType {
   TEXT = 'text',
   FILE = 'file',
+  FORM_DATA = 'form-data',
 }
 
 export const TextBody = z.object({
@@ -29,7 +30,18 @@ export const FileBody = z.object({
 });
 export type FileBody = z.infer<typeof FileBody>;
 
-export const RequestBody = z.discriminatedUnion('type', [TextBody, FileBody]);
+export enum FormDataValueType {
+  TEXT = 'text',
+  FILE = 'file',
+}
+
+export const FormDataBody = z.object({
+  type: z.literal(RequestBodyType.FORM_DATA),
+  data: z.record(z.string(), z.discriminatedUnion('type', [TextBody, FileBody])),
+});
+export type FormDataBody = z.infer<typeof FormDataBody>;
+
+export const RequestBody = z.discriminatedUnion('type', [TextBody, FileBody, FormDataBody]);
 export type RequestBody = z.infer<typeof RequestBody>;
 
 export const TrufosRequest = z.object({
