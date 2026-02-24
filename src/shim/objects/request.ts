@@ -14,7 +14,7 @@ export enum RequestBodyType {
 
 export const TextBody = z.object({
   type: z.literal(RequestBodyType.TEXT),
-  /** The body content as a string. Used for importing from third party collections. Usually, this is only stored on the file system */
+  /** The body content as a string. Used for form data content or importing from third party collections. Usually, this is only stored on the file system */
   text: z.string().optional(),
   /** The mime type of the file content, e.g. "application/json". May include an encoding */
   mimeType: z.string(),
@@ -37,7 +37,12 @@ export enum FormDataValueType {
 
 export const FormDataBody = z.object({
   type: z.literal(RequestBodyType.FORM_DATA),
-  data: z.record(z.string(), z.discriminatedUnion('type', [TextBody, FileBody])),
+  fields: z.array(
+    z.object({
+      key: z.string(),
+      value: z.discriminatedUnion('type', [TextBody, FileBody]),
+    })
+  ),
 });
 export type FormDataBody = z.infer<typeof FormDataBody>;
 
