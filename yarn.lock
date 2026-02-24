@@ -10701,17 +10701,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tailwindcss@npm:4.2.1":
+"tailwindcss@npm:4.2.1, tailwindcss@npm:^4.2.1":
   version: 4.2.1
   resolution: "tailwindcss@npm:4.2.1"
   checksum: 10c0/482d734b582e9da509042ff59c1d7564d99e39e238c50ae907c20fa56177a8a00c3902f6971329971bd6a1c5357026ac76a849b8f2c69c94f0f59be99530ba54
-  languageName: node
-  linkType: hard
-
-"tailwindcss@npm:^4.1.18":
-  version: 4.1.18
-  resolution: "tailwindcss@npm:4.1.18"
-  checksum: 10c0/c79263cea0b2c577859b02f28284caa4eb3844e4d0f563686726ca97817c045c5c395a55bc776daaa351ba9e4aefa9a75bfbb43c22d86f3c573eecc2b87d6bf1
   languageName: node
   linkType: hard
 
@@ -11038,7 +11031,7 @@ __metadata:
     sonner: "npm:^2.0.7"
     style-loader: "npm:^4.0.0"
     tailwind-merge: "npm:^3.4.1"
-    tailwindcss: "npm:^4.1.18"
+    tailwindcss: "npm:^4.2.1"
     tailwindcss-animate: "npm:^1.0.7"
     template-replace-stream: "npm:^2.2.0"
     tmp: "npm:^0.2.5"
