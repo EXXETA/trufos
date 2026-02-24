@@ -1,12 +1,13 @@
 import { render, fireEvent, cleanup } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { TrufosHeader } from 'shim/objects/headers';
 import { HeaderTab } from './HeaderTab';
 
 const addHeaderMock = vi.fn();
 const deleteHeaderMock = vi.fn();
 const updateHeaderMock = vi.fn();
 
-let mockHeaders: any[] = [];
+let mockHeaders: TrufosHeader[] = [];
 
 vi.mock('@/state/collectionStore', () => ({
   useCollectionActions: () => ({
@@ -25,10 +26,6 @@ vi.mock('@/state/collectionStore', () => ({
 describe('HeaderTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it('should select all headers when Select All is clicked', () => {

@@ -14,6 +14,7 @@ export default defineConfig({
   test: {
     name: 'renderer',
     environment: 'jsdom',
+    setupFiles: ['./test-setup.ts'],
     alias: [
       {
         find: /^monaco-editor$/,
