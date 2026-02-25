@@ -39,17 +39,17 @@ export interface GlobalScriptingApi {
 
     /**
      * Get a variable from an environment.
-     * @param environment The name of the environment to get the variable from, or `undefined` to get it from the currently selected environment.
      * @param name The name of the variable.
+     * @param environment The name of the environment to get the variable from, or `undefined` to get it from the currently selected environment.
      * @returns The current value of the variable, or `undefined` if it doesn't exist.
      */
-    getEnvironmentVariable(environment: string | undefined, name: string): string | undefined;
+    getEnvironmentVariable(name: string, environment?: string): string | undefined;
 
     /**
      * Set a variable in an environment. If the variable doesn't exist, it will be created.
-     * @param environment The name of the environment to set the variable in, or `undefined` to set it in the currently selected environment.
      * @param name The name of the variable.
      * @param value The value to set for the variable. Can be a string or an object with additional properties.
+     * @param environment The name of the environment to set the variable in, or `undefined` to set it in the currently selected environment.
      * @example
      * // Set a simple string variable in the current environment
      * trufos.setEnvironmentVariable(undefined, 'apiUrl', 'https://api.example.com');
@@ -62,9 +62,9 @@ export interface GlobalScriptingApi {
      * });
      */
     setEnvironmentVariable(
-      environment: string | undefined,
       name: string,
-      value: string | VariableObject
+      value: string | VariableObject,
+      environment?: string
     ): void;
   };
 }

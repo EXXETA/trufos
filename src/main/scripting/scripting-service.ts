@@ -21,24 +21,20 @@ export class ScriptingService {
       trufos: {
         version: app.getVersion(),
 
-        getCollectionVariable(name: string) {
+        getCollectionVariable(name) {
           return ScriptingService.getVariable(environmentService.currentCollection.variables, name);
         },
 
-        setCollectionVariable(name: string, value: string | VariableObject) {
+        setCollectionVariable(name, value) {
           ScriptingService.setVariable(environmentService.currentCollection.variables, name, value);
         },
 
-        getEnvironmentVariable(environment, name) {
+        getEnvironmentVariable(name, environment) {
           const variables = ScriptingService.getEnvironmentVariables(environment);
           return ScriptingService.getVariable(variables, name);
         },
 
-        setEnvironmentVariable(
-          environment: string | undefined,
-          name: string,
-          value: string | VariableObject
-        ) {
+        setEnvironmentVariable(name, value, environment) {
           const variables = ScriptingService.getEnvironmentVariables(environment);
           ScriptingService.setVariable(variables, name, value);
         },

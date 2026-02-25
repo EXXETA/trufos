@@ -240,8 +240,8 @@ describe('ScriptingService', () => {
     it('should allow script to set current environment variables with string value', () => {
       // Arrange
       const code = `
-        trufos.setEnvironmentVariable(undefined, 'baseUrl', 'http://localhost:4000');
-        trufos.setEnvironmentVariable(undefined, 'apiKey', 'secret123');
+        trufos.setEnvironmentVariable('baseUrl', 'http://localhost:4000');
+        trufos.setEnvironmentVariable('apiKey', 'secret123');
       `;
 
       // Act
@@ -257,8 +257,8 @@ describe('ScriptingService', () => {
     it('should allow script to set named environment variables with VariableObject', () => {
       // Arrange
       const code = `
-        trufos.setEnvironmentVariable('dev', 'baseUrl', { value: 'http://localhost:5000', description: 'Updated URL' });
-        trufos.setEnvironmentVariable('dev', 'newVar', { value: 'test', description: 'New env var' });
+        trufos.setEnvironmentVariable('baseUrl', { value: 'http://localhost:5000', description: 'Updated URL' }, 'dev');
+        trufos.setEnvironmentVariable('newVar', { value: 'test', description: 'New env var' }, 'dev');
       `;
 
       // Act
