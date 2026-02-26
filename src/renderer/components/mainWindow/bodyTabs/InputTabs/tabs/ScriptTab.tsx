@@ -3,6 +3,7 @@ import { SCRIPT_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-setti
 import { ScriptType } from 'shim/scripting';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { Divider } from '@/components/shared/Divider';
 
 const SCRIPT_TYPE_OPTIONS: [ScriptType, string][] = [
   [ScriptType.PRE_REQUEST, 'Pre-Request'],
@@ -14,13 +15,16 @@ export function ScriptTab() {
   const { setCurrentScriptType } = useCollectionActions();
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="p-2">
-        <SimpleSelect
-          items={SCRIPT_TYPE_OPTIONS}
-          value={scriptType}
-          onValueChange={(value) => setCurrentScriptType(value as ScriptType)}
-        />
+    <div className="flex h-full flex-col gap-4 pt-2">
+      <div className="space-y-2 px-4">
+        <div className="px-2">
+          <SimpleSelect
+            items={SCRIPT_TYPE_OPTIONS}
+            value={scriptType}
+            onValueChange={(value) => setCurrentScriptType(value as ScriptType)}
+          />
+        </div>
+        <Divider />
       </div>
       <div className="relative flex-1">
         <MonacoEditor
