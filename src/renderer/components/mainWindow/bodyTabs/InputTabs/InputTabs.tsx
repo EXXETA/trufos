@@ -5,6 +5,7 @@ import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/Heade
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';
 import { ParamsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ParamsTab';
 import { AuthorizationTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/AuthorizationTab/AuthorizationTab';
+import { ScriptTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab';
 
 interface InputTabsProps {
   className: string;
@@ -38,6 +39,7 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
           {activeHeaderCount === 0 ? 'Headers' : `Headers (${activeHeaderCount})`}
         </TabsTrigger>
         <TabsTrigger value="authorization">Auth</TabsTrigger>
+        <TabsTrigger value="scripts">Scripts</TabsTrigger>
       </TabsList>
 
       <TabsContent value="body">
@@ -54,6 +56,10 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
 
       <TabsContent value="authorization">
         <AuthorizationTab />
+      </TabsContent>
+
+      <TabsContent value="scripts">
+        <ScriptTab />
       </TabsContent>
     </Tabs>
   );
