@@ -14,7 +14,7 @@ export function ScriptTab() {
   const { setCurrentScriptType } = useCollectionActions();
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       <div className="p-2">
         <SimpleSelect
           items={SCRIPT_TYPE_OPTIONS}

@@ -2,7 +2,11 @@ import { createContext, useContext } from 'react';
 import { type StoreApi, useStore } from 'zustand';
 import { REQUEST_MODEL, SCRIPT_MODEL } from '@/lib/monaco/models';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { isRequestInAParentFolder, setRequestTextBody, setScriptContent } from '@/state/helper/collectionUtil';
+import {
+  isRequestInAParentFolder,
+  setRequestTextBody,
+  setScriptContent,
+} from '@/state/helper/collectionUtil';
 import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
