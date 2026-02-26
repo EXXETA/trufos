@@ -2,7 +2,7 @@ import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { SCRIPT_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { ScriptType } from 'shim/scripting';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
-import { useState } from 'react';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 
 const SCRIPT_TYPE_OPTIONS: [ScriptType, string][] = [
   [ScriptType.PRE_REQUEST, 'Pre-Request'],
@@ -10,7 +10,8 @@ const SCRIPT_TYPE_OPTIONS: [ScriptType, string][] = [
 ];
 
 export function ScriptTab() {
-  const [scriptType, setScriptType] = useState<ScriptType>(ScriptType.PRE_REQUEST);
+  const scriptType = useCollectionStore((state) => state.currentScriptType);
+  const { setCurrentScriptType } = useCollectionActions();
 
   return (
     <div className="flex flex-col h-full">
@@ -18,7 +19,7 @@ export function ScriptTab() {
         <SimpleSelect
           items={SCRIPT_TYPE_OPTIONS}
           value={scriptType}
-          onValueChange={(value) => setScriptType(value as ScriptType)}
+          onValueChange={(value) => setCurrentScriptType(value as ScriptType)}
         />
       </div>
       <div className="relative flex-1">
