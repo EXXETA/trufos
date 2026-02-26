@@ -4,6 +4,43 @@ import { TemplateVariableCompletionItemsProvider } from './template-variable-com
 import { TemplateVariableHoverProvider } from './template-variable-hover-provider';
 import { TemplateVariableSemanticTokensProvider } from './template-variable-semantic-tokens-provider';
 
+const TRUFOS_SCRIPTING_API_DECLARATION = `
+declare const trufos: {
+  /** The current version of the app. */
+  readonly version: string;
+
+  /**
+   * Get a variable from the current collection.
+   * @param name The name of the variable.
+   */
+  getCollectionVariable(name: string): string | undefined;
+
+  /**
+   * Set a variable in the current collection.
+   * @param name The name of the variable.
+   * @param value A string value or an object with value, description, and secret properties.
+   */
+  setCollectionVariable(name: string, value: string | { value: string; description?: string; secret?: boolean }): void;
+
+  /**
+   * Get a variable from an environment.
+   * @param environment The environment name, or undefined for the currently selected environment.
+   * @param name The name of the variable.
+   */
+  getEnvironmentVariable(environment: string | undefined, name: string): string | undefined;
+
+  /**
+   * Set a variable in an environment.
+   * @param environment The environment name, or undefined for the currently selected environment.
+   * @param name The name of the variable.
+   * @param value A string value or an object with value, description, and secret properties.
+   */
+  setEnvironmentVariable(environment: string | undefined, name: string, value: string | { value: string; description?: string; secret?: boolean }): void;
+};
+`;
+
+languages.typescript.javascriptDefaults.addExtraLib(TRUFOS_SCRIPTING_API_DECLARATION);
+
 export enum Language {
   JSON = 'json',
   XML = 'xml',
