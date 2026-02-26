@@ -68,4 +68,5 @@ export class RendererEventService implements IEventService {
   // @ts-expect-error - typing does not work for genric methods
   reorderItem = createEventMethod('reorderItem');
   updateApp = createEventMethod('updateApp');
+  saveScript = createEventMethod('saveScript');
 }

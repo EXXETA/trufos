@@ -19,6 +19,13 @@ vi.mock('electron', () => ({
 }));
 
 vi.mock('./stream-events', () => ({}));
+vi.mock('main/network/service/http-service', () => ({
+  HttpService: {
+    instance: {
+      fetchAsync: vi.fn(),
+    },
+  },
+}));
 
 const TEST_STRING = 'Hello, World!';
 const TEST_FILE_PATH = path.join(tmpdir(), 'test.txt');
