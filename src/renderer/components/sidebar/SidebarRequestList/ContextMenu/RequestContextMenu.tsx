@@ -18,8 +18,10 @@ export const RequestContextMenu = ({ requestId }: RequestContextMenuProps) => {
   const { deleteRequest } = useCollectionActions();
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
-        <CiMenuKebab className="cursor-pointer hover:fill-gray-900" />
+      <DropdownMenuTrigger asChild>
+        <div className="sidebar-row-menu flex h-4 w-4 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+          <CiMenuKebab className="cursor-pointer hover:fill-[var(--text-secondary)]" />
+        </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-background">
         <DropdownMenuItem
