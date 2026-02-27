@@ -78,80 +78,96 @@ export const VariableEditor = memo<VariableEditorProps>(
     return (
       <>
         <Button
-          className="h-fit gap-1 pl-0 hover:bg-transparent"
+          className="mx-6 flex h-9 items-center gap-2 text-[#e8e8e8] hover:bg-transparent hover:text-white"
           size="sm"
           variant="ghost"
           onClick={add}
         >
-          <AddIcon /> Add Variable
+          <AddIcon className="h-4 w-4" />
+          <span className="text-[15px] font-medium">Add Variable</span>
         </Button>
 
-        <Divider className="mb-4" />
+        <div className="mx-6 mt-1 border-b border-[#2a2a2a]" />
 
-        <Table className="w-full table-auto">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-1/5">Key</TableHead>
-              <TableHead className="w-1/4">Value</TableHead>
-              <TableHead className="w-auto">Description</TableHead>
-              <TableHead className="w-20">Secret</TableHead>
-              <TableHead className="w-16">{/* Action Column */}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {variables.map((variable, index) => (
-              <TableRow key={index}>
-                <TableCell className="break-all">
-                  <input
-                    type="text"
-                    value={variable.key}
-                    className={cn('w-full bg-transparent outline-hidden', {
-                      'text-danger': invalidVariableKeys.has(variable.key),
-                    })}
-                    placeholder="Enter variable key"
-                    onChange={(e) => update(index, { key: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell className="break-all">
-                  <SecretInput
-                    secret={variable.secret}
-                    value={variable.value}
-                    className={cn('w-full border-none bg-transparent outline-hidden', {
-                      'text-danger': invalidVariableKeys.has(variable.key),
-                    })}
-                    placeholder="Enter variable value"
-                    onChange={(e) => update(index, { value: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell className="break-all">
-                  <input
-                    type="text"
-                    value={variable.description}
-                    className="w-full bg-transparent outline-hidden"
-                    placeholder="Enter variable description"
-                    onChange={(e) => update(index, { description: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell className="text-center">
-                  <Checkbox
-                    checked={variable.secret}
-                    onCheckedChange={(checked) => update(index, { secret: Boolean(checked) })}
-                  />
-                </TableCell>
-                <TableCell className="py-2 text-center">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hover:text-accent-primary active:text-accent-secondary w-5 hover:bg-transparent"
-                    onClick={() => remove(index)}
-                  >
-                    <Trash2 />
-                  </Button>
-                </TableCell>
+        <div className="mx-6 mt-4 overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111111]">
+          <Table className="w-full table-auto border-separate border-spacing-0 border-none">
+            <TableHeader className="bg-[#161616] [&_tr]:border-0">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-1/5 rounded-tl-xl border-r border-b border-[#2a2a2a] py-3 text-[14px] font-medium text-[#ffffff]">
+                  Key
+                </TableHead>
+                <TableHead className="w-1/4 border-r border-b border-[#2a2a2a] text-[14px] font-medium text-[#ffffff]">
+                  Value
+                </TableHead>
+                <TableHead className="w-auto border-r border-b border-[#2a2a2a] text-[14px] font-medium text-[#ffffff]">
+                  Description
+                </TableHead>
+                <TableHead className="w-24 border-r border-b border-[#2a2a2a] text-center text-[14px] font-medium text-[#ffffff]">
+                  Secret
+                </TableHead>
+                <TableHead className="w-14 rounded-tr-xl border-b border-[#2a2a2a]">
+                  {/* Action Column */}
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {variables.map((variable, index) => (
+                <TableRow
+                  key={index}
+                  className="border-b border-[#2a2a2a] transition-colors last:border-0 hover:bg-[#1a1a1a]"
+                >
+                  <TableCell className="border-r border-[#2a2a2a] px-4 py-3">
+                    <input
+                      type="text"
+                      value={variable.key}
+                      className={cn(
+                        'w-full bg-transparent text-[14px] text-[#e8e8e8] outline-none placeholder:text-[#9a9a9a]',
+                        invalidVariableKeys.has(variable.key) && 'text-red-500'
+                      )}
+                      placeholder="Enter variable key"
+                      onChange={(e) => update(index, { key: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell className="border-r border-[#2a2a2a] px-4">
+                    <SecretInput
+                      secret={variable.secret}
+                      value={variable.value}
+                      className="w-full border-none bg-transparent text-[14px] text-[#e8e8e8] outline-none placeholder:text-[#9a9a9a]"
+                      placeholder="Enter variable value"
+                      onChange={(e) => update(index, { value: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell className="border-r border-[#2a2a2a] px-4">
+                    <input
+                      type="text"
+                      value={variable.description}
+                      className="w-full bg-transparent text-[14px] text-[#a8a8a8] outline-none placeholder:text-[#9a9a9a]"
+                      placeholder="Enter variable description"
+                      onChange={(e) => update(index, { description: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell className="border-r border-[#2a2a2a] text-center">
+                    <Checkbox
+                      className="cursor-pointer border-[#6a6a6a] transition-colors hover:border-white data-[state=checked]:border-white data-[state=checked]:bg-white"
+                      checked={variable.secret}
+                      onCheckedChange={(checked) => update(index, { secret: Boolean(checked) })}
+                    />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-[#cfcfcf] transition-colors hover:bg-transparent hover:text-[#ff6b6b]"
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 size={18} />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </>
     );
   }
