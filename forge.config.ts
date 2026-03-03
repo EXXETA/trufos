@@ -6,6 +6,9 @@ import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-nati
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import ts from 'typescript';
+import { resolve } from 'node:path';
+import { writeFile } from 'node:fs/promises';
 
 let osxNotarize: ForgePackagerOptions['osxNotarize'];
 let osxSign: ForgePackagerOptions['osxSign'];
@@ -21,30 +24,31 @@ if (process.env.APPLE_API_KEY && process.env.APPLE_API_KEY_ID && process.env.APP
 const config: ForgeConfig = {
   hooks: {
     generateAssets: async () => {
-      const ts = (await import('typescript')).default;
-      const { resolve } = await import('node:path');
-      const { writeFile } = await import('node:fs/promises');
-
       const shimPath = resolve('src/shim/scripting.ts');
       const program = ts.createProgram([shimPath], { strict: true });
       const checker = program.getTypeChecker();
       const sourceFile = program.getSourceFile(shimPath);
       if (!sourceFile) throw new Error('scripting.ts not found');
 
-      let typeStr = '';
+      const declarations: string[] = [];
       ts.forEachChild(sourceFile, (node) => {
         if (ts.isInterfaceDeclaration(node) && node.name.text === 'GlobalScriptingApi') {
           const type = checker.getTypeAtLocation(node);
-          const symbol = checker.getPropertyOfType(type, 'trufos');
-          if (symbol) {
-            const trufosType = checker.getTypeOfSymbolAtLocation(symbol, node);
-            typeStr = checker.typeToString(trufosType, undefined, ts.TypeFormatFlags.NoTruncation);
+          for (const symbol of checker.getPropertiesOfType(type)) {
+            const propType = checker.getTypeOfSymbolAtLocation(symbol, node);
+            const propTypeStr = checker.typeToString(
+              propType,
+              undefined,
+              ts.TypeFormatFlags.NoTruncation
+            );
+            declarations.push(`declare const ${symbol.name}: ${propTypeStr};`);
           }
         }
       });
 
-      if (!typeStr) throw new Error('Could not resolve trufos type in GlobalScriptingApi');
-      const out = `// Auto-generated from src/shim/scripting.ts – do not edit manually\ndeclare const trufos: ${typeStr};\n`;
+      if (declarations.length === 0)
+        throw new Error('Could not resolve types in GlobalScriptingApi');
+      const out = `// Auto-generated from src/shim/scripting.ts – do not edit manually\n${declarations.join('\n')}\n`;
       await writeFile(resolve('src/renderer/assets/trufos-scripting-api.d.ts'), out);
       console.log('[generateAssets] Generated trufos-scripting-api.d.ts');
     },
