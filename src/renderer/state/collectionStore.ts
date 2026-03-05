@@ -11,7 +11,7 @@ import { isCollection, isRequest, TrufosObject } from 'shim/objects';
 import { AuthorizationInformation } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { FormDataBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { createStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
@@ -175,6 +175,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       setRequestBodyMimeType(mimeType?: string) {
         const { body } = selectRequest(get());
+        if (body.type !== RequestBodyType.TEXT) return;
         const { setRequestBody } = get();
         setRequestBody({ ...body, mimeType });
       },
@@ -293,6 +294,39 @@ export const createCollectionStore = (collection: Collection) => {
         set((state) => {
           const queryParam = selectQueryParam(state, index);
           queryParam.isActive = isActive ?? !queryParam.isActive;
+          selectRequest(state).draft = true;
+        }),
+
+      addFormDataField: () =>
+        set((state) => {
+          const body = selectRequest(state).body;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          body.fields.push({ key: '', value: { type: RequestBodyType.TEXT, mimeType: 'text/plain' } });
+          selectRequest(state).draft = true;
+        }),
+
+      updateFormDataField: (index, updatedField) =>
+        set((state) => {
+          const body = selectRequest(state).body;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          body.fields[index] = { ...body.fields[index], ...updatedField };
+          selectRequest(state).draft = true;
+        }),
+
+      deleteFormDataField: (index) =>
+        set((state) => {
+          const body = selectRequest(state).body;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          body.fields.splice(index, 1);
+          selectRequest(state).draft = true;
+        }),
+
+      deleteSelectedFormDataFields: (indices: Set<number>) =>
+        set((state) => {
+          const body = selectRequest(state).body as FormDataBody;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          const remaining = body.fields.filter((_, i) => !indices.has(i));
+          body.fields.splice(0, body.fields.length, ...remaining);
           selectRequest(state).draft = true;
         }),
 
@@ -502,6 +536,10 @@ const selectObject = <T extends TrufosObject>(state: CollectionState, object: T)
 
 export const selectHeaders = (state: CollectionState) => selectRequest(state).headers;
 export const selectQueryParams = (state: CollectionState) => selectRequest(state).url.query;
+export const selectFormDataFields = (state: CollectionState) => {
+  const body = selectRequest(state).body;
+  return body.type === RequestBodyType.FORM_DATA ? body.fields : [];
+};
 const selectQueryParam = (state: CollectionState, index: number) =>
   selectQueryParams(state)?.[index];
 export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) =>

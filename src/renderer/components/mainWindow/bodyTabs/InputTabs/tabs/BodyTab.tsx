@@ -11,6 +11,7 @@ import {
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import BodyTabFileInput from './BodyTabFileInput';
 import BodyTabTextInput from './BodyTabTextInput';
+import { FormDataTab } from './FormDataTab';
 import { Button } from '@/components/ui/button';
 import { WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,7 +21,8 @@ export const BodyTab = () => {
     useCollectionActions();
 
   const requestBody = useCollectionStore((state) => selectRequest(state).body);
-  const language = mimeTypeToLanguage(requestBody.mimeType);
+  const mimeType = 'mimeType' in requestBody ? requestBody.mimeType : undefined;
+  const language = mimeTypeToLanguage(mimeType);
   const canFormatRequestBody = isFormattableLanguage(language);
 
   const changeBodyType = useCallback(
@@ -32,10 +34,17 @@ export const BodyTab = () => {
         case RequestBodyType.FILE:
           setRequestBody({ type });
           break;
+        case RequestBodyType.FORM_DATA:
+          setRequestBody({ type, fields: [] });
+          break;
       }
     },
     [setRequestBody]
   );
+
+  if (requestBody.type === RequestBodyType.FORM_DATA) {
+    return <FormDataTab />;
+  }
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -48,6 +57,7 @@ export const BodyTab = () => {
               items={[
                 [RequestBodyType.TEXT, 'Text'],
                 [RequestBodyType.FILE, 'File'],
+                [RequestBodyType.FORM_DATA, 'Form Data'],
               ]}
             />
             {requestBody.type === RequestBodyType.TEXT && (
@@ -78,7 +88,7 @@ export const BodyTab = () => {
         <Divider />
       </div>
 
-      {requestBody?.type === RequestBodyType.FILE ? (
+      {requestBody.type === RequestBodyType.FILE ? (
         <BodyTabFileInput className="px-4 pb-2" />
       ) : (
         <BodyTabTextInput className="pr-4" language={language} />
