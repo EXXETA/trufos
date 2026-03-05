@@ -11,7 +11,7 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { showError } from '@/error/errorHandler';
-import { REQUEST_MODEL } from '@/lib/monaco/models';
+import { REQUEST_MODEL, SCRIPT_MODEL } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 
 const httpService = HttpService.instance;
@@ -23,6 +23,7 @@ export function MainTopBar() {
   const { updateRequest } = useCollectionActions();
   const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest);
+  const currentScriptType = useCollectionStore((state) => state.currentScriptType);
   const { url, method } = request;
 
   const handleUrlChange = (url: TrufosURL) => updateRequest({ url });
@@ -32,7 +33,10 @@ export function MainTopBar() {
     useErrorHandler(async () => {
       try {
         setIsLoading(true);
-        await eventService.saveRequest(request, REQUEST_MODEL.getValue());
+        await Promise.all([
+          eventService.saveRequest(request, REQUEST_MODEL.getValue()),
+          eventService.saveScript(request, currentScriptType, SCRIPT_MODEL.getValue()),
+        ]);
 
         const response = await httpService.sendRequest(request);
         addResponse(request.id, response);
@@ -42,7 +46,7 @@ export function MainTopBar() {
         setIsLoading(false);
       }
     }),
-    [request, addResponse]
+    [request, currentScriptType, addResponse]
   );
 
   const saveRequest = useCallback(
