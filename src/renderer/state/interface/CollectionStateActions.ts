@@ -3,7 +3,9 @@ import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
-import { RequestBody, TrufosRequest } from 'shim/objects/request';
+import { FormDataBody, RequestBody, TrufosRequest } from 'shim/objects/request';
+
+type FormDataField = FormDataBody['fields'][number];
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
@@ -128,6 +130,11 @@ export interface CollectionStateActions {
   /**
    * Set the draft flag on the currently selected request
    */
+  addFormDataField(): void;
+  updateFormDataField(index: number, updatedField: Partial<FormDataField>): void;
+  deleteFormDataField(index: number): void;
+  deleteSelectedFormDataFields(indices: Set<number>): void;
+
   setDraftFlag(): void;
 
   /**
