@@ -55,13 +55,13 @@ export interface CollectionStateActions {
    */
   formatRequestEditorText(): Promise<void>;
 
-  setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
+  setSelectedRequest(id?: TrufosRequest['id']): void;
 
   /**
-   * Set the currently active script type and load the corresponding script into the editor.
+   * Set the currently active script type.
    * @param type The script type to switch to
    */
-  setCurrentScriptType(type: ScriptType): Promise<void>;
+  setCurrentScriptType(type: ScriptType): void;
 
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
