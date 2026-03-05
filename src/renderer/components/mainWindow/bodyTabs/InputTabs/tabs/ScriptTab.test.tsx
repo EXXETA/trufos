@@ -10,8 +10,10 @@ vi.mock('@/state/collectionStore', () => ({
   useCollectionActions: () => ({
     setCurrentScriptType: setCurrentScriptTypeMock,
   }),
-  useCollectionStore: (selector: (state: { currentScriptType: ScriptType }) => unknown) =>
-    selector({ currentScriptType: mockScriptType }),
+  useCollectionStore: (
+    selector: (state: { currentScriptType: ScriptType; selectedRequestId: string }) => unknown
+  ) => selector({ currentScriptType: mockScriptType, selectedRequestId: 'req-1' }),
+  selectRequest: vi.fn(() => null),
 }));
 
 vi.mock('@/lib/monaco/MonacoEditor', () => ({
@@ -24,6 +26,21 @@ vi.mock('@/components/shared/settings/monaco-settings', () => ({
 
 vi.mock('monaco-editor', () => ({
   editor: { createModel: vi.fn(() => ({ setValue: vi.fn() })) },
+}));
+
+vi.mock('@/lib/monaco/models', () => ({
+  SCRIPT_MODEL: {
+    getValue: vi.fn(() => ''),
+    onDidChangeContent: vi.fn(() => ({ dispose: vi.fn() })),
+  },
+}));
+
+vi.mock('@/state/helper/collectionUtil', () => ({
+  setScriptContent: vi.fn(),
+}));
+
+vi.mock('@/services/event/renderer-event-service', () => ({
+  RendererEventService: { instance: { saveScript: vi.fn() } },
 }));
 
 vi.mock('@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect', () => ({
