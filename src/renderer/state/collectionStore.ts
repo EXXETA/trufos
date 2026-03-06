@@ -1,8 +1,7 @@
 import { createContext, useContext } from 'react';
 import { type StoreApi, useStore } from 'zustand';
-import { REQUEST_MODEL } from '@/lib/monaco/models';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { isRequestInAParentFolder, setRequestTextBody } from '@/state/helper/collectionUtil';
+import { isRequestInAParentFolder } from '@/state/helper/collectionUtil';
 import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
@@ -17,6 +16,7 @@ import { RequestMethod } from 'shim/objects/request-method';
 import { createStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { parseUrl } from 'shim/objects/url';
+import { ScriptType } from 'shim/scripting';
 
 const eventService = RendererEventService.instance;
 
@@ -38,6 +38,9 @@ interface CollectionState {
 
   /** A set of folder IDs that are currently open in the sidebar */
   openFolders: Set<Folder['id']>;
+
+  /** The currently active script type in the script editor */
+  currentScriptType: ScriptType;
 }
 
 type CollectionStore = StoreApi<CollectionState & CollectionStateActions>;
@@ -82,6 +85,7 @@ export const createCollectionStore = (collection: Collection) => {
     immer((set, get) => ({
       collection,
       openFolders: new Set(),
+      currentScriptType: ScriptType.PRE_REQUEST,
       ...buildCollectionItemMaps(collection),
 
       initialize: (collection) => {
@@ -184,28 +188,19 @@ export const createCollectionStore = (collection: Collection) => {
         }
       },
 
-      setSelectedRequest: async (id) => {
+      setSelectedRequest: (id) => {
         console.debug('Setting selected request to', id);
-        const state = get();
-        const { selectedRequestId, requests } = state;
-        const oldRequest = selectRequest(state);
+        const { selectedRequestId, requests } = get();
         if (selectedRequestId === id) return;
-
-        // save current request body and load new request body
-        if (oldRequest != null) {
-          await eventService.saveRequest(oldRequest, REQUEST_MODEL.getValue());
-        }
-        if (id != null) {
-          const request = requests.get(id);
-          if (request == null) {
-            console.warn('Request with ID', id, 'not found');
-            id = undefined;
-          }
-          await setRequestTextBody(request);
-        } else {
-          REQUEST_MODEL.setValue('');
+        if (id != null && !requests.has(id)) {
+          console.warn('Request with ID', id, 'not found');
+          id = undefined;
         }
         set({ selectedRequestId: id });
+      },
+
+      setCurrentScriptType: (type) => {
+        set({ currentScriptType: type });
       },
 
       deleteRequest: async (id) => {

@@ -3,6 +3,9 @@ import xmlFormat from 'xml-formatter';
 import { TemplateVariableCompletionItemsProvider } from './template-variable-completion-items-provider';
 import { TemplateVariableHoverProvider } from './template-variable-hover-provider';
 import { TemplateVariableSemanticTokensProvider } from './template-variable-semantic-tokens-provider';
+import trufosDeclaration from '@/assets/trufos-scripting-api.d.ts?raw';
+
+languages.typescript.javascriptDefaults.addExtraLib(trufosDeclaration);
 
 export enum Language {
   JSON = 'json',

@@ -100,6 +100,9 @@ typings/
 # Electron-Forge
 out/
 
+# Auto-generated
+/src/renderer/assets/trufos-scripting-api.d.ts
+
 # Build output
 dist/
 

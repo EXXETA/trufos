@@ -4,6 +4,7 @@ import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { RequestBody, TrufosRequest } from 'shim/objects/request';
+import { ScriptType } from 'shim/scripting';
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
@@ -54,7 +55,13 @@ export interface CollectionStateActions {
    */
   formatRequestEditorText(): Promise<void>;
 
-  setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
+  setSelectedRequest(id?: TrufosRequest['id']): void;
+
+  /**
+   * Set the currently active script type.
+   * @param type The script type to switch to
+   */
+  setCurrentScriptType(type: ScriptType): void;
 
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 

@@ -1,4 +1,4 @@
-import { REQUEST_MODEL, RESPONSE_MODEL } from '@/lib/monaco/models';
+import { REQUEST_MODEL, RESPONSE_MODEL, SCRIPT_MODEL } from '@/lib/monaco/models';
 import { editor } from 'monaco-editor';
 
 export const DEFAULT_MONACO_OPTIONS: Partial<editor.IStandaloneEditorConstructionOptions> = {
@@ -25,6 +25,11 @@ export const RESPONSE_EDITOR_OPTIONS: Partial<editor.IStandaloneEditorConstructi
   ...DEFAULT_MONACO_OPTIONS,
   model: RESPONSE_MODEL,
   readOnly: true,
+};
+
+export const SCRIPT_EDITOR_OPTIONS: Partial<editor.IStandaloneEditorConstructionOptions> = {
+  ...DEFAULT_MONACO_OPTIONS,
+  model: SCRIPT_MODEL,
 };
 
 /**

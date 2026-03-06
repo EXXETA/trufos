@@ -28,6 +28,10 @@ vi.mock(
   })
 );
 
+vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab', () => ({
+  ScriptTab: () => <div>ScriptTab Content</div>,
+}));
+
 vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: (selector: any) =>
     selector({
