@@ -46,7 +46,7 @@ export const CollectionCreate: React.FC<{
   const [targetEntry, setTargetEntry] = useState<DroppedEntryInfo>();
   const [title, setTitle] = useState<string>('');
 
-  const isCreationDisabled = !title && !targetEntry?.name;
+  const isCreationDisabled = !title || !targetEntry?.path;
 
   const createCollection = async () => {
     try {
