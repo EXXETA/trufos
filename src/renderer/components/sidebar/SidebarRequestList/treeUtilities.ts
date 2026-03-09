@@ -2,6 +2,9 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 
+export type SortMode = 'default' | 'az-asc' | 'az-desc' | 'time-asc' | 'time-desc';
+export const SORT_CYCLE: SortMode[] = ['default', 'az-asc', 'az-desc', 'time-asc', 'time-desc'];
+
 export interface FlattenedItem {
   id: string;
   type: 'request' | 'folder';

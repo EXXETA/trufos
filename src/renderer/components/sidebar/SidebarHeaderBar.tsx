@@ -5,14 +5,12 @@ import { cn } from '@/lib/utils';
 import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/components/icons';
 import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown } from 'lucide-react';
 import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
-import { useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
 import { CollectionSettings } from '@/components/sidebar/CollectionSettings';
-
-type SortMode = 'default' | 'az-asc' | 'az-desc' | 'time-asc' | 'time-desc';
-const SORT_CYCLE: SortMode[] = ['default', 'az-asc', 'az-desc', 'time-asc', 'time-desc'];
+import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 
 const SortIcon = ({ mode }: { mode: SortMode }) => {
   switch (mode) {
@@ -32,14 +30,18 @@ const SortIcon = ({ mode }: { mode: SortMode }) => {
 export const SidebarHeaderBar = () => {
   const collection = useCollectionStore((state) => state.collection);
 
+  const sortMode = useCollectionStore((state) => state.sortMode);
+  const { setSortMode } = useCollectionActions();
+
   const [creationModalState, setCreationModalState] = useState({ isOpen: false, type: null });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [sortIndex, setSortIndex] = useState(0);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 
   const openModal = (type: 'request' | 'folder') => setCreationModalState({ isOpen: true, type });
-  const cycleSortMode = () => setSortIndex((i) => (i + 1) % SORT_CYCLE.length);
-  const sortMode = SORT_CYCLE[sortIndex];
+  const cycleSortMode = () => {
+    const currentIndex = SORT_CYCLE.indexOf(sortMode);
+    setSortMode(SORT_CYCLE[(currentIndex + 1) % SORT_CYCLE.length]);
+  };
 
   return (
     <>

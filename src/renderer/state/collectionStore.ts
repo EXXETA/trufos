@@ -17,6 +17,7 @@ import { createStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
+import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 
 const eventService = RendererEventService.instance;
 
@@ -41,6 +42,9 @@ interface CollectionState {
 
   /** The currently active script type in the script editor */
   currentScriptType: ScriptType;
+
+  /** The currently active sort mode for the sidebar */
+  sortMode: SortMode;
 }
 
 type CollectionStore = StoreApi<CollectionState & CollectionStateActions>;
@@ -86,6 +90,7 @@ export const createCollectionStore = (collection: Collection) => {
       collection,
       openFolders: new Set(),
       currentScriptType: ScriptType.PRE_REQUEST,
+      sortMode: 'default' as SortMode,
       ...buildCollectionItemMaps(collection),
 
       initialize: (collection) => {
@@ -203,6 +208,10 @@ export const createCollectionStore = (collection: Collection) => {
 
       setCurrentScriptType: (type) => {
         set({ currentScriptType: type });
+      },
+
+      setSortMode: (mode) => {
+        set({ sortMode: mode });
       },
 
       deleteRequest: async (id) => {
