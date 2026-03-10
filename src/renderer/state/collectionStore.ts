@@ -7,8 +7,7 @@ import { CollectionStateActions } from '@/state/interface/CollectionStateActions
 import { useVariableStore } from '@/state/variableStore';
 import { useEnvironmentStore } from '@/state/environmentStore';
 import { editor } from 'monaco-editor';
-import { isCollection, isRequest, TrufosObject } from 'shim/objects';
-import { AuthorizationInformation } from 'shim/objects';
+import { isCollection, isRequest, TrufosObject, AuthorizationInformation } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
@@ -103,11 +102,12 @@ export const createCollectionStore = (collection: Collection) => {
 
         // (re)set initial state
         set((state) => {
+          const isNewCollection = state.collection?.id !== collection.id;
           state.collection = collection;
           state.requests = requests;
           state.folders = folders;
 
-          if (state.collection?.id !== collection.id) {
+          if (isNewCollection) {
             state.selectedRequestId = undefined;
             state.openFolders = new Set();
           } else {
@@ -168,12 +168,8 @@ export const createCollectionStore = (collection: Collection) => {
           if (overwrite) {
             state.requests.set(state.selectedRequestId, updatedRequest as TrufosRequest);
           } else {
-            state.requests.set(state.selectedRequestId, {
-              ...request,
-              draft: true,
-              ...updatedRequest,
-            });
-            state.requestTimestamps.set(state.selectedRequestId, Date.now());
+            state.requests.set(state.selectedRequestId, { ...request, ...updatedRequest });
+            markDraft(state);
           }
         });
       },
@@ -262,65 +258,61 @@ export const createCollectionStore = (collection: Collection) => {
       addHeader: () =>
         set((state) => {
           selectHeaders(state).push({ key: '', value: '', isActive: false });
-          selectRequest(state).draft = true;
+          markDraft(state);
         }),
 
       updateHeader: (index, updatedHeader) =>
         set((state) => {
           const headers = selectHeaders(state);
           headers[index] = { ...headers[index], ...updatedHeader };
-          selectRequest(state).draft = true;
+          markDraft(state);
         }),
 
       deleteHeader: (index) =>
         set((state) => {
           selectHeaders(state).splice(index, 1);
-          selectRequest(state).draft = true;
+          markDraft(state);
         }),
 
       clearHeaders: () =>
         set((state) => {
           selectRequest(state).headers = [];
-          selectRequest(state).draft = true;
+          markDraft(state);
         }),
 
       addQueryParam: () =>
         set((state) => {
           selectQueryParams(state).push({ key: '', value: '', isActive: true });
-          selectRequest(state).draft = true;
+          markDraft(state);
         }),
 
       updateQueryParam: (index, updatedParam) =>
         set((state) => {
           const queryParam = selectQueryParam(state, index);
           selectQueryParams(state)[index] = { ...queryParam, ...updatedParam };
-          selectRequest(state).draft = true;
+          markDraft(state);
         }),
 
       deleteQueryParam: (index) =>
         set((state) => {
           selectQueryParams(state).splice(index, 1);
-          selectRequest(state).draft = true;
+          markDraft(state);
         }),
 
       clearQueryParams: () =>
         set((state) => {
           selectRequest(state).url.query = [];
-          selectRequest(state).draft = true;
+          markDraft(state);
         }),
 
       setQueryParamActive: (index, isActive) =>
         set((state) => {
           const queryParam = selectQueryParam(state, index);
           queryParam.isActive = isActive ?? !queryParam.isActive;
-          selectRequest(state).draft = true;
+          markDraft(state);
         }),
 
-      setDraftFlag: () =>
-        set((state) => {
-          selectRequest(state).draft = true;
-          state.requestTimestamps.set(state.selectedRequestId, Date.now());
-        }),
+      setDraftFlag: () => set(markDraft),
 
       addNewFolder: async (title?, parentId?) => {
         await eventService.saveFolder({
@@ -361,10 +353,7 @@ export const createCollectionStore = (collection: Collection) => {
 
         await eventService.rename(folder, title);
         set((state) => {
-          state.folders.set(id, {
-            ...folder,
-            title: title,
-          });
+          state.folders.set(id, { ...folder, title });
         });
       },
 
@@ -405,7 +394,7 @@ export const createCollectionStore = (collection: Collection) => {
           }
 
           if (isRequest(object)) {
-            object.draft = true;
+            markDraft(state);
           }
         });
       },
@@ -520,6 +509,11 @@ const selectObject = <T extends TrufosObject>(state: CollectionState, object: T)
     : isRequest(object)
       ? (selectRequest(state, object.id) as T)
       : (selectFolder(state, object.id) as T);
+
+const markDraft = (state: CollectionState) => {
+  selectRequest(state).draft = true;
+  state.requestTimestamps.set(state.selectedRequestId, Date.now());
+};
 
 export const selectHeaders = (state: CollectionState) => selectRequest(state).headers;
 export const selectQueryParams = (state: CollectionState) => selectRequest(state).url.query;
