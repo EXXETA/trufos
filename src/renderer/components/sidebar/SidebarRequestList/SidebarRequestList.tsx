@@ -14,7 +14,7 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
 import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
-import { flattenTree, removeChildrenOf, getProjection } from './treeUtilities';
+import { flattenTree, removeChildrenOf, getProjection, getMaxTimestamp } from './treeUtilities';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ export const SidebarRequestList = () => {
   const openFolders = useCollectionStore((state) => state.openFolders);
   const folders = useCollectionStore((state) => state.folders);
   const sortMode = useCollectionStore((state) => state.sortMode);
+  const requestTimestamps = useCollectionStore((state) => state.requestTimestamps);
   const { moveItem } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -40,8 +41,16 @@ export const SidebarRequestList = () => {
   const sortFn = useMemo((): ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number) | null => {
     if (sortMode === 'az-asc') return (a, b) => a.title.localeCompare(b.title);
     if (sortMode === 'az-desc') return (a, b) => b.title.localeCompare(a.title);
+    if (sortMode === 'time-desc')
+      return (a, b) =>
+        getMaxTimestamp(b, requestTimestamps, folders) -
+        getMaxTimestamp(a, requestTimestamps, folders);
+    if (sortMode === 'time-asc')
+      return (a, b) =>
+        getMaxTimestamp(a, requestTimestamps, folders) -
+        getMaxTimestamp(b, requestTimestamps, folders);
     return null;
-  }, [sortMode]);
+  }, [sortMode, requestTimestamps, folders]);
 
   const sortedChildren = useMemo(
     () => (sortFn ? [...children].sort(sortFn) : children),

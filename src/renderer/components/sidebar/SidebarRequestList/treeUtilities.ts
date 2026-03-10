@@ -2,6 +2,21 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 
+/**
+ * Returns the most recent save timestamp for an item.
+ * For folders, recursively returns the max timestamp of all descendants.
+ */
+export function getMaxTimestamp(
+  item: TrufosRequest | Folder,
+  timestamps: Map<string, number>,
+  folders: Map<string, Folder>
+): number {
+  if (item.type === 'request') return timestamps.get(item.id) ?? 0;
+  const folder = folders.get(item.id);
+  if (!folder || folder.children.length === 0) return 0;
+  return Math.max(...folder.children.map((child) => getMaxTimestamp(child, timestamps, folders)));
+}
+
 export type SortMode = 'default' | 'az-asc' | 'az-desc' | 'time-asc' | 'time-desc';
 export const SORT_CYCLE: SortMode[] = ['default', 'az-asc', 'az-desc', 'time-asc', 'time-desc'];
 

@@ -45,6 +45,9 @@ interface CollectionState {
 
   /** The currently active sort mode for the sidebar */
   sortMode: SortMode;
+
+  /** In-memory timestamps of when each request was last saved (not persisted) */
+  requestTimestamps: Map<TrufosRequest['id'], number>;
 }
 
 type CollectionStore = StoreApi<CollectionState & CollectionStateActions>;
@@ -91,6 +94,7 @@ export const createCollectionStore = (collection: Collection) => {
       openFolders: new Set(),
       currentScriptType: ScriptType.PRE_REQUEST,
       sortMode: 'default' as SortMode,
+      requestTimestamps: new Map(),
       ...buildCollectionItemMaps(collection),
 
       initialize: (collection) => {
@@ -169,6 +173,7 @@ export const createCollectionStore = (collection: Collection) => {
               draft: true,
               ...updatedRequest,
             });
+            state.requestTimestamps.set(state.selectedRequestId, Date.now());
           }
         });
       },
@@ -210,6 +215,12 @@ export const createCollectionStore = (collection: Collection) => {
 
       setSortMode: (mode) => {
         set({ sortMode: mode });
+      },
+
+      touchRequest: (id) => {
+        set((state) => {
+          state.requestTimestamps.set(id, Date.now());
+        });
       },
 
       deleteRequest: async (id) => {
@@ -308,6 +319,7 @@ export const createCollectionStore = (collection: Collection) => {
       setDraftFlag: () =>
         set((state) => {
           selectRequest(state).draft = true;
+          state.requestTimestamps.set(state.selectedRequestId, Date.now());
         }),
 
       addNewFolder: async (title?, parentId?) => {
