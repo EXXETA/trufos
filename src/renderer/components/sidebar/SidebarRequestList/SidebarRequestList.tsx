@@ -18,12 +18,15 @@ import { flattenTree, removeChildrenOf, getProjection } from './treeUtilities';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
+import { Folder } from 'shim/objects/folder';
+import { TrufosRequest } from 'shim/objects/request';
 
 export const SidebarRequestList = () => {
   const children = useCollectionStore((state) => state.collection.children);
   const collectionId = useCollectionStore((state) => state.collection.id);
   const openFolders = useCollectionStore((state) => state.openFolders);
   const folders = useCollectionStore((state) => state.folders);
+  const sortMode = useCollectionStore((state) => state.sortMode);
   const { moveItem } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -34,12 +37,32 @@ export const SidebarRequestList = () => {
     })
   );
 
+  const sortFn = useMemo((): ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number) | null => {
+    if (sortMode === 'az-asc') return (a, b) => a.title.localeCompare(b.title);
+    if (sortMode === 'az-desc') return (a, b) => b.title.localeCompare(a.title);
+    return null;
+  }, [sortMode]);
+
+  const sortedChildren = useMemo(
+    () => (sortFn ? [...children].sort(sortFn) : children),
+    [children, sortFn]
+  );
+
+  const sortedFolders = useMemo(() => {
+    if (!sortFn) return folders;
+    const result = new Map<string, Folder>();
+    folders.forEach((folder, id) => {
+      result.set(id, { ...folder, children: [...folder.children].sort(sortFn) });
+    });
+    return result;
+  }, [folders, sortFn]);
+
   // Flatten the tree for a single SortableContext.
   // We pass the folders Map so flattenTree reads up-to-date children
   // (immer may not propagate Map mutations into tree references).
   const flattenedItems = useMemo(
-    () => flattenTree(children, openFolders, collectionId, folders),
-    [children, openFolders, collectionId, folders]
+    () => flattenTree(sortedChildren, openFolders, collectionId, sortedFolders),
+    [sortedChildren, openFolders, collectionId, sortedFolders]
   );
 
   // During drag: remove children of the dragged folder so they travel with it
@@ -55,7 +78,7 @@ export const SidebarRequestList = () => {
   };
 
   const handleDragEnd = async ({ active, over, delta }: DragEndEvent) => {
-    if (!over || active.id === over.id) {
+    if (!over || active.id === over.id || sortMode !== 'default') {
       setActiveId(null);
       return;
     }
