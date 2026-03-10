@@ -20,7 +20,7 @@ export function ScriptTab() {
   const scriptType = useCollectionStore((state) => state.currentScriptType);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const request = useCollectionStore(selectRequest);
-  const { setCurrentScriptType } = useCollectionActions();
+  const { setCurrentScriptType, setDraftFlag } = useCollectionActions();
 
   // Load content when request or script type changes; save current content on cleanup.
   // React guarantees cleanup runs before the next effect, so the model
@@ -52,6 +52,7 @@ export function ScriptTab() {
           className="absolute h-full"
           language="javascript"
           options={SCRIPT_EDITOR_OPTIONS}
+          onChange={setDraftFlag}
         />
       </div>
     </div>
