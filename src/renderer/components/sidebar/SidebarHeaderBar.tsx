@@ -11,6 +11,15 @@ import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
 import { CollectionSettings } from '@/components/sidebar/CollectionSettings';
 import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/treeUtilities';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+const SORT_MODE_LABELS: Record<SortMode, string> = {
+  default: 'Manual order',
+  'az-asc': 'A → Z',
+  'az-desc': 'Z → A',
+  'time-desc': 'Recently modified',
+  'time-asc': 'Oldest modified',
+};
 
 const SortIcon = ({ mode }: { mode: SortMode }) => {
   switch (mode) {
@@ -51,16 +60,23 @@ export const SidebarHeaderBar = () => {
         <Divider />
 
         <div className="-mt-4 mb-2 flex w-full items-center justify-between">
-          <Button
-            className={cn(buttonClassName, 'text-text-secondary ml-3')}
-            variant={'ghost'}
-            type="button"
-            size={'icon'}
-            onClick={cycleSortMode}
-            aria-label="Sort collection"
-          >
-            <SortIcon mode={sortMode} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className={cn(buttonClassName, 'text-text-secondary ml-3')}
+                variant={'ghost'}
+                type="button"
+                size={'icon'}
+                onClick={cycleSortMode}
+                aria-label="Sort collection"
+              >
+                <SortIcon mode={sortMode} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">
+              {SORT_MODE_LABELS[sortMode]}
+            </TooltipContent>
+          </Tooltip>
 
           <div className="flex items-center gap-2">
             <Button

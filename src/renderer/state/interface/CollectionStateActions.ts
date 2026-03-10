@@ -68,6 +68,9 @@ export interface CollectionStateActions {
 
   setSortMode(mode: SortMode): void;
 
+  /** Mark a request as recently modified (in-memory only) */
+  touchRequest(id: TrufosRequest['id']): void;
+
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
   /**
