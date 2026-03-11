@@ -145,6 +145,4 @@ describe('FormData store actions', () => {
       expect(store.getState().requests.get(REQ_ID)!.draft).toBe(true);
     });
   });
-
-
 });
