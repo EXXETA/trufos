@@ -1,5 +1,8 @@
 import { cleanup } from '@testing-library/react';
 import { vi, afterEach } from 'vitest';
+import { enableMapSet } from 'immer';
+
+enableMapSet();
 
 /**
  * Global test setup for renderer tests
