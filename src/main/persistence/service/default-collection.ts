@@ -13,6 +13,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
   return {
     id: collectionId,
     type: 'collection',
+    lastModified: Date.now(),
     isDefault: true,
     title: 'Default Collection',
     dirPath,
@@ -34,6 +35,7 @@ export function generateDefaultCollection(dirPath: string): Collection {
         id: exampleRequestId,
         parentId: collectionId,
         type: 'request',
+        lastModified: Date.now(),
         title: 'Example Request',
         url: parseUrl('https://echo.free.beeceptor.com'),
         method: RequestMethod.GET,
@@ -48,12 +50,14 @@ export function generateDefaultCollection(dirPath: string): Collection {
         id: folderId,
         parentId: collectionId,
         type: 'folder',
+        lastModified: Date.now(),
         title: 'Example Folder',
         children: [
           {
             id: anotherRequestId,
             parentId: folderId,
             type: 'request',
+            lastModified: Date.now(),
             title: 'Another Request',
             url: parseUrl('https://exxeta.com/'),
             method: RequestMethod.GET,

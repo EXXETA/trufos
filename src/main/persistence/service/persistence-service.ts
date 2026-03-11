@@ -471,6 +471,7 @@ export class PersistenceService {
       id: null,
       title,
       type: 'collection',
+      lastModified: Date.now(),
       isDefault: false,
       dirPath,
       variables: {},
@@ -496,7 +497,9 @@ export class PersistenceService {
 
     this.idToPathMap.set(info.id, dirPath);
     const children = recursive ? await this.loadChildren(info.id, dirPath) : [];
-    return fromCollectionInfoFile(info, dirPath, children);
+
+    const lastModified = await this.getInfoFileModifactionTime(dirPath, type);
+    return fromCollectionInfoFile(info, lastModified, dirPath, children);
   }
 
   private async loadRequest(
@@ -509,7 +512,11 @@ export class PersistenceService {
     const info = await this.readInfoFile(draft ? this.getDraftDirPath(dirPath) : dirPath, type);
     this.idToPathMap.set(info.id, dirPath);
 
-    return fromRequestInfoFile(info, parentId, draft);
+    const lastModified = await this.getInfoFileModifactionTime(
+      draft ? this.getDraftDirPath(dirPath) : dirPath,
+      type
+    );
+    return fromRequestInfoFile(info, lastModified, parentId, draft);
   }
 
   private async loadFolder(parentId: string, dirPath: string): Promise<Folder> {
@@ -518,7 +525,17 @@ export class PersistenceService {
     this.idToPathMap.set(info.id, dirPath);
     const children = await this.loadChildren(info.id, dirPath);
 
-    return fromFolderInfoFile(info, parentId, children);
+    const lastModified = await this.getInfoFileModifactionTime(dirPath, type);
+    return fromFolderInfoFile(info, lastModified, parentId, children);
+  }
+
+  private async getInfoFileModifactionTime(
+    dirPath: string,
+    type: TrufosObject['type']
+  ): Promise<number> {
+    const infoFilePath = path.join(dirPath, this.getInfoFileName(type));
+    const stats = await fs.stat(infoFilePath);
+    return stats.mtimeMs;
   }
 
   private async loadChildren(
@@ -589,17 +606,27 @@ export class PersistenceService {
     }
   }
 
-  private readInfoFile(dirPath: string, type: Collection['type']): Promise<CollectionInfoFile>;
-  private readInfoFile(dirPath: string, type: Folder['type']): Promise<FolderInfoFile>;
-  private readInfoFile(dirPath: string, type: TrufosRequest['type']): Promise<RequestInfoFile>;
+  private readInfoFile(
+    dirPath: string,
+    type: Collection['type']
+  ): Promise<CollectionInfoFile & { lastModified: number }>;
+  private readInfoFile(
+    dirPath: string,
+    type: Folder['type']
+  ): Promise<FolderInfoFile & { lastModified: number }>;
+  private readInfoFile(
+    dirPath: string,
+    type: TrufosRequest['type']
+  ): Promise<RequestInfoFile & { lastModified: number }>;
 
   private async readInfoFile<T extends TrufosObject>(dirPath: string, type: T['type']) {
     const filePath = path.join(dirPath, this.getInfoFileName(type));
-    const info = assign(
-      JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile,
-      await this.loadSecrets(dirPath)
-    );
     try {
+      const fileStats = await fs.stat(filePath);
+      const info = assign(
+        JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile,
+        await this.loadSecrets(dirPath)
+      );
       const latest = await migrateInfoFile(info, type, filePath); // (potentially) migrate the info file to the latest version
       await InfoFile.parseAsync(latest); // validate the info file
       return latest;

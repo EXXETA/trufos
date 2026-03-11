@@ -25,22 +25,24 @@ export function toInfoFile(object: TrufosObject): InfoFile {
 
   switch (infoFile.type) {
     case 'request':
-      return omit(infoFile, 'type', 'parentId', 'draft');
+      return omit(infoFile, 'type', 'lastModified', 'parentId', 'draft');
     case 'collection':
-      return omit(infoFile, 'type', 'isDefault', 'dirPath', 'children');
+      return omit(infoFile, 'type', 'lastModified', 'isDefault', 'dirPath', 'children');
     case 'folder':
-      return omit(infoFile, 'type', 'parentId', 'children');
+      return omit(infoFile, 'type', 'lastModified', 'parentId', 'children');
   }
 }
 
 export function fromCollectionInfoFile(
   infoFile: CollectionInfoFile,
+  lastModified: number,
   dirPath: string,
   children: Collection['children']
 ): Collection {
   delete infoFile.version;
   return Object.assign(infoFile, {
     type: 'collection' as const,
+    lastModified,
     isDefault: SettingsService.DEFAULT_COLLECTION_DIR === dirPath,
     dirPath,
     children,
@@ -49,20 +51,22 @@ export function fromCollectionInfoFile(
 
 export function fromFolderInfoFile(
   infoFile: FolderInfoFile,
+  lastModified: number,
   parentId: Folder['parentId'],
   children: Folder['children']
 ): Folder {
   delete infoFile.version;
-  return Object.assign(infoFile, { type: 'folder' as const, parentId, children });
+  return Object.assign(infoFile, { type: 'folder' as const, lastModified, parentId, children });
 }
 
 export function fromRequestInfoFile(
   infoFile: RequestInfoFile,
+  lastModified: number,
   parentId: TrufosRequest['parentId'],
   draft: boolean
 ): TrufosRequest {
   delete infoFile.version;
-  return Object.assign(infoFile, { type: 'request' as const, parentId, draft });
+  return Object.assign(infoFile, { type: 'request' as const, lastModified, parentId, draft });
 }
 
 /**

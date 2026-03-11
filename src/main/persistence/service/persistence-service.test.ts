@@ -23,6 +23,7 @@ function getExampleCollection(): Collection {
   return {
     id: randomUUID(),
     type: 'collection',
+    lastModified: Date.now(),
     title: 'collection',
     isDefault: false,
     children: [],
@@ -36,6 +37,7 @@ function getExampleFolder(parentId: string): Folder {
   return {
     id: randomUUID(),
     type: 'folder',
+    lastModified: Date.now(),
     title: 'folder',
     children: [],
     parentId,
@@ -63,6 +65,7 @@ function getExampleRequest(parentId: string): TrufosRequest {
     url: { base: 'https://example.com', query: [] },
     headers: [],
     type: 'request',
+    lastModified: Date.now(),
     title: 'request',
     draft: false,
     parentId,
@@ -859,6 +862,14 @@ describe('PersistenceService', () => {
     expect(result.children).toHaveLength(1);
     result.children[0].id = folder.id;
     result.children[0].parentId = collection.id;
+
+    expect(result.children[0].lastModified).toBeTypeOf('number');
+    delete result.children[0].lastModified;
+    delete collection.children[0].lastModified;
+
+    expect(result.lastModified).toBeTypeOf('number');
+    delete result.lastModified;
+    delete collection.lastModified;
     expect(result).toEqual(collection);
   });
 
@@ -873,6 +884,9 @@ describe('PersistenceService', () => {
     const result = await persistenceService.loadCollection(collection.dirPath, false);
 
     // Assert
+    delete result.lastModified;
+    delete collection.lastModified;
+
     expect(result).toEqual(Object.assign(collection, { children: [] }));
   });
 
