@@ -606,23 +606,13 @@ export class PersistenceService {
     }
   }
 
-  private readInfoFile(
-    dirPath: string,
-    type: Collection['type']
-  ): Promise<CollectionInfoFile & { lastModified: number }>;
-  private readInfoFile(
-    dirPath: string,
-    type: Folder['type']
-  ): Promise<FolderInfoFile & { lastModified: number }>;
-  private readInfoFile(
-    dirPath: string,
-    type: TrufosRequest['type']
-  ): Promise<RequestInfoFile & { lastModified: number }>;
+  private readInfoFile(dirPath: string, type: Collection['type']): Promise<CollectionInfoFile>;
+  private readInfoFile(dirPath: string, type: Folder['type']): Promise<FolderInfoFile>;
+  private readInfoFile(dirPath: string, type: TrufosRequest['type']): Promise<RequestInfoFile>;
 
   private async readInfoFile<T extends TrufosObject>(dirPath: string, type: T['type']) {
     const filePath = path.join(dirPath, this.getInfoFileName(type));
     try {
-      const fileStats = await fs.stat(filePath);
       const info = assign(
         JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile,
         await this.loadSecrets(dirPath)

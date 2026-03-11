@@ -1,6 +1,6 @@
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import fs, { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { Collection } from 'shim/objects/collection';
@@ -8,7 +8,7 @@ import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateDefaultCollection } from './default-collection';
 import { sanitizeTitle } from 'shim/fs';
 import { CollectionInfoFile, RequestInfoFile, GIT_IGNORE_FILE_NAME } from './info-files/latest';
@@ -18,6 +18,7 @@ import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
 const persistenceService = PersistenceService.instance;
 
 const collectionDirPath = path.join(USER_DATA_DIR, 'default-collection');
+const FIXED_MTIME_MS = 1700000000000;
 
 function getExampleCollection(): Collection {
   return {
@@ -84,9 +85,20 @@ async function streamToString(stream: Readable) {
 
 describe('PersistenceService', () => {
   let collection: Collection;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(FIXED_MTIME_MS);
     collection = getExampleCollection();
     await mkdir(collection.dirPath, { recursive: true });
+    const originalStat = fs.stat.bind(fs);
+    vi.spyOn(fs, 'stat').mockImplementation(async (...args: Parameters<typeof fs.stat>) => {
+      const stats = await originalStat(...args);
+      return { ...stats, mtimeMs: FIXED_MTIME_MS } as Awaited<ReturnType<typeof fs.stat>>;
+    });
   });
 
   it('createDefaultCollectionIfNotExists() should not create if it already exists', async () => {
@@ -863,13 +875,8 @@ describe('PersistenceService', () => {
     result.children[0].id = folder.id;
     result.children[0].parentId = collection.id;
 
-    expect(result.children[0].lastModified).toBeTypeOf('number');
-    delete result.children[0].lastModified;
-    delete collection.children[0].lastModified;
-
-    expect(result.lastModified).toBeTypeOf('number');
-    delete result.lastModified;
-    delete collection.lastModified;
+    expect(result.children[0].lastModified).toBe(FIXED_MTIME_MS);
+    expect(result.lastModified).toBe(FIXED_MTIME_MS);
     expect(result).toEqual(collection);
   });
 
@@ -884,10 +891,8 @@ describe('PersistenceService', () => {
     const result = await persistenceService.loadCollection(collection.dirPath, false);
 
     // Assert
-    delete result.lastModified;
-    delete collection.lastModified;
-
-    expect(result).toEqual(Object.assign(collection, { children: [] }));
+    expect(result.lastModified).toBe(FIXED_MTIME_MS);
+    expect(result).toEqual({ ...collection, children: [] });
   });
 
   it('loadCollection() should merge ~secrets.json.bin with collection.json', async () => {
