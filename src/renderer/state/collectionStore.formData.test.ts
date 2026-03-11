@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createCollectionStore, selectFormDataFields } from './collectionStore';
+import { createCollectionStore } from './collectionStore';
 import { Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
@@ -68,12 +68,13 @@ describe('FormData store actions', () => {
   });
 
   describe('addFormDataField', () => {
-    it('adds a new text field with empty key', () => {
+    it('adds a new text field with empty key, active by default', () => {
       store.getState().addFormDataField();
 
       const fields = (store.getState().requests.get(REQ_ID)!.body as any).fields;
       expect(fields).toHaveLength(1);
       expect(fields[0].key).toBe('');
+      expect(fields[0].isActive).toBe(true);
       expect(fields[0].value.type).toBe(RequestBodyType.TEXT);
     });
 
@@ -145,51 +146,5 @@ describe('FormData store actions', () => {
     });
   });
 
-  describe('deleteSelectedFormDataFields', () => {
-    beforeEach(() => {
-      ['a', 'b', 'c', 'd'].forEach((key, i) => {
-        store.getState().addFormDataField();
-        store.getState().updateFormDataField(i, { key });
-      });
-    });
 
-    it('removes only the selected indices', () => {
-      store.getState().deleteSelectedFormDataFields(new Set([0, 2]));
-
-      const fields = (store.getState().requests.get(REQ_ID)!.body as any).fields;
-      expect(fields.map((f: any) => f.key)).toEqual(['b', 'd']);
-    });
-
-    it('removes all fields when all indices are selected', () => {
-      store.getState().deleteSelectedFormDataFields(new Set([0, 1, 2, 3]));
-
-      const fields = (store.getState().requests.get(REQ_ID)!.body as any).fields;
-      expect(fields).toHaveLength(0);
-    });
-
-    it('keeps all fields when selection is empty', () => {
-      store.getState().deleteSelectedFormDataFields(new Set());
-
-      const fields = (store.getState().requests.get(REQ_ID)!.body as any).fields;
-      expect(fields).toHaveLength(4);
-    });
-  });
-
-  describe('selectFormDataFields', () => {
-    it('returns empty array when body is not form-data', () => {
-      store.getState().setRequestBody({ type: RequestBodyType.TEXT, mimeType: 'text/plain' });
-
-      const fields = selectFormDataFields(store.getState() as any);
-      expect(fields).toEqual([]);
-    });
-
-    it('returns fields array when body is form-data', () => {
-      store.getState().addFormDataField();
-      store.getState().updateFormDataField(0, { key: 'foo' });
-
-      const fields = selectFormDataFields(store.getState() as any);
-      expect(fields).toHaveLength(1);
-      expect(fields[0].key).toBe('foo');
-    });
-  });
 });

@@ -42,10 +42,6 @@ export const BodyTab = () => {
     [setRequestBody]
   );
 
-  if (requestBody.type === RequestBodyType.FORM_DATA) {
-    return <FormDataTab />;
-  }
-
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="space-y-2 px-4 pt-2">
@@ -88,7 +84,9 @@ export const BodyTab = () => {
         <Divider />
       </div>
 
-      {requestBody.type === RequestBodyType.FILE ? (
+      {requestBody.type === RequestBodyType.FORM_DATA ? (
+        <FormDataTab />
+      ) : requestBody.type === RequestBodyType.FILE ? (
         <BodyTabFileInput className="px-4 pb-2" />
       ) : (
         <BodyTabTextInput className="pr-4" language={language} />

@@ -134,14 +134,13 @@ export interface CollectionStateActions {
    */
   setQueryParamActive(index: number, active?: boolean): void;
 
-  /**
-   * Set the draft flag on the currently selected request
-   */
   addFormDataField(): void;
   updateFormDataField(index: number, updatedField: Partial<FormDataField>): void;
   deleteFormDataField(index: number): void;
-  deleteSelectedFormDataFields(indices: Set<number>): void;
 
+  /**
+   * Set the draft flag on the currently selected request
+   */
   setDraftFlag(): void;
 
   /**

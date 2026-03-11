@@ -40,6 +40,7 @@ export const FormDataBody = z.object({
   fields: z.array(
     z.object({
       key: z.string(),
+      isActive: z.boolean(),
       value: z.discriminatedUnion('type', [TextBody, FileBody]),
     })
   ),
