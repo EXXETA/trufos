@@ -301,7 +301,10 @@ export const createCollectionStore = (collection: Collection) => {
         set((state) => {
           const body = selectRequest(state).body;
           if (body.type !== RequestBodyType.FORM_DATA) return;
-          body.fields.push({ key: '', value: { type: RequestBodyType.TEXT, mimeType: 'text/plain' } });
+          body.fields.push({
+            key: '',
+            value: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+          });
           selectRequest(state).draft = true;
         }),
 
