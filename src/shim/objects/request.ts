@@ -54,6 +54,7 @@ export const TrufosRequest = z.object({
   id: z.string(),
   parentId: z.string(),
   type: z.literal('request'),
+  lastModified: z.number(),
   title: z.string(),
   url: TrufosURL,
   method: z.enum(RequestMethod),
