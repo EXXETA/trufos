@@ -102,9 +102,10 @@ export const FormDataTab = () => {
                       />
                     </TableCell>
 
-                    <TableCell className="w-full break-all">
+                    <TableCell className="w-full max-w-0 overflow-hidden">
                       {isFileType ? (
                         <FilePicker
+                          className="w-full"
                           variant="compact"
                           controlled
                           entry={
