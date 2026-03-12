@@ -5,6 +5,7 @@ export const Folder = z.object({
   id: z.string(),
   parentId: z.string(),
   type: z.literal('folder'),
+  lastModified: z.number(),
   title: z.string(),
   get children() {
     return z.union([Folder, TrufosRequest]).array();

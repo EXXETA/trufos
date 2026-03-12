@@ -138,6 +138,7 @@ export const createCollectionStore = (collection: Collection) => {
           id: null,
           parentId: actualParentId,
           type: 'request',
+          lastModified: Date.now(),
           title: title ?? (Math.random() + 1).toString(36).substring(7),
           headers: [],
           body: {
@@ -181,6 +182,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       setRequestBodyMimeType(mimeType?: string) {
         const { body } = selectRequest(get());
+        if (body.type === RequestBodyType.FORM_DATA) return; // form data bodies don't have a mime type
         const { setRequestBody } = get();
         setRequestBody({ ...body, mimeType });
       },
@@ -312,6 +314,37 @@ export const createCollectionStore = (collection: Collection) => {
           markDraft(state);
         }),
 
+      addFormDataField: () =>
+        set((state) => {
+          const request = selectRequest(state);
+          const body = request.body;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          body.fields.push({
+            key: '',
+            isActive: true,
+            value: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+          });
+          request.draft = true;
+        }),
+
+      updateFormDataField: (index, updatedField) =>
+        set((state) => {
+          const request = selectRequest(state);
+          const body = request.body;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          body.fields[index] = { ...body.fields[index], ...updatedField };
+          request.draft = true;
+        }),
+
+      deleteFormDataField: (index) =>
+        set((state) => {
+          const request = selectRequest(state);
+          const body = request.body;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          body.fields.splice(index, 1);
+          request.draft = true;
+        }),
+
       setDraftFlag: () => set(markDraft),
 
       addNewFolder: async (title?, parentId?) => {
@@ -320,6 +353,7 @@ export const createCollectionStore = (collection: Collection) => {
           parentId: parentId ?? get().collection.id,
           type: 'folder',
           title: title ?? (Math.random() + 1).toString(36).substring(7),
+          lastModified: Date.now(),
           children: [],
         });
 
@@ -517,6 +551,7 @@ const markDraft = (state: CollectionState) => {
 
 export const selectHeaders = (state: CollectionState) => selectRequest(state).headers;
 export const selectQueryParams = (state: CollectionState) => selectRequest(state).url.query;
+
 const selectQueryParam = (state: CollectionState, index: number) =>
   selectQueryParams(state)?.[index];
 export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) =>

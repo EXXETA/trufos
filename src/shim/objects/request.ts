@@ -40,6 +40,7 @@ export const FormDataBody = z.object({
   fields: z.array(
     z.object({
       key: z.string(),
+      isActive: z.boolean(),
       value: z.discriminatedUnion('type', [TextBody, FileBody]),
     })
   ),
@@ -53,6 +54,7 @@ export const TrufosRequest = z.object({
   id: z.string(),
   parentId: z.string(),
   type: z.literal('request'),
+  lastModified: z.number(),
   title: z.string(),
   url: TrufosURL,
   method: z.enum(RequestMethod),

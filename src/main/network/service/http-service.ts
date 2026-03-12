@@ -179,8 +179,6 @@ export class HttpService {
           return body.mimeType ?? 'text/plain';
         case RequestBodyType.FILE:
           return body.mimeType ?? 'application/octet-stream';
-        case RequestBodyType.FORM_DATA:
-          return 'multipart/form-data';
       }
     }
   }
