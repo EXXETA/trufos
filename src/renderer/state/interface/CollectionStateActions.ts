@@ -3,8 +3,10 @@ import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
-import { RequestBody, TrufosRequest } from 'shim/objects/request';
+import { FormDataBody, RequestBody, TrufosRequest } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
+
+type FormDataField = FormDataBody['fields'][number];
 
 export interface CollectionStateActions {
   initialize(collection: Collection): void;
@@ -131,6 +133,10 @@ export interface CollectionStateActions {
    * @param active OPTIONAL: If set, the query parameter will be set to this active state instead of toggling it
    */
   setQueryParamActive(index: number, active?: boolean): void;
+
+  addFormDataField(): void;
+  updateFormDataField(index: number, updatedField: Partial<FormDataField>): void;
+  deleteFormDataField(index: number): void;
 
   /**
    * Set the draft flag on the currently selected request

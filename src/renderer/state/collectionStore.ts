@@ -175,6 +175,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       setRequestBodyMimeType(mimeType?: string) {
         const { body } = selectRequest(get());
+        if (body.type !== RequestBodyType.TEXT) return;
         const { setRequestBody } = get();
         setRequestBody({ ...body, mimeType });
       },
@@ -294,6 +295,37 @@ export const createCollectionStore = (collection: Collection) => {
           const queryParam = selectQueryParam(state, index);
           queryParam.isActive = isActive ?? !queryParam.isActive;
           selectRequest(state).draft = true;
+        }),
+
+      addFormDataField: () =>
+        set((state) => {
+          const request = selectRequest(state);
+          const body = request.body;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          body.fields.push({
+            key: '',
+            isActive: true,
+            value: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+          });
+          request.draft = true;
+        }),
+
+      updateFormDataField: (index, updatedField) =>
+        set((state) => {
+          const request = selectRequest(state);
+          const body = request.body;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          body.fields[index] = { ...body.fields[index], ...updatedField };
+          request.draft = true;
+        }),
+
+      deleteFormDataField: (index) =>
+        set((state) => {
+          const request = selectRequest(state);
+          const body = request.body;
+          if (body.type !== RequestBodyType.FORM_DATA) return;
+          body.fields.splice(index, 1);
+          request.draft = true;
         }),
 
       setDraftFlag: () =>
@@ -502,6 +534,7 @@ const selectObject = <T extends TrufosObject>(state: CollectionState, object: T)
 
 export const selectHeaders = (state: CollectionState) => selectRequest(state).headers;
 export const selectQueryParams = (state: CollectionState) => selectRequest(state).url.query;
+
 const selectQueryParam = (state: CollectionState, index: number) =>
   selectQueryParams(state)?.[index];
 export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) =>
