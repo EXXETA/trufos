@@ -38,7 +38,9 @@ export const SidebarRequestList = () => {
     })
   );
 
-  const sortFn = useMemo((): ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number) | null => {
+  const sortFn = useMemo(():
+    | ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number)
+    | null => {
     if (sortMode === 'az-asc') return (a, b) => a.title.localeCompare(b.title);
     if (sortMode === 'az-desc') return (a, b) => b.title.localeCompare(a.title);
     if (sortMode === 'time-desc')
