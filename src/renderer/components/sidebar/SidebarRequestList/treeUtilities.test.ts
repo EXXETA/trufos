@@ -3,24 +3,30 @@ import { getMaxTimestamp } from './treeUtilities';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 
-const makeRequest = (id: string): TrufosRequest =>
+const makeRequest = (id: string, lastModified = 0): TrufosRequest =>
   ({
     id,
     type: 'request',
     parentId: 'parent',
     title: id,
+    lastModified,
     url: { base: '', query: [] },
     method: 'GET',
     headers: [],
     body: { type: 'text', mimeType: 'text/plain' },
   }) as unknown as TrufosRequest;
 
-const makeFolder = (id: string, children: (TrufosRequest | Folder)[] = []): Folder =>
+const makeFolder = (
+  id: string,
+  children: (TrufosRequest | Folder)[] = [],
+  lastModified = 0
+): Folder =>
   ({
     id,
     type: 'folder',
     parentId: 'parent',
     title: id,
+    lastModified,
     children,
   }) as unknown as Folder;
 
