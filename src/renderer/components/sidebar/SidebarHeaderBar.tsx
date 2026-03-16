@@ -73,7 +73,10 @@ export const SidebarHeaderBar = () => {
                 <SortIcon mode={sortMode} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right" className="text-xs">
+            <TooltipContent
+              side="right"
+              className="bg-sidebar-accent text-sidebar-accent-foreground border-0 px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
+            >
               {SORT_MODE_LABELS[sortMode]}
             </TooltipContent>
           </Tooltip>
