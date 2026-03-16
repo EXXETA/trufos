@@ -176,10 +176,22 @@ export class PersistenceService {
       newDirPath = object.dirPath;
     }
 
-    // Persist new title to the info file so that a reload reflects the change.
-    // We only need to update the primary info file. Draft info files (hidden) represent unsaved changes and
-    // will be updated when they are explicitly saved.
+    // Persist new title to the primary info file so that a reload reflects the change.
     await this.saveInfoFile(object, newDirPath);
+
+    // Also update the title in the draft info file if one exists, so the rename is reflected
+    // after a restart even when the request has unsaved changes. Only the title field is patched
+    // to preserve all other draft changes (body, headers, URL, etc.).
+    if (isRequest(object)) {
+      const draftInfoPath = path.join(
+        this.getDraftDirPath(newDirPath),
+        this.getInfoFileName('request')
+      );
+      if (await exists(draftInfoPath)) {
+        const draftInfo = JSON.parse(await fs.readFile(draftInfoPath, 'utf8'));
+        await this.writeJson(draftInfoPath, { ...draftInfo, title });
+      }
+    }
   }
 
   /**
