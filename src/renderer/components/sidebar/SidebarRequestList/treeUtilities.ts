@@ -11,10 +11,13 @@ export function getMaxTimestamp(
   timestamps: Map<string, number>,
   folders: Map<string, Folder>
 ): number {
-  if (item.type === 'request') return timestamps.get(item.id) ?? 0;
+  if (item.type === 'request') return timestamps.get(item.id) ?? item.lastModified;
   const folder = folders.get(item.id);
-  if (!folder || folder.children.length === 0) return 0;
-  return Math.max(...folder.children.map((child) => getMaxTimestamp(child, timestamps, folders)));
+  if (!folder || folder.children.length === 0) return item.lastModified;
+  return Math.max(
+    item.lastModified,
+    ...folder.children.map((child) => getMaxTimestamp(child, timestamps, folders))
+  );
 }
 
 export type SortMode = 'default' | 'az-asc' | 'az-desc' | 'time-asc' | 'time-desc';
