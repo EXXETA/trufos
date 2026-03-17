@@ -1,5 +1,5 @@
 import { Folder } from 'shim/objects/folder';
-import { SidebarMenuSubButton } from '@/components/ui/sidebar';
+import { SidebarGroup, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { FolderDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/FolderDropdown';
 import { selectFolder, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { cn } from '@/lib/utils';
@@ -42,40 +42,47 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="relative">
-      <SidebarMenuSubButton
-        {...listeners}
-        className={cn(
-          'sidebar-request-list-item',
-          'flex',
-          'items-center',
-          'py-2',
-          'px-5',
-          'cursor-grab active:cursor-grabbing',
-          'gap-1',
-          'hover:bg-[#333333]',
-          getIndentation(depth)
-        )}
-        onClick={toggleFolder}
-      >
-        <div
+      <SidebarGroup className={cn('overflow-x-hidden p-0')}>
+        <SidebarMenuSubButton
+          {...listeners}
+          onClick={toggleFolder}
           className={cn(
-            'flex h-6 w-6 items-center justify-center',
-            'transition-transform duration-300 ease-in-out',
-            isFolderOpen ? 'rotate-0' : 'rotate-270'
+            'sidebar-request-list-item',
+            'group',
+            'flex',
+            'items-center',
+            'py-2',
+            'px-5',
+            'cursor-grab active:cursor-grabbing',
+            'gap-1',
+            'hover:[background-color:#333333]',
+            getIndentation(depth)
           )}
         >
-          <SmallArrow size={24} />
-        </div>
+          <div
+            className={cn(
+              'h-6 w-6',
+              'transition-transform duration-300 ease-in-out',
+              isFolderOpen ? 'rotate-0' : 'rotate-270'
+            )}
+          >
+            <SmallArrow size={24} />
+          </div>
 
-        <div className="flex items-center gap-1">
-          <FolderIcon size={16} />
-          <span>{folder.title}</span>
-        </div>
+          <div className="flex min-w-0 flex-1 items-center gap-1">
+            <FolderIcon size={16} />
+            <span className="flex-1 truncate">{folder.title}</span>
+          </div>
 
-        <div onClick={stopPropagation} onPointerDown={stopPropagation}>
-          <FolderDropdown folder={folder} />
-        </div>
-      </SidebarMenuSubButton>
+          <div
+            className="sidebar-row-menu flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+            onClick={stopPropagation}
+            onPointerDown={stopPropagation}
+          >
+            <FolderDropdown folder={folder} />
+          </div>
+        </SidebarMenuSubButton>
+      </SidebarGroup>
     </div>
   );
 };
