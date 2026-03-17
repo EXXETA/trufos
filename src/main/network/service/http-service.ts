@@ -3,6 +3,7 @@ import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { pipeline } from 'node:stream/promises';
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
@@ -36,6 +37,19 @@ export class HttpService {
 
   constructor(dispatcher?: Dispatcher) {
     this._dispatcher = dispatcher ?? new Agent({ connect: { rejectUnauthorized: false } }); // allow self-signed certificates
+  }
+
+  private async buildDispatcher(): Promise<Dispatcher> {
+    const cert = environmentService.currentCollection.clientCertificate;
+    if (cert == null) return this._dispatcher!;
+    return new Agent({
+      connect: {
+        rejectUnauthorized: false,
+        cert: await fsp.readFile(cert.certPath),
+        key: await fsp.readFile(cert.keyPath),
+        ca: cert.caPath ? await fsp.readFile(cert.caPath) : undefined,
+      },
+    });
   }
 
   /**
@@ -72,7 +86,7 @@ export class HttpService {
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
-      dispatcher: this._dispatcher,
+      dispatcher: await this.buildDispatcher(),
       method: request.method,
       headers: {
         ['content-type']: this.getContentType(request.body),

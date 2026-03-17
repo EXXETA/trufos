@@ -12,6 +12,7 @@ import type {
   IEventService,
   ImportStrategy,
 } from 'shim';
+import type { ClientCertificate } from 'shim/objects/collection';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { ImportService } from 'main/import/service/import-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
@@ -150,6 +151,11 @@ export class MainEventService implements IEventService {
 
   async setEnvironmentVariables(environmentVariables: EnvironmentMap) {
     environmentService.setEnvironmentVariables(environmentVariables);
+    await persistenceService.saveCollection(environmentService.currentCollection);
+  }
+
+  async setClientCertificate(clientCertificate: ClientCertificate | null) {
+    environmentService.setClientCertificate(clientCertificate);
     await persistenceService.saveCollection(environmentService.currentCollection);
   }
 
