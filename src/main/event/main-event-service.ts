@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain } from 'electron';
+import { app, dialog, ipcMain, WebContents } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
 import type {
@@ -70,6 +70,7 @@ function toError(error: unknown) {
  */
 export class MainEventService implements IEventService {
   public static readonly instance = new MainEventService();
+  public webContents: WebContents | null = null;
 
   private constructor() {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
@@ -92,7 +93,24 @@ export class MainEventService implements IEventService {
   }
 
   async sendRequest(request: TrufosRequest) {
-    return await HttpService.instance.fetchAsync(request);
+    const { variables, environments } = environmentService.currentCollection;
+    const before = JSON.stringify({ variables, environments });
+
+    const response = await HttpService.instance.fetchAsync(request);
+
+    const { variables: newVariables, environments: newEnvironments } =
+      environmentService.currentCollection;
+    const after = JSON.stringify({ variables: newVariables, environments: newEnvironments });
+
+    if (before !== after) {
+      await persistenceService.saveCollection(environmentService.currentCollection);
+      this.webContents?.send('collection-variables-updated', {
+        variables: newVariables,
+        environments: newEnvironments,
+      });
+    }
+
+    return response;
   }
 
   async saveRequest(request: TrufosRequest, textBody?: string) {
