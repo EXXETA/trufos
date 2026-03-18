@@ -76,9 +76,9 @@ export const VariableEditor = memo<VariableEditorProps>(
     };
 
     return (
-      <>
+      <div className="w-full min-w-0">
         <Button
-          className="mx-6 flex h-9 items-center gap-2 text-[#e8e8e8] hover:bg-transparent hover:text-white"
+          className="text-text-primary hover:text-text-secondary flex h-9 items-center gap-2 pl-0 hover:bg-transparent"
           size="sm"
           variant="ghost"
           onClick={add}
@@ -87,68 +87,66 @@ export const VariableEditor = memo<VariableEditorProps>(
           <span className="text-[15px] font-medium">Add Variable</span>
         </Button>
 
-        <div className="mx-6 mt-1 border-b border-[#2a2a2a]" />
+        <Divider className="mb-4" />
 
-        <div className="mx-6 mt-4 overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111111]">
-          <Table className="w-full table-auto border-separate border-spacing-0 border-none">
-            <TableHeader className="bg-[#161616] [&_tr]:border-0">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-1/5 rounded-tl-xl border-r border-b border-[#2a2a2a] py-3 text-[14px] font-medium text-[#ffffff]">
+        <div className="border-border bg-background mt-1 overflow-hidden rounded-xl border">
+          <Table className="w-full table-auto border-collapse">
+            <TableHeader className="[&_tr]:border-0">
+              <TableRow className="hover:bg-background">
+                <TableHead className="text-text-primary w-1/5 border-r border-b py-3 text-[14px] font-medium">
                   Key
                 </TableHead>
-                <TableHead className="w-1/4 border-r border-b border-[#2a2a2a] text-[14px] font-medium text-[#ffffff]">
+                <TableHead className="text-text-primary w-1/4 border-r border-b text-[14px] font-medium">
                   Value
                 </TableHead>
-                <TableHead className="w-auto border-r border-b border-[#2a2a2a] text-[14px] font-medium text-[#ffffff]">
+                <TableHead className="text-text-primary w-auto border-r border-b text-[14px] font-medium">
                   Description
                 </TableHead>
-                <TableHead className="w-24 border-r border-b border-[#2a2a2a] text-center text-[14px] font-medium text-[#ffffff]">
+                <TableHead className="text-text-primary w-24 border-r border-b text-center text-[14px] font-medium">
                   Secret
                 </TableHead>
-                <TableHead className="w-14 rounded-tr-xl border-b border-[#2a2a2a]">
-                  {/* Action Column */}
-                </TableHead>
+                <TableHead className="w-14 border-b">{/* Action Column */}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {variables.map((variable, index) => (
                 <TableRow
                   key={index}
-                  className="border-b border-[#2a2a2a] transition-colors last:border-0 hover:bg-[#1a1a1a]"
+                  className="hover:bg-background-secondary border-b transition-colors last:border-0"
                 >
-                  <TableCell className="border-r border-[#2a2a2a] px-4 py-3">
+                  <TableCell className="border-r px-4">
                     <input
                       type="text"
                       value={variable.key}
                       className={cn(
-                        'w-full bg-transparent text-[14px] text-[#e8e8e8] outline-none placeholder:text-[#9a9a9a]',
-                        invalidVariableKeys.has(variable.key) && 'text-red-500'
+                        'placeholder:text-text-secondary text-text-primary w-full bg-transparent py-3 text-[14px] outline-none',
+                        invalidVariableKeys.has(variable.key) && 'text-destructive'
                       )}
                       placeholder="Enter variable key"
                       onChange={(e) => update(index, { key: e.target.value })}
                     />
                   </TableCell>
-                  <TableCell className="border-r border-[#2a2a2a] px-4">
+                  <TableCell className="border-r px-4">
                     <SecretInput
                       secret={variable.secret}
                       value={variable.value}
-                      className="w-full border-none bg-transparent text-[14px] text-[#e8e8e8] outline-none placeholder:text-[#9a9a9a]"
+                      className="placeholder:text-text-secondary text-text-primary w-full border-none bg-transparent py-3 text-[14px] outline-none"
                       placeholder="Enter variable value"
                       onChange={(e) => update(index, { value: e.target.value })}
                     />
                   </TableCell>
-                  <TableCell className="border-r border-[#2a2a2a] px-4">
+                  <TableCell className="border-r px-4">
                     <input
                       type="text"
                       value={variable.description}
-                      className="w-full bg-transparent text-[14px] text-[#a8a8a8] outline-none placeholder:text-[#9a9a9a]"
+                      className="text-text-primary placeholder:text-text-secondary w-full bg-transparent py-3 text-[14px] outline-none"
                       placeholder="Enter variable description"
                       onChange={(e) => update(index, { description: e.target.value })}
                     />
                   </TableCell>
-                  <TableCell className="border-r border-[#2a2a2a] text-center">
+                  <TableCell className="border-r py-3 text-center">
                     <Checkbox
-                      className="cursor-pointer border-[#6a6a6a] transition-colors hover:border-white data-[state=checked]:border-white data-[state=checked]:bg-white"
+                      className="border-text-secondary hover:border-text-primary data-[state=checked]:border-text-secondary data-[state=checked]:bg-text-secondary cursor-pointer transition-colors"
                       checked={variable.secret}
                       onCheckedChange={(checked) => update(index, { secret: Boolean(checked) })}
                     />
@@ -157,7 +155,7 @@ export const VariableEditor = memo<VariableEditorProps>(
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-[#cfcfcf] transition-colors hover:bg-transparent hover:text-[#ff6b6b]"
+                      className="text-text-secondary hover:text-destructive transition-colors hover:bg-transparent"
                       onClick={() => remove(index)}
                     >
                       <Trash2 size={18} />
@@ -168,7 +166,7 @@ export const VariableEditor = memo<VariableEditorProps>(
             </TableBody>
           </Table>
         </div>
-      </>
+      </div>
     );
   }
 );

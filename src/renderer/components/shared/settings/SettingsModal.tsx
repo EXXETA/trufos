@@ -66,25 +66,25 @@ export const SettingsModal = () => {
         <FiSettings className="ml-2 text-xl" />
       </DialogTrigger>
 
-      <DialogContent className="flex h-[82vh] max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#1a1a1a] p-0 text-white shadow-[0_20px_80px_rgba(0,0,0,0.65)]">
+      <DialogContent className="border-border bg-background-secondary text-foreground flex h-[82vh] max-w-5xl flex-col overflow-hidden border p-0 shadow-lg">
         <Tabs defaultValue="variables" className="flex min-h-0 flex-1 flex-col">
           {/* Header - Fixed */}
-          <div className="shrink-0 border-b border-[#2a2a2a] bg-[#222222] px-6 pt-5 pb-3">
+          <div className="border-border bg-background-secondary shrink-0 border-b px-6 pt-5 pb-3">
             <DialogHeader>
-              <DialogTitle className="text-[20px] font-bold text-white">
+              <DialogTitle className="text-foreground text-[20px] font-bold">
                 Collection Settings
               </DialogTitle>
             </DialogHeader>
             <TabsList className="mt-5 flex gap-3 bg-transparent p-0">
               <TabsTrigger
                 value="variables"
-                className="rounded-full px-5 py-[8px] text-[14px] font-medium text-[#999999] transition-all data-[state=active]:bg-[#163840] data-[state=active]:text-[#50daf0] data-[state=active]:shadow-none"
+                className="text-muted-foreground data-[state=active]:bg-accent-tertiary data-[state=active]:text-accent-primary rounded-full px-4 py-2.5 text-[14px] font-medium transition-all data-[state=active]:shadow-none"
               >
                 Variables
               </TabsTrigger>
               <TabsTrigger
                 value="environments"
-                className="rounded-full px-5 py-[8px] text-[14px] font-medium text-[#999999] transition-all data-[state=active]:bg-[#163840] data-[state=active]:text-[#50daf0] data-[state=active]:shadow-none"
+                className="text-muted-foreground data-[state=active]:bg-accent-tertiary data-[state=active]:text-accent-primary rounded-full px-4 py-2.5 text-[14px] font-medium transition-all data-[state=active]:shadow-none"
               >
                 Environments
               </TabsTrigger>
@@ -94,7 +94,7 @@ export const SettingsModal = () => {
           {/* Tabs - Takes remaining space */}
 
           <TabsContent value="variables" className="m-0 min-h-0 flex-1 p-0">
-            <div className="h-full overflow-y-auto bg-[#111111] pt-4 pb-6">
+            <div className="bg-background-primary h-full overflow-x-hidden overflow-y-auto px-6 pt-4 pb-6">
               <VariableEditor
                 variables={editorVariables}
                 onValidChange={setValid}
@@ -104,7 +104,7 @@ export const SettingsModal = () => {
           </TabsContent>
 
           <TabsContent value="environments" className="m-0 min-h-0 flex-1 p-0">
-            <div className="h-full overflow-y-auto bg-[#111111] pt-4 pb-6">
+            <div className="bg-background-primary h-full overflow-x-hidden overflow-y-auto px-6 pt-4 pb-6">
               <EnvironmentEditor
                 environments={editorEnvironments}
                 selectedEnvironment={editorSelectedEnvironment}
@@ -114,11 +114,11 @@ export const SettingsModal = () => {
               />
             </div>
           </TabsContent>
-          <div className="flex shrink-0 justify-end bg-[#111111] px-6 pt-4 pb-6">
+          <div className="bg-background-primary flex shrink-0 justify-end px-6 pt-4 pb-6">
             <Button
               onClick={save}
               disabled={!isOverallValid}
-              className="h-[50px] rounded-full bg-[#7cc8df] px-5 text-[14px] font-semibold text-black shadow-sm transition-all hover:bg-[#8fd5ea] active:scale-[0.98] disabled:bg-[#2a2a2a] disabled:text-[#666]"
+              className="h-12.5 px-5 text-[14px] font-semibold transition-all active:scale-[0.98]"
             >
               Save
             </Button>

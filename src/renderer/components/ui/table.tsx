@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
+    <div className="relative w-full overflow-hidden">
       <table
         ref={ref}
         className={cn('w-full caption-bottom border-collapse text-sm', className)}
@@ -29,7 +29,7 @@ const TableBody = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tbody
     ref={ref}
-    className={cn('bg-[#111111] [&_tr:last-child]:border-0', className)}
+    className={cn('bg-background [&_tr:last-child]:border-0', className)}
     {...props}
   />
 ));
@@ -41,7 +41,10 @@ const TableFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tfoot
     ref={ref}
-    className={cn('border-t bg-[#111111] font-medium last:[&>tr]:border-b-0', className)}
+    className={cn(
+      'border-border bg-background-primary border-t font-medium last:[&>tr]:border-b-0',
+      className
+    )}
     {...props}
   />
 ));
@@ -52,7 +55,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
     <tr
       ref={ref}
       className={cn(
-        'bg-[#111111] transition-colors duration-100 hover:bg-[#151515] data-[state=selected]:bg-[#191919]',
+        'bg-background hover:bg-background-secondary data-[state=selected]:bg-background-secondary transition-colors duration-100',
         className
       )}
       {...props}
@@ -68,7 +71,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      'h-11 border-b bg-[#111111] px-4 text-left align-middle font-semibold text-[#e6e6e6]',
+      'border-border bg-background text-foreground h-11 border-b px-4 text-left align-middle font-semibold',
       className
     )}
     {...props}
@@ -83,7 +86,7 @@ const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      'border-b border-[#2a2a2a] bg-[#111111] px-4 py-3 align-middle break-all text-[#e8e8e8] [&:not(:last-child)]:border-r',
+      'border-border bg-background text-secondary border-r-border border-b px-4 py-3 align-middle break-all not-last:border-r',
       className
     )}
     {...props}
