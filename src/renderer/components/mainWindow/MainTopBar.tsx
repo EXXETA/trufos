@@ -20,7 +20,7 @@ const eventService = RendererEventService.instance;
 export function MainTopBar() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const { updateRequest, touchRequest } = useCollectionActions();
+  const { updateRequest } = useCollectionActions();
   const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest);
   const currentScriptType = useCollectionStore((state) => state.currentScriptType);
@@ -37,7 +37,6 @@ export function MainTopBar() {
           eventService.saveRequest(request, REQUEST_MODEL.getValue()),
           eventService.saveScript(request, currentScriptType, SCRIPT_MODEL.getValue()),
         ]);
-        touchRequest(request.id);
 
         const response = await httpService.sendRequest(request);
         addResponse(request.id, response);
@@ -57,7 +56,6 @@ export function MainTopBar() {
       // save request draft with the current editor content
       console.info('Saving request:', request);
       await eventService.saveRequest(request, REQUEST_MODEL.getValue());
-      touchRequest(request.id);
 
       // override existing request with the saved draft
       updateRequest(await eventService.saveChanges(request), true);

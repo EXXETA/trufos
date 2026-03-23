@@ -59,7 +59,7 @@ export const SidebarRequestList = () => {
   }, [sortMode, requests, folders]);
 
   const sortedChildren = useMemo(
-    () => (sortFn ? [...children].sort(sortFn) : children),
+    () => (sortFn ? children.toSorted(sortFn) : children),
     [children, sortFn]
   );
 

@@ -211,13 +211,6 @@ export const createCollectionStore = (collection: Collection) => {
         set({ sortMode: mode });
       },
 
-      touchRequest: (id) => {
-        set((state) => {
-          const request = state.requests.get(id);
-          if (request) request.lastModified = Date.now();
-        });
-      },
-
       deleteRequest: async (id) => {
         await eventService.deleteObject(selectRequest(get(), id));
 
