@@ -14,22 +14,22 @@ import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/tr
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const SORT_MODE_LABELS: Record<SortMode, string> = {
-  default: 'Manual order',
-  'az-asc': 'A → Z',
-  'az-desc': 'Z → A',
-  'time-desc': 'Recently modified',
-  'time-asc': 'Oldest modified',
+  [SortMode.DEFAULT]: 'Manual order',
+  [SortMode.AZ_ASC]: 'A → Z',
+  [SortMode.AZ_DESC]: 'Z → A',
+  [SortMode.TIME_DESC]: 'Recently modified',
+  [SortMode.TIME_ASC]: 'Oldest modified',
 };
 
 const SortIcon = ({ mode }: { mode: SortMode }) => {
   switch (mode) {
-    case 'az-asc':
+    case SortMode.AZ_ASC:
       return <ArrowUpAZ size={18} />;
-    case 'az-desc':
+    case SortMode.AZ_DESC:
       return <ArrowDownAZ size={18} />;
-    case 'time-asc':
+    case SortMode.TIME_ASC:
       return <ClockArrowUp size={18} />;
-    case 'time-desc':
+    case SortMode.TIME_DESC:
       return <ClockArrowDown size={18} />;
     default:
       return <SwapIcon size={16} viewBox="9 7 15 18" />;

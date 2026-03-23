@@ -61,7 +61,7 @@ const buildStore = () => {
 };
 
 describe('markDraft', () => {
-  it('setDraftFlag sets draft and updates requestTimestamps', () => {
+  it('setDraftFlag sets draft and updates lastModified', () => {
     const store = buildStore();
     const before = Date.now();
 
@@ -69,10 +69,10 @@ describe('markDraft', () => {
 
     const state = store.getState();
     expect(state.requests.get(REQ_ID).draft).toBe(true);
-    expect(state.requestTimestamps.get(REQ_ID)).toBeGreaterThanOrEqual(before);
+    expect(state.requests.get(REQ_ID).lastModified).toBeGreaterThanOrEqual(before);
   });
 
-  it('updateHeader sets draft and updates requestTimestamps', () => {
+  it('updateHeader sets draft and updates lastModified', () => {
     const store = buildStore();
     store.getState().addHeader();
     const before = Date.now();
@@ -81,10 +81,10 @@ describe('markDraft', () => {
 
     const state = store.getState();
     expect(state.requests.get(REQ_ID).draft).toBe(true);
-    expect(state.requestTimestamps.get(REQ_ID)).toBeGreaterThanOrEqual(before);
+    expect(state.requests.get(REQ_ID).lastModified).toBeGreaterThanOrEqual(before);
   });
 
-  it('addHeader sets draft and updates requestTimestamps', () => {
+  it('addHeader sets draft and updates lastModified', () => {
     const store = buildStore();
     const before = Date.now();
 
@@ -92,10 +92,10 @@ describe('markDraft', () => {
 
     const state = store.getState();
     expect(state.requests.get(REQ_ID).draft).toBe(true);
-    expect(state.requestTimestamps.get(REQ_ID)).toBeGreaterThanOrEqual(before);
+    expect(state.requests.get(REQ_ID).lastModified).toBeGreaterThanOrEqual(before);
   });
 
-  it('deleteHeader sets draft and updates requestTimestamps', () => {
+  it('deleteHeader sets draft and updates lastModified', () => {
     const store = buildStore();
     store.getState().addHeader();
     const before = Date.now();
@@ -104,10 +104,10 @@ describe('markDraft', () => {
 
     const state = store.getState();
     expect(state.requests.get(REQ_ID).draft).toBe(true);
-    expect(state.requestTimestamps.get(REQ_ID)).toBeGreaterThanOrEqual(before);
+    expect(state.requests.get(REQ_ID).lastModified).toBeGreaterThanOrEqual(before);
   });
 
-  it('updateQueryParam sets draft and updates requestTimestamps', () => {
+  it('updateQueryParam sets draft and updates lastModified', () => {
     const store = buildStore();
     store.getState().addQueryParam();
     const before = Date.now();
@@ -116,10 +116,10 @@ describe('markDraft', () => {
 
     const state = store.getState();
     expect(state.requests.get(REQ_ID).draft).toBe(true);
-    expect(state.requestTimestamps.get(REQ_ID)).toBeGreaterThanOrEqual(before);
+    expect(state.requests.get(REQ_ID).lastModified).toBeGreaterThanOrEqual(before);
   });
 
-  it('updateAuthorization on a request sets draft and updates requestTimestamps', () => {
+  it('updateAuthorization on a request sets draft and updates lastModified', () => {
     const store = buildStore();
     const before = Date.now();
     const request = store.getState().requests.get(REQ_ID);
@@ -128,7 +128,7 @@ describe('markDraft', () => {
 
     const state = store.getState();
     expect(state.requests.get(REQ_ID).draft).toBe(true);
-    expect(state.requestTimestamps.get(REQ_ID)).toBeGreaterThanOrEqual(before);
+    expect(state.requests.get(REQ_ID).lastModified).toBeGreaterThanOrEqual(before);
   });
 });
 

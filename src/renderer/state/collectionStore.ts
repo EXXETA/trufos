@@ -44,9 +44,6 @@ interface CollectionState {
 
   /** The currently active sort mode for the sidebar */
   sortMode: SortMode;
-
-  /** In-memory timestamps of when each request was last saved (not persisted) */
-  requestTimestamps: Map<TrufosRequest['id'], number>;
 }
 
 type CollectionStore = StoreApi<CollectionState & CollectionStateActions>;
@@ -92,8 +89,7 @@ export const createCollectionStore = (collection: Collection) => {
       collection,
       openFolders: new Set(),
       currentScriptType: ScriptType.PRE_REQUEST,
-      sortMode: 'default' as SortMode,
-      requestTimestamps: new Map(),
+      sortMode: SortMode.DEFAULT,
       ...buildCollectionItemMaps(collection),
 
       initialize: (collection) => {
@@ -217,7 +213,8 @@ export const createCollectionStore = (collection: Collection) => {
 
       touchRequest: (id) => {
         set((state) => {
-          state.requestTimestamps.set(id, Date.now());
+          const request = state.requests.get(id);
+          if (request) request.lastModified = Date.now();
         });
       },
 
@@ -545,8 +542,9 @@ const selectObject = <T extends TrufosObject>(state: CollectionState, object: T)
       : (selectFolder(state, object.id) as T);
 
 const markDraft = (state: CollectionState) => {
-  selectRequest(state).draft = true;
-  state.requestTimestamps.set(state.selectedRequestId, Date.now());
+  const request = selectRequest(state);
+  request.draft = true;
+  request.lastModified = Date.now();
 };
 
 export const selectHeaders = (state: CollectionState) => selectRequest(state).headers;

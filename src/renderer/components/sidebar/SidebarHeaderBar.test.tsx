@@ -39,7 +39,7 @@ vi.mock('@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal
 describe('SidebarHeaderBar sort cycle', () => {
   beforeEach(() => {
     setSortModeMock.mockClear();
-    currentSortMode = 'default';
+    currentSortMode = SortMode.DEFAULT;
   });
 
   it('calls setSortMode with the next mode when sort button is clicked', () => {
@@ -48,22 +48,22 @@ describe('SidebarHeaderBar sort cycle', () => {
 
     fireEvent.click(sortButton);
 
-    expect(setSortModeMock).toHaveBeenCalledWith(SORT_CYCLE[1]); // 'az-asc'
+    expect(setSortModeMock).toHaveBeenCalledWith(SORT_CYCLE[1]); // SortMode.AZ_ASC
   });
 
   it('cycles back to default after the last mode', () => {
-    currentSortMode = SORT_CYCLE[SORT_CYCLE.length - 1]; // 'time-desc'
+    currentSortMode = SORT_CYCLE[SORT_CYCLE.length - 1]; // SortMode.TIME_ASC
     const { getByRole } = renderWithProvider(<SidebarHeaderBar />);
     const sortButton = getByRole('button', { name: /sort collection/i });
 
     fireEvent.click(sortButton);
 
-    expect(setSortModeMock).toHaveBeenCalledWith('default');
+    expect(setSortModeMock).toHaveBeenCalledWith(SortMode.DEFAULT);
   });
 
   it('shows the correct tooltip label when hovering the sort button', async () => {
     const user = userEvent.setup();
-    currentSortMode = 'az-asc';
+    currentSortMode = SortMode.AZ_ASC;
     renderWithProvider(<SidebarHeaderBar />);
 
     const sortButton = screen.getByRole('button', { name: /sort collection/i });

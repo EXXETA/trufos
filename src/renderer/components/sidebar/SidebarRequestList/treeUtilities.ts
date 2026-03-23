@@ -8,20 +8,32 @@ import { TrufosRequest } from 'shim/objects/request';
  */
 export function getMaxTimestamp(
   item: TrufosRequest | Folder,
-  timestamps: Map<string, number>,
+  requests: Map<string, TrufosRequest>,
   folders: Map<string, Folder>
 ): number {
-  if (item.type === 'request') return timestamps.get(item.id) ?? item.lastModified;
+  if (item.type === 'request') return requests.get(item.id)?.lastModified ?? item.lastModified;
   const folder = folders.get(item.id);
   if (!folder || folder.children.length === 0) return item.lastModified;
   return Math.max(
     item.lastModified,
-    ...folder.children.map((child) => getMaxTimestamp(child, timestamps, folders))
+    ...folder.children.map((child) => getMaxTimestamp(child, requests, folders))
   );
 }
 
-export type SortMode = 'default' | 'az-asc' | 'az-desc' | 'time-asc' | 'time-desc';
-export const SORT_CYCLE: SortMode[] = ['default', 'az-asc', 'az-desc', 'time-asc', 'time-desc'];
+export enum SortMode {
+  DEFAULT = 'default',
+  AZ_ASC = 'az-asc',
+  AZ_DESC = 'az-desc',
+  TIME_DESC = 'time-desc',
+  TIME_ASC = 'time-asc',
+}
+export const SORT_CYCLE: SortMode[] = [
+  SortMode.DEFAULT,
+  SortMode.AZ_ASC,
+  SortMode.AZ_DESC,
+  SortMode.TIME_DESC,
+  SortMode.TIME_ASC,
+];
 
 export interface FlattenedItem {
   id: string;

@@ -14,7 +14,13 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
 import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
-import { flattenTree, removeChildrenOf, getProjection, getMaxTimestamp } from './treeUtilities';
+import {
+  flattenTree,
+  removeChildrenOf,
+  getProjection,
+  getMaxTimestamp,
+  SortMode,
+} from './treeUtilities';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
@@ -26,8 +32,8 @@ export const SidebarRequestList = () => {
   const collectionId = useCollectionStore((state) => state.collection.id);
   const openFolders = useCollectionStore((state) => state.openFolders);
   const folders = useCollectionStore((state) => state.folders);
+  const requests = useCollectionStore((state) => state.requests);
   const sortMode = useCollectionStore((state) => state.sortMode);
-  const requestTimestamps = useCollectionStore((state) => state.requestTimestamps);
   const { moveItem } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -41,18 +47,16 @@ export const SidebarRequestList = () => {
   const sortFn = useMemo(():
     | ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number)
     | null => {
-    if (sortMode === 'az-asc') return (a, b) => a.title.localeCompare(b.title);
-    if (sortMode === 'az-desc') return (a, b) => b.title.localeCompare(a.title);
-    if (sortMode === 'time-desc')
+    if (sortMode === SortMode.AZ_ASC) return (a, b) => a.title.localeCompare(b.title);
+    if (sortMode === SortMode.AZ_DESC) return (a, b) => b.title.localeCompare(a.title);
+    if (sortMode === SortMode.TIME_DESC)
       return (a, b) =>
-        getMaxTimestamp(b, requestTimestamps, folders) -
-        getMaxTimestamp(a, requestTimestamps, folders);
-    if (sortMode === 'time-asc')
+        getMaxTimestamp(b, requests, folders) - getMaxTimestamp(a, requests, folders);
+    if (sortMode === SortMode.TIME_ASC)
       return (a, b) =>
-        getMaxTimestamp(a, requestTimestamps, folders) -
-        getMaxTimestamp(b, requestTimestamps, folders);
+        getMaxTimestamp(a, requests, folders) - getMaxTimestamp(b, requests, folders);
     return null;
-  }, [sortMode, requestTimestamps, folders]);
+  }, [sortMode, requests, folders]);
 
   const sortedChildren = useMemo(
     () => (sortFn ? [...children].sort(sortFn) : children),
@@ -89,7 +93,7 @@ export const SidebarRequestList = () => {
   };
 
   const handleDragEnd = async ({ active, over, delta }: DragEndEvent) => {
-    if (!over || active.id === over.id || sortMode !== 'default') {
+    if (!over || active.id === over.id || sortMode !== SortMode.DEFAULT) {
       setActiveId(null);
       return;
     }
