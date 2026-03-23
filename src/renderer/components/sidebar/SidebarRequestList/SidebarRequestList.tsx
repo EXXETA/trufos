@@ -43,6 +43,7 @@ export const SidebarRequestList = () => {
       activationConstraint: { distance: 5 },
     })
   );
+  const activeSensors = sortMode === SortMode.DEFAULT ? sensors : [];
 
   const sortFn = useMemo(():
     | ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number)
@@ -124,7 +125,7 @@ export const SidebarRequestList = () => {
   return (
     <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
       <DndContext
-        sensors={sensors}
+        sensors={activeSensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
