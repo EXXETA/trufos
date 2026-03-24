@@ -2,22 +2,55 @@ import { useState } from 'react';
 import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { AddFolderIcon, CreateRequestIcon, SettingsIcon } from '@/components/icons';
+import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/components/icons';
+import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown } from 'lucide-react';
 import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
-import { useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
 import { CollectionSettings } from '@/components/sidebar/CollectionSettings';
+import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/treeUtilities';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+const SORT_MODE_LABELS: Record<SortMode, string> = {
+  [SortMode.DEFAULT]: 'Manual order',
+  [SortMode.AZ_ASC]: 'A → Z',
+  [SortMode.AZ_DESC]: 'Z → A',
+  [SortMode.TIME_DESC]: 'Recently modified',
+  [SortMode.TIME_ASC]: 'Oldest modified',
+};
+
+const SortIcon = ({ mode }: { mode: SortMode }) => {
+  switch (mode) {
+    case SortMode.AZ_ASC:
+      return <ArrowUpAZ size={18} />;
+    case SortMode.AZ_DESC:
+      return <ArrowDownAZ size={18} />;
+    case SortMode.TIME_ASC:
+      return <ClockArrowUp size={18} />;
+    case SortMode.TIME_DESC:
+      return <ClockArrowDown size={18} />;
+    default:
+      return <SwapIcon size={16} viewBox="9 7 15 18" />;
+  }
+};
 
 export const SidebarHeaderBar = () => {
   const collection = useCollectionStore((state) => state.collection);
+
+  const sortMode = useCollectionStore((state) => state.sortMode);
+  const { setSortMode } = useCollectionActions();
 
   const [creationModalState, setCreationModalState] = useState({ isOpen: false, type: null });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 
   const openModal = (type: 'request' | 'folder') => setCreationModalState({ isOpen: true, type });
+  const cycleSortMode = () => {
+    const currentIndex = SORT_CYCLE.indexOf(sortMode);
+    setSortMode(SORT_CYCLE[(currentIndex + 1) % SORT_CYCLE.length]);
+  };
 
   return (
     <>
@@ -26,39 +59,62 @@ export const SidebarHeaderBar = () => {
 
         <Divider />
 
-        <div className="-mt-4 mb-2 flex w-full items-center justify-end gap-2">
-          <Button
-            className={buttonClassName}
-            variant={'ghost'}
-            type="button"
-            size={'icon'}
-            onClick={() => openModal('request')}
-            aria-label="Add new request"
-          >
-            <CreateRequestIcon size={16} color={'secondary'} />
-          </Button>
+        <div className="-mt-4 mb-2 flex w-full items-center justify-between">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className={cn(buttonClassName, 'text-text-secondary ml-3')}
+                variant={'ghost'}
+                type="button"
+                size={'icon'}
+                onClick={cycleSortMode}
+                aria-label="Sort collection"
+              >
+                <SortIcon mode={sortMode} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="right"
+              className="bg-sidebar-accent text-sidebar-accent-foreground border-0 px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
+            >
+              {SORT_MODE_LABELS[sortMode]}
+            </TooltipContent>
+          </Tooltip>
 
-          <Button
-            className={buttonClassName}
-            variant={'ghost'}
-            size={'icon'}
-            type="button"
-            onClick={() => openModal('folder')}
-            aria-label="Add new folder"
-          >
-            <AddFolderIcon size={16} color={'secondary'} />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              className={buttonClassName}
+              variant={'ghost'}
+              type="button"
+              size={'icon'}
+              onClick={() => openModal('request')}
+              aria-label="Add new request"
+            >
+              <CreateRequestIcon size={16} color={'secondary'} />
+            </Button>
 
-          <Button
-            className={buttonClassName}
-            variant={'ghost'}
-            size={'icon'}
-            type="button"
-            onClick={() => setIsSettingsOpen(true)}
-            aria-label="Add new folder"
-          >
-            <SettingsIcon size={16} color={'secondary'} />
-          </Button>
+            <Button
+              className={buttonClassName}
+              variant={'ghost'}
+              size={'icon'}
+              type="button"
+              onClick={() => openModal('folder')}
+              aria-label="Add new folder"
+            >
+              <AddFolderIcon size={16} color={'secondary'} />
+            </Button>
+
+            <Button
+              className={buttonClassName}
+              variant={'ghost'}
+              size={'icon'}
+              type="button"
+              onClick={() => setIsSettingsOpen(true)}
+              aria-label="Collection settings"
+            >
+              <SettingsIcon size={16} color={'secondary'} />
+            </Button>
+          </div>
         </div>
       </SidebarHeader>
 

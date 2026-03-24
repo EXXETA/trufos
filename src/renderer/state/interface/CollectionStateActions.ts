@@ -5,6 +5,7 @@ import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { FormDataBody, RequestBody, TrufosRequest } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
+import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 
 type FormDataField = FormDataBody['fields'][number];
 
@@ -64,6 +65,8 @@ export interface CollectionStateActions {
    * @param type The script type to switch to
    */
   setCurrentScriptType(type: ScriptType): void;
+
+  setSortMode(mode: SortMode): void;
 
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 

@@ -14,16 +14,26 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
 import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
-import { flattenTree, removeChildrenOf, getProjection } from './treeUtilities';
+import {
+  flattenTree,
+  removeChildrenOf,
+  getProjection,
+  getMaxTimestamp,
+  SortMode,
+} from './treeUtilities';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
+import { Folder } from 'shim/objects/folder';
+import { TrufosRequest } from 'shim/objects/request';
 
 export const SidebarRequestList = () => {
   const children = useCollectionStore((state) => state.collection.children);
   const collectionId = useCollectionStore((state) => state.collection.id);
   const openFolders = useCollectionStore((state) => state.openFolders);
   const folders = useCollectionStore((state) => state.folders);
+  const requests = useCollectionStore((state) => state.requests);
+  const sortMode = useCollectionStore((state) => state.sortMode);
   const { moveItem } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -33,13 +43,42 @@ export const SidebarRequestList = () => {
       activationConstraint: { distance: 5 },
     })
   );
+  const activeSensors = sortMode === SortMode.DEFAULT ? sensors : [];
+
+  const sortFn = useMemo(():
+    | ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number)
+    | null => {
+    if (sortMode === SortMode.AZ_ASC) return (a, b) => a.title.localeCompare(b.title);
+    if (sortMode === SortMode.AZ_DESC) return (a, b) => b.title.localeCompare(a.title);
+    if (sortMode === SortMode.TIME_DESC)
+      return (a, b) =>
+        getMaxTimestamp(b, requests, folders) - getMaxTimestamp(a, requests, folders);
+    if (sortMode === SortMode.TIME_ASC)
+      return (a, b) =>
+        getMaxTimestamp(a, requests, folders) - getMaxTimestamp(b, requests, folders);
+    return null;
+  }, [sortMode, requests, folders]);
+
+  const sortedChildren = useMemo(
+    () => (sortFn ? children.toSorted(sortFn) : children),
+    [children, sortFn]
+  );
+
+  const sortedFolders = useMemo(() => {
+    if (!sortFn) return folders;
+    const result = new Map<string, Folder>();
+    folders.forEach((folder, id) => {
+      result.set(id, { ...folder, children: [...folder.children].sort(sortFn) });
+    });
+    return result;
+  }, [folders, sortFn]);
 
   // Flatten the tree for a single SortableContext.
   // We pass the folders Map so flattenTree reads up-to-date children
   // (immer may not propagate Map mutations into tree references).
   const flattenedItems = useMemo(
-    () => flattenTree(children, openFolders, collectionId, folders),
-    [children, openFolders, collectionId, folders]
+    () => flattenTree(sortedChildren, openFolders, collectionId, sortedFolders),
+    [sortedChildren, openFolders, collectionId, sortedFolders]
   );
 
   // During drag: remove children of the dragged folder so they travel with it
@@ -55,7 +94,7 @@ export const SidebarRequestList = () => {
   };
 
   const handleDragEnd = async ({ active, over, delta }: DragEndEvent) => {
-    if (!over || active.id === over.id) {
+    if (!over || active.id === over.id || sortMode !== SortMode.DEFAULT) {
       setActiveId(null);
       return;
     }
@@ -86,7 +125,7 @@ export const SidebarRequestList = () => {
   return (
     <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
       <DndContext
-        sensors={sensors}
+        sensors={activeSensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
