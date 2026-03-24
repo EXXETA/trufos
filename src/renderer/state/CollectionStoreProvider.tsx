@@ -26,10 +26,13 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
         storeRef.current = createCollectionStore(collection);
 
         // Sync variables changed by scripts back to the frontend stores
-        rendererEventService.on('collection-variables-updated', ({ variables, environments }) => {
-          useVariableStore.getState().initialize(variables);
-          useEnvironmentStore.getState().initialize(environments);
-        });
+        rendererEventService.on(
+          'collection-variables-updated',
+          (_ipcEvent, { variables, environments }) => {
+            useVariableStore.getState().initialize(variables);
+            useEnvironmentStore.getState().initialize(environments);
+          }
+        );
 
         // Set up before-close handler with access to store instance
         rendererEventService.on('before-close', async () => {

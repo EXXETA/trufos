@@ -52,8 +52,9 @@ function registerEvent<T>(instance: T, functionName: keyof T) {
   const method = instance[functionName];
   if (typeof method === 'function') {
     logger.debug(`Registering event function "${functionName}()" on backend`);
+    const boundMethod = (method as unknown as AsyncFunction<unknown>).bind(instance);
     ipcMain.handle(functionName as string, (_event, ...args) =>
-      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args)
+      wrapWithErrorHandler(boundMethod)(...args)
     );
   }
 }
