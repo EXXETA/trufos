@@ -215,10 +215,4 @@ export interface IEventService {
    * @param script The script content to save.
    */
   saveScript(request: TrufosRequest, type: ScriptType, script: string): Promise<void>;
-
-  /**
-   * Returns the size in bytes of the response body for the given response ID.
-   * @param responseId The ID of the response to get the size for.
-   */
-  getResponseBodySize(responseId: string): Promise<number>;
 }

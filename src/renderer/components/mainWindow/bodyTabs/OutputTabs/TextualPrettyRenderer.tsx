@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   useResponseData,
   useResponseEditor,
@@ -10,14 +10,20 @@ import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-set
 import { RESPONSE_MODEL } from '@/lib/monaco/models';
 import { mimeTypeToLanguage } from '@/lib/monaco/language';
 
-export const TextualPrettyRenderer: ResponseRenderer = ({ response }) => {
+export const TextualPrettyRenderer: ResponseRenderer = ({ response, skip }) => {
   const { editor, setEditorLanguage, formatResponseEditorText, setResponseEditor } =
     useResponseEditor();
   const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)), [response]);
-  useResponseData(response, 'utf-8', (content) => {
-    RESPONSE_MODEL.setValue(content);
-    formatResponseEditorText();
-  });
+
+  const onChange = useCallback(
+    (content: string) => {
+      RESPONSE_MODEL.setValue(content);
+      formatResponseEditorText();
+    },
+    [formatResponseEditorText]
+  );
+
+  useResponseData(response, 'utf-8', onChange, skip);
 
   useEffect(() => {
     if (editor) {

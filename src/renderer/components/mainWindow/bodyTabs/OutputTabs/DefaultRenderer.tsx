@@ -10,10 +10,10 @@ import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-set
 import { RESPONSE_MODEL } from '@/lib/monaco/models';
 import { mimeTypeToLanguage } from '@/lib/monaco/language';
 
-export const DefaultRenderer: ResponseRenderer = ({ response }) => {
+export const DefaultRenderer: ResponseRenderer = ({ response, skip }) => {
   const { editor, setEditorLanguage, setResponseEditor } = useResponseEditor();
   const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)), [response]);
-  useResponseData(response, 'utf-8', (content) => RESPONSE_MODEL.setValue(content));
+  useResponseData(response, 'utf-8', (content) => RESPONSE_MODEL.setValue(content), skip);
 
   useEffect(() => {
     if (editor) {

@@ -6,8 +6,11 @@ import { HttpHeaders } from 'shim/headers';
 import { StringBufferEncoding } from 'shim/ipc-stream';
 import { TrufosResponse } from 'shim/objects/response';
 
+export const RESPONSE_BODY_SIZE_LIMIT = 5 * 1024 * 1024; // 5 MB
+
 export interface PrettyRendererProps {
   response: TrufosResponse;
+  skip?: boolean;
 }
 
 export type ResponseRenderer = FC<PrettyRendererProps>;
@@ -46,9 +49,12 @@ export const useResponseMimeType = (headers: HttpHeaders) =>
 export const useResponseData = (
   response: TrufosResponse,
   encoding: StringBufferEncoding,
-  onChange: (data: string) => void
+  onChange: (data: string) => void,
+  skip = false
 ) => {
   useEffect(() => {
+    if (skip) return;
+
     let stream: IpcPushStream | undefined;
     IpcPushStream.open(response, encoding)
       .then((s) => (stream = s).readAll())
@@ -57,7 +63,7 @@ export const useResponseData = (
 
     // cancel stream on unmount or response change
     return () => stream?.close();
-  }, [response, encoding, onChange]);
+  }, [response, encoding, onChange, skip]);
 };
 
 export const useResponseEditor = () => {
