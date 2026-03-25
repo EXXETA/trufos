@@ -1,5 +1,4 @@
 import { app, dialog, ipcMain } from 'electron';
-import fsp from 'node:fs/promises';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
 import type {
@@ -15,7 +14,6 @@ import type {
 } from 'shim';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { ImportService } from 'main/import/service/import-service';
-import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { updateElectronApp } from 'update-electron-app';
 
 // register stream events
@@ -201,13 +199,6 @@ export class MainEventService implements IEventService {
 
   async rename(object: TrufosObject, newTitle: string): Promise<void> {
     await persistenceService.rename(object, newTitle);
-  }
-
-  async getResponseBodySize(responseId: string): Promise<number> {
-    const filePath = ResponseBodyService.instance.getFilePath(responseId);
-    if (filePath == null) return 0;
-    const stat = await fsp.stat(filePath);
-    return stat.size;
   }
 
   updateApp() {
