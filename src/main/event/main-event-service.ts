@@ -14,6 +14,7 @@ import type {
 } from 'shim';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { ImportService } from 'main/import/service/import-service';
+import { ScriptingService } from 'main/scripting/scripting-service';
 import { updateElectronApp } from 'update-electron-app';
 
 // register stream events
@@ -77,6 +78,11 @@ export class MainEventService implements IEventService {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
       registerEvent(this, propertyName as keyof MainEventService);
     }
+    ScriptingService.instance.onVariablesChanged = async () => {
+      const { variables, environments } = environmentService.currentCollection;
+      await persistenceService.saveCollection(environmentService.currentCollection);
+      this.webContents?.send('collection-variables-updated', { variables, environments });
+    };
     logger.debug('Registered event channels on backend');
   }
 
@@ -94,24 +100,7 @@ export class MainEventService implements IEventService {
   }
 
   async sendRequest(request: TrufosRequest) {
-    const { variables, environments } = environmentService.currentCollection;
-    const before = JSON.stringify({ variables, environments });
-
-    const response = await HttpService.instance.fetchAsync(request);
-
-    const { variables: newVariables, environments: newEnvironments } =
-      environmentService.currentCollection;
-    const after = JSON.stringify({ variables: newVariables, environments: newEnvironments });
-
-    if (before !== after) {
-      await persistenceService.saveCollection(environmentService.currentCollection);
-      this.webContents?.send('collection-variables-updated', {
-        variables: newVariables,
-        environments: newEnvironments,
-      });
-    }
-
-    return response;
+    return await HttpService.instance.fetchAsync(request);
   }
 
   async saveRequest(request: TrufosRequest, textBody?: string) {
