@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain } from 'electron';
+import { app, dialog, ipcMain, WebContents } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
 import type {
@@ -14,6 +14,7 @@ import type {
 } from 'shim';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { ImportService } from 'main/import/service/import-service';
+import { ScriptingService } from 'main/scripting/scripting-service';
 import { updateElectronApp } from 'update-electron-app';
 
 // register stream events
@@ -52,8 +53,9 @@ function registerEvent<T>(instance: T, functionName: keyof T) {
   const method = instance[functionName];
   if (typeof method === 'function') {
     logger.debug(`Registering event function "${functionName}()" on backend`);
+    const boundMethod = (method as unknown as AsyncFunction<unknown>).bind(instance);
     ipcMain.handle(functionName as string, (_event, ...args) =>
-      wrapWithErrorHandler(method as unknown as AsyncFunction<unknown>)(...args)
+      wrapWithErrorHandler(boundMethod)(...args)
     );
   }
 }
@@ -70,11 +72,17 @@ function toError(error: unknown) {
  */
 export class MainEventService implements IEventService {
   public static readonly instance = new MainEventService();
+  public webContents: WebContents | null = null;
 
   private constructor() {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
       registerEvent(this, propertyName as keyof MainEventService);
     }
+    ScriptingService.instance.onVariablesChanged = async () => {
+      const { variables, environments } = environmentService.currentCollection;
+      await persistenceService.saveCollection(environmentService.currentCollection);
+      this.webContents?.send('collection-variables-updated', { variables, environments });
+    };
     logger.debug('Registered event channels on backend');
   }
 

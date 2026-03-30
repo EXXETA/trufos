@@ -52,6 +52,9 @@ const createWindow = async () => {
       show: false,
     });
 
+    // pass webContents to MainEventService for push notifications
+    mainEventService.webContents = mainWindow.webContents;
+
     // show once rendered
     once(mainWindow, 'ready-to-show').then(() => mainWindow.show());
 
