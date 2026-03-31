@@ -196,7 +196,7 @@ describe('MainEventService', () => {
       expect(webContentsSend).not.toHaveBeenCalled();
     });
 
-    it('persists and pushes when ScriptingService triggers onVariablesChanged', async () => {
+    it('persists and pushes when ScriptingService emits variables-changed', async () => {
       const collection = makeCollection({ x: { value: 'before' } });
       vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
 
@@ -209,7 +209,8 @@ describe('MainEventService', () => {
       eventService.webContents = { send: webContentsSend } as never;
 
       const { ScriptingService } = await import('main/scripting/scripting-service');
-      await ScriptingService.instance.onVariablesChanged!();
+      ScriptingService.instance.emit('variables-changed');
+      await Promise.resolve(); // flush microtask queue for the async .then() chain
 
       expect(saveCollectionSpy).toHaveBeenCalledWith(collection);
       expect(webContentsSend).toHaveBeenCalledWith('collection-variables-updated', {

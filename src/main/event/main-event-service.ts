@@ -78,11 +78,15 @@ export class MainEventService implements IEventService {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
       registerEvent(this, propertyName as keyof MainEventService);
     }
-    ScriptingService.instance.onVariablesChanged = async () => {
+    ScriptingService.instance.on('variables-changed', () => {
       const { variables, environments } = environmentService.currentCollection;
-      await persistenceService.saveCollection(environmentService.currentCollection);
-      this.webContents?.send('collection-variables-updated', { variables, environments });
-    };
+      void persistenceService
+        .saveCollection(environmentService.currentCollection)
+        .then(() =>
+          this.webContents?.send('collection-variables-updated', { variables, environments })
+        )
+        .catch((err) => logger.error('Failed to persist variable changes', err));
+    });
     logger.debug('Registered event channels on backend');
   }
 

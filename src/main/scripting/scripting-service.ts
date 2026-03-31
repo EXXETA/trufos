@@ -4,18 +4,24 @@ import { createContext, Script } from 'node:vm';
 import { GlobalScriptingApi, VariableMap, VariableObject } from 'shim';
 import fs from 'node:fs/promises';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
+import { EventEmitter } from 'node:events';
 
 const environmentService = EnvironmentService.instance;
 
 const SCRIPT_TIMEOUT_SECONDS = 5;
 
+// Interface-Merging for typed event signatures
+export interface ScriptingService {
+  on(event: 'variables-changed', listener: () => void): this;
+  emit(event: 'variables-changed'): boolean;
+}
+
 /**
  * Service for executing user-provided scripts in an isolated VM context.
  * Scripts run in a Node.js vm context with access to the scripting API.
  */
-export class ScriptingService {
+export class ScriptingService extends EventEmitter {
   public static _instance: ScriptingService | null = null;
-  public onVariablesChanged?: () => Promise<void>;
   private _variablesChanged = false;
 
   private get api() {
@@ -106,9 +112,7 @@ export class ScriptingService {
       logger.info('Script execution error', err);
     }
     if (this._variablesChanged) {
-      void this.onVariablesChanged?.().catch((err) =>
-        logger.error('onVariablesChanged error', err)
-      );
+      this.emit('variables-changed');
     }
   }
 }
