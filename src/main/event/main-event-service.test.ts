@@ -196,15 +196,8 @@ describe('MainEventService', () => {
       expect(webContentsSend).not.toHaveBeenCalled();
     });
 
-    it('persists and pushes when script changes a collection variable', async () => {
+    it('persists and pushes when ScriptingService triggers onVariablesChanged', async () => {
       const collection = makeCollection({ x: { value: 'before' } });
-
-      const { HttpService } = await import('main/network/service/http-service');
-      vi.mocked(HttpService.instance.fetchAsync).mockImplementation(async () => {
-        collection.variables['x'] = { value: 'after' };
-        return {} as never;
-      });
-
       vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
 
       const saveCollectionSpy = vi
@@ -215,7 +208,8 @@ describe('MainEventService', () => {
       const eventService = new MainEventService();
       eventService.webContents = { send: webContentsSend } as never;
 
-      await eventService.sendRequest(makeRequest());
+      const { ScriptingService } = await import('main/scripting/scripting-service');
+      await ScriptingService.instance.onVariablesChanged!();
 
       expect(saveCollectionSpy).toHaveBeenCalledWith(collection);
       expect(webContentsSend).toHaveBeenCalledWith('collection-variables-updated', {
