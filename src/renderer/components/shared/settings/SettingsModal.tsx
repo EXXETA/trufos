@@ -21,7 +21,7 @@ import {
   useEnvironmentStore,
 } from '@/state/environmentStore';
 import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
-import { useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { ClientCertificate } from 'shim/objects/collection';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 
@@ -30,6 +30,7 @@ const eventService = RendererEventService.instance;
 export const SettingsModal = () => {
   const { setVariables } = useVariableActions();
   const { setEnvironments, selectEnvironment } = useEnvironmentActions();
+  const { setClientCertificate } = useCollectionActions();
 
   const variables = useVariableStore(selectVariables);
   const environments = useEnvironmentStore(selectEnvironments);
@@ -59,6 +60,7 @@ export const SettingsModal = () => {
     await setEnvironments(editorEnvironments);
     await selectEnvironment(editorSelectedEnvironment);
     await eventService.setClientCertificate(editorCertificate);
+    setClientCertificate(editorCertificate);
   };
 
   // We intentionally do NOT call cancel() after a successful save because cancel() reverts

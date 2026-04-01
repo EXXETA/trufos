@@ -503,6 +503,14 @@ export const createCollectionStore = (collection: Collection) => {
           );
         }
       },
+
+      setClientCertificate: (certificate) => {
+        set((state) => {
+          if (state.collection) {
+            state.collection.clientCertificate = certificate ?? undefined;
+          }
+        });
+      },
     }))
   );
 };
