@@ -140,4 +140,83 @@ describe('MainEventService', () => {
       expect(saveRequestSpy).toHaveBeenCalledWith(request, 'body text');
     });
   });
+
+  describe('sendRequest', () => {
+    let EnvironmentService: Awaited<
+      ReturnType<typeof import('main/environment/service/environment-service')>
+    >['EnvironmentService'];
+
+    const makeCollection = (variables = {}): Collection => ({
+      id: randomUUID(),
+      type: 'collection',
+      title: 'Test',
+      isDefault: false,
+      children: [],
+      variables,
+      environments: {},
+      dirPath: '/test',
+      lastModified: Date.now(),
+    });
+
+    const makeRequest = (): TrufosRequest => ({
+      id: randomUUID(),
+      type: 'request',
+      title: 'Test Request',
+      parentId: randomUUID(),
+      method: RequestMethod.GET,
+      url: { base: 'http://example.com', query: [] },
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+      draft: false,
+      lastModified: Date.now(),
+    });
+
+    beforeEach(async () => {
+      ({ EnvironmentService } = await import('main/environment/service/environment-service'));
+    });
+
+    it('does not persist or push when script does not change variables', async () => {
+      const collection = makeCollection({ x: { value: 'before' } });
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
+
+      const { HttpService } = await import('main/network/service/http-service');
+      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue({} as never);
+
+      const saveCollectionSpy = vi
+        .spyOn(PersistenceService.instance, 'saveCollection')
+        .mockResolvedValue(undefined);
+
+      const webContentsSend = vi.fn();
+      const eventService = new MainEventService();
+      eventService.webContents = { send: webContentsSend } as never;
+
+      await eventService.sendRequest(makeRequest());
+
+      expect(saveCollectionSpy).not.toHaveBeenCalled();
+      expect(webContentsSend).not.toHaveBeenCalled();
+    });
+
+    it('persists and pushes when ScriptingService emits variables-changed', async () => {
+      const collection = makeCollection({ x: { value: 'before' } });
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
+
+      const saveCollectionSpy = vi
+        .spyOn(PersistenceService.instance, 'saveCollection')
+        .mockResolvedValue(undefined);
+
+      const webContentsSend = vi.fn();
+      const eventService = new MainEventService();
+      eventService.webContents = { send: webContentsSend } as never;
+
+      const { ScriptingService } = await import('main/scripting/scripting-service');
+      ScriptingService.instance.emit('variables-changed');
+      await Promise.resolve(); // flush microtask queue for the async .then() chain
+
+      expect(saveCollectionSpy).toHaveBeenCalledWith(collection);
+      expect(webContentsSend).toHaveBeenCalledWith('collection-variables-updated', {
+        variables: collection.variables,
+        environments: collection.environments,
+      });
+    });
+  });
 });

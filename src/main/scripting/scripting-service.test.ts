@@ -278,6 +278,47 @@ describe('ScriptingService', () => {
     });
   });
 
+  describe('executeScript() - variables-changed Event', () => {
+    it('should emit variables-changed when a collection variable is set', () => {
+      const listener = vi.fn();
+      service.on('variables-changed', listener);
+
+      service.executeScript(`trufos.setCollectionVariable('x', 'y');`);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('should emit variables-changed only once even when multiple variables are set', () => {
+      const listener = vi.fn();
+      service.on('variables-changed', listener);
+
+      service.executeScript(`
+        trufos.setCollectionVariable('a', '1');
+        trufos.setCollectionVariable('b', '2');
+      `);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('should emit variables-changed when an environment variable is set', () => {
+      const listener = vi.fn();
+      service.on('variables-changed', listener);
+
+      service.executeScript(`trufos.setEnvironmentVariable('baseUrl', 'http://localhost:9000');`);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not emit variables-changed when no variables are set', () => {
+      const listener = vi.fn();
+      service.on('variables-changed', listener);
+
+      service.executeScript(`const x = 1 + 1;`);
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
+
   describe('executeScriptFromFile()', () => {
     it('should read and execute script from file', async () => {
       // Arrange

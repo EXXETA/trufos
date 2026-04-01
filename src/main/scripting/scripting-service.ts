@@ -4,19 +4,28 @@ import { createContext, Script } from 'node:vm';
 import { GlobalScriptingApi, VariableMap, VariableObject } from 'shim';
 import fs from 'node:fs/promises';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
+import { EventEmitter } from 'node:events';
 
 const environmentService = EnvironmentService.instance;
 
 const SCRIPT_TIMEOUT_SECONDS = 5;
 
+// Interface-Merging for typed event signatures
+export interface ScriptingService {
+  on(event: 'variables-changed', listener: () => void): this;
+  emit(event: 'variables-changed'): boolean;
+}
+
 /**
  * Service for executing user-provided scripts in an isolated VM context.
  * Scripts run in a Node.js vm context with access to the scripting API.
  */
-export class ScriptingService {
+export class ScriptingService extends EventEmitter {
   public static _instance: ScriptingService | null = null;
+  private _variablesChanged = false;
 
   private get api() {
+    const self = this;
     return Object.freeze<GlobalScriptingApi>({
       trufos: {
         version: app.getVersion(),
@@ -27,6 +36,7 @@ export class ScriptingService {
 
         setCollectionVariable(name, value) {
           ScriptingService.setVariable(environmentService.currentCollection.variables, name, value);
+          self._variablesChanged = true;
         },
 
         getEnvironmentVariable(name, environment) {
@@ -37,6 +47,7 @@ export class ScriptingService {
         setEnvironmentVariable(name, value, environment) {
           const variables = ScriptingService.getEnvironmentVariables(environment);
           ScriptingService.setVariable(variables, name, value);
+          self._variablesChanged = true;
         },
       },
     });
@@ -90,6 +101,7 @@ export class ScriptingService {
       logger.info('Script compilation error', err);
       return;
     }
+    this._variablesChanged = false;
     try {
       const context = createContext(this.api, { name: 'Trufos Scripting Context' });
       const now = getSteadyTimestamp();
@@ -98,6 +110,9 @@ export class ScriptingService {
     } catch (err) {
       // TODO: Show error to user instead of just logging it.
       logger.info('Script execution error', err);
+    }
+    if (this._variablesChanged) {
+      this.emit('variables-changed');
     }
   }
 }
