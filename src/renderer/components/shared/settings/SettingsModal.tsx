@@ -9,6 +9,7 @@ import {
 import { FiSettings } from 'react-icons/fi';
 import { VariableEditor } from '@/components/shared/settings/VariableTab/VariableEditor';
 import { EnvironmentEditor } from '@/components/shared/settings/EnvironmentTab/EnvironmentEditor';
+import { CertificateEditor } from '@/components/shared/settings/TlsTab/CertificateEditor';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
@@ -20,6 +21,11 @@ import {
   useEnvironmentStore,
 } from '@/state/environmentStore';
 import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
+import { useCollectionStore } from '@/state/collectionStore';
+import { ClientCertificate } from 'shim/objects/collection';
+import { RendererEventService } from '@/services/event/renderer-event-service';
+
+const eventService = RendererEventService.instance;
 
 export const SettingsModal = () => {
   const { setVariables } = useVariableActions();
@@ -28,10 +34,12 @@ export const SettingsModal = () => {
   const variables = useVariableStore(selectVariables);
   const environments = useEnvironmentStore(selectEnvironments);
   const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
+  const storedCertificate = useCollectionStore((s) => s.collection?.clientCertificate ?? null);
 
   const [editorVariables, setEditorVariables] = useState(variableMapToArray(variables));
   const [editorEnvironments, setEditorEnvironments] = useState(environments);
   const [editorSelectedEnvironment, setEditorSelectedEnvironment] = useState(selectedEnvironment);
+  const [editorCertificate, setEditorCertificate] = useState<ClientCertificate | null>(null);
   const [isValid, setValid] = useState(false);
   const [isEnvironmentValid, setEnvironmentValid] = useState(true);
   const [isOpen, setOpen] = useState(false);
@@ -42,6 +50,7 @@ export const SettingsModal = () => {
       setEditorVariables(variableMapToArray(variables));
       setEditorEnvironments(environments);
       setEditorSelectedEnvironment(selectedEnvironment);
+      setEditorCertificate(storedCertificate);
     }
   }, [isOpen]);
 
@@ -49,6 +58,7 @@ export const SettingsModal = () => {
     await setVariables(variableArrayToMap(editorVariables));
     await setEnvironments(editorEnvironments);
     await selectEnvironment(editorSelectedEnvironment);
+    await eventService.setClientCertificate(editorCertificate);
   };
 
   // We intentionally do NOT call cancel() after a successful save because cancel() reverts
@@ -86,6 +96,9 @@ export const SettingsModal = () => {
                 <TabsTrigger value="environments" className="font-light!">
                   Environments
                 </TabsTrigger>
+                <TabsTrigger value="tls" className="font-light!">
+                  TLS
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -106,6 +119,13 @@ export const SettingsModal = () => {
                 onEnvironmentsChange={setEditorEnvironments}
                 onEnvironmentSelect={setEditorSelectedEnvironment}
                 onValidChange={setEnvironmentValid}
+              />
+            </TabsContent>
+
+            <TabsContent value="tls" className="m-0 min-h-0 flex-1 overflow-y-auto p-0">
+              <CertificateEditor
+                certificate={editorCertificate}
+                onCertificateChange={setEditorCertificate}
               />
             </TabsContent>
           </Tabs>
