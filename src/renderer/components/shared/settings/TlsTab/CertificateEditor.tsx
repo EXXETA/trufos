@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FolderOpen, Trash2 } from 'lucide-react';
-import { AddIcon } from '@/components/icons';
+import { Trash2 } from 'lucide-react';
+import { AddIcon, FolderSearchIcon } from '@/components/icons';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { ClientCertificate } from 'shim/objects/collection';
 
@@ -109,9 +109,14 @@ const CertField = ({ label, value, placeholder, onChange, onBrowse }: CertFieldP
         onChange={(e) => onChange(e.target.value)}
         className="flex-1"
       />
-      <Button variant="ghost" size="sm" className="shrink-0 gap-1 hover:bg-transparent" onClick={onBrowse}>
-        <FolderOpen className="h-4 w-4" />
-        Browse
+      <Button
+        variant="ghost"
+        size="icon"
+        className="shrink-0 hover:bg-transparent [&_.fills_path]:fill-foreground [&_.strokes_path]:stroke-foreground hover:[&_.fills_path]:fill-accent-primary hover:[&_.strokes_path]:stroke-accent-primary"
+        aria-label="Browse"
+        onClick={onBrowse}
+      >
+        <FolderSearchIcon size={28} />
       </Button>
     </div>
   </div>
