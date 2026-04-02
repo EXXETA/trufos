@@ -76,4 +76,49 @@ describe('CertificateEditor', () => {
 
     expect(onChangeMock).toHaveBeenCalledWith({ certPath: '', keyPath: '', caPath: undefined });
   });
+
+  it('shows clear buttons only for fields that have a value', () => {
+    const partialCert: ClientCertificate = {
+      certPath: '/path/to/cert.pem',
+      keyPath: '',
+      caPath: undefined,
+    };
+    render(<CertificateEditor certificate={partialCert} onCertificateChange={vi.fn()} />);
+
+    const clearButtons = screen.getAllByRole('button', { name: /clear/i });
+    expect(clearButtons).toHaveLength(1); // only certPath has a value
+  });
+
+  it('clears certPath when its Clear button is clicked', async () => {
+    const user = userEvent.setup();
+    const onChangeMock = vi.fn();
+    render(<CertificateEditor certificate={CERT} onCertificateChange={onChangeMock} />);
+
+    const clearButtons = screen.getAllByRole('button', { name: /clear/i });
+    await user.click(clearButtons[0]); // first Clear = certPath
+
+    expect(onChangeMock).toHaveBeenCalledWith({ ...CERT, certPath: '' });
+  });
+
+  it('clears keyPath when its Clear button is clicked', async () => {
+    const user = userEvent.setup();
+    const onChangeMock = vi.fn();
+    render(<CertificateEditor certificate={CERT} onCertificateChange={onChangeMock} />);
+
+    const clearButtons = screen.getAllByRole('button', { name: /clear/i });
+    await user.click(clearButtons[1]); // second Clear = keyPath
+
+    expect(onChangeMock).toHaveBeenCalledWith({ ...CERT, keyPath: '' });
+  });
+
+  it('clears caPath when its Clear button is clicked', async () => {
+    const user = userEvent.setup();
+    const onChangeMock = vi.fn();
+    render(<CertificateEditor certificate={CERT} onCertificateChange={onChangeMock} />);
+
+    const clearButtons = screen.getAllByRole('button', { name: /clear/i });
+    await user.click(clearButtons[2]); // third Clear = caPath
+
+    expect(onChangeMock).toHaveBeenCalledWith({ ...CERT, caPath: undefined });
+  });
 });

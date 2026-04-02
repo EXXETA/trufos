@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCollectionStore } from './collectionStore';
-import { Collection } from 'shim/objects/collection';
+import { ClientCertificate, Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 
@@ -168,5 +168,40 @@ describe('initialize', () => {
     store.getState().initialize(makeCollection(COL_ID, [])); // request removed
 
     expect(store.getState().selectedRequestId).toBeUndefined();
+  });
+});
+
+describe('setClientCertificate', () => {
+  const CERT: ClientCertificate = {
+    certPath: '/path/to/cert.pem',
+    keyPath: '/path/to/key.pem',
+    caPath: '/path/to/ca.pem',
+  };
+
+  it('sets the client certificate on the collection', () => {
+    const store = createCollectionStore(makeCollection(COL_ID));
+
+    store.getState().setClientCertificate(CERT);
+
+    expect(store.getState().collection?.clientCertificate).toEqual(CERT);
+  });
+
+  it('clears the client certificate when called with null', () => {
+    const store = createCollectionStore(makeCollection(COL_ID));
+    store.getState().setClientCertificate(CERT);
+
+    store.getState().setClientCertificate(null);
+
+    expect(store.getState().collection?.clientCertificate).toBeUndefined();
+  });
+
+  it('replaces an existing certificate with a new one', () => {
+    const store = createCollectionStore(makeCollection(COL_ID));
+    store.getState().setClientCertificate(CERT);
+
+    const newCert: ClientCertificate = { certPath: '/new/cert.pem', keyPath: '/new/key.pem' };
+    store.getState().setClientCertificate(newCert);
+
+    expect(store.getState().collection?.clientCertificate).toEqual(newCert);
   });
 });

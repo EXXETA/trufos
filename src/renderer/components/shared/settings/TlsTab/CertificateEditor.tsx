@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2 } from 'lucide-react';
-import { AddIcon, FolderSearchIcon } from '@/components/icons';
+import { AddIcon, DeleteIcon, FolderSearchIcon } from '@/components/icons';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { ClientCertificate } from 'shim/objects/collection';
 
@@ -55,11 +54,11 @@ export const CertificateEditor = ({ certificate, onCertificateChange }: Certific
           <Button
             variant="ghost"
             size="icon"
-            className="hover:text-accent-primary active:text-accent-secondary w-5 hover:bg-transparent"
+            className="hover:text-accent-primary active:text-accent-secondary hover:bg-transparent"
             aria-label="Remove"
             onClick={() => onCertificateChange(null)}
           >
-            <Trash2 />
+            <DeleteIcon size={24} />
           </Button>
         </div>
       </div>
@@ -112,12 +111,23 @@ const CertField = ({ label, value, placeholder, onChange, onBrowse }: CertFieldP
       <Button
         variant="ghost"
         size="icon"
-        className="shrink-0 hover:bg-transparent [&_.fills_path]:fill-foreground [&_.strokes_path]:stroke-foreground hover:[&_.fills_path]:fill-accent-primary hover:[&_.strokes_path]:stroke-accent-primary"
+        className="[&_.fills_path]:fill-foreground [&_.strokes_path]:stroke-foreground hover:[&_.fills_path]:fill-accent-primary hover:[&_.strokes_path]:stroke-accent-primary shrink-0 hover:bg-transparent"
         aria-label="Browse"
         onClick={onBrowse}
       >
         <FolderSearchIcon size={28} />
       </Button>
+      {value && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hover:text-accent-primary active:text-accent-secondary shrink-0 hover:bg-transparent"
+          aria-label="Clear"
+          onClick={() => onChange('')}
+        >
+          <DeleteIcon size={28} />
+        </Button>
+      )}
     </div>
   </div>
 );
