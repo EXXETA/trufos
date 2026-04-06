@@ -1,7 +1,6 @@
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -67,39 +66,45 @@ export const SettingsModal = () => {
         <FiSettings className="ml-2 text-xl" />
       </DialogTrigger>
 
-      <DialogContent className="flex h-[80vh] max-w-4xl flex-col p-0 lg:max-w-5xl">
-        <div className="flex h-full flex-col">
+      <DialogContent className="border-border bg-background-secondary text-foreground flex h-[82vh] max-w-5xl flex-col overflow-hidden border p-0 shadow-lg">
+        <Tabs defaultValue="variables" className="flex min-h-0 flex-1 flex-col">
           {/* Header - Fixed */}
-          <div className="shrink-0 px-4 pt-4">
+          <div className="border-border bg-background-secondary shrink-0 border-b px-6 pt-5 pb-3">
             <DialogHeader>
-              <DialogTitle className="font-bold">Collection Settings</DialogTitle>
+              <DialogTitle className="text-foreground text-[20px] font-bold">
+                Collection Settings
+              </DialogTitle>
             </DialogHeader>
+            <TabsList className="mt-5 flex gap-3 bg-transparent p-0">
+              <TabsTrigger
+                value="variables"
+                className="text-muted-foreground data-[state=active]:bg-accent-tertiary data-[state=active]:text-accent-primary rounded-full px-4 py-2.5 text-[14px] font-medium transition-all data-[state=active]:shadow-none"
+              >
+                Variables
+              </TabsTrigger>
+              <TabsTrigger
+                value="environments"
+                className="text-muted-foreground data-[state=active]:bg-accent-tertiary data-[state=active]:text-accent-primary rounded-full px-4 py-2.5 text-[14px] font-medium transition-all data-[state=active]:shadow-none"
+              >
+                Environments
+              </TabsTrigger>
+            </TabsList>
           </div>
 
           {/* Tabs - Takes remaining space */}
-          <Tabs defaultValue="variables" className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 px-4 py-4">
-              <TabsList className="bg-background">
-                <TabsTrigger value="variables" className="font-light!">
-                  Variables
-                </TabsTrigger>
-                <TabsTrigger value="environments" className="font-light!">
-                  Environments
-                </TabsTrigger>
-              </TabsList>
+
+          <TabsContent value="variables" className="m-0 min-h-0 flex-1 p-0">
+            <div className="bg-background-primary h-full overflow-x-hidden overflow-y-auto px-6 pt-4 pb-6">
+              <VariableEditor
+                variables={editorVariables}
+                onValidChange={setValid}
+                onVariablesChange={setEditorVariables}
+              />
             </div>
+          </TabsContent>
 
-            <TabsContent value="variables" className="m-0 min-h-0 flex-1 p-0">
-              <div className="h-full overflow-y-auto p-4">
-                <VariableEditor
-                  variables={editorVariables}
-                  onValidChange={setValid}
-                  onVariablesChange={setEditorVariables}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="environments" className="m-0 min-h-0 flex-1 p-0">
+          <TabsContent value="environments" className="m-0 min-h-0 flex-1 p-0">
+            <div className="bg-background-primary h-full overflow-x-hidden overflow-y-auto px-6 pt-4 pb-6">
               <EnvironmentEditor
                 environments={editorEnvironments}
                 selectedEnvironment={editorSelectedEnvironment}
@@ -107,25 +112,18 @@ export const SettingsModal = () => {
                 onEnvironmentSelect={setEditorSelectedEnvironment}
                 onValidChange={setEnvironmentValid}
               />
-            </TabsContent>
-          </Tabs>
-
-          {/* Footer - Fixed */}
-          <DialogFooter className="shrink-0 p-4">
-            <div className="flex gap-2">
-              <Button onClick={() => setOpen(false)} variant="outline">
-                <span className="leading-4 font-bold">Cancel</span>
-              </Button>
-              <Button
-                onClick={save}
-                disabled={!isOverallValid}
-                variant={isOverallValid ? 'default' : 'defaultDisable'}
-              >
-                <span className="leading-4 font-bold">Save</span>
-              </Button>
             </div>
-          </DialogFooter>
-        </div>
+          </TabsContent>
+          <div className="bg-background-primary flex shrink-0 justify-end px-6 pt-4 pb-6">
+            <Button
+              onClick={save}
+              disabled={!isOverallValid}
+              className="h-12.5 px-5 text-[14px] font-semibold transition-all active:scale-[0.98]"
+            >
+              Save
+            </Button>
+          </div>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
