@@ -29,6 +29,7 @@ describe('HttpService', () => {
 
   beforeEach(() => {
     vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
+    vi.spyOn(environmentService, 'currentCollection', 'get').mockReturnValue({ clientCertificate: null } as never);
   });
 
   it('fetchAsync() should make an HTTP call and return the body on read', async () => {
