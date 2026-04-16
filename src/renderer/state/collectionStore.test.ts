@@ -13,7 +13,7 @@ vi.mock('@/state/helper/collectionUtil', () => ({
 }));
 
 vi.mock('@/services/event/renderer-event-service', () => ({
-  RendererEventService: { instance: {} },
+  RendererEventService: { instance: { setClientCertificate: vi.fn() } },
 }));
 
 vi.mock('@/state/variableStore', () => ({
