@@ -222,8 +222,8 @@ export interface CollectionStateActions {
   moveItem(itemId: string, newParentId: string, position: number): Promise<void>;
 
   /**
-   * Update the client certificate of the current collection in the local store.
+   * Update the client certificate of the current collection and persist it to the backend.
    * @param certificate The certificate to set, or null to clear it.
    */
-  setClientCertificate(certificate: ClientCertificate | null): void;
+  setClientCertificate(certificate: ClientCertificate | null): Promise<void>;
 }

@@ -23,9 +23,6 @@ import {
 import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { ClientCertificate } from 'shim/objects/collection';
-import { RendererEventService } from '@/services/event/renderer-event-service';
-
-const eventService = RendererEventService.instance;
 
 export const SettingsModal = () => {
   const { setVariables } = useVariableActions();
@@ -59,8 +56,7 @@ export const SettingsModal = () => {
     await setVariables(variableArrayToMap(editorVariables));
     await setEnvironments(editorEnvironments);
     await selectEnvironment(editorSelectedEnvironment);
-    await eventService.setClientCertificate(editorCertificate);
-    setClientCertificate(editorCertificate);
+    await setClientCertificate(editorCertificate);
   };
 
   // We intentionally do NOT call cancel() after a successful save because cancel() reverts
@@ -99,7 +95,7 @@ export const SettingsModal = () => {
                   Environments
                 </TabsTrigger>
                 <TabsTrigger value="tls" className="font-light!">
-                  TLS
+                  mTLS
                 </TabsTrigger>
               </TabsList>
             </div>
