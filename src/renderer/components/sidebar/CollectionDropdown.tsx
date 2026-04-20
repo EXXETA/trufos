@@ -67,7 +67,7 @@ export default function CollectionDropdown() {
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={() => setShowImport(true)} className={'px-4 py-3'}>
-              <span>Open Collection</span>
+              <span>Import Collection</span>
             </DropdownMenuItem>
           </DropdownMenuGroup>
 
