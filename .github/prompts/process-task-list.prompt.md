@@ -1,5 +1,5 @@
 ---
-mode: agent
+agent: agent
 description: Step-by-step protocol for working through a Trufos task list
 ---
 

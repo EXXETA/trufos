@@ -1,5 +1,5 @@
 ---
-mode: agent
+agent: agent
 description: Generate a comprehensive Product Requirements Document (PRD) for a new Trufos feature
 ---
 

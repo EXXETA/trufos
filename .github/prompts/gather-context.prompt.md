@@ -1,6 +1,6 @@
 ---
 description: Analyse the Trufos codebase and gather context before starting any implementation work
-mode: ask
+agent: ask
 ---
 
 # Initial Context Gathering
