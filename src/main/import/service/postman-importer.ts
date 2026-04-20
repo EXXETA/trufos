@@ -112,10 +112,6 @@ export class PostmanImporter implements CollectionImporter {
       }
     }
 
-    if (request.auth != null) {
-      this.importAuth(request.auth);
-    }
-
     const trufosRequest: TrufosRequest = {
       id: item.id,
       parentId: parent.id,
@@ -133,12 +129,15 @@ export class PostmanImporter implements CollectionImporter {
         type: RequestBodyType.TEXT,
         mimeType: DEFAULT_MIME_TYPE,
       },
+      auth: this.importAuth(request.auth),
     };
 
     parent.children.push(trufosRequest);
   }
 
-  private importAuth(postmanAuth: PostmanRequestAuth): TrufosRequest['auth'] {
+  private importAuth(postmanAuth?: PostmanRequestAuth): TrufosRequest['auth'] {
+    if (postmanAuth == null) return;
+
     const parameters = new Map<string, string>();
     for (const param of postmanAuth.parameters().all()) {
       if (param.key != null && param.key !== '') parameters.set(param.key, param.value);
