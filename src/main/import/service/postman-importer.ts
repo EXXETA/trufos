@@ -172,9 +172,9 @@ export class PostmanImporter implements CollectionImporter {
       clientSecret: parameters.get('clientSecret') ?? '',
       scope: parameters.get('scope') ?? '',
       clientAuthenticationMethod:
-        parameters.get('addTokenTo') === 'header'
-          ? OAuth2ClientAuthenticationMethod.BASIC_AUTH
-          : OAuth2ClientAuthenticationMethod.REQUEST_BODY,
+        parameters.get('client_authentication') === 'body'
+          ? OAuth2ClientAuthenticationMethod.REQUEST_BODY
+          : OAuth2ClientAuthenticationMethod.BASIC_AUTH,
     };
 
     switch (parameters.get('grant_type')) {
@@ -191,7 +191,10 @@ export class PostmanImporter implements CollectionImporter {
           method: OAuth2Method.AUTHORIZATION_CODE_PKCE,
           authorizationUrl: parameters.get('authUrl') ?? '',
           callbackUrl: parameters.get('redirect_uri') ?? '',
-          codeChallengeMethod: OAuth2PKCECodeChallengeMethod.S256,
+          codeChallengeMethod:
+            parameters.get('challengeAlgorithm') === 'S256'
+              ? OAuth2PKCECodeChallengeMethod.S256
+              : OAuth2PKCECodeChallengeMethod.PLAIN,
           codeVerifier: parameters.get('code_verifier'),
         };
       case 'client_credentials':

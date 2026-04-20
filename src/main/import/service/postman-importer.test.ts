@@ -144,8 +144,9 @@ describe('PostmanImporter', () => {
         { key: 'clientSecret', value: 'client-secret-3' },
         { key: 'scope', value: 'api:read' },
         { key: 'redirect_uri', value: 'http://localhost:8080/callback' },
+        { key: 'client_authentication', value: 'body' },
+        { key: 'challengeAlgorithm', value: 'S256' },
         { key: 'code_verifier', value: 'my-code-verifier' },
-        { key: 'addTokenTo', value: 'request-body' },
       ],
     });
     const srcFilePath = path.join(tmpdir(), 'postman-oauth2-pkce.json');
