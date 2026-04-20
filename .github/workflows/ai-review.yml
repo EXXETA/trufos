@@ -1,0 +1,52 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+    types: [created]
+
+permissions:
+  pull-requests: write
+  contents: read
+  issues: write
+
+jobs:
+  ai-review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    # Skip drafts and dependabot PRs
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false && github.actor != 'dependabot[bot]') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '/review'))
+    steps:
+      - name: Run PR-Agent
+        uses: Codium-ai/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          # To use Anthropic Claude instead of OpenAI, comment out OPENAI_KEY above and uncomment:
+          # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # config.ai_provider: anthropic
+          # config.model: claude-sonnet-4-5
+
+          # Automatically review every new / updated PR
+          github_action_config.auto_review: "true"
+          # Automatically generate a PR description when none is provided
+          github_action_config.auto_describe: "true"
+          # Suggest improvements but do not auto-approve
+          github_action_config.auto_improve: "false"
+
+          # Review focus tailored to Trufos project conventions
+          pr_reviewer.extra_instructions: |
+            This is an Electron + React 19 + TypeScript desktop application called Trufos (a cross-platform REST client).
+            Pay special attention to:
+            - TypeScript strict mode: flag any use of `any`, missing return types, or unsafe type assertions
+            - Electron IPC security: all IPC payloads must be validated with Zod; `nodeIntegration` must never be enabled
+            - React best practices: only functional components, correct hook usage, no unnecessary prop drilling
+            - State management: shared state in Zustand stores (src/renderer/state/), Immer for nested mutations
+            - Error handling: typed error classes, Winston for main-process logging, sonner toasts for user-facing errors in the renderer
+            - Commit message format must follow: #<issue-id> - <present tense description>
+            - Styling: Tailwind CSS only, use cn() helper for conditional classes, no inline styles
+            - Test coverage: services, Zustand stores, and utility functions must have Vitest tests
+
