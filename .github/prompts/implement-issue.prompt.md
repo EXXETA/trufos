@@ -1,5 +1,5 @@
 ---
-mode: agent
+agent: agent
 description: Fetch a GitHub issue by number and implement it in the Trufos codebase
 tools: ['codebase', 'editFiles', 'runCommands', 'githubRepo', 'search', 'problems']
 ---

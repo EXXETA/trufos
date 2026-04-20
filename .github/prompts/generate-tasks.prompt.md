@@ -1,5 +1,5 @@
 ---
-mode: agent
+agent: agent
 description: Generate a detailed, phased task list from a Trufos PRD
 ---
 

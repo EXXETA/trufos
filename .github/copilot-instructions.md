@@ -24,7 +24,7 @@ Key renderer directories:
 | Concern | Technology |
 |---|---|
 | Framework | Electron + React 19 |
-| Language | TypeScript (strict mode) |
+| Language | TypeScript (`noImplicitAny: true`) |
 | Bundler | Vite |
 | Styling | Tailwind CSS v4 + shadcn/ui (Radix UI) |
 | State | Zustand + Immer |

@@ -1,6 +1,6 @@
 ---
 description: Audit and improve all documentation in the Trufos repository
-mode: agent
+agent: agent
 ---
 
 # Documentation Review & Improvement

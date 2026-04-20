@@ -7,7 +7,7 @@ description: TypeScript, React, and Electron coding standards for the Trufos pro
 
 ## TypeScript
 
-- Enable and respect **strict mode** (`tsconfig.json`); never use `any` – use `unknown` with type guards if the type is truly unknown.
+- Respect `noImplicitAny: true` in `tsconfig.json`; never use `any` – use `unknown` with type guards if the type is truly unknown.
 - Define explicit types and interfaces for all component props, function parameters, and return values.
 - Use **Zod** for runtime validation and to derive TypeScript types (`z.infer<typeof schema>`).
 - Prefer `type` for unions/intersections and simple aliases; use `interface` for object shapes that may be extended.

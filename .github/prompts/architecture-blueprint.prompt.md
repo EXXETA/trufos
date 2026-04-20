@@ -1,6 +1,6 @@
 ---
 description: Analyse the Trufos codebase and generate a comprehensive architecture blueprint document
-mode: agent
+agent: agent
 ---
 
 # Trufos Architecture Blueprint Generator
