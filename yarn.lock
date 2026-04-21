@@ -7637,12 +7637,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:1.1.0":
-  version: 1.1.0
-  resolution: "lucide-react@npm:1.1.0"
+"lucide-react@npm:1.8.0":
+  version: 1.8.0
+  resolution: "lucide-react@npm:1.8.0"
   peerDependencies:
     react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/b5fa2db9c3ce96ff9ea49b55cba04867372f91deb68103cb08670e4311ddc71747ac843532c7e6ba78517174793cb5eed89a0328d0cd16247de47054e091f872
+  checksum: 10c0/f7398f89a0f5b2cbfd1b7a7f6b2f00b0abd05d4b21d948bbd281ab141c42cdff9f1d2aed4e32b78b4bbdfa78308b6577705698af8bf9945bad23ed7d56e255b4
   languageName: node
   linkType: hard
 
@@ -9085,14 +9085,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^19.2.4":
-  version: 19.2.4
-  resolution: "react-dom@npm:19.2.4"
+"react-dom@npm:^19.2.5":
+  version: 19.2.5
+  resolution: "react-dom@npm:19.2.5"
   dependencies:
     scheduler: "npm:^0.27.0"
   peerDependencies:
-    react: ^19.2.4
-  checksum: 10c0/f0c63f1794dedb154136d4d0f59af00b41907f4859571c155940296808f4b94bf9c0c20633db75b5b2112ec13d8d7dd4f9bf57362ed48782f317b11d05a44f35
+    react: ^19.2.5
+  checksum: 10c0/8067606e9f58e4c2e8cb5f09570217dbc71c4843ebcaa20ae2085912d3e3a351f17d8f7c1713313cdda7f272840c8c34ff6c860fcb840862071bceea218e0c63
   languageName: node
   linkType: hard
 
@@ -9147,13 +9147,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-resizable-panels@npm:^4.7.5":
-  version: 4.7.5
-  resolution: "react-resizable-panels@npm:4.7.5"
+"react-resizable-panels@npm:^4.10.0":
+  version: 4.10.0
+  resolution: "react-resizable-panels@npm:4.10.0"
   peerDependencies:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
-  checksum: 10c0/547521f44e15f372f6a2be1448d70d6ed644fc0a3fd855209a3d07f3132bc57b65ee63814c0a83aa0d1dc55a5966dd0c82410b89cdbe8fa83f61bd5c09f41591
+  checksum: 10c0/da42646e8d7d30c4384c58ca9cefa3fe567fc2b11d4959cb15f1ec4e42198226016f61623c04baef105fdec68651a70411360b86f6cefa0bb45a53c42d252309
   languageName: node
   linkType: hard
 
@@ -9173,10 +9173,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^19.2.4":
-  version: 19.2.4
-  resolution: "react@npm:19.2.4"
-  checksum: 10c0/cd2c9ff67a720799cc3b38a516009986f7fc4cb8d3e15716c6211cf098d1357ee3e348ab05ad0600042bbb0fd888530ba92e329198c92eafa0994f5213396596
+"react@npm:^19.2.5":
+  version: 19.2.5
+  resolution: "react@npm:19.2.5"
+  checksum: 10c0/4b5f231dbef92886f602533c9ce3bde04d99f0e71dfb5d794c43e02726efaad0421c08688f75fc98a6d6e1dc017372e1af7abbfecdc86a79968f461675931a7a
   languageName: node
   linkType: hard
 
@@ -10530,7 +10530,7 @@ __metadata:
     globals: "npm:^17.4.0"
     immer: "npm:^11.1.4"
     jsdom: "npm:^29.0.1"
-    lucide-react: "npm:1.1.0"
+    lucide-react: "npm:1.8.0"
     memfs: "npm:^4.57.1"
     mime-types: "npm:^3.0.2"
     monaco-editor: "npm:^0.53.0"
@@ -10540,10 +10540,10 @@ __metadata:
     postman-collection: "npm:^5.3.0"
     prettier: "npm:^3.8.1"
     prettier-plugin-tailwindcss: "npm:^0.7.2"
-    react: "npm:^19.2.4"
-    react-dom: "npm:^19.2.4"
+    react: "npm:^19.2.5"
+    react-dom: "npm:^19.2.5"
     react-icons: "npm:^5.6.0"
-    react-resizable-panels: "npm:^4.7.5"
+    react-resizable-panels: "npm:^4.10.0"
     sonner: "npm:^2.0.7"
     style-loader: "npm:^4.0.0"
     tailwind-merge: "npm:^3.5.0"
