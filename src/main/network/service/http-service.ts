@@ -26,6 +26,7 @@ const responseBodyService = ResponseBodyService.instance;
 const scriptingService = ScriptingService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
+declare type DispatcherProvider = () => Promise<Dispatcher>;
 
 /**
  * Singleton service for making HTTP requests
@@ -33,15 +34,17 @@ declare type HttpHeaders = Record<string, string[]>;
 export class HttpService {
   public static readonly instance = new HttpService();
 
-  private readonly _dispatcher?: Dispatcher;
+  private readonly _dispatcherProvider: DispatcherProvider;
 
-  constructor(dispatcher?: Dispatcher) {
-    this._dispatcher = dispatcher ?? new Agent({ connect: { rejectUnauthorized: false } }); // allow self-signed certificates
+  constructor(dispatcherProvider?: DispatcherProvider) {
+    this._dispatcherProvider = dispatcherProvider ?? this.buildDefaultDispatcher.bind(this);
   }
 
-  private async buildDispatcher(): Promise<Dispatcher> {
+  private async buildDefaultDispatcher(): Promise<Dispatcher> {
     const cert = environmentService.currentCollection.clientCertificate;
-    if (cert == null) return this._dispatcher!;
+    if (cert == null) {
+      return new Agent({ connect: { rejectUnauthorized: false } }); // allow self-signed certificates
+    }
     return new Agent({
       connect: {
         rejectUnauthorized: false,
@@ -86,7 +89,7 @@ export class HttpService {
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
-      dispatcher: await this.buildDispatcher(),
+      dispatcher: await this._dispatcherProvider(),
       method: request.method,
       headers: {
         ['content-type']: this.getContentType(request.body),

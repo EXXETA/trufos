@@ -282,7 +282,7 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/formtext');
     const mockClient = mockAgent.get(url.origin);
     mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
-    const httpService = new HttpService(mockAgent);
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
     const request: TrufosRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
@@ -322,7 +322,7 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/formfile');
     const mockClient = mockAgent.get(url.origin);
     mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
-    const httpService = new HttpService(mockAgent);
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
 
     const fileContent = 'test file content';
     const { Readable } = require('node:stream');
@@ -381,7 +381,7 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/formvars');
     const mockClient = mockAgent.get(url.origin);
     mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
-    const httpService = new HttpService(mockAgent);
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
 
     const request: TrufosRequest = {
       id: randomUUID(),
@@ -470,5 +470,5 @@ function setupMockHttpService(
 
   const mockClient = mockAgent.get(url.origin);
   mockClient.intercept({ path: url.pathname }).reply(200, bodyString, { headers: headers });
-  return new HttpService(mockAgent);
+  return new HttpService(() => Promise.resolve(mockAgent));
 }
