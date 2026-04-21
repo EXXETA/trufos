@@ -158,6 +158,9 @@ export class PostmanImporter implements CollectionImporter {
       case 'oauth2': {
         return this.importOAuth2(parameters);
       }
+      default:
+        logger.warn('Unsupported auth type while importing from Postman:', postmanAuth.type);
+        return;
     }
   }
 
@@ -192,9 +195,9 @@ export class PostmanImporter implements CollectionImporter {
           authorizationUrl: parameters.get('authUrl') ?? '',
           callbackUrl: parameters.get('redirect_uri') ?? '',
           codeChallengeMethod:
-            parameters.get('challengeAlgorithm') === 'S256'
-              ? OAuth2PKCECodeChallengeMethod.S256
-              : OAuth2PKCECodeChallengeMethod.PLAIN,
+            parameters.get('challengeAlgorithm') === 'plain'
+              ? OAuth2PKCECodeChallengeMethod.PLAIN
+              : OAuth2PKCECodeChallengeMethod.S256,
           codeVerifier: parameters.get('code_verifier'),
         };
       case 'client_credentials':
