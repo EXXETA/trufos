@@ -3,6 +3,7 @@ import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { pipeline } from 'node:stream/promises';
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
@@ -25,6 +26,7 @@ const responseBodyService = ResponseBodyService.instance;
 const scriptingService = ScriptingService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
+declare type DispatcherProvider = () => Promise<Dispatcher>;
 
 /**
  * Singleton service for making HTTP requests
@@ -32,10 +34,25 @@ declare type HttpHeaders = Record<string, string[]>;
 export class HttpService {
   public static readonly instance = new HttpService();
 
-  private readonly _dispatcher?: Dispatcher;
+  private readonly _dispatcherProvider: DispatcherProvider;
 
-  constructor(dispatcher?: Dispatcher) {
-    this._dispatcher = dispatcher ?? new Agent({ connect: { rejectUnauthorized: false } }); // allow self-signed certificates
+  constructor(dispatcherProvider?: DispatcherProvider) {
+    this._dispatcherProvider = dispatcherProvider ?? this.buildDefaultDispatcher.bind(this);
+  }
+
+  private async buildDefaultDispatcher(): Promise<Dispatcher> {
+    const cert = environmentService.currentCollection.clientCertificate;
+    if (cert == null) {
+      return new Agent({ connect: { rejectUnauthorized: false } }); // allow self-signed certificates
+    }
+    return new Agent({
+      connect: {
+        rejectUnauthorized: false,
+        cert: await fsp.readFile(cert.certPath),
+        key: await fsp.readFile(cert.keyPath),
+        ca: cert.caPath ? await fsp.readFile(cert.caPath) : undefined,
+      },
+    });
   }
 
   /**
@@ -72,7 +89,7 @@ export class HttpService {
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
-      dispatcher: this._dispatcher,
+      dispatcher: await this._dispatcherProvider(),
       method: request.method,
       headers: {
         ['content-type']: this.getContentType(request.body),

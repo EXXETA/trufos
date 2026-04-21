@@ -9,6 +9,7 @@ import {
   VariableObject,
   EnvironmentMap,
 } from './objects';
+import { ClientCertificate } from './objects/collection';
 import { ScriptType } from './scripting';
 
 export type ImportStrategy = 'Postman' | 'Bruno' | 'Insomnia';
@@ -92,6 +93,12 @@ export interface IEventService {
    * @param variables The variables of the Collection to set.
    */
   setCollectionVariables(variables: VariableMap): void;
+
+  /**
+   * Set or clear the client certificate for the current collection.
+   * @param clientCertificate The client certificate to set, or null to clear it.
+   */
+  setClientCertificate(clientCertificate: ClientCertificate | null): Promise<void>;
 
   /**
    * Replace all existing environment variables with the given ones.

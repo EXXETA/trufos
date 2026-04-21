@@ -2,7 +2,7 @@ import { Readable } from 'node:stream';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { Collection, CollectionBase } from 'shim/objects/collection';
+import { ClientCertificate, Collection, CollectionBase } from 'shim/objects/collection';
 import { VariableMap } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
 import { SettingsService } from 'main/persistence/service/settings-service';
@@ -87,6 +87,10 @@ export class EnvironmentService implements Initializable {
   public setEnvironmentVariables(environmentVariables: EnvironmentMap) {
     logger.secret?.debug('Setting environment variables:', environmentVariables);
     this.currentCollection.environments = environmentVariables;
+  }
+
+  public setClientCertificate(clientCertificate: ClientCertificate | null) {
+    this.currentCollection.clientCertificate = clientCertificate ?? undefined;
   }
 
   /**

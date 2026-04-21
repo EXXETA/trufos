@@ -1,5 +1,5 @@
 import { editor } from 'monaco-editor';
-import { Collection } from 'shim/objects/collection';
+import { ClientCertificate, Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
@@ -220,4 +220,10 @@ export interface CollectionStateActions {
   closeCollection(dirPath?: string): Promise<void>;
 
   moveItem(itemId: string, newParentId: string, position: number): Promise<void>;
+
+  /**
+   * Update the client certificate of the current collection and persist it to the backend.
+   * @param certificate The certificate to set, or null to clear it.
+   */
+  setClientCertificate(certificate: ClientCertificate | null): Promise<void>;
 }
