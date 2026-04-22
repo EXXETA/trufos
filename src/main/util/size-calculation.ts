@@ -37,12 +37,14 @@ function calculateHeadersSize(headers: IncomingHttpHeaders) {
 }
 
 function calculateBodySize(headers: IncomingHttpHeaders, filePath?: string) {
+  if (filePath != null) {
+    return fs.statSync(filePath).size;
+  }
+
   const contentLength = headers['content-length'];
   if (contentLength != null && typeof contentLength === 'string') {
     return parseInt(contentLength);
   }
 
-  if (filePath == null) return 0;
-
-  return fs.statSync(filePath).size;
+  return 0;
 }

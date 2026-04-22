@@ -8,15 +8,16 @@ vi.mock('node:fs', () => ({
 }));
 
 describe('calculateResponseSize', () => {
-  it('calculates size correctly with valid headers and file path', () => {
+  it('uses actual file size over content-length header when file path is provided', () => {
+    // statSync is mocked to return 500, but content-length says 100
+    // the real file size must win to prevent the size limit check from being fooled
     const headers = { 'content-length': '100', 'content-type': 'application/json' };
     const filePath = 'path/to/file';
-    //vi.spyOn(fs, 'statSync').mockReturnValue({ size: 100 } as fs.Stats);
     const result = calculateResponseSize(headers, filePath);
     expect(result).toEqual({
-      totalSizeInBytes: 153,
+      totalSizeInBytes: 553,
       headersSizeInBytes: 53,
-      bodySizeInBytes: 100,
+      bodySizeInBytes: 500,
     });
   });
 
