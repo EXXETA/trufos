@@ -4,6 +4,7 @@ import {
   CollectionDefinition,
   Item,
   ItemGroup,
+  RequestAuth as PostmanRequestAuth,
 } from 'postman-collection';
 import { Collection as TrufosCollection } from 'shim/objects/collection';
 import { Folder as TrufosFolder } from 'shim/objects/folder';
@@ -12,6 +13,14 @@ import { parseUrl } from 'shim/objects/url';
 import { RequestMethod } from 'shim/objects/request-method';
 import fs from 'node:fs/promises';
 import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
+import {
+  AuthorizationType,
+  OAuth2AuthorizationInformation,
+  OAuth2ClientAuthenticationMethod,
+  OAuth2Method,
+  OAuth2PKCECodeChallengeMethod,
+  Oauth2BaseAuthorizationInformation,
+} from 'shim';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 
@@ -44,6 +53,7 @@ export class PostmanImporter implements CollectionImporter {
     const collection: TrufosCollection = {
       id: postmanCollection.id,
       type: 'collection',
+      lastModified: Date.now(),
       title: postmanCollection.name,
       dirPath: '', // must be set after import
       children: [],
@@ -52,49 +62,44 @@ export class PostmanImporter implements CollectionImporter {
     };
 
     // import children
-    await this.importItems(collection, postmanCollection.items.all());
+    this.importItems(collection, postmanCollection.items.all());
     return collection;
   }
 
-  private async importItems(
-    parent: TrufosCollection | TrufosFolder,
-    items: (Item | ItemGroup<Item>)[]
-  ) {
+  private importItems(parent: TrufosCollection | TrufosFolder, items: (Item | ItemGroup<Item>)[]) {
     for (const item of items) {
       if (item instanceof ItemGroup) {
-        await this.importFolder(parent, item);
+        this.importFolder(parent, item);
       } else if (item instanceof Item) {
-        await this.importRequest(parent, item);
+        this.importRequest(parent, item);
       }
     }
   }
 
-  private async importFolder(
-    parent: TrufosCollection | TrufosFolder,
-    postmanFolder: ItemGroup<Item>
-  ) {
+  private importFolder(parent: TrufosCollection | TrufosFolder, postmanFolder: ItemGroup<Item>) {
     const folder: TrufosFolder = {
       id: postmanFolder.id,
       parentId: parent.id,
       type: 'folder',
+      lastModified: Date.now(),
       title: postmanFolder.name,
       children: [],
     };
 
-    await this.importItems(folder, postmanFolder.items.all());
+    this.importItems(folder, postmanFolder.items.all());
     parent.children.push(folder);
   }
 
-  private async importRequest(parent: TrufosCollection | TrufosFolder, item: Item) {
+  private importRequest(parent: TrufosCollection | TrufosFolder, item: Item) {
     const { request } = item;
 
     let bodyInfo: RequestBody | null = null;
-    if (request.body !== undefined) {
+    if (request.body != null) {
       switch (request.body.mode) {
         case 'file':
           bodyInfo = {
             type: RequestBodyType.FILE,
-            filePath: request.body.file.src,
+            filePath: request.body.file?.src,
           };
           break;
         case 'raw':
@@ -111,6 +116,7 @@ export class PostmanImporter implements CollectionImporter {
       id: item.id,
       parentId: parent.id,
       type: 'request',
+      lastModified: Date.now(),
       title: item.name,
       url: parseUrl(request.url.toString()),
       headers: request.headers.all().map((header) => ({
@@ -123,8 +129,82 @@ export class PostmanImporter implements CollectionImporter {
         type: RequestBodyType.TEXT,
         mimeType: DEFAULT_MIME_TYPE,
       },
+      auth: this.importAuth(request.auth),
     };
 
     parent.children.push(trufosRequest);
+  }
+
+  private importAuth(postmanAuth?: PostmanRequestAuth): TrufosRequest['auth'] {
+    if (postmanAuth == null) return;
+
+    const parameters = new Map<string, string>();
+    for (const param of postmanAuth.parameters().all()) {
+      if (param.key != null && param.key !== '') parameters.set(param.key, param.value);
+    }
+
+    switch (postmanAuth.type) {
+      case 'basic':
+        return {
+          type: AuthorizationType.BASIC,
+          username: parameters.get('username') ?? '',
+          password: parameters.get('password') ?? '',
+        };
+      case 'bearer':
+        return {
+          type: AuthorizationType.BEARER,
+          token: parameters.get('token') ?? '',
+        };
+      case 'oauth2': {
+        return this.importOAuth2(parameters);
+      }
+      default:
+        logger.warn('Unsupported auth type while importing from Postman:', postmanAuth.type);
+        return;
+    }
+  }
+
+  private importOAuth2(
+    parameters: Map<string, string>
+  ): OAuth2AuthorizationInformation | undefined {
+    const base: Omit<Oauth2BaseAuthorizationInformation, 'method'> = {
+      type: AuthorizationType.OAUTH2,
+      issuerUrl: '',
+      tokenUrl: parameters.get('accessTokenUrl') ?? '',
+      clientId: parameters.get('clientId') ?? '',
+      clientSecret: parameters.get('clientSecret') ?? '',
+      scope: parameters.get('scope') ?? '',
+      clientAuthenticationMethod:
+        parameters.get('client_authentication') === 'body'
+          ? OAuth2ClientAuthenticationMethod.REQUEST_BODY
+          : OAuth2ClientAuthenticationMethod.BASIC_AUTH,
+    };
+
+    switch (parameters.get('grant_type')) {
+      case 'authorization_code':
+        return {
+          ...base,
+          method: OAuth2Method.AUTHORIZATION_CODE,
+          authorizationUrl: parameters.get('authUrl') ?? '',
+          callbackUrl: parameters.get('redirect_uri') ?? '',
+        };
+      case 'authorization_code_with_pkce':
+        return {
+          ...base,
+          method: OAuth2Method.AUTHORIZATION_CODE_PKCE,
+          authorizationUrl: parameters.get('authUrl') ?? '',
+          callbackUrl: parameters.get('redirect_uri') ?? '',
+          codeChallengeMethod:
+            parameters.get('challengeAlgorithm') === 'plain'
+              ? OAuth2PKCECodeChallengeMethod.PLAIN
+              : OAuth2PKCECodeChallengeMethod.S256,
+          codeVerifier: parameters.get('code_verifier'),
+        };
+      case 'client_credentials':
+        return {
+          ...base,
+          method: OAuth2Method.CLIENT_CREDENTIALS,
+        };
+    }
   }
 }

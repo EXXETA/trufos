@@ -32,6 +32,7 @@ export const Oauth2BaseAuthorizationInformation = z.object({
   /** To persist retrieved access tokens. Not configurable */
   tokens: z.object<TokenEndpointResponse>().optional(),
 });
+export type Oauth2BaseAuthorizationInformation = z.infer<typeof Oauth2BaseAuthorizationInformation>;
 
 export const OAuth2ClientCrentialsAuthorizationInformation =
   Oauth2BaseAuthorizationInformation.extend({

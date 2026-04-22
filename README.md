@@ -18,10 +18,10 @@ that is fast, user-friendly, and customizable. Below is an overview of current a
 | Cross-platform (Win / macOS / Linux)          | ✅ Implemented | Electron-based distribution with native packaging        |
 | Handling of large request & response payloads | ✅ Implemented | Streamed & chunked processing keeps UI responsive        |
 | Version control-friendly collections          | ✅ Implemented | Collections stored as JSON for easy diff & collaboration |
-| Third party collection import                 | 🚧 Partially   | Currently supports Postman                               |
+| Third party collection import                 | ✅ Implemented | Currently supports Postman                               |
 | Environment & variable management             | ✅ Implemented | Named environments with scoped variables                 |
 | Authentication (JWT, OAuth 2.0, Basic)        | ✅ Implemented | Strategy factory incl. OAuth2 client credentials         |
-| Scripting (custom request/response handling)  | 🚧 In Progress | Running scripts before and after requests                |
+| Scripting (custom request/response handling)  | ✅ Implemented | Running scripts before and after requests                |
 
 If you would like to contribute to this project, please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 
