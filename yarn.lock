@@ -5358,16 +5358,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron@npm:^41.2.2":
-  version: 41.2.2
-  resolution: "electron@npm:41.2.2"
+"electron@npm:^41.3.0":
+  version: 41.3.0
+  resolution: "electron@npm:41.3.0"
   dependencies:
     "@electron/get": "npm:^2.0.0"
     "@types/node": "npm:^24.9.0"
     extract-zip: "npm:^2.0.1"
   bin:
     electron: cli.js
-  checksum: 10c0/838aa854ba4f6b6ad41ccb255ce81c2cf7aba76c36507127401dab318d03f88cda2328484c046db18cfba4632cf0a0961adda40f8e888aa72f052369e9b71c18
+  checksum: 10c0/3145cb8d7d9514c80265763000c98eca399884f7f6e9d9ee0bd222d37c2e3d89afac6a4cb315239bfed7b4d609a6719bc948eb2210aac5db025b7fd7835da34a
   languageName: node
   linkType: hard
 
@@ -8101,16 +8101,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^3.0.4, minimatch@npm:^3.0.5, minimatch@npm:^3.1.1, minimatch@npm:^3.1.2":
-  version: 3.1.5
-  resolution: "minimatch@npm:3.1.5"
-  dependencies:
-    brace-expansion: "npm:^1.1.7"
-  checksum: 10c0/2ecbdc0d33f07bddb0315a8b5afbcb761307a8778b48f0b312418ccbced99f104a2d17d8aca7573433c70e8ccd1c56823a441897a45e384ea76ef401a26ace70
-  languageName: node
-  linkType: hard
-
-"minimatch@npm:^3.1.5":
+"minimatch@npm:^3.0.4, minimatch@npm:^3.0.5, minimatch@npm:^3.1.1, minimatch@npm:^3.1.2, minimatch@npm:^3.1.5":
   version: 3.1.5
   resolution: "minimatch@npm:3.1.5"
   dependencies:
@@ -10779,7 +10770,7 @@ __metadata:
     clsx: "npm:^2.1.1"
     cmdk: "npm:^1.1.1"
     css-loader: "npm:^7.1.4"
-    electron: "npm:^41.2.2"
+    electron: "npm:^41.3.0"
     electron-devtools-installer: "npm:^4.0.0"
     electron-squirrel-startup: "npm:^1.0.1"
     eslint: "npm:^10.2.1"
