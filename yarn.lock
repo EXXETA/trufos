@@ -7807,12 +7807,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:1.8.0":
-  version: 1.8.0
-  resolution: "lucide-react@npm:1.8.0"
+"lucide-react@npm:1.11.0":
+  version: 1.11.0
+  resolution: "lucide-react@npm:1.11.0"
   peerDependencies:
     react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/f7398f89a0f5b2cbfd1b7a7f6b2f00b0abd05d4b21d948bbd281ab141c42cdff9f1d2aed4e32b78b4bbdfa78308b6577705698af8bf9945bad23ed7d56e255b4
+  checksum: 10c0/2a2b6416eb89aea2bd59fa0a513d59a46090cd37c55633414ffadb86e4c7bba9dbd7991c9681fc1e879f565c885aaf5938921ab093d7f7c5d9d8c6bbe655ef30
   languageName: node
   linkType: hard
 
@@ -8101,16 +8101,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^3.0.4, minimatch@npm:^3.0.5, minimatch@npm:^3.1.1, minimatch@npm:^3.1.2":
-  version: 3.1.5
-  resolution: "minimatch@npm:3.1.5"
-  dependencies:
-    brace-expansion: "npm:^1.1.7"
-  checksum: 10c0/2ecbdc0d33f07bddb0315a8b5afbcb761307a8778b48f0b312418ccbced99f104a2d17d8aca7573433c70e8ccd1c56823a441897a45e384ea76ef401a26ace70
-  languageName: node
-  linkType: hard
-
-"minimatch@npm:^3.1.5":
+"minimatch@npm:^3.0.4, minimatch@npm:^3.0.5, minimatch@npm:^3.1.1, minimatch@npm:^3.1.2, minimatch@npm:^3.1.5":
   version: 3.1.5
   resolution: "minimatch@npm:3.1.5"
   dependencies:
@@ -10788,7 +10779,7 @@ __metadata:
     globals: "npm:^17.5.0"
     immer: "npm:^11.1.4"
     jsdom: "npm:^29.0.2"
-    lucide-react: "npm:1.8.0"
+    lucide-react: "npm:1.11.0"
     memfs: "npm:^4.57.2"
     mime-types: "npm:^3.0.2"
     monaco-editor: "npm:^0.53.0"
