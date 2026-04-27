@@ -124,6 +124,19 @@ begin.
 
 We welcome feedback, suggestions, and pull requests!
 
+### AI Code Review Setup (Maintainers only)
+
+Pull requests are automatically reviewed by [PR-Agent (Codium AI)](https://github.com/Codium-ai/pr-agent).
+After merging the AI review workflow, a repository maintainer must add the following secret under
+**Settings → Secrets and variables → Actions**:
+
+| Secret name | Value |
+| ----------- | ----- |
+| `OPENAI_KEY` | An OpenAI API key (GPT-4o recommended) |
+
+To use Anthropic Claude instead, add `ANTHROPIC_API_KEY` and update the workflow file accordingly
+(see comments in `.github/workflows/ai-review.yml`).
+
 ## Licence
 
 Licensed under GPL v3.0.
