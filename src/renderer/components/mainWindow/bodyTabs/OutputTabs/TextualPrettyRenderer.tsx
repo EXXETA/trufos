@@ -18,9 +18,9 @@ export const TextualPrettyRenderer: ResponseRenderer = ({ response, maxBytes }) 
   const onChange = useCallback(
     (content: string) => {
       RESPONSE_MODEL.setValue(content);
-      formatResponseEditorText();
+      if (maxBytes == null) formatResponseEditorText();
     },
-    [formatResponseEditorText]
+    [formatResponseEditorText, maxBytes]
   );
 
   useResponseData(response, 'utf-8', onChange, maxBytes);

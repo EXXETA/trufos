@@ -53,16 +53,26 @@ export const useResponseData = (
   maxBytes?: number
 ) => {
   useEffect(() => {
+    let canceled = false;
     let stream: IpcPushStream | undefined;
     IpcPushStream.open(response, encoding)
       .then((s) => {
+        if (canceled) {
+          s.close();
+          return;
+        }
         stream = s;
         return maxBytes != null ? s.readUpTo(maxBytes) : s.readAll();
       })
-      .then((content) => content !== undefined && onChange(content))
+      .then((content) => {
+        if (!canceled && content !== undefined) onChange(content);
+      })
       .catch(getToastForError);
 
-    return () => stream?.close();
+    return () => {
+      canceled = true;
+      stream?.close();
+    };
   }, [response, encoding, onChange, maxBytes]);
 };
 
