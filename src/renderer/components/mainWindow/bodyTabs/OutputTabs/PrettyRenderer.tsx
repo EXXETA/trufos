@@ -10,7 +10,7 @@ export const RESPONSE_BODY_SIZE_LIMIT = 5 * 1024 * 1024; // 5 MB
 
 export interface PrettyRendererProps {
   response: TrufosResponse;
-  skip?: boolean;
+  maxBytes?: number;
 }
 
 export type ResponseRenderer = FC<PrettyRendererProps>;
@@ -39,8 +39,8 @@ function getContentTypeFromHeaders(headers?: HttpHeaders) {
  * @param response The response to get the mime type from.
  * @returns The mime type or undefined if not found.
  */
-export function getMimeType(response: TrufosResponse) {
-  return getMimeTypeFromContentType(getContentTypeFromHeaders(response.headers));
+export function getMimeType(response?: TrufosResponse) {
+  return getMimeTypeFromContentType(getContentTypeFromHeaders(response?.headers));
 }
 
 export const useResponseMimeType = (headers: HttpHeaders) =>
@@ -50,20 +50,20 @@ export const useResponseData = (
   response: TrufosResponse,
   encoding: StringBufferEncoding,
   onChange: (data: string) => void,
-  skip = false
+  maxBytes?: number
 ) => {
   useEffect(() => {
-    if (skip) return;
-
     let stream: IpcPushStream | undefined;
     IpcPushStream.open(response, encoding)
-      .then((s) => (stream = s).readAll())
+      .then((s) => {
+        stream = s;
+        return maxBytes != null ? s.readUpTo(maxBytes) : s.readAll();
+      })
       .then((content) => content !== undefined && onChange(content))
       .catch(getToastForError);
 
-    // cancel stream on unmount or response change
     return () => stream?.close();
-  }, [response, encoding, onChange, skip]);
+  }, [response, encoding, onChange, maxBytes]);
 };
 
 export const useResponseEditor = () => {

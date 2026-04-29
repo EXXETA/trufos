@@ -5,26 +5,23 @@ import { BodyTab } from './BodyTab';
 import { RESPONSE_BODY_SIZE_LIMIT } from './PrettyRenderer';
 import { TrufosResponse } from 'shim/objects/response';
 
-// Mock IPC stream (requires window.electron which doesn't exist in jsdom)
 vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: vi.fn() },
 }));
 
-// Mock Monaco-related modules
 vi.mock('@/lib/monaco/language', () => ({
   isFormattableLanguage: vi.fn(() => true),
   mimeTypeToLanguage: vi.fn(() => 'json'),
 }));
 
-// Mock child renderers to avoid Monaco editor in tests
 vi.mock('./DefaultRenderer', () => ({
-  DefaultRenderer: ({ skip }: { skip?: boolean }) => (
-    <div data-testid="default-renderer" data-skip={String(skip)} />
+  DefaultRenderer: ({ maxBytes }: { maxBytes?: number }) => (
+    <div data-testid="default-renderer" data-max-bytes={String(maxBytes)} />
   ),
 }));
 vi.mock('./TextualPrettyRenderer', () => ({
-  TextualPrettyRenderer: ({ skip }: { skip?: boolean }) => (
-    <div data-testid="textual-renderer" data-skip={String(skip)} />
+  TextualPrettyRenderer: ({ maxBytes }: { maxBytes?: number }) => (
+    <div data-testid="textual-renderer" data-max-bytes={String(maxBytes)} />
   ),
 }));
 vi.mock('./ImagePrettyRenderer', () => ({
@@ -71,60 +68,59 @@ describe('BodyTab', () => {
     mockResponse = undefined;
   });
 
-  it('shows dialog when response body exceeds size limit', async () => {
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
-    render(<BodyTab />);
-
-    expect(screen.getByText('Large Response Body')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Load anyway' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
-  });
-
-  it('does not show dialog when response body is within size limit', () => {
+  it('renders content renderer immediately for small responses', () => {
     mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT - 1);
     render(<BodyTab />);
 
-    expect(screen.queryByText('Large Response Body')).toBeNull();
+    expect(screen.queryByTestId('default-renderer')).not.toBeNull();
   });
 
-  it('passes skip=true to renderer when body is too large', () => {
+  it('renders content renderer immediately for large responses without blocking dialog', () => {
     mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
     render(<BodyTab />);
 
-    expect(screen.getByTestId('default-renderer').getAttribute('data-skip')).toBe('true');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByTestId('default-renderer')).not.toBeNull();
   });
 
-  it('closes dialog and loads content when Load anyway is clicked', async () => {
+  it('passes maxBytes to renderer when response exceeds size limit', () => {
+    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
+    render(<BodyTab />);
+
+    expect(screen.getByTestId('default-renderer').getAttribute('data-max-bytes')).toBe(
+      String(RESPONSE_BODY_SIZE_LIMIT)
+    );
+  });
+
+  it('passes no maxBytes to renderer when response is within size limit', () => {
+    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT - 1);
+    render(<BodyTab />);
+
+    expect(screen.getByTestId('default-renderer').getAttribute('data-max-bytes')).toBe('undefined');
+  });
+
+  it('shows load more button when response exceeds size limit', () => {
+    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
+    render(<BodyTab />);
+
+    expect(screen.getByRole('button', { name: /load more/i })).toBeTruthy();
+  });
+
+  it('does not show load more button when response is within size limit', () => {
+    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT - 1);
+    render(<BodyTab />);
+
+    expect(screen.queryByRole('button', { name: /load more/i })).toBeNull();
+  });
+
+  it('removes maxBytes and load more button after load more is clicked', async () => {
     const user = userEvent.setup();
     mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
     render(<BodyTab />);
 
-    await user.click(screen.getByRole('button', { name: 'Load anyway' }));
+    await user.click(screen.getByRole('button', { name: /load more/i }));
 
-    expect(screen.queryByText('Large Response Body')).toBeNull();
-    expect(screen.getByTestId('default-renderer').getAttribute('data-skip')).toBe('false');
-  });
-
-  it('shows placeholder with Load anyway button after Cancel', async () => {
-    const user = userEvent.setup();
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
-    render(<BodyTab />);
-
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(screen.queryByText('Large Response Body')).toBeNull();
-    expect(screen.getByText(/was not loaded/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Load anyway' })).toBeTruthy();
-  });
-
-  it('loads content when Load anyway is clicked from placeholder', async () => {
-    const user = userEvent.setup();
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
-    render(<BodyTab />);
-
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-    await user.click(screen.getByRole('button', { name: 'Load anyway' }));
-
-    expect(screen.getByTestId('default-renderer').getAttribute('data-skip')).toBe('false');
+    expect(screen.getByTestId('default-renderer').getAttribute('data-max-bytes')).toBe('undefined');
+    expect(screen.queryByRole('button', { name: /load more/i })).toBeNull();
   });
 });

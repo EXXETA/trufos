@@ -10,7 +10,7 @@ import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-set
 import { RESPONSE_MODEL } from '@/lib/monaco/models';
 import { mimeTypeToLanguage } from '@/lib/monaco/language';
 
-export const TextualPrettyRenderer: ResponseRenderer = ({ response, skip }) => {
+export const TextualPrettyRenderer: ResponseRenderer = ({ response, maxBytes }) => {
   const { editor, setEditorLanguage, formatResponseEditorText, setResponseEditor } =
     useResponseEditor();
   const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)), [response]);
@@ -23,7 +23,7 @@ export const TextualPrettyRenderer: ResponseRenderer = ({ response, skip }) => {
     [formatResponseEditorText]
   );
 
-  useResponseData(response, 'utf-8', onChange, skip);
+  useResponseData(response, 'utf-8', onChange, maxBytes);
 
   useEffect(() => {
     if (editor) {
