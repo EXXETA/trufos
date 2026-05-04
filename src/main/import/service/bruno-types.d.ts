@@ -22,6 +22,13 @@ declare module '@usebruno/lang' {
     enabled: boolean;
   }
 
+  export interface BrunoParam {
+    name: string;
+    value: string;
+    enabled: boolean;
+    type: 'query' | 'path';
+  }
+
   export interface BrunoFormField {
     name: string;
     value: string;
@@ -60,8 +67,20 @@ declare module '@usebruno/lang' {
     meta: BrunoMeta;
     http: BrunoHttp;
     headers?: BrunoHeader[];
+    params?: BrunoParam[];
     body?: BrunoBody;
     auth?: BrunoAuth;
+  }
+
+  export interface BrunoEnvVariable {
+    name: string;
+    value: string;
+    enabled: boolean;
+    secret: boolean;
+  }
+
+  export interface BrunoEnvFile {
+    variables: BrunoEnvVariable[];
   }
 
   export interface BrunoCollectionMeta {
@@ -74,5 +93,6 @@ declare module '@usebruno/lang' {
   }
 
   export function bruToJsonV2(content: string): BrunoRequest;
+  export function bruToEnvJsonV2(content: string): BrunoEnvFile;
   export function collectionBruToJson(content: string): BrunoCollectionFile;
 }

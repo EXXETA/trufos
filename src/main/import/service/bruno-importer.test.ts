@@ -88,6 +88,36 @@ headers {
     ]);
   });
 
+  it('imports query parameters from params:query block', async () => {
+    const collectionDir = await createBrunoCollection('Test', {
+      'search.bru': `
+meta {
+  name: Search
+  type: http
+  seq: 1
+}
+get {
+  url: https://api.example.com/search
+  body: none
+  auth: none
+}
+params:query {
+  q: hello world
+  limit: 10
+  ~disabled: nope
+}`,
+    });
+
+    const result = await new BrunoImporter().importCollection(collectionDir);
+    const request = result.children[0] as TrufosRequest;
+
+    expect(request.url.query).toEqual([
+      { key: 'q', value: 'hello world', isActive: true },
+      { key: 'limit', value: '10', isActive: true },
+      { key: 'disabled', value: 'nope', isActive: false },
+    ]);
+  });
+
   it('imports bearer auth', async () => {
     const collectionDir = await createBrunoCollection('Test', {
       'bearer.bru': `
@@ -144,6 +174,27 @@ auth:basic {
     });
   });
 
+  it('imports inherit auth', async () => {
+    const collectionDir = await createBrunoCollection('Test', {
+      'inherit.bru': `
+meta {
+  name: Inherit Auth Request
+  type: http
+  seq: 1
+}
+get {
+  url: https://api.example.com/secure
+  body: none
+  auth: inherit
+}`,
+    });
+
+    const result = await new BrunoImporter().importCollection(collectionDir);
+    const request = result.children[0] as TrufosRequest;
+
+    expect(request.auth).toEqual({ type: AuthorizationType.INHERIT });
+  });
+
   it('imports oauth2 client credentials auth', async () => {
     const collectionDir = await createBrunoCollection('Test', {
       'oauth2-cc.bru': `
@@ -163,7 +214,7 @@ auth:oauth2 {
   client_id: my-client-id
   client_secret: my-client-secret
   scope: read write
-  client_authentication: as_basic_auth_header
+  credentials_placement: header
 }`,
     });
 
@@ -177,6 +228,7 @@ auth:oauth2 {
       clientId: 'my-client-id',
       clientSecret: 'my-client-secret',
       scope: 'read write',
+      clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
     });
   });
 
@@ -389,6 +441,29 @@ post {
     expect((usersFolder.children[1] as TrufosRequest).title).toBe('Create User');
   });
 
+  it('imports environments from environments/ directory', async () => {
+    const collectionDir = await createBrunoCollection('Test', {
+      'environments/dev.bru': `
+vars {
+  baseUrl: https://dev.example.com
+  apiKey: dev-key-123
+}`,
+      'environments/prod.bru': `
+vars {
+  baseUrl: https://api.example.com
+  apiKey: prod-key-456
+}`,
+    });
+
+    const result = await new BrunoImporter().importCollection(collectionDir);
+
+    expect(Object.keys(result.environments)).toHaveLength(2);
+    expect(result.environments['dev'].variables['baseUrl'].value).toBe('https://dev.example.com');
+    expect(result.environments['dev'].variables['apiKey'].value).toBe('dev-key-123');
+    expect(result.environments['prod'].variables['baseUrl'].value).toBe('https://api.example.com');
+    expect(result.environments['prod'].variables['apiKey'].value).toBe('prod-key-456');
+  });
+
   it('accepts bruno.json file path as input', async () => {
     const collectionDir = await createBrunoCollection('Test by File', {});
     const brunoJsonPath = path.join(collectionDir, 'bruno.json');
@@ -397,36 +472,26 @@ post {
     expect(result.title).toBe('Test by File');
   });
 
-  it('uses client_credentials auth method and maps credentialsPlacement', async () => {
+  it('skips environments/ and node_modules/ directories as folders', async () => {
     const collectionDir = await createBrunoCollection('Test', {
-      'oauth2-body.bru': `
+      'api/get.bru': `
 meta {
-  name: OAuth2 Body Auth
+  name: Get
   type: http
   seq: 1
 }
 get {
-  url: https://api.example.com/protected
+  url: https://api.example.com/
   body: none
-  auth: oauth2
-}
-auth:oauth2 {
-  grant_type: client_credentials
-  access_token_url: https://auth.example.com/token
-  client_id: cid
-  client_secret: csecret
-  scope: api
-  credentials_placement: header
+  auth: none
 }`,
+      'environments/local.bru': `vars { host: localhost }`,
     });
 
     const result = await new BrunoImporter().importCollection(collectionDir);
-    const request = result.children[0] as TrufosRequest;
 
-    expect(request.auth).toMatchObject({
-      type: AuthorizationType.OAUTH2,
-      method: OAuth2Method.CLIENT_CREDENTIALS,
-      clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
-    });
+    // Only the 'api' folder should appear — not 'environments'
+    expect(result.children).toHaveLength(1);
+    expect((result.children[0] as Folder).title).toBe('api');
   });
 });

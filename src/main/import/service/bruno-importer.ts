@@ -1,5 +1,5 @@
 import { CollectionImporter } from './import-service.js';
-import { bruToJsonV2, BrunoAuth, BrunoRequest } from '@usebruno/lang';
+import { bruToJsonV2, bruToEnvJsonV2, BrunoAuth, BrunoRequest } from '@usebruno/lang';
 import { Collection as TrufosCollection } from 'shim/objects/collection';
 import { Folder as TrufosFolder } from 'shim/objects/folder';
 import { FormDataBody, RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
@@ -8,6 +8,7 @@ import { RequestMethod } from 'shim/objects/request-method';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
 import {
   AuthorizationType,
   OAuth2AuthorizationInformation,
@@ -27,6 +28,9 @@ const BODY_MIME_TYPES: Record<string, string> = {
   formUrlEncoded: 'application/x-www-form-urlencoded',
 };
 
+/** Directories to skip when walking the collection tree. */
+const IGNORED_DIRS = new Set(['environments', 'node_modules']);
+
 interface BrunoJson {
   name: string;
   uid?: string;
@@ -36,6 +40,7 @@ interface BrunoJson {
 /**
  * An importer for Bruno collections. A Bruno collection is a directory containing a
  * `bruno.json` metadata file, `.bru` request files and optional subdirectories (folders).
+ * An optional `environments/` subdirectory may contain `.bru` environment files.
  * Items are ordered according to their `seq` field in the meta block.
  */
 export class BrunoImporter implements CollectionImporter {
@@ -57,11 +62,41 @@ export class BrunoImporter implements CollectionImporter {
       dirPath: '', // must be set after import
       children: [],
       variables: {},
-      environments: {},
+      environments: await this.importEnvironments(collectionDir),
     };
 
     await this.importDirectory(collection, collectionDir);
     return collection;
+  }
+
+  private async importEnvironments(
+    collectionDir: string
+  ): Promise<TrufosCollection['environments']> {
+    const environmentsDir = path.join(collectionDir, 'environments');
+    const environments: TrufosCollection['environments'] = {};
+
+    try {
+      const files = await fs.readdir(environmentsDir);
+      for (const file of files.sort()) {
+        if (!file.endsWith('.bru')) continue;
+        const content = await fs.readFile(path.join(environmentsDir, file), 'utf8');
+        const parsed = bruToEnvJsonV2(content);
+        const envName = path.basename(file, '.bru');
+        const variables: Record<string, VariableObject> = {};
+        for (const v of parsed.variables) {
+          if (v.enabled && VARIABLE_NAME_REGEX.test(v.name)) {
+            variables[v.name] = { value: v.value };
+          }
+        }
+        if (Object.keys(variables).length > 0) {
+          environments[envName] = { variables };
+        }
+      }
+    } catch {
+      // environments/ directory may not exist — that's fine
+    }
+
+    return environments;
   }
 
   private async importDirectory(
@@ -79,6 +114,7 @@ export class BrunoImporter implements CollectionImporter {
 
       const fullPath = path.join(dirPath, entry.name);
       if (entry.isDirectory()) {
+        if (IGNORED_DIRS.has(entry.name)) continue;
         folders.push({ seq: Infinity, name: entry.name, fullPath });
       } else if (entry.isFile() && entry.name.endsWith('.bru')) {
         const content = await fs.readFile(fullPath, 'utf8');
@@ -119,7 +155,13 @@ export class BrunoImporter implements CollectionImporter {
   }
 
   private importRequest(parent: TrufosCollection | TrufosFolder, brunoRequest: BrunoRequest): void {
-    const { meta, http, headers = [], body, auth } = brunoRequest;
+    const { meta, http, headers = [], params = [], body, auth } = brunoRequest;
+
+    const parsedUrl = parseUrl(http.url ?? '');
+    const extraQueryParams = params
+      .filter((p) => p.type === 'query')
+      .map((p) => ({ key: p.name, value: p.value, isActive: p.enabled }));
+    parsedUrl.query = [...parsedUrl.query, ...extraQueryParams];
 
     const trufosRequest: TrufosRequest = {
       id: crypto.randomUUID(),
@@ -127,7 +169,7 @@ export class BrunoImporter implements CollectionImporter {
       type: 'request',
       lastModified: Date.now(),
       title: meta.name,
-      url: parseUrl(http.url ?? ''),
+      url: parsedUrl,
       method: (http.method?.toUpperCase() as RequestMethod) ?? RequestMethod.GET,
       headers: headers.map((h) => ({
         key: h.name,
@@ -135,7 +177,7 @@ export class BrunoImporter implements CollectionImporter {
         isActive: h.enabled,
       })),
       body: this.importBody(http.body, body),
-      auth: this.importAuth(auth),
+      auth: this.importAuth(http.auth, auth),
     };
 
     parent.children.push(trufosRequest);
@@ -191,7 +233,14 @@ export class BrunoImporter implements CollectionImporter {
     }
   }
 
-  private importAuth(auth: BrunoAuth | undefined): TrufosRequest['auth'] {
+  private importAuth(
+    authType: string | undefined,
+    auth: BrunoAuth | undefined
+  ): TrufosRequest['auth'] {
+    if (authType === 'inherit') {
+      return { type: AuthorizationType.INHERIT };
+    }
+
     if (auth == null) return;
 
     if (auth.bearer != null) {
