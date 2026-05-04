@@ -22,14 +22,14 @@ function canBePrettified(mimeType?: string) {
 }
 
 function formatBytes(bytes: number) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 export const BodyTab = () => {
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
-  const response = useResponseStore((state) =>
-    requestId != null ? selectResponse(state, requestId) : undefined
-  );
+  const response = useResponseStore((state) => selectResponse(state, requestId));
   const [outputType, setOutputType] = useStateDerived(response, (response) =>
     canBePrettified(getMimeType(response)) ? OutputType.PRETTY : OutputType.RAW
   );

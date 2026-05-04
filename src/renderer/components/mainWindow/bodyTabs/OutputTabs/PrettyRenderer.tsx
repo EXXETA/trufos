@@ -55,14 +55,14 @@ export const useResponseData = (
   useEffect(() => {
     let canceled = false;
     let stream: IpcPushStream | undefined;
-    IpcPushStream.open(response, encoding)
+    IpcPushStream.open(response, encoding, maxBytes)
       .then((s) => {
         if (canceled) {
           s.close();
           return;
         }
         stream = s;
-        return maxBytes != null ? s.readUpTo(maxBytes) : s.readAll();
+        return s.readAll();
       })
       .then((content) => {
         if (!canceled && content !== undefined) onChange(content);

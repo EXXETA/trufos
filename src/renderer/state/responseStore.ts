@@ -47,6 +47,6 @@ export const useResponseStore = create<ResponseState>()(
   }))
 );
 
-export const selectResponse = (state: ResponseState, requestId: string) =>
-  state.responseInfoMap[requestId];
+export const selectResponse = (state: ResponseState, requestId: string | undefined) =>
+  requestId != null ? state.responseInfoMap[requestId] : undefined;
 export const useResponseActions = () => useResponseStore(useActions());

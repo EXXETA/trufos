@@ -13,14 +13,15 @@ const responseBodyService = ResponseBodyService.instance;
 
 ipcMain.handle(
   'stream-open',
-  async (event, input: StreamInput, encoding?: StringBufferEncoding) => {
+  async (event, input: StreamInput, encoding?: StringBufferEncoding, maxBytes?: number) => {
     const { sender } = event;
     const id = nextId++;
 
     let stream: ReadStream;
+    const streamOptions = maxBytes != null ? { encoding, end: maxBytes - 1 } : encoding;
 
     if (typeof input === 'string') {
-      stream = createReadStream(input, encoding);
+      stream = createReadStream(input, streamOptions);
     } else if (input.type === 'response') {
       if (input.id == null) {
         logger.debug('Response has no body, sending empty stream');
@@ -33,7 +34,7 @@ ipcMain.handle(
         setImmediate(() => sender.send('stream-end', id));
         return id;
       }
-      stream = createReadStream(filePath, encoding);
+      stream = createReadStream(filePath, streamOptions);
     } else if (input.type === 'script') {
       stream = await persistenceService.loadScript(input.request, input.source);
     } else if (input.type === 'request') {

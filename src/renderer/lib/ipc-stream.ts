@@ -34,9 +34,9 @@ export class IpcPushStream extends EventEmitter<{
     IpcPushStream.streams.set(id, this);
   }
 
-  public static async open(input: StreamInput, encoding: StringBufferEncoding) {
+  public static async open(input: StreamInput, encoding: StringBufferEncoding, maxBytes?: number) {
     return new IpcPushStream(
-      await window.electron.ipcRenderer.invoke('stream-open', input, encoding)
+      await window.electron.ipcRenderer.invoke('stream-open', input, encoding, maxBytes)
     );
   }
 
@@ -53,31 +53,6 @@ export class IpcPushStream extends EventEmitter<{
     this.on('data', (chunk) => chunks.push(chunk));
     return new Promise<string>((resolve, reject) => {
       this.on('end', (canceled) => (canceled ? undefined : resolve(chunks.join(''))));
-      this.on('error', reject);
-    });
-  }
-
-  /**
-   * Collect up to maxChars characters from the stream, then close it.
-   * @returns The collected string, potentially shorter than the full response.
-   */
-  public readUpTo(maxChars: number) {
-    const chunks: string[] = [];
-    let charsRead = 0;
-    this.on('data', (chunk: string) => {
-      if (charsRead >= maxChars) return;
-      const remaining = maxChars - charsRead;
-      if (chunk.length > remaining) {
-        chunks.push(chunk.substring(0, remaining));
-        charsRead = maxChars;
-        this.close();
-      } else {
-        chunks.push(chunk);
-        charsRead += chunk.length;
-      }
-    });
-    return new Promise<string>((resolve, reject) => {
-      this.on('end', () => resolve(chunks.join('')));
       this.on('error', reject);
     });
   }
