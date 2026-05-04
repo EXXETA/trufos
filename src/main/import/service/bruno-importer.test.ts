@@ -1,7 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
-import { AuthorizationType, OAuth2ClientAuthenticationMethod, OAuth2Method } from 'shim/objects/auth';
+import {
+  AuthorizationType,
+  OAuth2ClientAuthenticationMethod,
+  OAuth2Method,
+} from 'shim/objects/auth';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { Folder } from 'shim/objects/folder';
 import { describe, expect, it } from 'vitest';

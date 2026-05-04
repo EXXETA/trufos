@@ -183,10 +183,7 @@ export class BrunoImporter implements CollectionImporter {
     parent.children.push(trufosRequest);
   }
 
-  private importBody(
-    bodyType: string | undefined,
-    body: BrunoRequest['body']
-  ): RequestBody {
+  private importBody(bodyType: string | undefined, body: BrunoRequest['body']): RequestBody {
     switch (bodyType) {
       case 'json':
         return {
