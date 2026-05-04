@@ -115,7 +115,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   }, [srcEntry, targetEntry, strategy, title, onClose, changeCollection]);
 
   const dialogFooter = useMemo(() => {
-    if (strategy === 'Bruno' || strategy === 'Insomnia') {
+    if (strategy === 'Insomnia') {
       return null;
     }
     return (
@@ -227,8 +227,34 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             <TitleInput value={title ?? ''} onChange={setTitle} />
           </ImportTabsContent>
 
-          <ImportTabsContent strategy="Bruno" gap={false}>
-            <span>Coming soon...</span>
+          <ImportTabsContent strategy="Bruno">
+            <FilePicker
+              title="Select Bruno collection directory"
+              description="Select the folder containing the bruno.json file"
+              entry={srcEntry}
+              icon={<FolderSearchIcon size={36} />}
+              onFileSelected={setSrcEntry}
+              onFileRemoved={() => setSrcEntry(undefined)}
+              directoryMode
+              controlled
+            />
+            {/* Flow separator */}
+            <div className="flex items-center justify-center">
+              <div className="bg-separator h-px flex-1" />
+              <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
+              <div className="bg-separator h-px flex-1" />
+            </div>
+            <FilePicker
+              title="Select directory for new collection"
+              description="This is where the imported collection will be placed"
+              entry={targetEntry}
+              icon={<FolderPlusIcon size={36} />}
+              onFileSelected={setTargetEntry}
+              onFileRemoved={() => setTargetEntry(undefined)}
+              directoryMode
+              controlled
+            />
+            <TitleInput value={title ?? ''} onChange={setTitle} />
           </ImportTabsContent>
 
           <ImportTabsContent strategy="Insomnia" gap={false}>
