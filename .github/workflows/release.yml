@@ -31,6 +31,10 @@ jobs:
       - name: Run tests
         run: yarn test
 
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y fakeroot dpkg
+
       - name: Build and publish app
         run: yarn run publish
         env:
