@@ -56,6 +56,7 @@ const config: ForgeConfig = {
   },
   packagerConfig: {
     asar: true,
+    executableName: 'trufos',
     icon: './images/icon',
     osxSign,
     osxNotarize,
