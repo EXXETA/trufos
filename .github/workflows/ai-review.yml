@@ -25,7 +25,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-          OPENAI.API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
+          OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
           # To use Anthropic Claude instead of OpenAI, comment out OPENAI_KEY above and uncomment:
           # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # config.ai_provider: anthropic
