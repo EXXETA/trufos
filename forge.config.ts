@@ -2,6 +2,7 @@ import type { ForgeConfig, ForgePackagerOptions } from '@electron-forge/shared-t
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDMG } from '@electron-forge/maker-dmg';
+import { MakerDeb } from '@electron-forge/maker-deb';
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { VitePlugin } from '@electron-forge/plugin-vite';
@@ -55,12 +56,26 @@ const config: ForgeConfig = {
   },
   packagerConfig: {
     asar: true,
+    executableName: 'trufos',
     icon: './images/icon',
     osxSign,
     osxNotarize,
   },
   rebuildConfig: {},
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ['linux']), new MakerDMG()],
+  makers: [
+    new MakerSquirrel({}),
+    new MakerZIP({}, ['linux']),
+    new MakerDMG(),
+    new MakerDeb({
+      options: {
+        icon: './images/logo-256.png',
+        categories: ['Utility', 'Development'],
+        description: 'A cross-platform desktop REST client',
+        productDescription: 'Trufos is a cross-platform desktop REST client built with Electron.',
+        section: 'utils',
+      },
+    }),
+  ],
   plugins: [
     new AutoUnpackNativesPlugin({}),
     new VitePlugin({
