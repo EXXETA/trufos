@@ -6,8 +6,11 @@ import { HttpHeaders } from 'shim/headers';
 import { StringBufferEncoding } from 'shim/ipc-stream';
 import { TrufosResponse } from 'shim/objects/response';
 
+export const RESPONSE_BODY_SIZE_LIMIT = 5 * 1024 * 1024; // 5 MB
+
 export interface PrettyRendererProps {
   response: TrufosResponse;
+  maxBytes?: number;
 }
 
 export type ResponseRenderer = FC<PrettyRendererProps>;
@@ -36,8 +39,8 @@ function getContentTypeFromHeaders(headers?: HttpHeaders) {
  * @param response The response to get the mime type from.
  * @returns The mime type or undefined if not found.
  */
-export function getMimeType(response: TrufosResponse) {
-  return getMimeTypeFromContentType(getContentTypeFromHeaders(response.headers));
+export function getMimeType(response?: TrufosResponse) {
+  return getMimeTypeFromContentType(getContentTypeFromHeaders(response?.headers));
 }
 
 export const useResponseMimeType = (headers: HttpHeaders) =>
@@ -46,18 +49,31 @@ export const useResponseMimeType = (headers: HttpHeaders) =>
 export const useResponseData = (
   response: TrufosResponse,
   encoding: StringBufferEncoding,
-  onChange: (data: string) => void
+  onChange: (data: string) => void,
+  maxBytes?: number
 ) => {
   useEffect(() => {
+    let canceled = false;
     let stream: IpcPushStream | undefined;
-    IpcPushStream.open(response, encoding)
-      .then((s) => (stream = s).readAll())
-      .then((content) => content !== undefined && onChange(content))
+    IpcPushStream.open(response, encoding, maxBytes)
+      .then((s) => {
+        if (canceled) {
+          s.close();
+          return;
+        }
+        stream = s;
+        return s.readAll();
+      })
+      .then((content) => {
+        if (!canceled && content !== undefined) onChange(content);
+      })
       .catch(getToastForError);
 
-    // cancel stream on unmount or response change
-    return () => stream?.close();
-  }, [response, encoding, onChange]);
+    return () => {
+      canceled = true;
+      stream?.close();
+    };
+  }, [response, encoding, onChange, maxBytes]);
 };
 
 export const useResponseEditor = () => {

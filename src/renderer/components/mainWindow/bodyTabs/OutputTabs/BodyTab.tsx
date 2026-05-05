@@ -1,28 +1,30 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Divider } from '@/components/shared/Divider';
 import { isFormattableLanguage, mimeTypeToLanguage } from '@/lib/monaco/language';
-import { useResponseStore, selectResponse, useResponseActions } from '@/state/responseStore';
+import { useResponseStore, selectResponse } from '@/state/responseStore';
 import { useCollectionStore, selectRequest } from '@/state/collectionStore';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
-import { getMimeType } from './PrettyRenderer';
+import { getMimeType, RESPONSE_BODY_SIZE_LIMIT } from './PrettyRenderer';
 import { ImagePrettyRenderer } from './ImagePrettyRenderer';
 import { TextualPrettyRenderer } from './TextualPrettyRenderer';
 import { DefaultRenderer } from './DefaultRenderer';
 import { useStateDerived } from '@/util/react-util';
+import { Button } from '@/components/ui/button';
 
 enum OutputType {
   RAW = 'Raw',
   PRETTY = 'Pretty',
 }
 
-/**
- * Determine if the mime type can be prettified.
- * @param mimeType The mime type to check.
- * @returns True if the mime type can be prettified, false otherwise.
- */
 function canBePrettified(mimeType?: string) {
   if (mimeType == null) return false;
   return isFormattableLanguage(mimeTypeToLanguage(mimeType)) || mimeType.startsWith('image/');
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 export const BodyTab = () => {
@@ -32,6 +34,12 @@ export const BodyTab = () => {
     canBePrettified(getMimeType(response)) ? OutputType.PRETTY : OutputType.RAW
   );
   const mimeType = useMemo(() => getMimeType(response), [response]);
+  const [loadFull, setLoadFull] = useStateDerived(response, () => false);
+
+  const bodySize = response?.metaInfo.size.bodySizeInBytes ?? 0;
+  const isTooLarge = bodySize > RESPONSE_BODY_SIZE_LIMIT;
+  const maxBytes = isTooLarge && !loadFull ? RESPONSE_BODY_SIZE_LIMIT : undefined;
+  const showLoadMoreBanner = isTooLarge && !loadFull;
 
   const outputTypes = useMemo(() => {
     const types: [OutputType, string][] = [[OutputType.RAW, 'Raw']];
@@ -40,14 +48,15 @@ export const BodyTab = () => {
   }, [mimeType]);
 
   const renderContent = () => {
+    if (!response) return null;
     if (outputType === OutputType.PRETTY) {
       if (mimeType?.startsWith('image/')) {
         return <ImagePrettyRenderer response={response} />;
       } else {
-        return <TextualPrettyRenderer response={response} />;
+        return <TextualPrettyRenderer response={response} maxBytes={maxBytes} />;
       }
     } else {
-      return <DefaultRenderer response={response} />;
+      return <DefaultRenderer response={response} maxBytes={maxBytes} />;
     }
   };
 
@@ -64,6 +73,16 @@ export const BodyTab = () => {
         <Divider />
       </div>
       <div className="relative flex min-h-0 flex-1 px-4">{renderContent()}</div>
+      {showLoadMoreBanner && (
+        <div className="text-muted-foreground flex items-center justify-between px-6 pb-3 text-sm">
+          <span>
+            Showing first {formatBytes(RESPONSE_BODY_SIZE_LIMIT)} of {formatBytes(bodySize)}
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => setLoadFull(true)}>
+            Load more
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

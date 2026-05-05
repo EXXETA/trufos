@@ -64,7 +64,7 @@ describe('HttpService', () => {
     expect(responseBody).toEqual(text);
   });
 
-  it('fetchAsync() should calculate the request size', async () => {
+  it('fetchAsync() should calculate the response size using actual file size, ignoring content-length header', async () => {
     // Arrange
     const responseBodyMock = {
       key1: 'value1',
@@ -73,7 +73,7 @@ describe('HttpService', () => {
     };
     const responseHeadersMock: IncomingHttpHeaders = {
       'content-type': 'application/json',
-      'content-length': '5000',
+      'content-length': '5000', // intentionally wrong to verify it is not used
     };
     const url = new URL('https://example.com/api/data');
     const httpService = setupMockHttpService(url, responseBodyMock, responseHeadersMock);
@@ -91,12 +91,11 @@ describe('HttpService', () => {
     // Act
     const result = await httpService.fetchAsync(request);
 
-    // Assert
-    expect(result.metaInfo.size).toEqual({
-      bodySizeInBytes: 5000,
-      headersSizeInBytes: 54,
-      totalSizeInBytes: 5054,
-    });
+    // Assert: bodySizeInBytes must reflect the real file size, not the fake content-length
+    const filePath = responseBodyService.getFilePath(result.id);
+    const actualBodySize = fs.statSync(filePath).size;
+    expect(result.metaInfo.size.bodySizeInBytes).toEqual(actualBodySize);
+    expect(result.metaInfo.size.bodySizeInBytes).not.toEqual(5000);
   });
 
   it('fetchAsync() should generate authentication headers if credentials are provided', async () => {

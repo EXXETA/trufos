@@ -34,9 +34,9 @@ export class IpcPushStream extends EventEmitter<{
     IpcPushStream.streams.set(id, this);
   }
 
-  public static async open(input: StreamInput, encoding: StringBufferEncoding) {
+  public static async open(input: StreamInput, encoding: StringBufferEncoding, maxBytes?: number) {
     return new IpcPushStream(
-      await window.electron.ipcRenderer.invoke('stream-open', input, encoding)
+      await window.electron.ipcRenderer.invoke('stream-open', input, encoding, maxBytes)
     );
   }
 
