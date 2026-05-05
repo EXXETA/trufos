@@ -1,4 +1,10 @@
 {
-  "recommendations": ["esbenp.prettier-vscode", "vitest.explorer", "bradlc.vscode-tailwindcss"],
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "vitest.explorer",
+    "bradlc.vscode-tailwindcss",
+    "github.copilot",
+    "github.copilot-chat"
+  ],
   "unwantedRecommendations": []
 }
