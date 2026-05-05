@@ -7,15 +7,22 @@ description: Commit message and branch naming conventions for the Trufos project
 
 ## Commit Messages
 
-All commit messages must reference the associated GitHub issue and be written in **English present tense**.
+All commit messages must be written in **English present tense** following the **Conventional Commits** format.
 
 **Format:**
 ```
-#<issue-id> - <short description>
+<type>: <short description>
 ```
 
+**Types:**
+- `feat` – new feature
+- `fix` – bug fix
+- `refactor` – code change that neither fixes a bug nor adds a feature
+- `docs` – documentation changes
+- `chore` – maintenance tasks (deps, config, etc.)
+- `test` – adding or updating tests
+
 **Rules:**
-- Start with the issue reference `#<issue-id>` (mandatory).
 - Use present tense and imperative mood: "add feature", not "added feature".
 - Keep the first line under 72 characters.
 - Optionally add a blank line followed by a longer body explaining *why* the change was made.
@@ -23,9 +30,9 @@ All commit messages must reference the associated GitHub issue and be written in
 
 **Examples:**
 ```
-#42 - add JSON body editor to request panel
-#17 - fix crash when opening empty collection
-#99 - refactor IPC handler for environment variables
+feat: add JSON body editor to request panel
+fix: crash when opening empty collection
+refactor: simplify IPC handler for environment variables
 ```
 
 ## Branch Naming

@@ -21,6 +21,7 @@ description: TypeScript, React, and Electron coding standards for the Trufos pro
 - Keep components small and focused on a single responsibility.
 - Extract reusable logic into custom hooks (`use*.ts` files).
 - Use **shadcn/ui** and **Radix UI** primitives before writing custom UI; extend them via Tailwind utility classes.
+- Use icons from **Lucide React** (`lucide-react`).
 - Apply `React.memo` or `useMemo`/`useCallback` only when there is a measurable performance issue.
 - Always provide accessible labels (ARIA attributes, `htmlFor`, etc.).
 
@@ -57,7 +58,7 @@ description: TypeScript, React, and Electron coding standards for the Trufos pro
 - Component files: `PascalCase.tsx` (e.g., `RequestBodyEditor.tsx`)
 - Hook files: `camelCase.ts` prefixed with `use` (e.g., `useRequestState.ts`)
 - Utility files: `camelCase.ts` (e.g., `formatHeaders.ts`)
-- Test files: co-located as `*.test.ts` / `*.test.tsx` or inside `__tests__/`
+- Test files: co-located as `*.test.ts` / `*.test.tsx`
 - Place shared types between main and renderer in `src/shim/`
 
 ## Best Practices
