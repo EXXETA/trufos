@@ -88,12 +88,9 @@ export class MainEventService implements IEventService {
       registerEvent(this, propertyName as keyof MainEventService);
     }
     ScriptingService.instance.on('variables-changed', () => {
-      const { variables, environments } = environmentService.currentCollection;
       void persistenceService
         .saveCollection(environmentService.currentCollection)
-        .then(() =>
-          this.webContents?.send('collection-variables-updated', { variables, environments })
-        )
+        .then(() => pushCollectionUpdate(this.webContents))
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });
     logger.debug('Registered event channels on backend');

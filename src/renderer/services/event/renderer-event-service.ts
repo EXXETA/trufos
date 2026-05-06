@@ -1,4 +1,5 @@
 import { MainProcessError } from '@/error/MainProcessError';
+import { IpcRendererEvent } from 'electron';
 import { Collection } from 'shim';
 import { IEventService } from 'shim/event-service';
 
@@ -26,15 +27,8 @@ function createEventMethod<T extends keyof IEventService>(methodName: T) {
 export interface RendererEventService {
   on(event: 'before-close', listener: () => void): this;
   on(
-    event: 'collection-variables-updated',
-    listener: (
-      ipcEvent: unknown,
-      payload: { variables: Collection['variables']; environments: Collection['environments'] }
-    ) => void
-  ): this;
-  on(
     event: 'collection-updated',
-    listener: (ipcEvent: unknown, collection: Collection) => void
+    listener: (ipcEvent: IpcRendererEvent, collection: Collection) => void
   ): this;
 
   emit(event: 'ready-to-close'): this;
@@ -44,12 +38,12 @@ export interface RendererEventService {
 export class RendererEventService implements IEventService {
   public static readonly instance = new RendererEventService();
 
-  on(event: string, listener: (...args: unknown[]) => void) {
+  on(event: string, listener: (...args: any[]) => void) {
     window.electron.ipcRenderer.on(event, listener);
     return this;
   }
 
-  emit(event: string, ...args: unknown[]) {
+  emit(event: string, ...args: any[]) {
     window.electron.ipcRenderer.send(event, ...args);
     return this;
   }

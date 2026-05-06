@@ -219,10 +219,7 @@ describe('MainEventService', () => {
       await Promise.resolve(); // flush microtask queue for the async .then() chain
 
       expect(saveCollectionSpy).toHaveBeenCalledWith(collection);
-      expect(webContentsSend).toHaveBeenCalledWith('collection-variables-updated', {
-        variables: collection.variables,
-        environments: collection.environments,
-      });
+      expect(webContentsSend).toHaveBeenCalledWith('collection-updated', collection);
     });
   });
 });

@@ -8,8 +8,6 @@ import {
 } from '@/state/collectionStore';
 import { REQUEST_MODEL, SCRIPT_MODEL } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
-import { useVariableStore } from '@/state/variableStore';
-import { useEnvironmentStore } from '@/state/environmentStore';
 
 const rendererEventService = RendererEventService.instance;
 
@@ -25,16 +23,7 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
         // Create store with loaded collection
         storeRef.current = createCollectionStore(collection);
 
-        // Sync variables changed by scripts back to the frontend stores
-        rendererEventService.on(
-          'collection-variables-updated',
-          (_ipcEvent, { variables, environments }) => {
-            useVariableStore.getState().initialize(variables);
-            useEnvironmentStore.getState().initialize(environments);
-          }
-        );
-
-        // Sync structural collection changes pushed from the main process
+        // Sync structural collection changes (including variable/environment updates) pushed from main
         rendererEventService.on('collection-updated', (_ipcEvent, updatedCollection) => {
           storeRef.current?.getState().initialize(updatedCollection);
         });
