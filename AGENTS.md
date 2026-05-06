@@ -65,13 +65,13 @@ assets/               # static assets (favicon, images)
 
 - `jekyll-sass-converter ~> 3.1.0` is pinned to fix a sass compatibility issue with `just-the-docs` (upstream issue #1607). Do not update carelessly.
 - `sass.quiet_deps: true` and `sass.silence_deprecations: ['import']` in `_config.yml` suppress known theme deprecation warnings (#1541, #1607). Do not remove them.
-- Ruby 3.3 is used in CI. No `.ruby-version` file exists; use 3.3 locally.
+- Ruby 3.4 is used in CI. No `.ruby-version` file exists; use 3.4 locally.
 
 ---
 
 ## CI
 
-| Workflow | Trigger | What it does |
-|----------|---------|--------------|
-| `ci.yml` | PRs to `gh-pages` | Runs `jekyll build` as smoke test |
-| `pages.yml` | Push to `gh-pages` or manual dispatch | Build + deploy to GitHub Pages |
+| Workflow    | Trigger                               | What it does                      |
+| ----------- | ------------------------------------- | --------------------------------- |
+| `ci.yml`    | PRs to `gh-pages`                     | Runs `jekyll build` as smoke test |
+| `pages.yml` | Push to `gh-pages` or manual dispatch | Build + deploy to GitHub Pages    |
