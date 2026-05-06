@@ -1,4 +1,5 @@
 import { MainProcessError } from '@/error/MainProcessError';
+import { Collection } from 'shim';
 import { IEventService } from 'shim/event-service';
 
 /**
@@ -24,6 +25,17 @@ function createEventMethod<T extends keyof IEventService>(methodName: T) {
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export interface RendererEventService {
   on(event: 'before-close', listener: () => void): this;
+  on(
+    event: 'collection-variables-updated',
+    listener: (
+      ipcEvent: unknown,
+      payload: { variables: Collection['variables']; environments: Collection['environments'] }
+    ) => void
+  ): this;
+  on(
+    event: 'collection-updated',
+    listener: (ipcEvent: unknown, collection: Collection) => void
+  ): this;
 
   emit(event: 'ready-to-close'): this;
 }

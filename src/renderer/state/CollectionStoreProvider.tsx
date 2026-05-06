@@ -34,6 +34,11 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
           }
         );
 
+        // Sync structural collection changes pushed from the main process
+        rendererEventService.on('collection-updated', (_ipcEvent, updatedCollection) => {
+          storeRef.current?.getState().initialize(updatedCollection);
+        });
+
         // Set up before-close handler with access to store instance
         rendererEventService.on('before-close', async () => {
           try {
