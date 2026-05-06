@@ -6916,10 +6916,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"immer@npm:^11.1.6":
-  version: 11.1.6
-  resolution: "immer@npm:11.1.6"
-  checksum: 10c0/1456030d6b8bb1f69f196375e9c4d0f855561009509de6ce57bbb15ec104cd91bedb0e14d28dce21ae8b551fba4002b47b06a22fc47bbd27fe2412b8cbb4ced9
+"immer@npm:^11.1.7":
+  version: 11.1.7
+  resolution: "immer@npm:11.1.7"
+  checksum: 10c0/d5449827f7f62376d2800eca031431218feaeb68e3c00d696c4c58991ba8f43e59dbc9e889b5e7a37bc61891bb662e1a88ae9c73f85d1afc5128eca41cb7c383
   languageName: node
   linkType: hard
 
@@ -10887,7 +10887,7 @@ __metadata:
     eslint-import-resolver-typescript: "npm:^4.4.4"
     eslint-plugin-import: "npm:^2.32.0"
     globals: "npm:^17.6.0"
-    immer: "npm:^11.1.6"
+    immer: "npm:^11.1.7"
     jsdom: "npm:^29.1.1"
     lucide-react: "npm:1.14.0"
     memfs: "npm:^4.57.2"
