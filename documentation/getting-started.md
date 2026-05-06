@@ -63,7 +63,7 @@ To build a distributable version of the application for your current platform:
     The built application will be located in the `out/make` directory. The specific file format depends on your operating system:
     - **Windows**: A `Setup.exe` file (Squirrel installer).
     - **macOS**: A `.dmg` file.
-    - **Linux**: A `.zip` file (currently; `.deb` is planned).
+    - **Linux**: A `.deb` and a `.zip` file.
 
 ## Testing
 

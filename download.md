@@ -21,7 +21,7 @@ it can run on Windows, macOS, and Linux without any issues. You will need [Node.
 5. The built application will be in the `out/make` directory
    - Windows: a `Setup.exe` file
    - macOS: a `.dmg` file
-   - Linux: currently a ZIP file (`.deb` file and Flatpak is planned)
+   - Linux: a `.deb` and a `.zip` file
 
 ---
 

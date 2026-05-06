@@ -5,7 +5,6 @@ const platformConfig = [
   {
     key: "mac-arm64",
     label: "macOS (Apple Silicon)",
-    hint: "Trufos-0.4.0-arm64.dmg",
     matcher: (name, version) => {
       if (version && name === `Trufos-${version}-arm64.dmg`) {
         return true;
@@ -16,7 +15,6 @@ const platformConfig = [
   {
     key: "mac-intel",
     label: "macOS (Intel)",
-    hint: "Trufos-0.4.0-x64.dmg",
     matcher: (name, version) => {
       if (version && name === `Trufos-${version}-x64.dmg`) {
         return true;
@@ -25,9 +23,18 @@ const platformConfig = [
     },
   },
   {
+    key: "linux-deb",
+    label: "Linux (DEB)",
+    matcher: (name, version) => {
+      if (version && name === `trufos_${version}_amd64.deb`) {
+        return true;
+      }
+      return /amd64.*\.deb$/i.test(name);
+    },
+  },
+  {
     key: "linux-zip",
     label: "Linux (ZIP)",
-    hint: "Trufos-linux-x64-0.4.0.zip",
     matcher: (name, version) => {
       if (version && name === `Trufos-linux-x64-${version}.zip`) {
         return true;
@@ -38,7 +45,6 @@ const platformConfig = [
   {
     key: "windows-setup",
     label: "Windows (Setup EXE)",
-    hint: "Trufos-0.4.0.Setup.exe",
     matcher: (name, version) => {
       if (version && name === `Trufos-${version}.Setup.exe`) {
         return true;
@@ -88,7 +94,6 @@ const renderCard = (config, asset) => {
     return `
       <div class="release-item release-item--disabled">
         <p class="release-item__label">${config.label}</p>
-        <p class="release-item__hint">${config.hint}</p>
         <span class="release-item__state">Not available</span>
       </div>
     `;
