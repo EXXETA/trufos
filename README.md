@@ -35,7 +35,7 @@ Grab the latest release from the [GitHub Releases](https://github.com/EXXETA/tru
 
 - Windows: Download the `Setup.exe` installer
 - macOS: Download the `.dmg` image
-- Linux: Download the `.zip` archive (native `.deb` packaging planned)
+- Linux: Download the `.deb` installer or `.zip` file
 
 No account or telemetry is required—Trufos runs locally and keeps your data on your machine.
 
@@ -58,7 +58,7 @@ and not NPM in this project as it can better handle peer dependencies. **Do not 
 3. The built application will be in the `out/make` directory
    - Windows: a `Setup.exe` file
    - macOS: a `.dmg` file
-   - Linux: currently a ZIP file (`.deb` file is planned)
+   - Linux: a `.deb` and a `.zip` file
 
 ## Usage
 
@@ -130,8 +130,8 @@ Pull requests are automatically reviewed by [PR-Agent (Codium AI)](https://githu
 After merging the AI review workflow, a repository maintainer must add the following secret under
 **Settings → Secrets and variables → Actions**:
 
-| Secret name | Value |
-| ----------- | ----- |
+| Secret name  | Value                                  |
+| ------------ | -------------------------------------- |
 | `OPENAI_KEY` | An OpenAI API key (GPT-4o recommended) |
 
 To use Anthropic Claude instead, add `ANTHROPIC_API_KEY` and update the workflow file accordingly
