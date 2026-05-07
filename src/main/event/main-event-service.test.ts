@@ -35,13 +35,17 @@ describe('MainEventService', () => {
     ReturnType<typeof import('./main-event-service')>
   >['MainEventService'];
   let PersistenceService: Awaited<
-    ReturnType<typeof import('../persistence/service/persistence-service')>
+    ReturnType<typeof import('main/persistence/service/persistence-service')>
   >['PersistenceService'];
+  let EnvironmentService: Awaited<
+    ReturnType<typeof import('main/environment/service/environment-service')>
+  >['EnvironmentService'];
 
   beforeEach(async () => {
     fs.writeFileSync(TEST_FILE_PATH, TEST_STRING);
     ({ MainEventService } = await import('./main-event-service'));
-    ({ PersistenceService } = await import('../persistence/service/persistence-service'));
+    ({ PersistenceService } = await import('main/persistence/service/persistence-service'));
+    ({ EnvironmentService } = await import('main/environment/service/environment-service'));
   });
 
   it('should register event functions on the backend', async () => {
@@ -64,6 +68,7 @@ describe('MainEventService', () => {
       const reorderItemSpy = vi
         .spyOn(PersistenceService.instance, 'reorderItem')
         .mockResolvedValue(collection);
+      vi.spyOn(EnvironmentService.instance, 'reloadCurrentCollection').mockResolvedValue(undefined);
 
       const eventService = new MainEventService();
       await eventService.reorderItem(collection, 'child-id', 0);
@@ -108,6 +113,7 @@ describe('MainEventService', () => {
       const moveChildSpy = vi
         .spyOn(PersistenceService.instance, 'moveChild')
         .mockResolvedValue(undefined);
+      vi.spyOn(EnvironmentService.instance, 'reloadCurrentCollection').mockResolvedValue(undefined);
 
       const eventService = new MainEventService();
       await eventService.moveItem(request, collection, folder, 0);
@@ -213,10 +219,7 @@ describe('MainEventService', () => {
       await Promise.resolve(); // flush microtask queue for the async .then() chain
 
       expect(saveCollectionSpy).toHaveBeenCalledWith(collection);
-      expect(webContentsSend).toHaveBeenCalledWith('collection-variables-updated', {
-        variables: collection.variables,
-        environments: collection.environments,
-      });
+      expect(webContentsSend).toHaveBeenCalledWith('collection-updated', collection);
     });
   });
 });

@@ -94,6 +94,15 @@ export class EnvironmentService implements Initializable {
   }
 
   /**
+   * Reloads the current collection from the file system, updating the in-memory state.
+   */
+  public async reloadCurrentCollection() {
+    this._currentCollection = await persistenceService.loadCollection(
+      this._currentCollection.dirPath
+    );
+  }
+
+  /**
    * Loads the given collection and sets it as the current collection.
    *
    * @param collection The collection to select or the path to the collection.

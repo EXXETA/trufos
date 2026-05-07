@@ -51,22 +51,32 @@ beforeEach(() => {
 });
 
 describe('CollectionStoreProvider', () => {
-  it('updates variableStore and environmentStore when collection-variables-updated is received', async () => {
+  it('updates variableStore and environmentStore when collection-updated is received', async () => {
     render(
       <CollectionStoreProvider>
         <div />
       </CollectionStoreProvider>
     );
 
-    await waitFor(() => expect(listeners['collection-variables-updated']).toBeDefined());
+    await waitFor(() => expect(listeners['collection-updated']).toBeDefined());
 
     const testVariables = { apiKey: { value: 'test-123' } };
     const testEnvironments = { dev: { variables: { host: { value: 'localhost' } } } };
 
     act(() => {
-      listeners['collection-variables-updated'](
+      listeners['collection-updated'](
         {}, // ipcRendererEvent (ignored)
-        { variables: testVariables, environments: testEnvironments }
+        {
+          id: 'col-1',
+          type: 'collection',
+          title: 'Test',
+          dirPath: '/test',
+          children: [],
+          variables: testVariables,
+          environments: testEnvironments,
+          lastModified: 0,
+          isDefault: false,
+        }
       );
     });
 
@@ -81,7 +91,7 @@ describe('CollectionStoreProvider', () => {
       </CollectionStoreProvider>
     );
 
-    await waitFor(() => expect(listeners['collection-variables-updated']).toBeDefined());
+    await waitFor(() => expect(listeners['collection-updated']).toBeDefined());
 
     expect(useVariableStore.getState().variables).toEqual({});
     expect(useEnvironmentStore.getState().environments).toEqual({});

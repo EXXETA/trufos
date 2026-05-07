@@ -110,7 +110,7 @@ export const createCollectionStore = (collection: Collection) => {
             if (state.selectedRequestId != null && !state.requests.has(state.selectedRequestId)) {
               state.selectedRequestId = undefined;
             }
-            state.openFolders = state.openFolders.intersection(new Set(folders.keys()));
+            state.openFolders = new Set(state.openFolders).intersection(new Set(folders.keys()));
           }
           console.info('Initialized collection:', collection);
         });
@@ -144,17 +144,24 @@ export const createCollectionStore = (collection: Collection) => {
         });
         console.info('Created new request with ID', request.id);
 
-        // TODO: consider adding request directly to state instead of reloading
-        const collection = await eventService.loadCollection(true);
-        const { initialize, setFolderOpen } = get();
-        initialize(collection);
-
+        // collection-updated push from main will call initialize(); we just need to
+        // open the parent folder and select the new request once it arrives.
+        // Use a one-time subscribe so we act as soon as initialize() runs.
         // Keep parent folder open if item was added to folder
         if (actualParentId !== get().collection.id) {
-          setFolderOpen(actualParentId);
+          get().setFolderOpen(actualParentId);
         }
 
-        get().setSelectedRequest(request.id);
+        // Wait for the collection-updated push to populate the new request, then select it.
+        // We poll the store briefly rather than coupling to the IPC layer here.
+        const selectWhenReady = () => {
+          if (get().requests.has(request.id)) {
+            get().setSelectedRequest(request.id);
+          } else {
+            setTimeout(selectWhenReady, 20);
+          }
+        };
+        selectWhenReady();
       },
 
       updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) => {
@@ -241,10 +248,7 @@ export const createCollectionStore = (collection: Collection) => {
         if (request === null) return;
 
         await eventService.copyRequest(request);
-
-        const collection = await eventService.loadCollection(true);
-        const { initialize } = get();
-        initialize(collection);
+        // collection-updated push will call initialize() with the updated tree
       },
 
       addHeader: () =>
@@ -347,13 +351,10 @@ export const createCollectionStore = (collection: Collection) => {
           children: [],
         });
 
-        // Reload collection to get correct indices
-        const collection = await eventService.loadCollection(true);
-        const { setFolderOpen, initialize } = get();
+        // Keep parent folder open; collection-updated push will call initialize()
         if (parentId) {
-          setFolderOpen(parentId);
+          get().setFolderOpen(parentId);
         }
-        initialize(collection);
       },
 
       deleteFolder: async (id) => {
@@ -361,8 +362,7 @@ export const createCollectionStore = (collection: Collection) => {
         console.info('Deleting folder', folder);
         await eventService.deleteObject(folder);
 
-        const collection = await eventService.loadCollection(true);
-        get().initialize(collection);
+        // Optimistically clean up local UI state; collection-updated push will reconcile the tree
         set((state) => {
           state.openFolders.delete(id);
           if (isRequestInAParentFolder(state.selectedRequestId, folder)) {
@@ -386,10 +386,7 @@ export const createCollectionStore = (collection: Collection) => {
         if (folder === null) return;
 
         await eventService.copyFolder(folder);
-
-        const collection = await eventService.loadCollection(true);
-        const { initialize } = get();
-        initialize(collection);
+        // collection-updated push will call initialize() with the updated tree
       },
 
       isFolderOpen: (id) => get().openFolders.has(id),

@@ -69,6 +69,14 @@ function toError(error: unknown) {
 }
 
 /**
+ * Pushes the current in-memory collection to the renderer so it can sync its state
+ * without an extra round-trip.
+ */
+function pushCollectionUpdate(webContents: WebContents | null) {
+  webContents?.send('collection-updated', environmentService.currentCollection);
+}
+
+/**
  * Service for handling events on the main process coming from the renderer process.
  */
 export class MainEventService implements IEventService {
@@ -80,12 +88,9 @@ export class MainEventService implements IEventService {
       registerEvent(this, propertyName as keyof MainEventService);
     }
     ScriptingService.instance.on('variables-changed', () => {
-      const { variables, environments } = environmentService.currentCollection;
       void persistenceService
         .saveCollection(environmentService.currentCollection)
-        .then(() =>
-          this.webContents?.send('collection-variables-updated', { variables, environments })
-        )
+        .then(() => pushCollectionUpdate(this.webContents))
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });
     logger.debug('Registered event channels on backend');
@@ -117,7 +122,10 @@ export class MainEventService implements IEventService {
   }
 
   async copyRequest(request: TrufosRequest): Promise<TrufosRequest> {
-    return await persistenceService.copyRequest(request);
+    const result = await persistenceService.copyRequest(request);
+    await environmentService.reloadCurrentCollection();
+    pushCollectionUpdate(this.webContents);
+    return result;
   }
 
   async saveChanges(request: TrufosRequest) {
@@ -134,6 +142,8 @@ export class MainEventService implements IEventService {
 
   async deleteObject(object: TrufosObject) {
     await persistenceService.delete(object);
+    await environmentService.reloadCurrentCollection();
+    pushCollectionUpdate(this.webContents);
   }
 
   async getActiveEnvironmentVariables() {
@@ -165,10 +175,15 @@ export class MainEventService implements IEventService {
 
   async saveFolder(folder: Folder) {
     await persistenceService.saveFolder(folder);
+    await environmentService.reloadCurrentCollection();
+    pushCollectionUpdate(this.webContents);
   }
 
   async copyFolder(folder: Folder): Promise<Folder> {
-    return await persistenceService.copyFolder(folder);
+    const result = await persistenceService.copyFolder(folder);
+    await environmentService.reloadCurrentCollection();
+    pushCollectionUpdate(this.webContents);
+    return result;
   }
 
   async openCollection(dirPath: string) {
@@ -205,6 +220,8 @@ export class MainEventService implements IEventService {
     position?: number
   ) {
     await persistenceService.moveChild(child, oldParent, newParent, position);
+    await environmentService.reloadCurrentCollection();
+    pushCollectionUpdate(this.webContents);
   }
 
   async reorderItem<T extends Folder | Collection>(
@@ -212,11 +229,16 @@ export class MainEventService implements IEventService {
     childId: string,
     newIndex: number
   ): Promise<T> {
-    return await persistenceService.reorderItem(parent, childId, newIndex);
+    const result = await persistenceService.reorderItem(parent, childId, newIndex);
+    await environmentService.reloadCurrentCollection();
+    pushCollectionUpdate(this.webContents);
+    return result;
   }
 
   async rename(object: TrufosObject, newTitle: string): Promise<void> {
     await persistenceService.rename(object, newTitle);
+    await environmentService.reloadCurrentCollection();
+    pushCollectionUpdate(this.webContents);
   }
 
   updateApp() {
