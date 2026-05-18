@@ -198,8 +198,8 @@ const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
 
 export const AuthorizationTab = () => {
   const { updateAuthorization } = useCollectionActions();
-  const request = useCollectionStore(selectRequest);
-  const auth = useCollectionStore((state) => selectRequest(state).auth);
+  const request = useCollectionStore(selectRequest)!;
+  const auth = useCollectionStore((state) => selectRequest(state)!.auth);
 
   const [type, form] = useMemo(() => {
     const type = auth?.type ?? AUTHORIZATION_NONE;
@@ -220,6 +220,7 @@ export const AuthorizationTab = () => {
       <div className="absolute top-[16px] right-[16px] left-[16px] z-10 space-y-4 pb-4">
         <ModularForm
           config={form}
+          // @ts-expect-error data may contain 'none' type which is handled by the form
           data={{ ...auth, type }}
           onDataChanged={(
             delta: Partial<AuthorizationInformation> | { type: typeof AUTHORIZATION_NONE }

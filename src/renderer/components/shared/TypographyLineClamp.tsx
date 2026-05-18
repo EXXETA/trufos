@@ -51,7 +51,7 @@ export const TypographyLineClamp = forwardRef<HTMLDivElement, TypographyLineClam
       return () => observer.disconnect();
     }, []);
 
-    useImperativeHandle(ref, () => contentRef.current);
+    useImperativeHandle(ref, () => contentRef.current!);
 
     const contentClasses = [
       'relative overflow-hidden break-words',

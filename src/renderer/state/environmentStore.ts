@@ -62,7 +62,7 @@ export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>
         delete state.environments[key];
         if (state.selectedEnvironment === key) {
           const remainingKeys = Object.keys(state.environments);
-          state.selectedEnvironment = remainingKeys.length > 0 ? remainingKeys[0] : null;
+          state.selectedEnvironment = remainingKeys.length > 0 ? remainingKeys[0] : undefined;
         }
       });
     },

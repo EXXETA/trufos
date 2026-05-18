@@ -12,6 +12,7 @@
     "paths": {
       "@/*": ["./src/renderer/*"],
       "main/*": ["./src/main/*"],
+      "shim": ["./src/shim/index.ts"],
       "shim/*": ["./src/shim/*"]
     }
   },

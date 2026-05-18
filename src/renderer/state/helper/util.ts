@@ -1,10 +1,10 @@
 import { useShallow } from 'zustand/react/shallow';
 
 type FunctionProperties<T> = {
-  [K in keyof T as T[K] extends (...args: unknown[]) => unknown ? K : never]: T[K];
+  [K in keyof T as T[K] extends (...args: never[]) => unknown ? K : never]: T[K];
 };
 
-function selectFunctionProperties<O>(object: O) {
+function selectFunctionProperties<O extends object>(object: O) {
   return Object.fromEntries(
     Object.entries(object).filter(([, value]) => typeof value === 'function')
   ) as FunctionProperties<O>;

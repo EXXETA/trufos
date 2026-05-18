@@ -12,7 +12,7 @@ import { mimeTypeToLanguage } from '@/lib/monaco/language';
 
 export const DefaultRenderer: ResponseRenderer = ({ response, maxBytes }) => {
   const { editor, setEditorLanguage, setResponseEditor } = useResponseEditor();
-  const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)), [response]);
+  const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)!), [response]);
   useResponseData(response, 'utf-8', (content) => RESPONSE_MODEL.setValue(content), maxBytes);
 
   useEffect(() => {

@@ -42,7 +42,7 @@ export const SidebarHeaderBar = () => {
   const sortMode = useCollectionStore((state) => state.sortMode);
   const { setSortMode } = useCollectionActions();
 
-  const [creationModalState, setCreationModalState] = useState({ isOpen: false, type: null });
+  const [creationModalState, setCreationModalState] = useState<{ isOpen: boolean; type: 'request' | 'folder' | undefined }>({ isOpen: false, type: undefined });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 
@@ -122,7 +122,7 @@ export const SidebarHeaderBar = () => {
         <NamingModal
           trufosObject={collection as Collection}
           createType={creationModalState.type}
-          onClose={() => setCreationModalState({ isOpen: false, type: null })}
+          onClose={() => setCreationModalState({ isOpen: false, type: undefined })}
         />
       )}
 

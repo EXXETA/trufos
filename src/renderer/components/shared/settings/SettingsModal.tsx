@@ -113,9 +113,9 @@ export const SettingsModal = () => {
             <TabsContent value="environments" className="m-0 min-h-0 flex-1 p-0">
               <EnvironmentEditor
                 environments={editorEnvironments}
-                selectedEnvironment={editorSelectedEnvironment}
+                selectedEnvironment={editorSelectedEnvironment ?? null}
                 onEnvironmentsChange={setEditorEnvironments}
-                onEnvironmentSelect={setEditorSelectedEnvironment}
+                onEnvironmentSelect={(key) => setEditorSelectedEnvironment(key ?? undefined)}
                 onValidChange={setEnvironmentValid}
               />
             </TabsContent>

@@ -125,12 +125,13 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       addNewRequest: async (title, parentId) => {
-        const actualParentId = parentId ?? get().collection.id;
+        const actualParentId = parentId ?? get().collection!.id;
 
         const request = await eventService.saveRequest({
           url: parseUrl('http://'),
           method: RequestMethod.GET,
           draft: true,
+          // @ts-expect-error id is assigned by the backend upon creation
           id: null,
           parentId: actualParentId,
           type: 'request',
@@ -150,7 +151,7 @@ export const createCollectionStore = (collection: Collection) => {
         initialize(collection);
 
         // Keep parent folder open if item was added to folder
-        if (actualParentId !== get().collection.id) {
+        if (actualParentId !== get().collection!.id) {
           setFolderOpen(actualParentId);
         }
 
@@ -163,9 +164,9 @@ export const createCollectionStore = (collection: Collection) => {
           if (request == null) return;
 
           if (overwrite) {
-            state.requests.set(state.selectedRequestId, updatedRequest as TrufosRequest);
+            state.requests.set(state.selectedRequestId!, updatedRequest as TrufosRequest);
           } else {
-            state.requests.set(state.selectedRequestId, { ...request, ...updatedRequest });
+            state.requests.set(state.selectedRequestId!, { ...request, ...updatedRequest });
             markDraft(state);
           }
         });
@@ -177,10 +178,10 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       setRequestBodyMimeType(mimeType?: string) {
-        const { body } = selectRequest(get());
+        const { body } = selectRequest(get())!;
         if (body.type === RequestBodyType.FORM_DATA) return; // form data bodies don't have a mime type
         const { setRequestBody } = get();
-        setRequestBody({ ...body, mimeType });
+        setRequestBody({ ...body, mimeType } as typeof body);
       },
 
       setRequestEditor: (requestEditor) => set({ requestEditor }),
@@ -188,7 +189,7 @@ export const createCollectionStore = (collection: Collection) => {
       formatRequestEditorText: async () => {
         const { requestEditor } = get();
         if (requestEditor != null) {
-          await requestEditor.getAction('editor.action.formatDocument').run();
+          await requestEditor.getAction('editor.action.formatDocument')!.run();
         }
       },
 
@@ -212,12 +213,12 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       deleteRequest: async (id) => {
-        await eventService.deleteObject(selectRequest(get(), id));
+        await eventService.deleteObject(selectRequest(get(), id)!);
 
         set((state) => {
           if (state.selectedRequestId === id) state.selectedRequestId = undefined;
           const request = selectRequest(state, id);
-          const parent = selectParent(state, request.parentId);
+          const parent = selectParent(state, request!.parentId);
           parent.children = parent.children.filter((child) => child.id !== id);
           state.requests.delete(id);
         });
@@ -240,7 +241,7 @@ export const createCollectionStore = (collection: Collection) => {
         const request = selectRequest(get(), id);
         if (request === null) return;
 
-        await eventService.copyRequest(request);
+        await eventService.copyRequest({ ...request } as TrufosRequest);
 
         const collection = await eventService.loadCollection(true);
         const { initialize } = get();
@@ -268,7 +269,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       clearHeaders: () =>
         set((state) => {
-          selectRequest(state).headers = [];
+          selectRequest(state)!.headers = [];
           markDraft(state);
         }),
 
@@ -293,7 +294,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       clearQueryParams: () =>
         set((state) => {
-          selectRequest(state).url.query = [];
+          selectRequest(state)!.url.query = [];
           markDraft(state);
         }),
 
@@ -306,7 +307,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       addFormDataField: () =>
         set((state) => {
-          const request = selectRequest(state);
+          const request = selectRequest(state)!;
           const body = request.body;
           if (body.type !== RequestBodyType.FORM_DATA) return;
           body.fields.push({
@@ -319,7 +320,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       updateFormDataField: (index, updatedField) =>
         set((state) => {
-          const request = selectRequest(state);
+          const request = selectRequest(state)!;
           const body = request.body;
           if (body.type !== RequestBodyType.FORM_DATA) return;
           body.fields[index] = { ...body.fields[index], ...updatedField };
@@ -328,7 +329,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       deleteFormDataField: (index) =>
         set((state) => {
-          const request = selectRequest(state);
+          const request = selectRequest(state)!;
           const body = request.body;
           if (body.type !== RequestBodyType.FORM_DATA) return;
           body.fields.splice(index, 1);
@@ -339,8 +340,9 @@ export const createCollectionStore = (collection: Collection) => {
 
       addNewFolder: async (title?, parentId?) => {
         await eventService.saveFolder({
+          // @ts-expect-error id is assigned by the backend upon creation
           id: null,
-          parentId: parentId ?? get().collection.id,
+          parentId: parentId ?? get().collection!.id,
           type: 'folder',
           title: title ?? (Math.random() + 1).toString(36).substring(7),
           lastModified: Date.now(),
@@ -357,7 +359,7 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       deleteFolder: async (id) => {
-        const folder = selectFolder(get(), id);
+        const folder = selectFolder(get(), id)!;
         console.info('Deleting folder', folder);
         await eventService.deleteObject(folder);
 
@@ -365,14 +367,14 @@ export const createCollectionStore = (collection: Collection) => {
         get().initialize(collection);
         set((state) => {
           state.openFolders.delete(id);
-          if (isRequestInAParentFolder(state.selectedRequestId, folder)) {
+          if (isRequestInAParentFolder(state.selectedRequestId!, folder)) {
             state.selectedRequestId = undefined;
           }
         });
       },
 
       renameFolder: async (id: Folder['id'], title: string) => {
-        const folder = selectFolder(get(), id);
+        const folder = selectFolder(get(), id)!;
         if (folder == null) return;
 
         await eventService.rename(folder, title);
@@ -382,7 +384,7 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       copyFolder: async (id) => {
-        const folder = selectFolder(get(), id);
+        const folder = selectFolder(get(), id)!;
         if (folder === null) return;
 
         await eventService.copyFolder(folder);
@@ -446,7 +448,7 @@ export const createCollectionStore = (collection: Collection) => {
         await eventService.rename(current as Collection, title);
 
         set((state) => {
-          state.collection.title = title;
+          state.collection!.title = title;
         });
       },
 
@@ -456,14 +458,14 @@ export const createCollectionStore = (collection: Collection) => {
         const item = selectRequest(state, itemId) ?? selectFolder(state, itemId);
         const newParent = selectParent(state, newParentId);
 
-        if (item.parentId === newParentId) {
+        if (item!.parentId === newParentId) {
           // Reorder in frontend state (always has complete children list)
           set((state) => {
             const parent = selectParent(state, newParentId);
             const children = parent.children;
             const oldIndex = children.findIndex((c) => c.id === itemId);
             if (oldIndex !== -1) children.splice(oldIndex, 1);
-            children.splice(newIndex, 0, item);
+            children.splice(newIndex, 0, item!);
           });
 
           // Persist new order to backend
@@ -472,12 +474,12 @@ export const createCollectionStore = (collection: Collection) => {
           // Update frontend state immediately to avoid visual snap-back
           set((state) => {
             // Remove item from old parent
-            const oldParentState = selectParent(state, item.parentId);
+            const oldParentState = selectParent(state, item!.parentId);
             oldParentState.children = oldParentState.children.filter((c) => c.id !== itemId);
 
             // Add item to new parent at correct position
             const newParentState = selectParent(state, newParentId);
-            const updatedItem = { ...item, parentId: newParentId };
+            const updatedItem = { ...item!, parentId: newParentId };
             newParentState.children.splice(newIndex, 0, updatedItem);
 
             // Update maps
@@ -494,10 +496,10 @@ export const createCollectionStore = (collection: Collection) => {
           });
 
           // Persist to backend
-          if (isRequest(item)) await eventService.saveRequest(item);
+          if (isRequest(item!)) await eventService.saveRequest(item!);
           await eventService.moveItem(
-            item,
-            selectParent(state, item.parentId),
+            item!,
+            selectParent(state, item!.parentId),
             newParent,
             newIndex
           );
@@ -533,7 +535,7 @@ export const useCollectionActions = () => useCollectionStore(useActions());
 export { CollectionStoreContext };
 
 const selectParent = (state: CollectionState, parentId: string) => {
-  if (state.collection.id === parentId) return state.collection as Collection;
+  if (state.collection!.id === parentId) return state.collection as Collection;
   return state.folders.get(parentId)!;
 };
 const selectObject = <T extends TrufosObject>(state: CollectionState, object: T) =>
@@ -544,17 +546,19 @@ const selectObject = <T extends TrufosObject>(state: CollectionState, object: T)
       : (selectFolder(state, object.id) as T);
 
 const markDraft = (state: CollectionState) => {
-  const request = selectRequest(state);
+  const request = selectRequest(state)!;
   request.draft = true;
   request.lastModified = Date.now();
 };
 
-export const selectHeaders = (state: CollectionState) => selectRequest(state).headers;
-export const selectQueryParams = (state: CollectionState) => selectRequest(state).url.query;
+export const selectHeaders = (state: CollectionState) => selectRequest(state)!.headers;
+export const selectQueryParams = (state: CollectionState) => selectRequest(state)!.url.query;
 
 const selectQueryParam = (state: CollectionState, index: number) =>
   selectQueryParams(state)?.[index];
-export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) =>
-  state.requests.get(requestId ?? state.selectedRequestId);
+export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) => {
+  const id = requestId ?? state.selectedRequestId;
+  return id != null ? state.requests.get(id) : undefined;
+};
 export const selectFolder = (state: CollectionState, folderId: Folder['id']) =>
   state.folders.get(folderId);

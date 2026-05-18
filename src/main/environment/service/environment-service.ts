@@ -35,7 +35,7 @@ export class EnvironmentService implements Initializable {
     return this.currentCollection.environments[this.currentEnvironmentKey];
   }
 
-  private _currentCollection: Collection;
+  private _currentCollection!: Collection;
 
   /**
    * Initializes the environment service by loading the last used collection. If that fails, the

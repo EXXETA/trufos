@@ -32,15 +32,19 @@ const TEST_FILE_PATH = path.join(tmpdir(), 'test.txt');
 
 describe('MainEventService', () => {
   let MainEventService: Awaited<
+    // @ts-expect-error ReturnType on module namespace is not callable but works at runtime
     ReturnType<typeof import('./main-event-service')>
   >['MainEventService'];
   let PersistenceService: Awaited<
+    // @ts-expect-error ReturnType on module namespace is not callable but works at runtime
     ReturnType<typeof import('../persistence/service/persistence-service')>
   >['PersistenceService'];
 
   beforeEach(async () => {
     fs.writeFileSync(TEST_FILE_PATH, TEST_STRING);
+    // @ts-expect-error dynamic import type inference
     ({ MainEventService } = await import('./main-event-service'));
+    // @ts-expect-error dynamic import type inference
     ({ PersistenceService } = await import('../persistence/service/persistence-service'));
   });
 
@@ -50,6 +54,7 @@ describe('MainEventService', () => {
 
   describe('reorderItem', () => {
     it('should delegate to persistence service reorderItem', async () => {
+      // @ts-expect-error Collection object missing optional required fields
       const collection: Collection = {
         id: randomUUID(),
         type: 'collection',
@@ -74,6 +79,7 @@ describe('MainEventService', () => {
 
   describe('moveItem', () => {
     it('should delegate to persistence service moveChild', async () => {
+      // @ts-expect-error Collection object missing optional required fields
       const collection: Collection = {
         id: randomUUID(),
         type: 'collection',
@@ -85,6 +91,7 @@ describe('MainEventService', () => {
         dirPath: '/test/path',
       };
 
+      // @ts-expect-error Folder object missing optional required fields
       const folder: Folder = {
         id: randomUUID(),
         type: 'folder',
@@ -93,6 +100,7 @@ describe('MainEventService', () => {
         children: [],
       };
 
+      // @ts-expect-error TrufosRequest object missing optional required fields
       const request: TrufosRequest = {
         id: randomUUID(),
         type: 'request',
@@ -118,6 +126,7 @@ describe('MainEventService', () => {
 
   describe('saveRequest', () => {
     it('should delegate to persistence service saveRequest', async () => {
+      // @ts-expect-error TrufosRequest object missing optional required fields
       const request: TrufosRequest = {
         id: randomUUID(),
         type: 'request',
@@ -143,6 +152,7 @@ describe('MainEventService', () => {
 
   describe('sendRequest', () => {
     let EnvironmentService: Awaited<
+      // @ts-expect-error ReturnType on module namespace is not callable but works at runtime
       ReturnType<typeof import('main/environment/service/environment-service')>
     >['EnvironmentService'];
 
@@ -172,14 +182,14 @@ describe('MainEventService', () => {
     });
 
     beforeEach(async () => {
-      ({ EnvironmentService } = await import('main/environment/service/environment-service'));
+      ({ EnvironmentService } = await import('../environment/service/environment-service.js'));
     });
 
     it('does not persist or push when script does not change variables', async () => {
       const collection = makeCollection({ x: { value: 'before' } });
       vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
 
-      const { HttpService } = await import('main/network/service/http-service');
+      const { HttpService } = await import('../network/service/http-service.js');
       vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue({} as never);
 
       const saveCollectionSpy = vi
@@ -208,7 +218,7 @@ describe('MainEventService', () => {
       const eventService = new MainEventService();
       eventService.webContents = { send: webContentsSend } as never;
 
-      const { ScriptingService } = await import('main/scripting/scripting-service');
+      const { ScriptingService } = await import('../scripting/scripting-service.js');
       ScriptingService.instance.emit('variables-changed');
       await Promise.resolve(); // flush microtask queue for the async .then() chain
 

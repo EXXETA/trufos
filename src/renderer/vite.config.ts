@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 
 export default defineConfig({
+  // @ts-expect-error react() accepts 0 arguments at runtime but types require 1
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

@@ -28,8 +28,8 @@ import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 
 export const SidebarRequestList = () => {
-  const children = useCollectionStore((state) => state.collection.children);
-  const collectionId = useCollectionStore((state) => state.collection.id);
+  const children = useCollectionStore((state) => state.collection!.children);
+  const collectionId = useCollectionStore((state) => state.collection!.id);
   const openFolders = useCollectionStore((state) => state.openFolders);
   const folders = useCollectionStore((state) => state.folders);
   const requests = useCollectionStore((state) => state.requests);

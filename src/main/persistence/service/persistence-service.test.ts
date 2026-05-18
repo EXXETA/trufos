@@ -568,7 +568,9 @@ describe('PersistenceService', () => {
     // Verify the text body content is the same
     const originalTextBodyStream = await persistenceService.loadTextBodyOfRequest(request);
     const copiedTextBodyStream = await persistenceService.loadTextBodyOfRequest(copiedRequest);
+    // @ts-expect-error streamToString argument may not match expected type
     expect(await streamToString(originalTextBodyStream)).toBe(textBody);
+    // @ts-expect-error streamToString argument may not match expected type
     expect(await streamToString(copiedTextBodyStream)).toBe(textBody);
   });
 
@@ -813,6 +815,7 @@ describe('PersistenceService', () => {
     const result = await persistenceService.loadTextBodyOfRequest(request);
 
     // Assert
+    // @ts-expect-error streamToString argument may not match expected type
     expect(await streamToString(result)).toBe(textBody);
   });
 
@@ -827,6 +830,7 @@ describe('PersistenceService', () => {
 
     // Act
     const result = (
+      // @ts-expect-error loadTextBodyOfRequest returns ReadStream | undefined; undefined case won't occur here
       await Array.fromAsync(await persistenceService.loadTextBodyOfRequest(request, 'utf8'))
     ).join('');
 
@@ -854,6 +858,7 @@ describe('PersistenceService', () => {
     const result = await persistenceService.loadTextBodyOfRequest(request);
 
     // Assert
+    // @ts-expect-error streamToString argument may not match expected type
     expect(await streamToString(result)).toBe(textBody);
   });
 

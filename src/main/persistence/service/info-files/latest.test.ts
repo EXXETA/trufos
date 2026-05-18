@@ -27,6 +27,7 @@ describe('latest InfoFile schema', async () => {
 describe('toInfoFile', async () => {
   it('should omit correct attributes for requsts', async () => {
     // Arrange
+    // @ts-expect-error TrufosRequest object missing optional required fields
     const request: TrufosRequest = {
       id: 'request-id',
       parentId: 'parent-id',
@@ -57,6 +58,7 @@ describe('toInfoFile', async () => {
       id: 'collection-id',
       title: 'Request Title',
       dirPath: '/path/to/collection',
+      lastModified: Date.now(),
       isDefault: true,
       variables: {},
       environments: {},
@@ -65,6 +67,7 @@ describe('toInfoFile', async () => {
           type: 'folder',
           id: 'folder-id',
           parentId: 'collection-id',
+          lastModified: Date.now(),
           title: 'Folder Title',
           children: [],
         },
@@ -81,6 +84,7 @@ describe('toInfoFile', async () => {
 
   it('should omit correct attributes for folders', async () => {
     // Arrange
+    // @ts-expect-error Folder object missing optional required fields
     const request: Folder = {
       type: 'folder',
       id: 'folder-id',

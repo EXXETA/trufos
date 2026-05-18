@@ -43,7 +43,7 @@ export default class AuthCodeFlowAuthorizationStrategy<
       if (details.method.toUpperCase() === RequestMethod.GET) {
         logger.secret.info(`Completed auth code login with redirect URL: ${details.url}`);
         callback({ cancel: true });
-        redirectUrl = URL.parse(details.url);
+        redirectUrl = URL.parse(details.url) ?? undefined;
         window.close();
       }
     });

@@ -79,7 +79,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 
   const canImport =
     srcEntry &&
-    (strategy === 'Trufos' || (targetEntry != null && title.trim() !== '')) &&
+    (strategy === 'Trufos' || (targetEntry != null && title?.trim() !== '')) &&
     !isImporting;
 
   useEffect(() => {
@@ -96,13 +96,13 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
       setIsImporting(true);
       let collection: Collection;
       if (strategy === 'Trufos') {
-        collection = await eventService.openCollection(srcEntry.path);
+        collection = await eventService.openCollection(srcEntry!.path);
       } else {
         collection = await eventService.importCollection(
-          srcEntry.path,
-          targetEntry.path,
+          srcEntry!.path,
+          targetEntry!.path,
           strategy,
-          title
+          title!
         );
       }
       await changeCollection(collection);
@@ -193,7 +193,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               directoryMode
               controlled
             />
-            <TitleInput value={title} onChange={setTitle} />
+            <TitleInput value={title ?? ''} onChange={setTitle} />
           </ImportTabsContent>
 
           <ImportTabsContent strategy="Bruno" gap={false}>

@@ -21,6 +21,7 @@ type RequestInfoFile = InfoFileBase & {
 type FolderInfoFile = InfoFileBase;
 
 type CollectionInfoFile = InfoFileBase & {
+  // @ts-expect-error VariableObject does not have a 'key' property; use string
   variables: Record<VariableObject['key'], Omit<VariableObject, 'key'>>;
 };
 

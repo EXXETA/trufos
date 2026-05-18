@@ -29,7 +29,7 @@ class MockModel implements Partial<editor.ITextModel> {
         endLineNumber: position.lineNumber,
         endColumn: position.column,
       })
-    )[0].length;
+    )?.[0]?.length ?? 0;
     const postfixLength = /^\w*/.exec(
       this.getValueInRange({
         startLineNumber: position.lineNumber,
@@ -37,7 +37,7 @@ class MockModel implements Partial<editor.ITextModel> {
         endLineNumber: position.lineNumber,
         endColumn: this.getLineMaxColumn(position.lineNumber),
       })
-    )[0].length;
+    )?.[0]?.length ?? 0;
 
     const startColumn = position.column - prefixLength;
     const endColumn = position.column + postfixLength;

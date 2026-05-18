@@ -78,7 +78,7 @@ export class PostmanImporter implements CollectionImporter {
 
   private importFolder(parent: TrufosCollection | TrufosFolder, postmanFolder: ItemGroup<Item>) {
     const folder: TrufosFolder = {
-      id: postmanFolder.id,
+      id: postmanFolder.id as string,
       parentId: parent.id,
       type: 'folder',
       lastModified: Date.now(),
@@ -113,7 +113,7 @@ export class PostmanImporter implements CollectionImporter {
     }
 
     const trufosRequest: TrufosRequest = {
-      id: item.id,
+      id: item.id as string,
       parentId: parent.id,
       type: 'request',
       lastModified: Date.now(),

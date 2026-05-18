@@ -9,7 +9,7 @@ import { HeaderRow } from './HeaderRow';
 
 export const HeaderTab = () => {
   const { addHeader, deleteHeader, updateHeader } = useCollectionActions();
-  const headers = useCollectionStore((state) => selectRequest(state).headers);
+  const headers = useCollectionStore((state) => selectRequest(state)!.headers);
 
   const allSelected = useMemo(
     () => headers.length > 0 && headers.every((h) => h.isActive),

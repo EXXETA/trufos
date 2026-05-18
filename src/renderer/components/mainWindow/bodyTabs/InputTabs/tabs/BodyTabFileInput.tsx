@@ -11,7 +11,7 @@ interface BodyTabFileInputProps {
 
 export default function BodyTabFileInput({ className }: BodyTabFileInputProps) {
   const { setRequestBody } = useCollectionActions();
-  const requestBody = useCollectionStore((state) => selectRequest(state).body);
+  const requestBody = useCollectionStore((state) => selectRequest(state)!.body);
 
   const setRequestBodyFile = useCallback(
     (file: DroppedEntryInfo) => {

@@ -59,7 +59,7 @@ export const RequestDropdown = ({ request }: RequestDropdownProps) => {
       {renameModalIsOpen && (
         <NamingModal
           trufosObject={request}
-          createType={null}
+          createType={undefined}
           onClose={() => setRenameModalIsOpen(false)}
         />
       )}

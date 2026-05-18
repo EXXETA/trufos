@@ -24,6 +24,7 @@ declare global {
 }
 
 class SplatFormat implements Format {
+  // @ts-expect-error logform's Format.transform signature uses TransformableInfo but we use an extended type
   transform(info: TransformableInfoExtended) {
     if (info instanceof Error) {
       info.message = info.stack ?? info.message;
@@ -57,6 +58,7 @@ class SplatFormat implements Format {
 }
 
 class SecretFilter implements Format {
+  // @ts-expect-error logform's Format.transform signature uses TransformableInfo but we use an extended type
   transform(info: TransformableInfoExtended) {
     return info.isSecret === true ? false : info;
   }
@@ -71,6 +73,7 @@ function print({
   return `${timestamp} [${process.toUpperCase()}] [${level.toUpperCase()}]: ${message}`;
 }
 
+// @ts-expect-error print uses extended TransformableInfo type
 const BASE_FORMAT = format.combine(new SplatFormat(), format.timestamp(), format.printf(print));
 
 global.logger = winston.createLogger({
@@ -84,6 +87,7 @@ global.logger = winston.createLogger({
       maxFiles: 10,
       maxsize: 1024 * 1024 * 10, // 10MiB
       tailable: true,
+      // @ts-expect-error SecretFilter.transform returns false for secrets, which is valid logform behavior
       format: format.combine(new SecretFilter(), BASE_FORMAT),
     }),
   ],
@@ -103,6 +107,6 @@ if (!app.isPackaged) {
 
 ipcMain.on('log', (event, data: TransformableInfo & LogEntry) => {
   data[SPLAT] = data.splat;
-  delete data.splat;
+  delete (data as unknown as Record<string, unknown>).splat;
   logger.write(data);
 });

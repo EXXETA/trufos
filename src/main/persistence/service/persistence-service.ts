@@ -229,6 +229,7 @@ export class PersistenceService {
     newParentId?: string
   ) {
     const requestCopy = structuredClone(request);
+    // @ts-expect-error intentionally set id to null so getOrCreateDirPath generates a new one
     requestCopy.id = null;
     requestCopy.title = addCopySuffix ? `${request.title} (Copy)` : request.title;
     requestCopy.parentId = newParentId ?? request.parentId;
@@ -272,6 +273,7 @@ export class PersistenceService {
       const queue: TrufosObject[] = [...collection.children];
       while (queue.length > 0) {
         const child = queue.shift();
+        if (child == null) continue;
         if (isRequest(child)) {
           await this.saveRequest(child);
         } else if (isFolder(child)) {
@@ -301,6 +303,7 @@ export class PersistenceService {
    */
   public async copyFolder(folder: Folder, addCopySuffix: boolean = true, newParentId?: string) {
     const folderCopy = structuredClone(folder);
+    // @ts-expect-error intentionally set id to null so getOrCreateDirPath generates a new one
     folderCopy.id = null;
     folderCopy.title = addCopySuffix ? `${folder.title} (Copy)` : folder.title;
     folderCopy.parentId = newParentId ?? folder.parentId;
@@ -480,6 +483,7 @@ export class PersistenceService {
     }
 
     const collection: Collection = {
+      // @ts-expect-error intentionally set id to null so saveCollection generates a new one
       id: null,
       title,
       type: 'collection',
@@ -606,7 +610,7 @@ export class PersistenceService {
     parentId: string,
     dirPath: string,
     type?: T['type']
-  ): Promise<T> {
+  ): Promise<T | undefined> {
     if (type === 'folder' || (await exists(path.join(dirPath, this.getInfoFileName('folder'))))) {
       return (await this.loadFolder(parentId, dirPath)) as T;
     } else if (
@@ -616,6 +620,7 @@ export class PersistenceService {
     ) {
       return (await this.loadRequest(parentId, dirPath)) as T;
     }
+    return undefined;
   }
 
   private readInfoFile(dirPath: string, type: Collection['type']): Promise<CollectionInfoFile>;
@@ -649,7 +654,7 @@ export class PersistenceService {
 
   private updatePathMapRecursively(child: Folder | TrufosRequest, newParentDirPath: string) {
     const oldDirPath = this.idToPathMap.get(child.id);
-    const dirName = path.basename(oldDirPath);
+    const dirName = path.basename(oldDirPath!);
     const newDirPath = path.join(newParentDirPath, dirName);
     this.idToPathMap.set(child.id, newDirPath);
     if (isFolder(child)) {
@@ -671,7 +676,7 @@ export class PersistenceService {
     let dirPath: string;
 
     if (this.idToPathMap.has(object.id)) {
-      dirPath = this.idToPathMap.get(object.id);
+      dirPath = this.idToPathMap.get(object.id)!;
     } else if (isCollection(object)) {
       dirPath = object.dirPath;
       this.idToPathMap.set(object.id, dirPath);
