@@ -121,13 +121,15 @@ export class HttpService {
       metaInfo: {
         status: responseData.statusCode,
         duration: duration,
-          size: calculateResponseSize(
-            responseData.headers,
-            responseData.body != null ? bodyFile.name ?? undefined : undefined
-          ),
+        size: calculateResponseSize(
+          responseData.headers,
+          responseData.body != null ? (bodyFile.name ?? undefined) : undefined
+        ),
       },
       headers: Object.freeze(responseData.headers),
-      id: (responseData.body != null ? responseBodyService.register(bodyFile.name!) : undefined) as string,
+      id: (responseData.body != null
+        ? responseBodyService.register(bodyFile.name!)
+        : undefined) as string,
     };
 
     logger.debug('Returning response:', response);

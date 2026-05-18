@@ -42,7 +42,10 @@ export const SidebarHeaderBar = () => {
   const sortMode = useCollectionStore((state) => state.sortMode);
   const { setSortMode } = useCollectionActions();
 
-  const [creationModalState, setCreationModalState] = useState<{ isOpen: boolean; type: 'request' | 'folder' | undefined }>({ isOpen: false, type: undefined });
+  const [creationModalState, setCreationModalState] = useState<{
+    isOpen: boolean;
+    type: 'request' | 'folder' | undefined;
+  }>({ isOpen: false, type: undefined });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 

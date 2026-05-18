@@ -112,7 +112,8 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
 
       const entry = item.webkitGetAsEntry();
       console.debug('File item was dropped:', entry);
-      if (entry != null && (entry.isFile || entry.isDirectory)) onSelected(item.getAsFile(), entry.isDirectory);
+      if (entry != null && (entry.isFile || entry.isDirectory))
+        onSelected(item.getAsFile(), entry.isDirectory);
     },
     [disabled, directoryMode]
   );

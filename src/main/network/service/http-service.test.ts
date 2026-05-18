@@ -495,6 +495,8 @@ function setupMockHttpService(
   }
 
   const mockClient = mockAgent.get(url.origin);
-  mockClient.intercept({ path: url.pathname }).reply(200, bodyString ?? undefined, { headers: headers });
+  mockClient
+    .intercept({ path: url.pathname })
+    .reply(200, bodyString ?? undefined, { headers: headers });
   return new HttpService(() => Promise.resolve(mockAgent));
 }

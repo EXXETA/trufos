@@ -27,7 +27,9 @@ export const FilePicker: React.FC<FilePickerProps> = ({
   controlled = false,
   ...dropZoneProps
 }) => {
-  const [internalEntry, setInternalEntry] = useState<DroppedEntryInfo | null | undefined>(defaultEntry);
+  const [internalEntry, setInternalEntry] = useState<DroppedEntryInfo | null | undefined>(
+    defaultEntry
+  );
   const entry = controlled ? controlledEntry : internalEntry;
 
   useEffect(() => {

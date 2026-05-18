@@ -829,10 +829,11 @@ describe('PersistenceService', () => {
     await persistenceService.saveRequest(request, textBody);
 
     // Act
-    const result = (
+    const result =
       // @ts-expect-error loadTextBodyOfRequest returns ReadStream | undefined; undefined case won't occur here
-      await Array.fromAsync(await persistenceService.loadTextBodyOfRequest(request, 'utf8'))
-    ).join('');
+      (await Array.fromAsync(await persistenceService.loadTextBodyOfRequest(request, 'utf8'))).join(
+        ''
+      );
 
     // Assert
     expect(result).toBe(textBody);
