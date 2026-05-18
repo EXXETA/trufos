@@ -1,22 +1,19 @@
 {
   "compilerOptions": {
-    "target": "ES2023",
-    "allowJs": true,
+    "target": "ES2024",
+    "strict": true,
     "module": "nodenext",
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "noImplicitAny": true,
-    "sourceMap": true,
-    "outDir": "dist",
     "moduleResolution": "nodenext",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "dom"],
     "paths": {
       "@/*": ["./src/renderer/*"],
       "main/*": ["./src/main/*"],
       "shim/*": ["./src/shim/*"]
-    },
-    "jsx": "react-jsx",
-    "lib": ["ESNext", "dom"]
+    }
   },
   "include": ["src/**/*"]
 }
