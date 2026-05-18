@@ -10,9 +10,10 @@
     "outDir": "dist",
     "moduleResolution": "nodenext",
     "resolveJsonModule": true,
-    "baseUrl": "./src",
     "paths": {
-      "@/*": ["renderer/*"]
+      "@/*": ["./src/renderer/*"],
+      "main/*": ["./src/main/*"],
+      "shim/*": ["./src/shim/*"]
     },
     "jsx": "react-jsx",
     "lib": ["ESNext", "dom"]
