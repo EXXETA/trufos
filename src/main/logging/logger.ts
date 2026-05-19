@@ -3,6 +3,7 @@ import { Format, TransformableInfo } from 'logform';
 import { app, ipcMain } from 'electron';
 import { LogEntry } from 'shim/logger';
 import { format as formatString } from 'node:util';
+import { omit } from 'main/util/object-util';
 
 const SPLAT = Symbol.for('splat');
 const LOG_SECRET = Symbol('logSecret');
@@ -107,6 +108,6 @@ if (!app.isPackaged) {
 
 ipcMain.on('log', (event, data: TransformableInfo & LogEntry) => {
   data[SPLAT] = data.splat;
-  delete (data as unknown as Record<string, unknown>).splat;
+  omit(data, 'splat');
   logger.write(data);
 });

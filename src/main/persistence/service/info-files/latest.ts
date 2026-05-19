@@ -39,8 +39,7 @@ export function fromCollectionInfoFile(
   dirPath: string,
   children: Collection['children']
 ): Collection {
-  delete (infoFile as Record<string, unknown>).version;
-  return Object.assign(infoFile, {
+  return Object.assign(omit(infoFile, 'version'), {
     type: 'collection' as const,
     lastModified,
     isDefault: SettingsService.DEFAULT_COLLECTION_DIR === dirPath,
@@ -55,8 +54,12 @@ export function fromFolderInfoFile(
   parentId: Folder['parentId'],
   children: Folder['children']
 ): Folder {
-  delete (infoFile as Record<string, unknown>).version;
-  return Object.assign(infoFile, { type: 'folder' as const, lastModified, parentId, children });
+  return Object.assign(omit(infoFile, 'version'), {
+    type: 'folder' as const,
+    lastModified,
+    parentId,
+    children,
+  });
 }
 
 export function fromRequestInfoFile(
@@ -65,8 +68,12 @@ export function fromRequestInfoFile(
   parentId: TrufosRequest['parentId'],
   draft: boolean
 ): TrufosRequest {
-  delete (infoFile as Record<string, unknown>).version;
-  return Object.assign(infoFile, { type: 'request' as const, lastModified, parentId, draft });
+  return Object.assign(omit(infoFile, 'version'), {
+    type: 'request' as const,
+    lastModified,
+    parentId,
+    draft,
+  });
 }
 
 /**
