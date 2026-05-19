@@ -418,8 +418,10 @@ export class PersistenceService {
     }
     logger.info('Discarding changes of request at', dirPath);
 
-    // delete draft files
-    await fs.rmdir(this.getDraftDirPath(dirPath), { recursive: true });
+    // delete draft files if the draft directory exists
+    if (await this.hasDraft(dirPath)) {
+      await fs.rmdir(this.getDraftDirPath(dirPath), { recursive: true });
+    }
     return await this.loadRequest(request.parentId, dirPath);
   }
 

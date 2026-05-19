@@ -775,6 +775,25 @@ describe('PersistenceService', () => {
     expect(oldInfo).toEqual(newInfo);
   });
 
+  it('discardChanges() should not throw when request.draft is true but .draft directory is missing', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+
+    await persistenceService.saveCollection(collection, true);
+
+    // Simulate a stale in-memory draft flag with no .draft directory on disk
+    request.draft = true;
+
+    // Act & Assert — should not throw
+    const result = await persistenceService.discardChanges(request);
+
+    expect(result.draft).toBe(false);
+    expect(
+      await exists(path.join(collection.dirPath, request.title, DRAFT_DIR_NAME))
+    ).toBe(false);
+  });
+
   it('delete() should delete the directory of a trufos object', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);

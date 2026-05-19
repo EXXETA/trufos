@@ -8,7 +8,7 @@ import { SendButton } from './mainTopBar/SendButton';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
-import { ArrowRight, Loader2, SaveIcon } from 'lucide-react';
+import { ArrowRight, Loader2, SaveIcon, EraserIcon } from 'lucide-react';
 import { showError } from '@/error/errorHandler';
 import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
@@ -47,6 +47,16 @@ export function MainTopBar() {
     [request, currentScriptType, addResponse]
   );
 
+  const discardRequest = useCallback(
+    useErrorHandler(async () => {
+      if (request == null) return;
+      const restored = await eventService.discardChanges(request);
+      await setRequestTextBody(restored);
+      updateRequest(restored, true);
+    }),
+    [request]
+  );
+
   const saveRequest = useCallback(
     useErrorHandler(async () => {
       if (request == null) return;
@@ -81,6 +91,10 @@ export function MainTopBar() {
         <HttpMethodSelect selectedHttpMethod={method} onHttpMethodChange={handleHttpMethodChange} />
         <UrlInput url={url} onChange={handleUrlChange} />
       </div>
+
+      <IconButton disabled={!request?.draft} onClick={discardRequest}>
+        <EraserIcon />
+      </IconButton>
 
       <IconButton disabled={!request?.draft} onClick={saveRequest}>
         <SaveIcon />
