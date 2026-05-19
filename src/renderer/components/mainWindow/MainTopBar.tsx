@@ -13,7 +13,7 @@ import { showError } from '@/error/errorHandler';
 import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -82,14 +82,9 @@ export function MainTopBar() {
         <UrlInput url={url} onChange={handleUrlChange} />
       </div>
 
-      <Button
-        className={`flex h-6 w-6 p-0 ${request?.draft ? 'text-accent-primary' : 'text-(--disabled)'}`}
-        variant="ghost"
-        disabled={!request?.draft}
-        onClick={saveRequest}
-      >
+      <IconButton disabled={!request?.draft} onClick={saveRequest}>
         <SaveIcon />
-      </Button>
+      </IconButton>
 
       <SendButton onClick={sendRequest} disabled={isLoading}>
         {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
