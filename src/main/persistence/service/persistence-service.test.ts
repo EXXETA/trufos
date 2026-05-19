@@ -789,9 +789,7 @@ describe('PersistenceService', () => {
     const result = await persistenceService.discardChanges(request);
 
     expect(result.draft).toBe(false);
-    expect(
-      await exists(path.join(collection.dirPath, request.title, DRAFT_DIR_NAME))
-    ).toBe(false);
+    expect(await exists(path.join(collection.dirPath, request.title, DRAFT_DIR_NAME))).toBe(false);
   });
 
   it('delete() should delete the directory of a trufos object', async () => {

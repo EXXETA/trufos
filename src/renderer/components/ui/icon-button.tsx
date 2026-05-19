@@ -14,15 +14,11 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       ref={ref}
       variant="ghost"
       disabled={disabled}
-      className={cn(
-        'p-0',
-        disabled ? 'text-(--disabled)' : 'text-accent-primary',
-        className,
-      )}
+      className={cn('p-0', disabled ? 'text-(--disabled)' : 'text-accent-primary', className)}
       style={{ width, height, ...style }}
       {...props}
     />
-  ),
+  )
 );
 IconButton.displayName = 'IconButton';
 
