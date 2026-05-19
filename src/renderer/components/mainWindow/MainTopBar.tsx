@@ -5,15 +5,15 @@ import { HttpService } from '@/services/http/http-service';
 import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
 import { UrlInput } from './mainTopBar/UrlInput';
 import { SendButton } from './mainTopBar/SendButton';
-import { SaveButton } from './mainTopBar/SaveButton';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2, SaveIcon } from 'lucide-react';
 import { showError } from '@/error/errorHandler';
 import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
+import { Button } from '@/components/ui/button';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -76,12 +76,20 @@ export function MainTopBar() {
   }, [saveRequest]);
 
   return (
-    <div className="mb-6 flex gap-6">
+    <div className="mb-6 flex items-center gap-6">
       <div className="relative flex w-full">
         <HttpMethodSelect selectedHttpMethod={method} onHttpMethodChange={handleHttpMethodChange} />
         <UrlInput url={url} onChange={handleUrlChange} />
-        <SaveButton isDisabled={!request?.draft} onClick={saveRequest} />
       </div>
+
+      <Button
+        className={`flex h-6 w-6 p-0 ${request?.draft ? 'text-accent-primary' : 'text-(--disabled)'}`}
+        variant="ghost"
+        disabled={!request?.draft}
+        onClick={saveRequest}
+      >
+        <SaveIcon />
+      </Button>
 
       <SendButton onClick={sendRequest} disabled={isLoading}>
         {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
