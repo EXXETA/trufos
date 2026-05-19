@@ -1,4 +1,4 @@
-export type EventListener = (...args: unknown[]) => void;
+export type EventListener = (...args: never[]) => void;
 export type EventHandlers = { [event: string]: EventListener };
 
 export const ERROR_EVENT = 'error' as const;
@@ -10,7 +10,7 @@ export abstract class EventEmitter<Handlers extends { [K in keyof Handlers]: Eve
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    this.listeners.get(event).add(listener);
+    this.listeners.get(event)!.add(listener);
     return this;
   }
 
@@ -56,6 +56,7 @@ export function once<Handlers extends EventHandlers, K extends keyof Handlers>(
       resolve(args);
     }) as Handlers[K];
 
+    // @ts-expect-error err param type may not perfectly match EventListener but is safe here
     const onError = ((err: Parameters<Handlers[typeof ERROR_EVENT]>) => {
       cleanup();
       reject(err);

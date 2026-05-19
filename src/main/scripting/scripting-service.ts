@@ -30,21 +30,21 @@ export class ScriptingService extends EventEmitter {
       trufos: {
         version: app.getVersion(),
 
-        getCollectionVariable(name) {
+        getCollectionVariable(name: string) {
           return ScriptingService.getVariable(environmentService.currentCollection.variables, name);
         },
 
-        setCollectionVariable(name, value) {
+        setCollectionVariable(name: string, value: string | VariableObject) {
           ScriptingService.setVariable(environmentService.currentCollection.variables, name, value);
           self._variablesChanged = true;
         },
 
-        getEnvironmentVariable(name, environment) {
+        getEnvironmentVariable(name: string, environment?: string) {
           const variables = ScriptingService.getEnvironmentVariables(environment);
           return ScriptingService.getVariable(variables, name);
         },
 
-        setEnvironmentVariable(name, value, environment) {
+        setEnvironmentVariable(name: string, value: string | VariableObject, environment?: string) {
           const variables = ScriptingService.getEnvironmentVariables(environment);
           ScriptingService.setVariable(variables, name, value);
           self._variablesChanged = true;

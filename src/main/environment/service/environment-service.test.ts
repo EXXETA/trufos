@@ -43,6 +43,7 @@ describe('EnvironmentService', () => {
     let currentEnvironment = environmentService.currentEnvironment;
 
     // Assert
+    // @ts-expect-error collection is Partial<Collection>, environments may be undefined
     expect(currentEnvironment).toEqual(collection.environments[environmentKey]);
 
     // Arrange
@@ -77,6 +78,7 @@ describe('EnvironmentService', () => {
       .mockResolvedValueOnce(newCollection as Collection);
 
     // Act
+    // @ts-expect-error newCollection is Partial<Collection>, dirPath may be undefined
     const result = await environmentService.changeCollection(newCollection.dirPath);
 
     // Assert
@@ -93,7 +95,9 @@ describe('EnvironmentService', () => {
 
     // Assert
     expect(variables).toEqual([
+      // @ts-expect-error collection is Partial<Collection>, environments may be undefined
       ...Object.entries(collection.environments[environmentKey].variables),
+      // @ts-expect-error collection is Partial<Collection>, variables may be undefined
       ...Object.entries(collection.variables),
       ...systemVariables,
     ]);
@@ -105,6 +109,7 @@ describe('EnvironmentService', () => {
     const collectionVariable: VariableObject = { value: randomUUID() };
     const environmentVariable: VariableObject = { value: randomUUID() };
     environmentService.currentCollection.variables[key] = collectionVariable;
+    // @ts-expect-error currentEnvironment may be undefined
     environmentService.currentEnvironment.variables[key] = environmentVariable;
 
     // Act
@@ -114,6 +119,7 @@ describe('EnvironmentService', () => {
     expect(result).toEqual(environmentVariable);
 
     // Arrange
+    // @ts-expect-error currentEnvironment may be undefined
     delete environmentService.currentEnvironment.variables[key];
 
     // Act
@@ -233,7 +239,9 @@ describe('EnvironmentService', () => {
 
   it('getAuthorizationHeader() should substitute variables for Basic auth credentials', async () => {
     // Arrange
+    // @ts-expect-error currentEnvironment may be undefined
     environmentService.currentEnvironment.variables.varUser = { value: 'user1' };
+    // @ts-expect-error currentEnvironment may be undefined
     environmentService.currentEnvironment.variables.varPass = { value: 'pass1' };
     const auth: BasicAuthorizationInformation = {
       type: AuthorizationType.BASIC,
@@ -251,6 +259,7 @@ describe('EnvironmentService', () => {
 
   it('getAuthorizationHeader() should substitute variables inside Bearer token', async () => {
     // Arrange
+    // @ts-expect-error currentEnvironment may be undefined
     environmentService.currentEnvironment.variables.varToken = { value: 'abc123' };
     const auth: BearerAuthorizationInformation = {
       type: AuthorizationType.BEARER,

@@ -20,7 +20,7 @@ export const FormDataTab = () => {
   const { addFormDataField, updateFormDataField, deleteFormDataField, setRequestBody } =
     useCollectionActions();
   const fields = useCollectionStore((state) => {
-    const body = state.requests.get(state.selectedRequestId)?.body;
+    const body = state.requests.get(state.selectedRequestId!)?.body;
     return body?.type === RequestBodyType.FORM_DATA ? body.fields : [];
   });
 

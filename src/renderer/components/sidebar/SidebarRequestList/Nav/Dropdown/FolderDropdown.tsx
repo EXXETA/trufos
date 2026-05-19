@@ -20,9 +20,9 @@ export interface FolderDropdownProps {
 export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
   const { copyFolder, deleteFolder } = useCollectionActions();
   const [renameModalIsOpen, setRenameModalIsOpen] = useState(false);
-  const [isCreateModal, setIsCreateModal] = useState<null | 'folder' | 'request'>(null);
+  const [isCreateModal, setIsCreateModal] = useState<undefined | 'folder' | 'request'>(undefined);
 
-  const openModal = (type: 'folder' | 'request' | null) => {
+  const openModal = (type: 'folder' | 'request' | undefined) => {
     setRenameModalIsOpen(true);
     setIsCreateModal(type);
   };
@@ -49,7 +49,7 @@ export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
             Add Folder
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleMouseEvent(() => openModal(null))}>
+          <DropdownMenuItem onClick={handleMouseEvent(() => openModal(undefined))}>
             Rename Folder
           </DropdownMenuItem>
 

@@ -19,7 +19,7 @@ export default abstract class OAuth2AuthStrategy<
 > extends AuthStrategy<T> {
   public async getAuthHeader() {
     await this.getTokens();
-    return `Bearer ${this.authInfo.tokens.access_token}`;
+    return `Bearer ${this.authInfo.tokens!.access_token}`;
   }
 
   protected abstract getTokens(): Promise<void>;

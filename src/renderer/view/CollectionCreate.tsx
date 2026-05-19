@@ -50,15 +50,15 @@ export const CollectionCreate: React.FC<{
 
   const createCollection = async () => {
     try {
-      await changeCollection(await eventService.createCollection(targetEntry.path, title));
+      await changeCollection(await eventService.createCollection(targetEntry!.path, title));
 
-      console.info('Creating collection at', targetEntry.path);
+      console.info('Creating collection at', targetEntry!.path);
 
       await loadCollections();
     } catch (e) {
       console.error('Error creating collection:', e);
     } finally {
-      onClose();
+      onClose?.();
     }
   };
 

@@ -94,7 +94,7 @@ describe('Logger', () => {
       // Assert
       expect(data.length).toBe(1);
       expect(data[0]).toBeInstanceOf(Buffer);
-      const actual = data[0].toString();
+      const actual = (data[0] as Buffer).toString();
       expect(actual).toEqual(expected);
     } finally {
       vi.useRealTimers();
@@ -122,7 +122,7 @@ describe('Logger', () => {
       // Assert
       expect(data.length).toBe(1);
       expect(data[0]).toBeInstanceOf(Buffer);
-      const actual = data[0].toString();
+      const actual = (data[0] as Buffer).toString();
       expect(actual).toEqual(expected);
     } finally {
       vi.useRealTimers();
@@ -151,7 +151,7 @@ describe('Logger', () => {
       // Assert
       expect(data.length).toBe(1);
       expect(data[0]).toBeInstanceOf(Buffer);
-      const actual = data[0].toString();
+      const actual = (data[0] as Buffer).toString();
       expect(actual).toEqual(expected);
     } finally {
       vi.useRealTimers();

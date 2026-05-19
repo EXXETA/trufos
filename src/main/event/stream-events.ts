@@ -17,7 +17,7 @@ ipcMain.handle(
     const { sender } = event;
     const id = nextId++;
 
-    let stream: ReadStream;
+    let stream: ReadStream | undefined;
     const streamOptions = maxBytes != null ? { encoding, end: maxBytes - 1 } : encoding;
 
     if (typeof input === 'string') {

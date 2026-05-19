@@ -28,6 +28,7 @@ describe('HttpService', () => {
   });
 
   beforeEach(() => {
+    // @ts-expect-error loadScript mock returns null but type expects ReadStream | null
     vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
     vi.spyOn(environmentService, 'currentCollection', 'get').mockReturnValue({
       clientCertificate: null,
@@ -47,6 +48,7 @@ describe('HttpService', () => {
       url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
       body: null,
     };
 
@@ -60,7 +62,7 @@ describe('HttpService', () => {
 
     const filePath = responseBodyService.getFilePath(result.id);
     expect(filePath).toBeDefined();
-    const responseBody = fs.readFileSync(filePath, 'utf8').toString();
+    const responseBody = fs.readFileSync(filePath!, 'utf8').toString();
     expect(responseBody).toEqual(text);
   });
 
@@ -85,6 +87,7 @@ describe('HttpService', () => {
       url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
       body: null,
     };
 
@@ -93,7 +96,7 @@ describe('HttpService', () => {
 
     // Assert: bodySizeInBytes must reflect the real file size, not the fake content-length
     const filePath = responseBodyService.getFilePath(result.id);
-    const actualBodySize = fs.statSync(filePath).size;
+    const actualBodySize = fs.statSync(filePath!).size;
     expect(result.metaInfo.size.bodySizeInBytes).toEqual(actualBodySize);
     expect(result.metaInfo.size.bodySizeInBytes).not.toEqual(5000);
   });
@@ -111,6 +114,7 @@ describe('HttpService', () => {
       url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
       body: null,
       auth: { type: AuthorizationType.BASIC, username, password },
     };
@@ -123,6 +127,7 @@ describe('HttpService', () => {
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.headers.authorization).toEqual(expectedAuthHeader);
   });
 
@@ -140,6 +145,7 @@ describe('HttpService', () => {
       url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [{ key: 'Authorization', value: authorizationValue, isActive: true }],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
       body: null,
       auth: { type: AuthorizationType.BASIC, username, password },
     };
@@ -151,6 +157,7 @@ describe('HttpService', () => {
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.headers.authorization).toEqual([authorizationValue]);
   });
 
@@ -181,6 +188,7 @@ describe('HttpService', () => {
       url: parseUrl(rawUrl),
       method: RequestMethod.GET,
       headers: [],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
       body: null,
     };
 
@@ -190,6 +198,7 @@ describe('HttpService', () => {
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.origin + lastCall.path).toEqual(expectedFinalUrl);
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
@@ -221,6 +230,7 @@ describe('HttpService', () => {
         { key: 'X-Api-Version', value: '{{ apiVersion }}', isActive: true },
         { key: 'Authorization', value: 'Bearer {{ token }}', isActive: true },
       ],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
       body: null,
     };
 
@@ -230,7 +240,9 @@ describe('HttpService', () => {
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.headers['x-api-version']).toEqual(['v1']);
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.headers.authorization).toEqual(['Bearer staging-token']);
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
@@ -262,6 +274,7 @@ describe('HttpService', () => {
         { key: 'X-Trace-Id', value: '{{ trace1 }}', isActive: true },
         { key: 'X-Trace-Id', value: '{{ trace2 }}', isActive: true },
       ],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
       body: null,
     };
 
@@ -271,6 +284,7 @@ describe('HttpService', () => {
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.headers['x-trace-id']).toEqual(['abc', 'def']);
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
@@ -286,6 +300,7 @@ describe('HttpService', () => {
       id: randomUUID(),
       parentId: randomUUID(),
       type: 'request',
+      lastModified: Date.now(),
       title: 'Form Data Text Request',
       url: parseUrl(url.toString()),
       method: RequestMethod.POST,
@@ -295,10 +310,12 @@ describe('HttpService', () => {
         fields: [
           {
             key: 'name',
+            isActive: true,
             value: { type: RequestBodyType.TEXT, text: 'John', mimeType: 'text/plain' },
           },
           {
             key: 'email',
+            isActive: true,
             value: { type: RequestBodyType.TEXT, text: 'john@example.com', mimeType: 'text/plain' },
           },
         ],
@@ -311,6 +328,7 @@ describe('HttpService', () => {
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     const body: FormData = lastCall.body as unknown as FormData;
     expect(body).toBeInstanceOf(FormData);
     expect(body.get('name')).toEqual('John');
@@ -332,6 +350,7 @@ describe('HttpService', () => {
       id: randomUUID(),
       parentId: randomUUID(),
       type: 'request',
+      lastModified: Date.now(),
       title: 'Form Data File Request',
       url: parseUrl(url.toString()),
       method: RequestMethod.POST,
@@ -341,6 +360,7 @@ describe('HttpService', () => {
         fields: [
           {
             key: 'file',
+            isActive: true,
             value: {
               type: RequestBodyType.FILE,
               filePath: '/mock/test.txt',
@@ -356,8 +376,10 @@ describe('HttpService', () => {
     await httpService.fetchAsync(request);
 
     // Assert
+    // @ts-expect-error getCallHistory() return type may not have lastCall
     const lastCall = mockAgent.getCallHistory().lastCall();
     expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     const body: FormData = lastCall.body as unknown as FormData;
     expect(body).toBeInstanceOf(FormData);
     const file = body.get('file') as Blob as File;
@@ -381,12 +403,12 @@ describe('HttpService', () => {
     const mockClient = mockAgent.get(url.origin);
     mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
     const httpService = new HttpService(() => Promise.resolve(mockAgent));
-
     const request: TrufosRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
       type: 'request',
-      title: 'Form Data Variables Request',
+      lastModified: Date.now(),
+      title: 'FormVars Request',
       url: parseUrl(url.toString()),
       method: RequestMethod.POST,
       headers: [],
@@ -395,10 +417,12 @@ describe('HttpService', () => {
         fields: [
           {
             key: 'user',
+            isActive: true,
             value: { type: RequestBodyType.TEXT, text: '{{ username }}', mimeType: 'text/plain' },
           },
           {
             key: 'apikey',
+            isActive: true,
             value: { type: RequestBodyType.TEXT, text: '{{ token }}', mimeType: 'text/plain' },
           },
         ],
@@ -409,8 +433,10 @@ describe('HttpService', () => {
     await httpService.fetchAsync(request);
 
     // Assert
+    // @ts-expect-error getCallHistory() return type may not have lastCall
     const lastCall = mockAgent.getCallHistory().lastCall();
     expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     const body: FormData = lastCall.body as unknown as FormData;
     expect(body).toBeInstanceOf(FormData);
     expect(spy).toHaveBeenCalled();
@@ -437,6 +463,7 @@ describe('HttpService', () => {
       url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
       body: null,
     };
 
@@ -468,6 +495,8 @@ function setupMockHttpService(
   }
 
   const mockClient = mockAgent.get(url.origin);
-  mockClient.intercept({ path: url.pathname }).reply(200, bodyString, { headers: headers });
+  mockClient
+    .intercept({ path: url.pathname })
+    .reply(200, bodyString ?? undefined, { headers: headers });
   return new HttpService(() => Promise.resolve(mockAgent));
 }

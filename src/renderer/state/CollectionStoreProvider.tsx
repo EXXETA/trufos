@@ -26,6 +26,7 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
         storeRef.current = createCollectionStore(collection);
 
         // Sync variables changed by scripts back to the frontend stores
+        // @ts-expect-error listener receives ipcEvent + payload but on() only types ...unknown[]
         rendererEventService.on(
           'collection-variables-updated',
           (_ipcEvent, { variables, environments }) => {

@@ -14,8 +14,8 @@ interface InputTabsProps {
 export function InputTabs(props: Readonly<InputTabsProps>) {
   const { className } = props;
 
-  const headers = useCollectionStore((state) => selectRequest(state).headers);
-  const queryParams = useCollectionStore((state) => selectRequest(state).url.query);
+  const headers = useCollectionStore((state) => selectRequest(state)!.headers);
+  const queryParams = useCollectionStore((state) => selectRequest(state)!.url.query);
 
   const activeHeaderCount = useMemo(
     () => headers.filter((header) => header.isActive).length,

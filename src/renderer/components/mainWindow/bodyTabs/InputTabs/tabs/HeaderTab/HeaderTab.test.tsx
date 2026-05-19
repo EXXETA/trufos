@@ -15,12 +15,12 @@ vi.mock('@/state/collectionStore', () => ({
     deleteHeader: deleteHeaderMock,
     updateHeader: updateHeaderMock,
   }),
-  useCollectionStore: (selector) =>
+  useCollectionStore: (selector: (state: any) => any) =>
     selector({
       selectedRequestId: 'req-1',
       requests: new Map([['req-1', { id: 'req-1', headers: mockHeaders }]]),
     }),
-  selectRequest: (state) => state.requests.get(state.selectedRequestId),
+  selectRequest: (state: any) => state.requests.get(state.selectedRequestId),
 }));
 
 describe('HeaderTab', () => {

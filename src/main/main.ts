@@ -106,7 +106,7 @@ const createWindow = async () => {
     }
   } catch (e) {
     console.error('Could not start Trufos:', e);
-    showError('Could not start Trufos: ' + e.message);
+    showError('Could not start Trufos: ' + (e as Error).message);
     app.quit();
   }
 };

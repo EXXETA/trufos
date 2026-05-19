@@ -25,7 +25,9 @@ describe('assign()', () => {
 
   it('should return target if either argument is not an object', () => {
     const obj = { a: 1 };
+    // @ts-expect-error assign(null, ...) — null is not a valid target type
     expect(assign(null, structuredClone(obj))).toBe(null);
+    // @ts-expect-error assign(..., null) — null is not a valid source type
     expect(assign(structuredClone(obj), null)).toEqual(obj);
   });
 

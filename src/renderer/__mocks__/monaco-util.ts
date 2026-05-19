@@ -22,22 +22,24 @@ class MockModel implements Partial<editor.ITextModel> {
   }
 
   getWordAtPosition(position: IPosition) {
-    const prefixLength = /\w*$/.exec(
-      this.getValueInRange({
-        startLineNumber: position.lineNumber,
-        startColumn: 1,
-        endLineNumber: position.lineNumber,
-        endColumn: position.column,
-      })
-    )[0].length;
-    const postfixLength = /^\w*/.exec(
-      this.getValueInRange({
-        startLineNumber: position.lineNumber,
-        startColumn: position.column,
-        endLineNumber: position.lineNumber,
-        endColumn: this.getLineMaxColumn(position.lineNumber),
-      })
-    )[0].length;
+    const prefixLength =
+      /\w*$/.exec(
+        this.getValueInRange({
+          startLineNumber: position.lineNumber,
+          startColumn: 1,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column,
+        })
+      )?.[0]?.length ?? 0;
+    const postfixLength =
+      /^\w*/.exec(
+        this.getValueInRange({
+          startLineNumber: position.lineNumber,
+          startColumn: position.column,
+          endLineNumber: position.lineNumber,
+          endColumn: this.getLineMaxColumn(position.lineNumber),
+        })
+      )?.[0]?.length ?? 0;
 
     const startColumn = position.column - prefixLength;
     const endColumn = position.column + postfixLength;

@@ -13,7 +13,7 @@ import { mimeTypeToLanguage } from '@/lib/monaco/language';
 export const TextualPrettyRenderer: ResponseRenderer = ({ response, maxBytes }) => {
   const { editor, setEditorLanguage, formatResponseEditorText, setResponseEditor } =
     useResponseEditor();
-  const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)), [response]);
+  const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)!), [response]);
 
   const onChange = useCallback(
     (content: string) => {

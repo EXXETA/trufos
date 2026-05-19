@@ -11,8 +11,8 @@ import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
 import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 
-self.MonacoEnvironment = {
-  getWorker(_, label) {
+(self as Window & typeof globalThis & { MonacoEnvironment: unknown }).MonacoEnvironment = {
+  getWorker(_: string, label: string) {
     switch (label) {
       case 'json':
         return new jsonWorker();

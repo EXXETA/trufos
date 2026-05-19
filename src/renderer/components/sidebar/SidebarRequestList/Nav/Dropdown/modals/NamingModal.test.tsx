@@ -27,6 +27,7 @@ describe('NamingModal creation behavior', () => {
       parentId: 'root',
       type: 'folder' as const,
       title: 'Parent Folder',
+      lastModified: Date.now(),
       children: [] as any[],
     };
 

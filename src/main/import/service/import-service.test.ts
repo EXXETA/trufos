@@ -19,6 +19,7 @@ describe('ImportService', () => {
     const targetDirPath = tmpdir();
     const importService = ImportService.instance;
     await fs.writeFile(POSTMAN_COLLECTION_FILE_PATH, POSTMAN_COLLECTION);
+    // @ts-expect-error saveCollection mock returns null but type expects void
     vi.mocked(PersistenceService.instance.saveCollection).mockImplementation(async () => null);
 
     // Act

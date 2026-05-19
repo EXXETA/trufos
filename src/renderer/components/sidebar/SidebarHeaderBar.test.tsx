@@ -9,7 +9,7 @@ const renderWithProvider = (ui: React.ReactElement) =>
   render(<TooltipProvider>{ui}</TooltipProvider>);
 
 const setSortModeMock = vi.fn();
-let currentSortMode: SortMode = 'default';
+let currentSortMode: SortMode = SortMode.DEFAULT;
 
 vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: (selector: (state: any) => any) =>

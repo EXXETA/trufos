@@ -13,7 +13,7 @@ export interface NavRequestProps {
 
 export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
   const { setSelectedRequest } = useCollectionActions();
-  const request = useCollectionStore((state) => selectRequest(state, requestId));
+  const request = useCollectionStore((state) => selectRequest(state, requestId)!);
 
   return (
     <div className={cn('group hover:bg-[#333333]')}>

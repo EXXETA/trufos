@@ -30,7 +30,7 @@ function calculateHeadersSize(headers: IncomingHttpHeaders) {
         -(COMMA_SIZE + SPACE_SIZE)
       );
     } else {
-      valuesSize = values.length;
+      valuesSize = values!.length;
     }
     return size + key.length + valuesSize + COLON_SIZE + SPACE_SIZE + NEW_LINE_SIZE;
   }, 0);

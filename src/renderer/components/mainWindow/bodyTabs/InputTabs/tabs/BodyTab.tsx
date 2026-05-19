@@ -20,9 +20,9 @@ export const BodyTab = () => {
   const { setRequestBody, setRequestBodyMimeType, formatRequestEditorText } =
     useCollectionActions();
 
-  const requestBody = useCollectionStore((state) => selectRequest(state).body);
+  const requestBody = useCollectionStore((state) => selectRequest(state)!.body);
   const mimeType = 'mimeType' in requestBody ? requestBody.mimeType : undefined;
-  const language = mimeTypeToLanguage(mimeType);
+  const language = mimeTypeToLanguage(mimeType!);
   const canFormatRequestBody = isFormattableLanguage(language);
 
   const changeBodyType = useCallback(

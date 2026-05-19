@@ -123,11 +123,13 @@ export class HttpService {
         duration: duration,
         size: calculateResponseSize(
           responseData.headers,
-          responseData.body != null ? bodyFile.name : null
+          responseData.body != null ? (bodyFile.name ?? undefined) : undefined
         ),
       },
       headers: Object.freeze(responseData.headers),
-      id: responseData.body != null ? responseBodyService.register(bodyFile.name) : undefined,
+      id: (responseData.body != null
+        ? responseBodyService.register(bodyFile.name!)
+        : undefined) as string,
     };
 
     logger.debug('Returning response:', response);
@@ -147,7 +149,7 @@ export class HttpService {
     switch (request.body.type) {
       case RequestBodyType.TEXT: {
         const requestBodyStream = await persistenceService.loadTextBodyOfRequest(request);
-        return [environmentService.setVariablesInStream(requestBodyStream) as Readable];
+        return [environmentService.setVariablesInStream(requestBodyStream!) as Readable];
       }
       case RequestBodyType.FILE:
         return this.readFileBody(request.body.filePath);

@@ -8,7 +8,7 @@ import { SidebarFooter } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
 export function FooterBar() {
-  const [appVersion, setAppVersion] = useState<string>(undefined);
+  const [appVersion, setAppVersion] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     RendererEventService.instance.getAppVersion().then(setAppVersion);

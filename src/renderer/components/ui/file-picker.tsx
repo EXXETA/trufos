@@ -27,13 +27,15 @@ export const FilePicker: React.FC<FilePickerProps> = ({
   controlled = false,
   ...dropZoneProps
 }) => {
-  const [internalEntry, setInternalEntry] = useState<DroppedEntryInfo>(defaultEntry);
+  const [internalEntry, setInternalEntry] = useState<DroppedEntryInfo | null | undefined>(
+    defaultEntry
+  );
   const entry = controlled ? controlledEntry : internalEntry;
 
   useEffect(() => {
     if (controlled && controlledEntry === null) {
       // Mirror external clearing in uncontrolled internal state for consistency when switching
-      setInternalEntry(null);
+      setInternalEntry(undefined);
     }
   }, [controlled, controlledEntry]);
 
@@ -46,7 +48,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({
   );
 
   const onFileRemoved = useCallback(() => {
-    if (!controlled) setInternalEntry(null);
+    if (!controlled) setInternalEntry(undefined);
     onFileRemovedCallback?.();
   }, [controlled, onFileRemovedCallback]);
 

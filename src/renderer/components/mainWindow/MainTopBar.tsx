@@ -22,9 +22,9 @@ export function MainTopBar() {
 
   const { updateRequest } = useCollectionActions();
   const { addResponse } = useResponseActions();
-  const request = useCollectionStore(selectRequest);
+  const request = useCollectionStore(selectRequest)!;
   const currentScriptType = useCollectionStore((state) => state.currentScriptType);
-  const { url, method } = request;
+  const { url, method } = request ?? {};
 
   const handleUrlChange = (url: TrufosURL) => updateRequest({ url });
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
