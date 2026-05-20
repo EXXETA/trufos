@@ -35,7 +35,7 @@
     "@types/mime-types": "^3.0.1",
     "@types/node": "^24.12.4",
     "@types/postman-collection": "^3.5.11",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@types/tmp": "^0.2.6",
     "@typescript-eslint/eslint-plugin": "^8.59.4",
