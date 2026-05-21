@@ -3,11 +3,7 @@ import { MainBody } from '@/components/mainWindow/MainBody';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { EmptyWildWest } from '@/assets/EmptyWildWest';
 import { MouseEvent, useCallback, useEffect, useRef } from 'react';
-import {
-  createModelsForRequest,
-  disposeModelsForRequest,
-  registerGetRequest,
-} from '@/lib/monaco/models';
+import { registerGetRequest } from '@/lib/monaco/models';
 import { setRequestTextBody, setScriptContent } from '@/state/helper/collectionUtil';
 import { ScriptType } from 'shim/scripting';
 
@@ -23,21 +19,14 @@ export function RequestWindow() {
     registerGetRequest((id) => requestsRef.current.get(id));
   }, []);
 
-  // Create models when a request is selected; dispose them when switching away.
-  // Disposing triggers onWillDisposeModel → saves content automatically.
+  // Load content into models when the selected request changes.
+  // Models are already created by setSelectedRequest in the store before this
+  // effect runs, so getBodyModel / getScriptModel are safe to call here.
   useEffect(() => {
     if (selectedRequestId == null) return;
-
-    createModelsForRequest(selectedRequestId);
-
-    // Load initial content into the models
     const request = requestsRef.current.get(selectedRequestId);
     void setRequestTextBody(selectedRequestId, request);
     void setScriptContent(selectedRequestId, request, ScriptType.PRE_REQUEST);
-
-    return () => {
-      disposeModelsForRequest(selectedRequestId);
-    };
   }, [selectedRequestId]);
 
   const handleAddNewRequest = useCallback(
