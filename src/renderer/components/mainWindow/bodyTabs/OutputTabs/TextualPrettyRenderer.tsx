@@ -7,39 +7,39 @@ import {
 } from './PrettyRenderer';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import { RESPONSE_MODEL } from '@/lib/monaco/models';
+import { getResponseModel } from '@/lib/monaco/models';
 import { mimeTypeToLanguage } from '@/lib/monaco/language';
+import { useCollectionStore } from '@/state/collectionStore';
 
 export const TextualPrettyRenderer: ResponseRenderer = ({ response, maxBytes }) => {
-  const { editor, setEditorLanguage, formatResponseEditorText, setResponseEditor } =
-    useResponseEditor();
+  const { setEditorLanguage, formatResponseEditorText, setResponseEditor } = useResponseEditor();
   const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)!), [response]);
+  const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
+  const responseModel = useMemo(() => getResponseModel(selectedRequestId!), [selectedRequestId]);
 
   const onChange = useCallback(
     (content: string) => {
-      RESPONSE_MODEL.setValue(content);
+      if (selectedRequestId == null) return;
+      responseModel.setValue(content);
       if (maxBytes == null) formatResponseEditorText();
     },
-    [formatResponseEditorText, maxBytes]
+    [responseModel, formatResponseEditorText, maxBytes]
   );
 
   useResponseData(response, 'utf-8', onChange, maxBytes);
 
   useEffect(() => {
-    if (editor) {
-      setEditorLanguage(RESPONSE_MODEL.getLanguageId());
-      const disposable = RESPONSE_MODEL.onDidChangeLanguage((e) =>
-        setEditorLanguage(e.newLanguage)
-      );
-      return () => disposable.dispose();
-    }
-  }, [language]);
+    if (selectedRequestId == null) return;
+    setEditorLanguage(responseModel.getLanguageId());
+    const disposable = responseModel.onDidChangeLanguage((e) => setEditorLanguage(e.newLanguage));
+    return () => disposable.dispose();
+  }, [language, responseModel]);
 
   return (
     <MonacoEditor
       className="absolute h-full"
       language={language}
-      options={RESPONSE_EDITOR_OPTIONS}
+      options={{ ...RESPONSE_EDITOR_OPTIONS, model: responseModel }}
       onMount={setResponseEditor}
     />
   );

@@ -11,7 +11,8 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { showError } from '@/error/errorHandler';
-import { REQUEST_MODEL, SCRIPT_MODEL } from '@/lib/monaco/models';
+import { editor } from 'monaco-editor';
+import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 
 const httpService = HttpService.instance;
@@ -24,7 +25,7 @@ export function MainTopBar() {
   const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest)!;
   const currentScriptType = useCollectionStore((state) => state.currentScriptType);
-  const { url, method } = request ?? {};
+  const { url, method } = request;
 
   const handleUrlChange = (url: TrufosURL) => updateRequest({ url });
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
@@ -33,10 +34,7 @@ export function MainTopBar() {
     useErrorHandler(async () => {
       try {
         setIsLoading(true);
-        await Promise.all([
-          eventService.saveRequest(request, REQUEST_MODEL.getValue()),
-          eventService.saveScript(request, currentScriptType, SCRIPT_MODEL.getValue()),
-        ]);
+        await Promise.all(editor.getModels().map(saveModelContent));
 
         const response = await httpService.sendRequest(request);
         addResponse(request.id, response);
@@ -55,7 +53,7 @@ export function MainTopBar() {
 
       // save request draft with the current editor content
       console.info('Saving request:', request);
-      await eventService.saveRequest(request, REQUEST_MODEL.getValue());
+      await Promise.all(editor.getModels().map(saveModelContent));
 
       // override existing request with the saved draft
       updateRequest(await eventService.saveChanges(request), true);
@@ -65,17 +63,13 @@ export function MainTopBar() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // isSaveShortcut is true if save combination is recorded
       const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
-      // if save combination is pressed and request is in draft mode, perform save
       if (isSaveShortcut && request?.draft) {
         event.preventDefault();
         saveRequest();
       }
     };
-    //add keyboard event listener
     window.addEventListener('keydown', handleKeyDown);
-    //cleanup
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
