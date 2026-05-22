@@ -35,6 +35,12 @@ export default function BodyTabTextInput({ language, className }: BodyTabTextInp
     }
   }, [selectedRequestId]);
 
+  // Keep the model's language in sync with the language prop.
+  useEffect(() => {
+    if (selectedRequestId == null) return;
+    editor.setModelLanguage(getBodyModel(selectedRequestId), language ?? 'plaintext');
+  }, [language, selectedRequestId]);
+
   if (selectedRequestId == null) return null;
 
   return (

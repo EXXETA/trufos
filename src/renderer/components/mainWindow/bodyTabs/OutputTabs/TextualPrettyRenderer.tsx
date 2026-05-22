@@ -13,7 +13,7 @@ import { useCollectionStore } from '@/state/collectionStore';
 import { editor } from 'monaco-editor';
 
 export const TextualPrettyRenderer: ResponseRenderer = ({ response, maxBytes }) => {
-  const { setEditorLanguage, formatResponseEditorText, setResponseEditor } = useResponseEditor();
+  const { formatResponseEditorText, setResponseEditor } = useResponseEditor();
   const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)!), [response]);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const editorRef = useRef<editor.ICodeEditor | undefined>(undefined);
@@ -36,12 +36,10 @@ export const TextualPrettyRenderer: ResponseRenderer = ({ response, maxBytes }) 
     }
   }, [selectedRequestId]);
 
+  // Keep the model's language in sync with the response content type.
   useEffect(() => {
     if (selectedRequestId == null) return;
-    const model = getResponseModel(selectedRequestId);
-    setEditorLanguage(model.getLanguageId());
-    const disposable = model.onDidChangeLanguage((e) => setEditorLanguage(e.newLanguage));
-    return () => disposable.dispose();
+    editor.setModelLanguage(getResponseModel(selectedRequestId), language ?? 'plaintext');
   }, [language, selectedRequestId]);
 
   return (
