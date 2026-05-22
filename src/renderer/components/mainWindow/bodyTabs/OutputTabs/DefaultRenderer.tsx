@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   useResponseData,
   useResponseEditor,
@@ -10,31 +10,50 @@ import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-set
 import { getResponseModel } from '@/lib/monaco/models';
 import { mimeTypeToLanguage } from '@/lib/monaco/language';
 import { useCollectionStore } from '@/state/collectionStore';
+import { editor } from 'monaco-editor';
 
 export const DefaultRenderer: ResponseRenderer = ({ response, maxBytes }) => {
   const { setEditorLanguage, setResponseEditor } = useResponseEditor();
   const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)!), [response]);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId)!;
-  const responseModel = useMemo(() => getResponseModel(selectedRequestId), [selectedRequestId]);
+  const editorRef = useRef<editor.ICodeEditor | undefined>(undefined);
 
-  useResponseData(response, 'utf-8', (content) => responseModel.setValue(content), maxBytes);
+  useResponseData(
+    response,
+    'utf-8',
+    (content) => {
+      if (selectedRequestId != null) getResponseModel(selectedRequestId).setValue(content);
+    },
+    maxBytes
+  );
+
+  // Re-attach the correct model whenever the selected request changes.
+  useEffect(() => {
+    if (editorRef.current != null && selectedRequestId != null) {
+      editorRef.current.setModel(getResponseModel(selectedRequestId));
+    }
+  }, [selectedRequestId]);
 
   useEffect(() => {
-    setEditorLanguage(responseModel.getLanguageId());
-    const disposable = responseModel.onDidChangeLanguage((e) => setEditorLanguage(e.newLanguage));
+    if (selectedRequestId == null) return;
+    const model = getResponseModel(selectedRequestId);
+    setEditorLanguage(model.getLanguageId());
+    const disposable = model.onDidChangeLanguage((e) => setEditorLanguage(e.newLanguage));
     return () => disposable.dispose();
-  }, [language, responseModel]);
+  }, [language, selectedRequestId]);
 
   return (
     <MonacoEditor
       className="absolute h-full"
       language={language}
-      options={
-        selectedRequestId != null
-          ? { ...RESPONSE_EDITOR_OPTIONS, model: responseModel }
-          : RESPONSE_EDITOR_OPTIONS
-      }
-      onMount={setResponseEditor}
+      options={RESPONSE_EDITOR_OPTIONS}
+      onMount={(editorInstance) => {
+        editorRef.current = editorInstance;
+        if (selectedRequestId != null) {
+          editorInstance.setModel(getResponseModel(selectedRequestId));
+        }
+        setResponseEditor(editorInstance);
+      }}
     />
   );
 };

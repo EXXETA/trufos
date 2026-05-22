@@ -4,9 +4,10 @@ import { ScriptType } from 'shim/scripting';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { Divider } from '@/components/shared/Divider';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { getScriptModel } from '@/lib/monaco/models';
 import { setScriptContent } from '@/state/helper/collectionUtil';
+import { editor } from 'monaco-editor';
 
 const SCRIPT_TYPE_OPTIONS: [ScriptType, string][] = [
   [ScriptType.PRE_REQUEST, 'Pre-Request'],
@@ -18,14 +19,21 @@ export function ScriptTab() {
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const requests = useCollectionStore((state) => state.requests);
   const { setCurrentScriptType, setDraftFlag } = useCollectionActions();
+  const editorRef = useRef<editor.ICodeEditor | undefined>(undefined);
 
-  // Reload script content when the script type changes (request switches are
-  // handled in RequestWindow which creates/disposes models).
+  // Reload script content when the script type changes.
   useEffect(() => {
     if (selectedRequestId == null) return;
     const request = requests.get(selectedRequestId);
     void setScriptContent(selectedRequestId, request, scriptType);
   }, [scriptType]);
+
+  // Re-attach the correct model whenever the selected request changes.
+  useEffect(() => {
+    if (editorRef.current != null && selectedRequestId != null) {
+      editorRef.current.setModel(getScriptModel(selectedRequestId));
+    }
+  }, [selectedRequestId]);
 
   if (selectedRequestId == null) return null;
 
@@ -46,8 +54,12 @@ export function ScriptTab() {
           height="100%"
           className="absolute h-full"
           language="javascript"
-          options={{ ...SCRIPT_EDITOR_OPTIONS, model: getScriptModel(selectedRequestId) }}
+          options={SCRIPT_EDITOR_OPTIONS}
           onChange={setDraftFlag}
+          onMount={(editorInstance) => {
+            editorRef.current = editorInstance;
+            editorInstance.setModel(getScriptModel(selectedRequestId));
+          }}
         />
       </div>
     </div>

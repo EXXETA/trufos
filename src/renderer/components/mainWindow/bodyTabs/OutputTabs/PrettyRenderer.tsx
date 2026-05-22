@@ -1,6 +1,6 @@
 import { getToastForError } from '@/components/ui/use-toast';
 import { IpcPushStream } from '@/lib/ipc-stream';
-import { useResponseActions, useResponseStore } from '@/state/responseStore';
+import { useResponseActions } from '@/state/responseStore';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { HttpHeaders } from 'shim/headers';
 import { StringBufferEncoding } from 'shim/ipc-stream';
@@ -78,8 +78,7 @@ export const useResponseData = (
 
 export const useResponseEditor = () => {
   const { setResponseEditor, formatResponseEditorText } = useResponseActions();
-  const editor = useResponseStore((state) => state.editor);
   const [editorLanguage, setEditorLanguage] = useState<string | undefined>();
 
-  return { setResponseEditor, formatResponseEditorText, editor, editorLanguage, setEditorLanguage };
+  return { setResponseEditor, formatResponseEditorText, editorLanguage, setEditorLanguage };
 };
