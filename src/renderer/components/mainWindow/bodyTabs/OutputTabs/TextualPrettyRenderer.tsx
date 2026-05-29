@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   useResponseData,
   useResponseEditor,
@@ -16,7 +16,6 @@ export const TextualPrettyRenderer: ResponseRenderer = ({ response, maxBytes }) 
   const { formatResponseEditorText, setResponseEditor } = useResponseEditor();
   const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)!), [response]);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
-  const editorRef = useRef<editor.ICodeEditor | undefined>(undefined);
 
   const onChange = useCallback(
     (content: string) => {
@@ -29,13 +28,6 @@ export const TextualPrettyRenderer: ResponseRenderer = ({ response, maxBytes }) 
 
   useResponseData(response, 'utf-8', onChange, maxBytes);
 
-  // Re-attach the correct model whenever the selected request changes.
-  useEffect(() => {
-    if (editorRef.current != null && selectedRequestId != null) {
-      editorRef.current.setModel(getResponseModel(selectedRequestId));
-    }
-  }, [selectedRequestId]);
-
   // Keep the model's language in sync with the response content type.
   useEffect(() => {
     if (selectedRequestId == null) return;
@@ -47,13 +39,8 @@ export const TextualPrettyRenderer: ResponseRenderer = ({ response, maxBytes }) 
       className="absolute h-full"
       language={language}
       options={RESPONSE_EDITOR_OPTIONS}
-      onMount={(editorInstance) => {
-        editorRef.current = editorInstance;
-        if (selectedRequestId != null) {
-          editorInstance.setModel(getResponseModel(selectedRequestId));
-        }
-        setResponseEditor(editorInstance);
-      }}
+      model={selectedRequestId != null ? getResponseModel(selectedRequestId) : undefined}
+      onMount={setResponseEditor}
     />
   );
 };
