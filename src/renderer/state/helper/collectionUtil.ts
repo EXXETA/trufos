@@ -14,7 +14,11 @@ export async function setRequestTextBody(requestId: string, request?: TrufosRequ
   }
 }
 
-export async function setScriptContent(requestId: string, request?: TrufosRequest, scriptType?: ScriptType) {
+export async function setScriptContent(
+  requestId: string,
+  request?: TrufosRequest,
+  scriptType?: ScriptType
+) {
   const model = getScriptModel(requestId);
   if (request != null && scriptType != null) {
     const stream = await IpcPushStream.open(

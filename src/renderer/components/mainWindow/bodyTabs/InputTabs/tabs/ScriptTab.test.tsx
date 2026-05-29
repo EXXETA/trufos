@@ -12,8 +12,17 @@ vi.mock('@/state/collectionStore', () => ({
     setDraftFlag: vi.fn(),
   }),
   useCollectionStore: (
-    selector: (state: { currentScriptType: ScriptType; selectedRequestId: string; requests: Map<string, unknown> }) => unknown
-  ) => selector({ currentScriptType: mockScriptType, selectedRequestId: 'req-1', requests: new Map() }),
+    selector: (state: {
+      currentScriptType: ScriptType;
+      selectedRequestId: string;
+      requests: Map<string, unknown>;
+    }) => unknown
+  ) =>
+    selector({
+      currentScriptType: mockScriptType,
+      selectedRequestId: 'req-1',
+      requests: new Map(),
+    }),
   selectRequest: vi.fn(() => null),
 }));
 
