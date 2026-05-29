@@ -6,7 +6,7 @@ import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
 import { useEnvironmentStore } from '@/state/environmentStore';
-import { editor } from 'monaco-editor';
+import { createModelsForRequest, disposeModelsForRequest } from '@/lib/monaco/models';
 import { isCollection, isRequest, TrufosObject, AuthorizationInformation } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -32,9 +32,6 @@ interface CollectionState {
 
   /** The ID of the currently selected request */
   selectedRequestId?: TrufosRequest['id'];
-
-  /** The editor instance for text-based request bodies */
-  requestEditor?: editor.ICodeEditor;
 
   /** A set of folder IDs that are currently open in the sidebar */
   openFolders: Set<Folder['id']>;
@@ -184,15 +181,6 @@ export const createCollectionStore = (collection: Collection) => {
         setRequestBody({ ...body, mimeType } as typeof body);
       },
 
-      setRequestEditor: (requestEditor) => set({ requestEditor }),
-
-      formatRequestEditorText: async () => {
-        const { requestEditor } = get();
-        if (requestEditor != null) {
-          await requestEditor.getAction('editor.action.formatDocument')!.run();
-        }
-      },
-
       setSelectedRequest: (id) => {
         console.debug('Setting selected request to', id);
         const { selectedRequestId, requests } = get();
@@ -201,6 +189,19 @@ export const createCollectionStore = (collection: Collection) => {
           console.warn('Request with ID', id, 'not found');
           id = undefined;
         }
+
+        // Dispose models for the outgoing request synchronously —
+        // this triggers onWillDisposeModel which saves content to disk.
+        if (selectedRequestId != null) {
+          disposeModelsForRequest(selectedRequestId);
+        }
+
+        // Create models for the incoming request synchronously so they are
+        // available by the time the next render reads them.
+        if (id != null) {
+          createModelsForRequest(id);
+        }
+
         set({ selectedRequestId: id });
       },
 
@@ -215,8 +216,12 @@ export const createCollectionStore = (collection: Collection) => {
       deleteRequest: async (id) => {
         await eventService.deleteObject(selectRequest(get(), id)!);
 
+        // Use setSelectedRequest so model disposal is handled consistently.
+        if (get().selectedRequestId === id) {
+          get().setSelectedRequest(undefined);
+        }
+
         set((state) => {
-          if (state.selectedRequestId === id) state.selectedRequestId = undefined;
           const request = selectRequest(state, id);
           const parent = selectParent(state, request!.parentId);
           parent.children = parent.children.filter((child) => child.id !== id);

@@ -7,9 +7,12 @@ import { immer } from 'zustand/middleware/immer';
 /** A map of requestId => response */
 type ResponseInfoMap = Record<string, TrufosResponse>;
 
+// Stored outside immer state to prevent immer from deep-cloning the Monaco
+// editor instance (which has circular references and would overflow the stack).
+let responseEditorRef: editor.ICodeEditor | undefined;
+
 interface ResponseState {
   responseInfoMap: ResponseInfoMap;
-  editor?: editor.ICodeEditor;
   addResponse: (requestId: string, response: TrufosResponse) => void;
   removeResponse: (requestId: string) => void;
   setResponseEditor: (editor: editor.ICodeEditor | undefined) => void;
@@ -22,7 +25,7 @@ interface ResponseState {
 }
 
 export const useResponseStore = create<ResponseState>()(
-  immer((set, get) => ({
+  immer((set) => ({
     responseInfoMap: {},
     addResponse: (requestId, response) =>
       set((state) => {
@@ -32,16 +35,17 @@ export const useResponseStore = create<ResponseState>()(
       set((state) => {
         delete state.responseInfoMap[requestId];
       }),
-    setResponseEditor: (responseEditor) => set({ editor: responseEditor }),
+    setResponseEditor: (responseEditor) => {
+      responseEditorRef = responseEditor;
+    },
     formatResponseEditorText: async () => {
-      const responseEditor = get().editor;
-      if (!responseEditor) return;
+      if (!responseEditorRef) return;
 
       try {
-        responseEditor.updateOptions({ readOnly: false });
-        await responseEditor.getAction('editor.action.formatDocument')?.run();
+        responseEditorRef.updateOptions({ readOnly: false });
+        await responseEditorRef.getAction('editor.action.formatDocument')?.run();
       } finally {
-        responseEditor.updateOptions({ readOnly: true });
+        responseEditorRef.updateOptions({ readOnly: true });
       }
     },
   }))

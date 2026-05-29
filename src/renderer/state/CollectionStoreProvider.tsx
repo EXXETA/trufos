@@ -4,9 +4,9 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import {
   createCollectionStore,
   CollectionStoreProvider as StoreProvider,
-  selectRequest,
 } from '@/state/collectionStore';
-import { REQUEST_MODEL, SCRIPT_MODEL } from '@/lib/monaco/models';
+import { saveModelContent } from '@/lib/monaco/models';
+import { editor } from 'monaco-editor';
 import { showError } from '@/error/errorHandler';
 import { useVariableStore } from '@/state/variableStore';
 import { useEnvironmentStore } from '@/state/environmentStore';
@@ -35,23 +35,13 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
           }
         );
 
-        // Set up before-close handler with access to store instance
+        // Set up before-close handler: flush all active editor models to disk
         rendererEventService.on('before-close', async () => {
           try {
-            console.info('Saving current request body and script');
-            const state = storeRef.current!.getState();
-            const request = selectRequest(state);
-            if (request != null && request.draft) {
-              console.debug(`Saving request with ID ${request.id}`);
-              await rendererEventService.saveRequest(request, REQUEST_MODEL.getValue());
-              await rendererEventService.saveScript(
-                request,
-                state.currentScriptType,
-                SCRIPT_MODEL.getValue()
-              );
-            }
+            console.info('Saving all active editor models before close');
+            await Promise.all(editor.getModels().map(saveModelContent));
           } catch (error) {
-            console.error('Error while saving request before closing:', error);
+            console.error('Error while saving models before closing:', error);
           } finally {
             rendererEventService.emit('ready-to-close');
           }

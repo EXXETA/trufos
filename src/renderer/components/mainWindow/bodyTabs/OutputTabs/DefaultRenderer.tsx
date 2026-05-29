@@ -7,29 +7,37 @@ import {
 } from './PrettyRenderer';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import { RESPONSE_MODEL } from '@/lib/monaco/models';
+import { getResponseModel } from '@/lib/monaco/models';
 import { mimeTypeToLanguage } from '@/lib/monaco/language';
+import { useCollectionStore } from '@/state/collectionStore';
+import { editor } from 'monaco-editor';
 
 export const DefaultRenderer: ResponseRenderer = ({ response, maxBytes }) => {
-  const { editor, setEditorLanguage, setResponseEditor } = useResponseEditor();
+  const { setResponseEditor } = useResponseEditor();
   const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)!), [response]);
-  useResponseData(response, 'utf-8', (content) => RESPONSE_MODEL.setValue(content), maxBytes);
+  const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
 
+  useResponseData(
+    response,
+    'utf-8',
+    (content) => {
+      if (selectedRequestId != null) getResponseModel(selectedRequestId).setValue(content);
+    },
+    maxBytes
+  );
+
+  // Keep the model's language in sync with the response content type.
   useEffect(() => {
-    if (editor) {
-      setEditorLanguage(RESPONSE_MODEL.getLanguageId());
-      const disposable = RESPONSE_MODEL.onDidChangeLanguage((e) =>
-        setEditorLanguage(e.newLanguage)
-      );
-      return () => disposable.dispose();
-    }
-  }, [language]);
+    if (selectedRequestId == null) return;
+    editor.setModelLanguage(getResponseModel(selectedRequestId), language ?? 'plaintext');
+  }, [language, selectedRequestId]);
 
   return (
     <MonacoEditor
       className="absolute h-full"
       language={language}
       options={RESPONSE_EDITOR_OPTIONS}
+      model={selectedRequestId != null ? getResponseModel(selectedRequestId) : undefined}
       onMount={setResponseEditor}
     />
   );

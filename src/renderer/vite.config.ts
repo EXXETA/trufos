@@ -12,6 +12,11 @@ export default defineConfig({
       shim: path.resolve(__dirname, '..', 'shim'),
     },
   },
+  server: {
+    watch: {
+      ignored: (path) => !path.startsWith(__dirname),
+    },
+  },
   test: {
     name: 'renderer',
     environment: 'jsdom',

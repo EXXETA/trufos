@@ -10,8 +10,8 @@ const { setValueMock, readAllMock, openMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/monaco/models', () => ({
-  REQUEST_MODEL: { setValue: vi.fn() },
-  SCRIPT_MODEL: { setValue: setValueMock },
+  getBodyModel: vi.fn(() => ({ setValue: vi.fn() })),
+  getScriptModel: vi.fn(() => ({ setValue: setValueMock })),
 }));
 
 vi.mock('monaco-editor', () => ({
@@ -36,18 +36,20 @@ const mockRequest = {
   draft: false,
 } as unknown as TrufosRequest;
 
+const REQUEST_ID = 'req-1';
+
 describe('setScriptContent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     openMock.mockResolvedValue({ readAll: readAllMock });
   });
 
-  it('opens a stream and sets SCRIPT_MODEL value when request and scriptType are given', async () => {
+  it('opens a stream and sets script model value when request and scriptType are given', async () => {
     // Arrange
     readAllMock.mockResolvedValue('trufos.setCollectionVariable("key", "value");');
 
     // Act
-    await setScriptContent(mockRequest, ScriptType.PRE_REQUEST);
+    await setScriptContent(REQUEST_ID, mockRequest, ScriptType.PRE_REQUEST);
 
     // Assert
     expect(openMock).toHaveBeenCalledWith(
@@ -57,18 +59,18 @@ describe('setScriptContent', () => {
     expect(setValueMock).toHaveBeenCalledWith('trufos.setCollectionVariable("key", "value");');
   });
 
-  it('sets SCRIPT_MODEL to empty string when request is undefined', async () => {
+  it('sets script model to empty string when request is undefined', async () => {
     // Act
-    await setScriptContent(undefined, ScriptType.PRE_REQUEST);
+    await setScriptContent(REQUEST_ID, undefined, ScriptType.PRE_REQUEST);
 
     // Assert
     expect(openMock).not.toHaveBeenCalled();
     expect(setValueMock).toHaveBeenCalledWith('');
   });
 
-  it('sets SCRIPT_MODEL to empty string when scriptType is undefined', async () => {
+  it('sets script model to empty string when scriptType is undefined', async () => {
     // Act
-    await setScriptContent(mockRequest, undefined);
+    await setScriptContent(REQUEST_ID, mockRequest, undefined);
 
     // Assert
     expect(openMock).not.toHaveBeenCalled();
@@ -80,7 +82,7 @@ describe('setScriptContent', () => {
     readAllMock.mockResolvedValue('');
 
     // Act
-    await setScriptContent(mockRequest, ScriptType.POST_RESPONSE);
+    await setScriptContent(REQUEST_ID, mockRequest, ScriptType.POST_RESPONSE);
 
     // Assert
     expect(openMock).toHaveBeenCalledWith(
