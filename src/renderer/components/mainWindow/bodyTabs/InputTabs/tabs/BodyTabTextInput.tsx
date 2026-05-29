@@ -6,14 +6,16 @@ import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { useEffect } from 'react';
 import { getBodyModel } from '@/lib/monaco/models';
 import { editor } from 'monaco-editor';
+import { OnMount } from '@monaco-editor/react';
 
 interface BodyTabTextInputProps {
   language: Language;
   className?: string;
+  onMount?: OnMount;
 }
 
-export default function BodyTabTextInput({ language, className }: BodyTabTextInputProps) {
-  const { setRequestEditor, setDraftFlag } = useCollectionActions();
+export default function BodyTabTextInput({ language, className, onMount }: BodyTabTextInputProps) {
+  const { setDraftFlag } = useCollectionActions();
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
 
   // Listen for content changes on the current request's body model and mark draft.
@@ -42,7 +44,7 @@ export default function BodyTabTextInput({ language, className }: BodyTabTextInp
       options={REQUEST_EDITOR_OPTIONS}
       language={language}
       model={getBodyModel(selectedRequestId)}
-      onMount={setRequestEditor}
+      onMount={onMount}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { RequestBodyType } from 'shim/objects/request';
 import { Divider } from '@/components/shared/Divider';
@@ -15,10 +15,11 @@ import { FormDataTab } from './FormDataTab';
 import { Button } from '@/components/ui/button';
 import { WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { editor } from 'monaco-editor';
 
 export const BodyTab = () => {
-  const { setRequestBody, setRequestBodyMimeType, formatRequestEditorText } =
-    useCollectionActions();
+  const { setRequestBody, setRequestBodyMimeType } = useCollectionActions();
+  const editorRef = useRef<editor.ICodeEditor | undefined>(undefined);
 
   const requestBody = useCollectionStore((state) => selectRequest(state)!.body);
   const mimeType = 'mimeType' in requestBody ? requestBody.mimeType : undefined;
@@ -41,6 +42,10 @@ export const BodyTab = () => {
     },
     [setRequestBody]
   );
+
+  const formatRequestEditorText = useCallback(async () => {
+    await editorRef.current?.getAction('editor.action.formatDocument')?.run();
+  }, []);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -89,7 +94,13 @@ export const BodyTab = () => {
       ) : requestBody.type === RequestBodyType.FILE ? (
         <BodyTabFileInput className="px-4 pb-2" />
       ) : (
-        <BodyTabTextInput className="pr-4" language={language} />
+        <BodyTabTextInput
+          className="pr-4"
+          language={language}
+          onMount={(editorInstance) => {
+            editorRef.current = editorInstance;
+          }}
+        />
       )}
     </div>
   );

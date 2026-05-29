@@ -6,12 +6,7 @@ import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
 import { useEnvironmentStore } from '@/state/environmentStore';
-import { editor } from 'monaco-editor';
 import { createModelsForRequest, disposeModelsForRequest } from '@/lib/monaco/models';
-
-// Stored outside immer state to prevent immer from deep-cloning the Monaco
-// editor instance (which has circular references and would overflow the stack).
-let requestEditorRef: editor.ICodeEditor | undefined;
 import { isCollection, isRequest, TrufosObject, AuthorizationInformation } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -184,16 +179,6 @@ export const createCollectionStore = (collection: Collection) => {
         if (body.type === RequestBodyType.FORM_DATA) return; // form data bodies don't have a mime type
         const { setRequestBody } = get();
         setRequestBody({ ...body, mimeType } as typeof body);
-      },
-
-      setRequestEditor: (requestEditor) => {
-        requestEditorRef = requestEditor;
-      },
-
-      formatRequestEditorText: async () => {
-        if (requestEditorRef != null) {
-          await requestEditorRef.getAction('editor.action.formatDocument')!.run();
-        }
       },
 
       setSelectedRequest: (id) => {

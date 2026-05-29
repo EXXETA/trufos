@@ -1,4 +1,3 @@
-import { editor } from 'monaco-editor';
 import { ClientCertificate, Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
@@ -45,18 +44,6 @@ export interface CollectionStateActions {
    * @param mimeType The mime type to set, e.g. "application/json" or "text/plain"
    */
   setRequestBodyMimeType(mimeType?: string): void;
-
-  /**
-   * Set the editor instance for text-based request bodies
-   * @param requestEditor The editor instance
-   */
-  setRequestEditor(requestEditor?: editor.ICodeEditor): void;
-
-  /**
-   * Format the text in the request editor.
-   * This will only work if the request editor is set and the request body type is text-based.
-   */
-  formatRequestEditorText(): Promise<void>;
 
   setSelectedRequest(id?: TrufosRequest['id']): void;
 
