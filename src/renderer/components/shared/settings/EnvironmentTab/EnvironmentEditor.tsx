@@ -163,7 +163,7 @@ export const EnvironmentEditor = ({
                 value={newEnvironmentName}
                 onChange={(e) => setNewEnvironmentName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addEnvironment()}
-                className="bg-background focus-visible:ring-sidebar-ring h-8 w-full pr-10 text-sm shadow-none focus-visible:ring-2"
+                className="bg-background h-8 w-full pr-10 text-sm shadow-none"
               />
               <TooltipProvider>
                 <Tooltip>
