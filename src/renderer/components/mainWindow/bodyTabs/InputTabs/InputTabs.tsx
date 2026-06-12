@@ -16,7 +16,7 @@ type InputTabValue = 'body' | 'queryParams' | 'headers' | 'authorization' | 'scr
 export function InputTabs(props: Readonly<InputTabsProps>) {
   const { className } = props;
 
-  const [ selectedTab, setSelectedTab ] = useState<InputTabValue>('body');
+  const [selectedTab, setSelectedTab] = useState<InputTabValue>('body');
 
   const headers = useCollectionStore((state) => selectRequest(state)!.headers);
   const queryParams = useCollectionStore((state) => selectRequest(state)!.url.query);
