@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -41,7 +41,8 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   const folders = useCollectionStore((state) => state.folders);
   const requests = useCollectionStore((state) => state.requests);
   const sortMode = useCollectionStore((state) => state.sortMode);
-  const { moveItem } = useCollectionActions();
+  const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
+  const { moveItem, setSelectedRequest } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -87,6 +88,11 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     [sortedChildren, openFolders, collectionId, sortedFolders]
   );
 
+  const visibleRequestIds = useMemo(
+    () => flattenedItems.filter((item) => item.type === 'request').map((item) => item.id),
+    [flattenedItems]
+  );
+
   // During drag: remove children of the dragged folder so they travel with it
   const sortableItems = useMemo(() => {
     if (!activeId) return flattenedItems;
@@ -94,6 +100,42 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   }, [flattenedItems, activeId]);
 
   const sortableIds = useMemo(() => sortableItems.map((item) => item.id), [sortableItems]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isModifierPressed = event.ctrlKey || event.metaKey;
+
+      if (!isModifierPressed) return;
+
+      const key = event.key.toLowerCase();
+
+      if (key !== 'pageup' && key !== 'pagedown') return;
+
+      if (!selectedRequestId) return;
+
+      const currentIndex = visibleRequestIds.indexOf(selectedRequestId);
+
+      if (currentIndex === -1) return;
+
+      const nextIndex =
+        key === 'pageup'
+          ? Math.max(currentIndex - 1, 0)
+          : Math.min(currentIndex + 1, visibleRequestIds.length - 1);
+
+      const nextRequestId = visibleRequestIds[nextIndex];
+
+      if (!nextRequestId || nextRequestId === selectedRequestId) return;
+
+      event.preventDefault();
+      setSelectedRequest(nextRequestId);
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [selectedRequestId, visibleRequestIds, setSelectedRequest]);
 
   const handleDragStart = ({ active }: DragStartEvent) => {
     setActiveId(active.id as string);
