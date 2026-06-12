@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -17,9 +17,39 @@ interface OutputTabsProps {
   className: string;
 }
 
+type OutputTabValue = 'body' | 'header';
+
 export function OutputTabs({ className }: OutputTabsProps) {
+  const [selectedTab, setSelectedTab] = useState<OutputTabValue>('body');
+
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isModifierPressed = event.ctrlKey || event.metaKey;
+
+      if (!isModifierPressed) return;
+
+      const tabMap: Record<string, OutputTabValue> = {
+        '6': 'body',
+        '7': 'header',
+      };
+
+      const nextTab = tabMap[event.key];
+
+      if (!nextTab) return;
+
+      event.preventDefault();
+      setSelectedTab(nextTab);
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, []);
 
   if (response == null) {
     return (
@@ -30,7 +60,12 @@ export function OutputTabs({ className }: OutputTabsProps) {
   }
 
   return (
-    <Tabs className={className} defaultValue="body">
+    <Tabs
+      className={className}
+      defaultValue="body"
+      value={selectedTab}
+      onValueChange={(value) => setSelectedTab(value as OutputTabValue)}
+    >
       <TabsList className="flex items-center justify-between">
         <div className="flex">
           <TabsTrigger value="body">Response Body</TabsTrigger>
