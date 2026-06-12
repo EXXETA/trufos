@@ -60,17 +60,34 @@ export function MainTopBar() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
-      if (isSaveShortcut && request?.draft) {
-        event.preventDefault();
-        saveRequest();
+      if (!(event.ctrlKey || event.metaKey)) return;
+
+      switch (event.key.toLowerCase()) {
+        case 's':
+          if (!request?.draft) return;
+
+          event.preventDefault();
+          saveRequest();
+          break;
+
+        case 'enter':
+          if (!request || isLoading) return;
+
+          event.preventDefault();
+          sendRequest();
+          break;
+
+        default:
+          break;
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [saveRequest]);
+  }, [request, isLoading, saveRequest, sendRequest]);
 
   return (
     <div className="mb-6 flex items-center gap-6">
