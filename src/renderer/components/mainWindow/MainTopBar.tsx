@@ -14,6 +14,7 @@ import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
+import { setRequestTextBody, setScriptContent } from '@/state/helper/collectionUtil';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -51,10 +52,11 @@ export function MainTopBar() {
     useErrorHandler(async () => {
       if (request == null) return;
       const restored = await eventService.discardChanges(request);
-      await setRequestTextBody(restored);
       updateRequest(restored, true);
+      await setRequestTextBody(request.id, restored);
+      await setScriptContent(request.id, restored, currentScriptType);
     }),
-    [request]
+    [request, currentScriptType]
   );
 
   const saveRequest = useCallback(
