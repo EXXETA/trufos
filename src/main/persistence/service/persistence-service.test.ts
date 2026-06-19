@@ -788,7 +788,7 @@ describe('PersistenceService', () => {
     // Act & Assert — should not throw
     const result = await persistenceService.discardChanges(request);
 
-    expect(result.draft).toBe(false);
+    expect(result!.draft).toBe(false);
     expect(await exists(path.join(collection.dirPath, request.title, DRAFT_DIR_NAME))).toBe(false);
   });
 

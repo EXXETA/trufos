@@ -229,6 +229,20 @@ export const createCollectionStore = (collection: Collection) => {
         });
       },
 
+      removeRequestLocally: (id) => {
+        if (get().selectedRequestId === id) {
+          get().setSelectedRequest(undefined);
+        }
+
+        set((state) => {
+          const request = selectRequest(state, id);
+          if (request == null) return;
+          const parent = selectParent(state, request.parentId);
+          parent.children = parent.children.filter((child) => child.id !== id);
+          state.requests.delete(id);
+        });
+      },
+
       renameRequest: async (id: TrufosRequest['id'], title: string) => {
         const request = selectRequest(get(), id);
         if (request == null) return;

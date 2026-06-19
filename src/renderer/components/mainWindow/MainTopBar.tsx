@@ -22,7 +22,7 @@ const eventService = RendererEventService.instance;
 export function MainTopBar() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const { updateRequest } = useCollectionActions();
+  const { updateRequest, removeRequestLocally } = useCollectionActions();
   const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest)!;
   const currentScriptType = useCollectionStore((state) => state.currentScriptType);
@@ -52,11 +52,15 @@ export function MainTopBar() {
     useErrorHandler(async () => {
       if (request == null) return;
       const restored = await eventService.discardChanges(request);
+      if (restored == null) {
+        removeRequestLocally(request.id);
+        return;
+      }
       updateRequest(restored, true);
       await setRequestTextBody(request.id, restored);
       await setScriptContent(request.id, restored, currentScriptType);
     }),
-    [request, currentScriptType]
+    [request, currentScriptType, removeRequestLocally]
   );
 
   const saveRequest = useCallback(

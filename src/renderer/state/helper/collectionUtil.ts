@@ -19,8 +19,9 @@ export async function setScriptContent(
   request?: TrufosRequest,
   scriptType?: ScriptType
 ) {
-  const model = getScriptModel(requestId);
-  if (request != null && scriptType != null) {
+  if (scriptType == null) return;
+  const model = getScriptModel(requestId, scriptType);
+  if (request != null) {
     const stream = await IpcPushStream.open(
       { type: 'script', source: scriptType, request },
       'utf-8'
