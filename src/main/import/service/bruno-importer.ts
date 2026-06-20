@@ -221,7 +221,10 @@ export class BrunoImporter implements CollectionImporter {
         return {
           type: RequestBodyType.TEXT,
           mimeType: BODY_MIME_TYPES.formUrlEncoded,
-          text: body?.formUrlEncoded?.map((f) => `${f.name}=${f.value}`).join('&'),
+          text: body?.formUrlEncoded
+            ?.filter((f) => f.enabled !== false)
+            ?.map((f) => `${encodeURIComponent(f.name)}=${encodeURIComponent(f.value)}`)
+            .join('&'),
         };
       case 'file':
         return { type: RequestBodyType.FILE };

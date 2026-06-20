@@ -363,6 +363,35 @@ body:json {
     }
   });
 
+  it('imports urlencoded form body', async () => {
+    const collectionDir = await createBrunoCollection('Test', {
+      'urlencoded.bru': `
+meta {
+  name: URL Encoded Form
+  type: http
+  seq: 1
+}
+post {
+  url: https://api.example.com/submit
+  body: formUrlEncoded
+  auth: none
+}
+body:form-urlencoded {
+  key1: value with space
+  ~key2: disabled value
+}`,
+    });
+
+    const result = await new BrunoImporter().importCollection(collectionDir);
+    const request = result.children[0] as TrufosRequest;
+
+    expect(request.body.type).toBe(RequestBodyType.TEXT);
+    if (request.body.type === RequestBodyType.TEXT) {
+      expect(request.body.mimeType).toBe('application/x-www-form-urlencoded');
+      expect(request.body.text).toBe('key1=value%20with%20space');
+    }
+  });
+
   it('imports multipart form body', async () => {
     const collectionDir = await createBrunoCollection('Test', {
       'upload.bru': `
