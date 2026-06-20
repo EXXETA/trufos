@@ -113,4 +113,52 @@ describe('ImportService', () => {
       type: 'text',
     });
   });
+
+  it('should import a Bruno collection', async () => {
+    // Arrange
+    const targetDirPath = tmpdir();
+    const importService = ImportService.instance;
+    
+    const collectionDir = await fs.mkdtemp(path.join(tmpdir(), 'bruno-test-'));
+    await fs.writeFile(
+      path.join(collectionDir, 'bruno.json'),
+      JSON.stringify({ version: '1', name: 'Dummy Bruno', uid: 'bruno-test-uid' })
+    );
+    await fs.writeFile(
+      path.join(collectionDir, 'get-dummy.bru'),
+      `meta {
+  name: Dummy Request
+  type: http
+  seq: 1
+}
+get {
+  url: https://api.dummy.com/data
+  body: none
+  auth: none
+}`
+    );
+
+    // @ts-expect-error saveCollection mock returns null but type expects void
+    vi.mocked(PersistenceService.instance.saveCollection).mockImplementation(async () => null);
+
+    // Act
+    const result = await importService.importCollection(
+      collectionDir,
+      targetDirPath,
+      'Bruno'
+    );
+
+    // Assert
+    expect(result.type).toBe('collection');
+    expect(result.title).toBe('Dummy Bruno');
+    
+    const children = result.children;
+    expect(children.length).toBe(1);
+    
+    const request = children[0] as TrufosRequest;
+    expect(request.type).toBe('request');
+    expect(request.title).toBe('Dummy Request');
+    expect(request.url.base).toBe('https://api.dummy.com/data');
+    expect(request.method).toBe('GET');
+  });
 });
