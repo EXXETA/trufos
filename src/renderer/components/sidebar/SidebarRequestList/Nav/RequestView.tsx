@@ -26,8 +26,9 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
           'relative',
           'cursor-pointer',
           'flex',
+          'items-center',
           'min-w-0',
-          'py-3.5',
+          isEditing ? 'py-2.5' : 'py-3.5',
           'gap-3',
           'w-full',
           getIndentation(depth)
@@ -54,6 +55,7 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
               setIsEditing(false);
             }}
             onCancel={() => setIsEditing(false)}
+            inputClassName="h-6 text-xs"
           />
         ) : (
           <>

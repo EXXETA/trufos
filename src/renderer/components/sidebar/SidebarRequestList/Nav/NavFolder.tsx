@@ -83,6 +83,7 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
                 setIsEditing(false);
               }}
               onCancel={() => setIsEditing(false)}
+              inputClassName="h-6 text-sm"
             />
           ) : (
             <>

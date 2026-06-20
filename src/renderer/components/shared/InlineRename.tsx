@@ -10,6 +10,7 @@ export interface InlineRenameProps {
   onCancel: () => void;
   validate?: (value: string) => boolean;
   className?: string;
+  inputClassName?: string;
 }
 
 export const InlineRename = ({
@@ -18,6 +19,7 @@ export const InlineRename = ({
   onCancel,
   validate,
   className,
+  inputClassName,
 }: InlineRenameProps) => {
   const [value, setValue] = useState(initialValue);
 
@@ -44,7 +46,7 @@ export const InlineRename = ({
           }}
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
-          className="bg-background focus-visible:ring-sidebar-ring h-8 w-full text-sm shadow-none focus-visible:ring-2"
+          className={cn("bg-background focus-visible:ring-sidebar-ring h-8 w-full text-sm shadow-none focus-visible:ring-2", inputClassName)}
           autoFocus
         />
       </div>
