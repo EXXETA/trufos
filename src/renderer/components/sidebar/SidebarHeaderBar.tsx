@@ -121,7 +121,7 @@ export const SidebarHeaderBar = () => {
         </div>
       </SidebarHeader>
 
-      {creationModalState.isOpen && (
+      {creationModalState.isOpen && creationModalState.type && (
         <NamingModal
           trufosObject={collection as Collection}
           createType={creationModalState.type}

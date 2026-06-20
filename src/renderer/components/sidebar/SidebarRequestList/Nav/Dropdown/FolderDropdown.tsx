@@ -15,14 +15,15 @@ import { cn } from '@/lib/utils';
 
 export interface FolderDropdownProps {
   folder: Folder;
+  onRename?: () => void;
 }
 
-export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
+export const FolderDropdown = ({ folder, onRename }: FolderDropdownProps) => {
   const { copyFolder, deleteFolder } = useCollectionActions();
   const [renameModalIsOpen, setRenameModalIsOpen] = useState(false);
-  const [isCreateModal, setIsCreateModal] = useState<undefined | 'folder' | 'request'>(undefined);
+  const [isCreateModal, setIsCreateModal] = useState<'folder' | 'request'>('request');
 
-  const openModal = (type: 'folder' | 'request' | undefined) => {
+  const openModal = (type: 'folder' | 'request') => {
     setRenameModalIsOpen(true);
     setIsCreateModal(type);
   };
@@ -49,7 +50,7 @@ export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
             Add Folder
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleMouseEvent(() => openModal(undefined))}>
+          <DropdownMenuItem onClick={handleMouseEvent(() => onRename?.())}>
             Rename Folder
           </DropdownMenuItem>
 

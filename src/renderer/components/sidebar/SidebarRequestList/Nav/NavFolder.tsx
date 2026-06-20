@@ -7,6 +7,8 @@ import { FolderIcon, SmallArrow } from '@/components/icons';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
+import { InlineRename } from '@/components/shared/InlineRename';
 
 interface NavFolderProps {
   folderId: Folder['id'];
@@ -16,9 +18,10 @@ interface NavFolderProps {
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
 export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
-  const { setFolderOpen, setFolderClose } = useCollectionActions();
+  const { setFolderOpen, setFolderClose, renameFolder } = useCollectionActions();
   const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
+  const [isEditing, setIsEditing] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: folderId,
@@ -69,18 +72,34 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
             <SmallArrow size={24} />
           </div>
 
-          <div className="flex min-w-0 flex-1 items-center gap-1">
-            <FolderIcon size={16} />
-            <span className="flex-1 truncate">{folder.title}</span>
-          </div>
+          {isEditing ? (
+            <InlineRename
+              initialValue={folder.title}
+              onSave={(newName) => {
+                const trimmed = newName.trim();
+                if (trimmed && trimmed !== folder.title) {
+                  renameFolder(folderId, trimmed);
+                }
+                setIsEditing(false);
+              }}
+              onCancel={() => setIsEditing(false)}
+            />
+          ) : (
+            <>
+              <div className="flex min-w-0 flex-1 items-center gap-1">
+                <FolderIcon size={16} />
+                <span className="flex-1 truncate">{folder.title}</span>
+              </div>
 
-          <div
-            className="sidebar-row-menu flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
-            onClick={stopPropagation}
-            onPointerDown={stopPropagation}
-          >
-            <FolderDropdown folder={folder} />
-          </div>
+              <div
+                className="sidebar-row-menu flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+                onClick={stopPropagation}
+                onPointerDown={stopPropagation}
+              >
+                <FolderDropdown folder={folder} onRename={() => setIsEditing(true)} />
+              </div>
+            </>
+          )}
         </SidebarMenuSubButton>
       </SidebarGroup>
     </div>

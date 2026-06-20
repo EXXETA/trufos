@@ -11,44 +11,33 @@ import { Folder } from 'shim/objects/folder';
 import { Button } from '@/components/ui/button';
 import { useCollectionActions } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
-import { isFolder, isRequest } from 'shim/objects';
 
 export interface NamingModalProps {
-  createType?: 'folder' | 'request';
+  createType: 'folder' | 'request';
   trufosObject: Folder | TrufosRequest | Collection;
   onClose: VoidFunction;
 }
 
 export const NamingModal = ({ createType, trufosObject, onClose }: NamingModalProps) => {
-  const [name, setName] = useState(createType ? '' : trufosObject?.title);
-  const { renameFolder, renameRequest, addNewRequest, addNewFolder } = useCollectionActions();
+  const [name, setName] = useState('');
+  const { addNewRequest, addNewFolder } = useCollectionActions();
 
   const handleSave = () => {
     onClose();
-    if (createType) {
-      if (createType === 'folder') {
-        addNewFolder(name, trufosObject.id);
-      } else if (createType === 'request') {
-        addNewRequest(name, trufosObject.id);
-      }
-    } else {
-      if (isFolder(trufosObject)) {
-        renameFolder(trufosObject.id, name);
-      } else if (isRequest(trufosObject)) {
-        renameRequest(trufosObject.id, name);
-      }
+    if (createType === 'folder') {
+      addNewFolder(name, trufosObject.id);
+    } else if (createType === 'request') {
+      addNewRequest(name, trufosObject.id);
     }
   };
 
   const title = useMemo(() => {
-    return createType
-      ? `Create a new ${createType.charAt(0).toUpperCase() + createType.slice(1)}`
-      : `Rename the ${trufosObject.type.charAt(0).toUpperCase() + trufosObject.type.slice(1)}`;
-  }, [createType, trufosObject.type]);
+    return `Create a new ${createType.charAt(0).toUpperCase() + createType.slice(1)}`;
+  }, [createType]);
 
   const isValid = useMemo(() => {
-    return name.trim().length > 0 && name !== (createType ? '' : trufosObject.title);
-  }, [name, createType, trufosObject.title]);
+    return name.trim().length > 0;
+  }, [name]);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -63,7 +52,7 @@ export const NamingModal = ({ createType, trufosObject, onClose }: NamingModalPr
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full bg-transparent outline-hidden"
-              placeholder={`Enter the ${createType ?? trufosObject.type} name`}
+              placeholder={`Enter the ${createType} name`}
             />
           </div>
           <DialogFooter className="bottom-0">
