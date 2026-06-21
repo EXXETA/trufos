@@ -68,13 +68,13 @@ describe('setScriptContent', () => {
     expect(setValueMock).toHaveBeenCalledWith('');
   });
 
-  it('sets script model to empty string when scriptType is undefined', async () => {
+  it('does nothing when scriptType is undefined', async () => {
     // Act
     await setScriptContent(REQUEST_ID, mockRequest, undefined);
 
     // Assert
     expect(openMock).not.toHaveBeenCalled();
-    expect(setValueMock).toHaveBeenCalledWith('');
+    expect(setValueMock).not.toHaveBeenCalled();
   });
 
   it('opens the correct stream for POST_RESPONSE script type', async () => {

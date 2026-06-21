@@ -4,9 +4,8 @@ import { ScriptType } from 'shim/scripting';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { Divider } from '@/components/shared/Divider';
-import { useEffect } from 'react';
 import { getScriptModel } from '@/lib/monaco/models';
-import { setScriptContent } from '@/state/helper/collectionUtil';
+import { useEffect } from 'react';
 
 const SCRIPT_TYPE_OPTIONS: [ScriptType, string][] = [
   [ScriptType.PRE_REQUEST, 'Pre-Request'],
@@ -16,15 +15,17 @@ const SCRIPT_TYPE_OPTIONS: [ScriptType, string][] = [
 export function ScriptTab() {
   const scriptType = useCollectionStore((state) => state.currentScriptType);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
-  const requests = useCollectionStore((state) => state.requests);
   const { setCurrentScriptType, setDraftFlag } = useCollectionActions();
 
-  // Reload script content when the script type changes.
   useEffect(() => {
     if (selectedRequestId == null) return;
-    const request = requests.get(selectedRequestId);
-    void setScriptContent(selectedRequestId, request, scriptType);
-  }, [scriptType]);
+    const model = getScriptModel(selectedRequestId, scriptType);
+    const disposable = model.onDidChangeContent((e) => {
+      if (e.isFlush) return;
+      setDraftFlag();
+    });
+    return () => disposable.dispose();
+  }, [selectedRequestId, scriptType]);
 
   if (selectedRequestId == null) return null;
 
@@ -46,8 +47,7 @@ export function ScriptTab() {
           className="absolute h-full"
           language="javascript"
           options={SCRIPT_EDITOR_OPTIONS}
-          model={getScriptModel(selectedRequestId)}
-          onChange={setDraftFlag}
+          model={getScriptModel(selectedRequestId, scriptType)}
         />
       </div>
     </div>

@@ -322,7 +322,9 @@ export class PersistenceService {
   }
 
   public async saveScript(request: TrufosRequest, type: ScriptType, script: string) {
-    await fs.writeFile(this.getScriptFilePath(request, type), script);
+    const filePath = this.getScriptFilePath(request, type);
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, script);
   }
 
   public async loadScript(request: TrufosRequest, type: ScriptType) {
@@ -418,8 +420,20 @@ export class PersistenceService {
     }
     logger.info('Discarding changes of request at', dirPath);
 
-    // delete draft files
-    await fs.rmdir(this.getDraftDirPath(dirPath), { recursive: true });
+    // delete draft files if the draft directory exists
+    if (await this.hasDraft(dirPath)) {
+      await fs.rmdir(this.getDraftDirPath(dirPath), { recursive: true });
+    }
+
+    // If this was a brand-new request (never committed), there is no main request.json to reload.
+    // Delete the now-empty directory and signal the caller to remove it from the collection.
+    const infoFilePath = path.join(dirPath, this.getInfoFileName('request'));
+    if (!(await exists(infoFilePath))) {
+      this.idToPathMap.delete(request.id);
+      await fs.rm(dirPath, { recursive: true, force: true });
+      return null;
+    }
+
     return await this.loadRequest(request.parentId, dirPath);
   }
 

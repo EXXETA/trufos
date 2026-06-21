@@ -64,7 +64,7 @@ export interface IEventService {
    * @param request The request to discard changes of.
    * @returns The request with discarded changes, i.e. the persisted non-draft version.
    */
-  discardChanges(request: TrufosRequest): Promise<TrufosRequest>;
+  discardChanges(request: TrufosRequest): Promise<TrufosRequest | null>;
 
   /**
    * Delete the given trufos object and its children.

@@ -5,15 +5,15 @@ import { HttpService } from '@/services/http/http-service';
 import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
 import { UrlInput } from './mainTopBar/UrlInput';
 import { SendButton } from './mainTopBar/SendButton';
-import { SaveButton } from './mainTopBar/SaveButton';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2, SaveIcon, EraserIcon } from 'lucide-react';
 import { showError } from '@/error/errorHandler';
 import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
+import { IconButton } from '@/components/ui/icon-button';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -21,10 +21,9 @@ const eventService = RendererEventService.instance;
 export function MainTopBar() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const { updateRequest } = useCollectionActions();
+  const { updateRequest, discardChanges } = useCollectionActions();
   const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest)!;
-  const currentScriptType = useCollectionStore((state) => state.currentScriptType);
   const { url, method } = request;
 
   const handleUrlChange = (url: TrufosURL) => updateRequest({ url });
@@ -44,18 +43,16 @@ export function MainTopBar() {
         setIsLoading(false);
       }
     }),
-    [request, currentScriptType, addResponse]
+    [request, addResponse]
   );
 
   const saveRequest = useCallback(
     useErrorHandler(async () => {
       if (request == null) return;
 
-      // save request draft with the current editor content
       console.info('Saving request:', request);
       await Promise.all(editor.getModels().map(saveModelContent));
 
-      // override existing request with the saved draft
       updateRequest(await eventService.saveChanges(request), true);
     }),
     [request]
@@ -76,12 +73,19 @@ export function MainTopBar() {
   }, [saveRequest]);
 
   return (
-    <div className="mb-6 flex gap-6">
+    <div className="mb-6 flex items-center gap-6">
       <div className="relative flex w-full">
         <HttpMethodSelect selectedHttpMethod={method} onHttpMethodChange={handleHttpMethodChange} />
         <UrlInput url={url} onChange={handleUrlChange} />
-        <SaveButton isDisabled={!request?.draft} onClick={saveRequest} />
       </div>
+
+      <IconButton disabled={!request?.draft} onClick={discardChanges}>
+        <EraserIcon />
+      </IconButton>
+
+      <IconButton disabled={!request?.draft} onClick={saveRequest}>
+        <SaveIcon />
+      </IconButton>
 
       <SendButton onClick={sendRequest} disabled={isLoading}>
         {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}

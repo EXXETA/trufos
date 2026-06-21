@@ -26,7 +26,9 @@ export function RequestWindow() {
     if (selectedRequestId == null) return;
     const request = requestsRef.current.get(selectedRequestId);
     void setRequestTextBody(selectedRequestId, request);
-    void setScriptContent(selectedRequestId, request, ScriptType.PRE_REQUEST);
+    for (const scriptType of Object.values(ScriptType)) {
+      void setScriptContent(selectedRequestId, request, scriptType);
+    }
   }, [selectedRequestId]);
 
   const handleAddNewRequest = useCallback(

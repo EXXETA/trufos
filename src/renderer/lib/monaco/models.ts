@@ -13,7 +13,7 @@ const SCHEME = 'trufos';
 
 export interface RequestModels {
   body: editor.ITextModel;
-  script: editor.ITextModel;
+  scripts: Map<ScriptType, editor.ITextModel>;
   response: editor.ITextModel;
 }
 
@@ -67,7 +67,12 @@ export function createModelsForRequest(requestId: string): RequestModels {
   }
   const models: RequestModels = {
     body: editor.createModel('', undefined, bodyUri(requestId)),
-    script: editor.createModel('', 'javascript', scriptUri(requestId, ScriptType.PRE_REQUEST)),
+    scripts: new Map(
+      Object.values(ScriptType).map((type) => [
+        type,
+        editor.createModel('', 'javascript', scriptUri(requestId, type)),
+      ])
+    ),
     response: editor.createModel('', undefined, responseUri(requestId)),
   };
   registry.set(requestId, models);
@@ -82,8 +87,8 @@ export function getBodyModel(requestId: string): editor.ITextModel {
   return registry.get(requestId)!.body;
 }
 
-export function getScriptModel(requestId: string): editor.ITextModel {
-  return registry.get(requestId)!.script;
+export function getScriptModel(requestId: string, scriptType: ScriptType): editor.ITextModel {
+  return registry.get(requestId)!.scripts.get(scriptType)!;
 }
 
 export function getResponseModel(requestId: string): editor.ITextModel {
@@ -96,7 +101,9 @@ export function disposeModelsForRequest(requestId: string): void {
   // Dispose each model — this triggers onWillDisposeModel for body & script,
   // which handles persisting their content.
   models.body.dispose();
-  models.script.dispose();
+  for (const scriptModel of models.scripts.values()) {
+    scriptModel.dispose();
+  }
   models.response.dispose();
   registry.delete(requestId);
 }
