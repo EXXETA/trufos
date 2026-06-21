@@ -21,7 +21,7 @@ const eventService = RendererEventService.instance;
 export function MainTopBar() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const { updateRequest, discardRequest } = useCollectionActions();
+  const { updateRequest, discardChanges } = useCollectionActions();
   const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest)!;
   const { url, method } = request;
@@ -79,7 +79,7 @@ export function MainTopBar() {
         <UrlInput url={url} onChange={handleUrlChange} />
       </div>
 
-      <IconButton disabled={!request?.draft} onClick={discardRequest}>
+      <IconButton disabled={!request?.draft} onClick={discardChanges}>
         <EraserIcon />
       </IconButton>
 

@@ -57,9 +57,7 @@ export interface CollectionStateActions {
 
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
-  removeRequestLocally(id: TrufosRequest['id']): void;
-
-  discardRequest(): Promise<void>;
+  discardChanges(): Promise<void>;
 
   /**
    * Rename the request title

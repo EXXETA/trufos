@@ -233,26 +233,19 @@ export const createCollectionStore = (collection: Collection) => {
         });
       },
 
-      removeRequestLocally: (id) => {
-        if (get().selectedRequestId === id) {
-          get().setSelectedRequest(undefined);
-        }
-
-        set((state) => {
-          const request = selectRequest(state, id);
-          if (request == null) return;
-          const parent = selectParent(state, request.parentId);
-          parent.children = parent.children.filter((child) => child.id !== id);
-          state.requests.delete(id);
-        });
-      },
-
-      discardRequest: async () => {
+      discardChanges: async () => {
         const request = selectRequest(get());
         if (request == null) return;
         const restored = await eventService.discardChanges(request);
         if (restored == null) {
-          get().removeRequestLocally(request.id);
+          if (get().selectedRequestId === request.id) {
+            get().setSelectedRequest(undefined);
+          }
+          set((state) => {
+            const parent = selectParent(state, request.parentId);
+            parent.children = parent.children.filter((child) => child.id !== request.id);
+            state.requests.delete(request.id);
+          });
           return;
         }
         get().updateRequest(restored, true);
