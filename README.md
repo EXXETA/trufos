@@ -35,7 +35,7 @@ Grab the latest release from the [GitHub Releases](https://github.com/EXXETA/tru
 
 ## Requirements
 
-Trufos is an Electron application and runs on Windows, macOS, and Linux. To build or develop locally you need Node.js 24. This project uses **yarn** — do not use npm to install dependencies.
+Trufos is an Electron application and runs on Windows, macOS, and Linux. To build or develop locally you need Node.js 24. This project uses **yarn** — do not use npm to install dependencies. If you're using yarn for the first time on your machine, run `corepack enable` before continuing. This project ships yarn with it, you don't need to install it manually on your machine.
 
 ### Local Development
 
