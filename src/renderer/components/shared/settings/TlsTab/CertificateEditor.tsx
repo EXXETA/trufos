@@ -21,7 +21,7 @@ export const CertificateEditor = ({ certificate, onCertificateChange }: Certific
   const handleBrowse = async (field: keyof ClientCertificate) => {
     const path = await pickFile();
     if (path == null) return;
-    onCertificateChange({ ...(certificate ?? { certPath: '', keyPath: '' }), [field]: path });
+    onCertificateChange({ ...(certificate ?? { certPath: '' }), [field]: path });
   };
 
   if (certificate == null) {
@@ -31,7 +31,7 @@ export const CertificateEditor = ({ certificate, onCertificateChange }: Certific
           className="h-fit gap-1 pl-0 hover:bg-transparent"
           size="sm"
           variant="ghost"
-          onClick={() => onCertificateChange({ certPath: '', keyPath: '', caPath: undefined })}
+          onClick={() => onCertificateChange({ certPath: '' })}
         >
           <AddIcon /> Add Certificate
         </Button>
@@ -72,10 +72,10 @@ export const CertificateEditor = ({ certificate, onCertificateChange }: Certific
           onBrowse={() => handleBrowse('certPath')}
         />
         <CertField
-          label="Private Key"
-          value={certificate.keyPath}
+          label="Private Key (optional)"
+          value={certificate.keyPath ?? ''}
           placeholder="Path to private key (.pem / .key)"
-          onChange={(v) => onCertificateChange({ ...certificate, keyPath: v })}
+          onChange={(v) => onCertificateChange({ ...certificate, keyPath: v || undefined })}
           onBrowse={() => handleBrowse('keyPath')}
         />
         <CertField
