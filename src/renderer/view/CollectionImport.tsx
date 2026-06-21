@@ -78,9 +78,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   const [isImporting, setIsImporting, resetIsImporting] = useStateResettable(false);
 
   const canImport =
-    srcEntry &&
-    (strategy === 'Trufos' || (targetEntry != null && title?.trim() !== '')) &&
-    !isImporting;
+    srcEntry && targetEntry && (strategy === 'Trufos' || title?.trim() !== '') && !isImporting;
 
   useEffect(() => {
     if (open) {
@@ -94,17 +92,12 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   const doImport = useCallback(async () => {
     try {
       setIsImporting(true);
-      let collection: Collection;
-      if (strategy === 'Trufos') {
-        collection = await eventService.openCollection(srcEntry!.path);
-      } else {
-        collection = await eventService.importCollection(
-          srcEntry!.path,
-          targetEntry!.path,
-          strategy,
-          title!
-        );
-      }
+      const collection: Collection = await eventService.importCollection(
+        srcEntry!.path,
+        targetEntry!.path,
+        strategy,
+        strategy === 'Trufos' ? undefined : title!
+      );
       await changeCollection(collection);
       onClose?.();
     } catch (e) {
@@ -123,11 +116,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
         <div className="flex w-full justify-center">
           <Button onClick={doImport} disabled={!canImport} className="gap-2 font-bold">
             <Plus size={16} />
-            {isImporting
-              ? 'Importing...'
-              : strategy === 'Trufos'
-                ? 'Open Collection'
-                : 'Complete Import'}
+            {isImporting ? 'Importing...' : 'Complete Import'}
           </Button>
         </div>
       </DialogFooter>
@@ -156,12 +145,28 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 
           <ImportTabsContent strategy="Trufos">
             <FilePicker
-              title="Select directory of the existing collection"
-              description="Select the folder containing the collection.json file"
+              title="Select Trufos export file"
+              description="Trufos exports .trufos.zip files"
               entry={srcEntry}
               icon={<FolderSearchIcon size={36} />}
               onFileSelected={setSrcEntry}
               onFileRemoved={() => setSrcEntry(undefined)}
+              accept=".trufos.zip,.zip"
+              controlled
+            />
+            {/* Flow separator */}
+            <div className="flex items-center justify-center">
+              <div className="bg-separator h-px flex-1" />
+              <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
+              <div className="bg-separator h-px flex-1" />
+            </div>
+            <FilePicker
+              title="Select directory for imported collection"
+              description="This is where the exported collection folder will be placed"
+              entry={targetEntry}
+              icon={<FolderPlusIcon size={36} />}
+              onFileSelected={setTargetEntry}
+              onFileRemoved={() => setTargetEntry(undefined)}
               directoryMode
               controlled
             />

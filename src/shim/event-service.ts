@@ -12,7 +12,7 @@ import {
 import { ClientCertificate } from './objects/collection';
 import { ScriptType } from './scripting';
 
-export type ImportStrategy = 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia';
+export type ImportStrategy = 'Trufos' | 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia';
 
 export interface IEventService {
   /**

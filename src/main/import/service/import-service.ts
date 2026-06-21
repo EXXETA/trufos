@@ -3,6 +3,7 @@ import { Collection } from 'shim/objects/collection';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { PostmanImporter } from './postman-importer';
 import { OpenApiImporter } from './openapi-importer';
+import { TrufosImporter } from './trufos-importer';
 import { ImportStrategy } from 'shim/event-service';
 import { sanitizeTitle } from 'shim/fs';
 import path from 'path';
@@ -16,6 +17,7 @@ export interface CollectionImporter {
 }
 
 const persistenceService = PersistenceService.instance;
+const trufosImporter = new TrufosImporter(persistenceService);
 
 export class ImportService {
   public static readonly instance = new ImportService();
@@ -45,6 +47,11 @@ export class ImportService {
     strategy: ImportStrategy,
     title?: string
   ) {
+    if (strategy === 'Trufos') {
+      logger.info(`Importing Trufos collection from "${srcFilePath}"`);
+      return await trufosImporter.importCollection(srcFilePath, targetDirPath);
+    }
+
     // select importer
     const importer = this.importers.get(strategy);
     if (importer === undefined) {
