@@ -322,7 +322,9 @@ export class PersistenceService {
   }
 
   public async saveScript(request: TrufosRequest, type: ScriptType, script: string) {
-    await fs.writeFile(this.getScriptFilePath(request, type), script);
+    const filePath = this.getScriptFilePath(request, type);
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, script);
   }
 
   public async loadScript(request: TrufosRequest, type: ScriptType) {
