@@ -14,7 +14,6 @@ import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
-import { setRequestTextBody, setScriptContent } from '@/state/helper/collectionUtil';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -22,10 +21,9 @@ const eventService = RendererEventService.instance;
 export function MainTopBar() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const { updateRequest, removeRequestLocally } = useCollectionActions();
+  const { updateRequest, discardRequest } = useCollectionActions();
   const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest)!;
-  const currentScriptType = useCollectionStore((state) => state.currentScriptType);
   const { url, method } = request;
 
   const handleUrlChange = (url: TrufosURL) => updateRequest({ url });
@@ -45,33 +43,16 @@ export function MainTopBar() {
         setIsLoading(false);
       }
     }),
-    [request, currentScriptType, addResponse]
-  );
-
-  const discardRequest = useCallback(
-    useErrorHandler(async () => {
-      if (request == null) return;
-      const restored = await eventService.discardChanges(request);
-      if (restored == null) {
-        removeRequestLocally(request.id);
-        return;
-      }
-      updateRequest(restored, true);
-      await setRequestTextBody(request.id, restored);
-      await setScriptContent(request.id, restored, currentScriptType);
-    }),
-    [request, currentScriptType, removeRequestLocally]
+    [request, addResponse]
   );
 
   const saveRequest = useCallback(
     useErrorHandler(async () => {
       if (request == null) return;
 
-      // save request draft with the current editor content
       console.info('Saving request:', request);
       await Promise.all(editor.getModels().map(saveModelContent));
 
-      // override existing request with the saved draft
       updateRequest(await eventService.saveChanges(request), true);
     }),
     [request]

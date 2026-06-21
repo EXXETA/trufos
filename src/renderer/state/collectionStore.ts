@@ -1,7 +1,11 @@
 import { createContext, useContext } from 'react';
 import { type StoreApi, useStore } from 'zustand';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { isRequestInAParentFolder } from '@/state/helper/collectionUtil';
+import {
+  isRequestInAParentFolder,
+  setRequestTextBody,
+  setScriptContent,
+} from '@/state/helper/collectionUtil';
 import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { useVariableStore } from '@/state/variableStore';
@@ -241,6 +245,21 @@ export const createCollectionStore = (collection: Collection) => {
           parent.children = parent.children.filter((child) => child.id !== id);
           state.requests.delete(id);
         });
+      },
+
+      discardRequest: async () => {
+        const request = selectRequest(get());
+        if (request == null) return;
+        const restored = await eventService.discardChanges(request);
+        if (restored == null) {
+          get().removeRequestLocally(request.id);
+          return;
+        }
+        get().updateRequest(restored, true);
+        await setRequestTextBody(request.id, restored);
+        for (const scriptType of Object.values(ScriptType)) {
+          await setScriptContent(request.id, restored, scriptType);
+        }
       },
 
       renameRequest: async (id: TrufosRequest['id'], title: string) => {
