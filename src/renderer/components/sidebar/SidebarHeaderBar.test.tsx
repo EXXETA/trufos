@@ -32,7 +32,6 @@ vi.mock('@/components/shared/settings/CollectionSettingsModal', () => ({
   CollectionSettingsModal: () => null,
 }));
 
-
 describe('SidebarHeaderBar sort cycle', () => {
   beforeEach(() => {
     setSortModeMock.mockClear();

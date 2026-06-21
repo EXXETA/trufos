@@ -178,9 +178,7 @@ export const SidebarRequestList = () => {
         onDragCancel={handleDragCancel}
       >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          <SidebarMenu className="gap-0">
-            {renderItems}
-          </SidebarMenu>
+          <SidebarMenu className="gap-0">{renderItems}</SidebarMenu>
         </SortableContext>
         <DragOverlay dropAnimation={null}>
           {activeItem ? <DragOverlayContent itemId={activeItem.id} /> : null}

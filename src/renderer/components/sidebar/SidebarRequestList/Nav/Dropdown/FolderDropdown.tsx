@@ -63,8 +63,6 @@ export const FolderDropdown = ({ folder, onRename }: FolderDropdownProps) => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-
     </>
   );
 };

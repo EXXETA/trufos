@@ -48,7 +48,7 @@ export const NavCreateItem = ({ type, parentId, depth }: NavCreateItemProps) => 
         'group',
         'flex',
         'items-center',
-        type === 'folder' ? 'py-2 px-5 gap-1' : 'py-2.5 gap-3 min-w-0 w-full',
+        type === 'folder' ? 'gap-1 px-5 py-2' : 'w-full min-w-0 gap-3 py-2.5',
         getIndentation(depth)
       )}
     >

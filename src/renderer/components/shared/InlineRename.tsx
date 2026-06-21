@@ -46,7 +46,10 @@ export const InlineRename = ({
           }}
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
-          className={cn("bg-background focus-visible:ring-sidebar-ring h-8 w-full text-sm shadow-none focus-visible:ring-2", inputClassName)}
+          className={cn(
+            'bg-background focus-visible:ring-sidebar-ring h-8 w-full text-sm shadow-none focus-visible:ring-2',
+            inputClassName
+          )}
           autoFocus
         />
       </div>

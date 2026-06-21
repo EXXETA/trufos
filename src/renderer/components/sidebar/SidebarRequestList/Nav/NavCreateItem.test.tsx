@@ -36,11 +36,11 @@ describe('NavCreateItem', () => {
   it('calls addNewFolder and setCreatingItem on save when type is folder', async () => {
     const user = userEvent.setup();
     render(<NavCreateItem type="folder" parentId="col-1" depth={1} />);
-    
+
     const input = screen.getByRole('textbox');
     await user.type(input, 'New Folder');
     await user.type(input, '{Enter}');
-    
+
     await waitFor(() => {
       expect(addNewFolderMock).toHaveBeenCalledWith('New Folder', 'col-1');
       expect(setCreatingItemMock).toHaveBeenCalledWith(null);
@@ -50,13 +50,13 @@ describe('NavCreateItem', () => {
   it('calls addNewRequest and setCreatingItem on save when type is request', async () => {
     const user = userEvent.setup();
     render(<NavCreateItem type="request" parentId="col-2" depth={2} />);
-    
+
     const input = screen.getByRole('textbox');
     await user.type(input, 'New Request');
-    
+
     const saveButton = screen.getByRole('button', { name: /save/i });
     await user.click(saveButton);
-    
+
     await waitFor(() => {
       expect(addNewRequestMock).toHaveBeenCalledWith('New Request', 'col-2');
       expect(setCreatingItemMock).toHaveBeenCalledWith(null);
@@ -66,10 +66,10 @@ describe('NavCreateItem', () => {
   it('calls setCreatingItem(null) on cancel', async () => {
     const user = userEvent.setup();
     render(<NavCreateItem type="folder" parentId="col-1" depth={1} />);
-    
+
     const cancelButton = screen.getByRole('button', { name: /cancel/i });
     await user.click(cancelButton);
-    
+
     expect(setCreatingItemMock).toHaveBeenCalledWith(null);
     expect(addNewFolderMock).not.toHaveBeenCalled();
     expect(addNewRequestMock).not.toHaveBeenCalled();
@@ -78,10 +78,10 @@ describe('NavCreateItem', () => {
   it('ignores save if input is empty or whitespace', async () => {
     const user = userEvent.setup();
     render(<NavCreateItem type="request" parentId="col-1" depth={1} />);
-    
+
     const input = screen.getByRole('textbox');
     await user.type(input, '   {Enter}'); // only spaces
-    
+
     expect(addNewRequestMock).not.toHaveBeenCalled();
     expect(setCreatingItemMock).not.toHaveBeenCalled();
   });

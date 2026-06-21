@@ -6,7 +6,6 @@ import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/comp
 import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown } from 'lucide-react';
 
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { Collection } from 'shim/objects/collection';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
 import { CollectionSettingsModal } from '@/components/shared/settings/CollectionSettingsModal';
@@ -121,9 +120,8 @@ export const SidebarHeaderBar = () => {
         </div>
       </SidebarHeader>
 
-
-
       <CollectionSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
     </>
   );
 };
