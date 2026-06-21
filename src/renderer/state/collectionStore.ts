@@ -45,6 +45,9 @@ interface CollectionState {
 
   /** The currently active sort mode for the sidebar */
   sortMode: SortMode;
+
+  /** Active inline creation state */
+  creatingItem: { type: 'folder' | 'request'; parentId: string } | null;
 }
 
 type CollectionStore = StoreApi<CollectionState & CollectionStateActions>;
@@ -91,6 +94,7 @@ export const createCollectionStore = (collection: Collection) => {
       openFolders: new Set(),
       currentScriptType: ScriptType.PRE_REQUEST,
       sortMode: SortMode.DEFAULT,
+      creatingItem: null,
       ...buildCollectionItemMaps(collection),
 
       initialize: (collection) => {
@@ -544,6 +548,13 @@ export const createCollectionStore = (collection: Collection) => {
           }
         });
         await eventService.setClientCertificate(certificate);
+      },
+
+      setCreatingItem: (item) => {
+        set({ creatingItem: item });
+        if (item && item.parentId !== get().collection?.id) {
+          get().setFolderOpen(item.parentId);
+        }
       },
     }))
   );

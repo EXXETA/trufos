@@ -9,7 +9,7 @@ import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { handleMouseEvent } from '@/util/callback-util';
 import { Folder } from 'shim/objects/folder';
 import { useCollectionActions } from '@/state/collectionStore';
-import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
+
 import { MoreIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';
 
@@ -19,13 +19,10 @@ export interface FolderDropdownProps {
 }
 
 export const FolderDropdown = ({ folder, onRename }: FolderDropdownProps) => {
-  const { copyFolder, deleteFolder } = useCollectionActions();
-  const [renameModalIsOpen, setRenameModalIsOpen] = useState(false);
-  const [isCreateModal, setIsCreateModal] = useState<'folder' | 'request'>('request');
+  const { copyFolder, deleteFolder, setCreatingItem } = useCollectionActions();
 
   const openModal = (type: 'folder' | 'request') => {
-    setRenameModalIsOpen(true);
-    setIsCreateModal(type);
+    setCreatingItem({ type, parentId: folder.id });
   };
 
   return (
@@ -67,13 +64,7 @@ export const FolderDropdown = ({ folder, onRename }: FolderDropdownProps) => {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {renameModalIsOpen && (
-        <NamingModal
-          trufosObject={folder}
-          createType={isCreateModal}
-          onClose={() => setRenameModalIsOpen(false)}
-        />
-      )}
+
     </>
   );
 };

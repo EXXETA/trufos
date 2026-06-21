@@ -26,6 +26,7 @@ import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
+import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
 
 export const SidebarRequestList = () => {
   const children = useCollectionStore((state) => state.collection!.children);
@@ -34,6 +35,7 @@ export const SidebarRequestList = () => {
   const folders = useCollectionStore((state) => state.folders);
   const requests = useCollectionStore((state) => state.requests);
   const sortMode = useCollectionStore((state) => state.sortMode);
+  const creatingItem = useCollectionStore((state) => state.creatingItem);
   const { moveItem } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -121,6 +123,51 @@ export const SidebarRequestList = () => {
   // Find the active item for the DragOverlay preview
   const activeItem = activeId ? flattenedItems.find((item) => item.id === activeId) : null;
 
+  const renderItems = useMemo(() => {
+    const items = sortableItems.map((item) =>
+      item.type === 'folder' ? (
+        <NavFolder key={item.id} folderId={item.id} depth={item.depth + 1} />
+      ) : (
+        <NavRequest key={item.id} requestId={item.id} depth={item.depth + 1} />
+      )
+    );
+
+    if (creatingItem && collectionId) {
+      const parentId = creatingItem.parentId;
+      let insertIndex = items.length; // Default to bottom
+      let depth = 1; // Default depth (root)
+
+      if (parentId !== collectionId) {
+        // Find the folder in sortableItems
+        const folderIndex = sortableItems.findIndex((item) => item.id === parentId);
+        if (folderIndex !== -1) {
+          const folderDepth = sortableItems[folderIndex].depth;
+          depth = folderDepth + 2; // +1 for children depth, +1 for base depth matching NavFolder
+          insertIndex = folderIndex + 1;
+          while (
+            insertIndex < sortableItems.length &&
+            sortableItems[insertIndex].depth > folderDepth
+          ) {
+            insertIndex++;
+          }
+        }
+      }
+
+      const createRow = (
+        <NavCreateItem
+          key="creating-item"
+          type={creatingItem.type}
+          parentId={parentId}
+          depth={depth}
+        />
+      );
+
+      items.splice(insertIndex, 0, createRow);
+    }
+
+    return items;
+  }, [sortableItems, creatingItem, collectionId]);
+
   return (
     <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
       <DndContext
@@ -132,13 +179,7 @@ export const SidebarRequestList = () => {
       >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
           <SidebarMenu className="gap-0">
-            {sortableItems.map((item) =>
-              item.type === 'folder' ? (
-                <NavFolder key={item.id} folderId={item.id} depth={item.depth + 1} />
-              ) : (
-                <NavRequest key={item.id} requestId={item.id} depth={item.depth + 1} />
-              )
-            )}
+            {renderItems}
           </SidebarMenu>
         </SortableContext>
         <DragOverlay dropAnimation={null}>

@@ -215,4 +215,10 @@ export interface CollectionStateActions {
    * @param certificate The certificate to set, or null to clear it.
    */
   setClientCertificate(certificate: ClientCertificate | null): Promise<void>;
+
+  /**
+   * Set the state for inline creation of a new request or folder.
+   * @param item Details about the item to create, or null to cancel.
+   */
+  setCreatingItem(item: { type: 'folder' | 'request'; parentId: string } | null): void;
 }

@@ -32,9 +32,6 @@ vi.mock('@/components/shared/settings/CollectionSettingsModal', () => ({
   CollectionSettingsModal: () => null,
 }));
 
-vi.mock('@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal', () => ({
-  NamingModal: () => null,
-}));
 
 describe('SidebarHeaderBar sort cycle', () => {
   beforeEach(() => {

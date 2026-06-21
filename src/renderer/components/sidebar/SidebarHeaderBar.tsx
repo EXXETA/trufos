@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/components/icons';
 import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown } from 'lucide-react';
-import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
+
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { Collection } from 'shim/objects/collection';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
@@ -40,16 +40,16 @@ export const SidebarHeaderBar = () => {
   const collection = useCollectionStore((state) => state.collection);
 
   const sortMode = useCollectionStore((state) => state.sortMode);
-  const { setSortMode } = useCollectionActions();
+  const { setSortMode, setCreatingItem } = useCollectionActions();
 
-  const [creationModalState, setCreationModalState] = useState<{
-    isOpen: boolean;
-    type: 'request' | 'folder' | undefined;
-  }>({ isOpen: false, type: undefined });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 
-  const openModal = (type: 'request' | 'folder') => setCreationModalState({ isOpen: true, type });
+  const openModal = (type: 'request' | 'folder') => {
+    if (collection?.id) {
+      setCreatingItem({ type, parentId: collection.id });
+    }
+  };
   const cycleSortMode = () => {
     const currentIndex = SORT_CYCLE.indexOf(sortMode);
     setSortMode(SORT_CYCLE[(currentIndex + 1) % SORT_CYCLE.length]);
@@ -121,13 +121,7 @@ export const SidebarHeaderBar = () => {
         </div>
       </SidebarHeader>
 
-      {creationModalState.isOpen && creationModalState.type && (
-        <NamingModal
-          trufosObject={collection as Collection}
-          createType={creationModalState.type}
-          onClose={() => setCreationModalState({ isOpen: false, type: undefined })}
-        />
-      )}
+
 
       <CollectionSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </>
