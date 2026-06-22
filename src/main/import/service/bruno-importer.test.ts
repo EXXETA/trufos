@@ -474,6 +474,88 @@ post {
     expect((usersFolder.children[1] as TrufosRequest).title).toBe('Create User');
   });
 
+  it('skips unsupported Bruno files and exposes import warnings', async () => {
+    const collectionDir = await createBrunoCollection('Test', {
+      'request.bru': `
+meta {
+  name: Request
+  type: http
+  seq: 1
+}
+get {
+  url: https://api.example.com/
+  body: none
+  auth: none
+}`,
+      'script.bru': `
+meta {
+  name: Script
+  type: js
+  seq: 2
+}
+script:pre-request {
+  console.log("skip me");
+}`,
+      'grpc.bru': `
+meta {
+  name: Grpc Request
+  type: grpc
+  seq: 3
+}
+grpc {
+  url: grpc.example.com
+  method: users.UserService/GetUser
+}`,
+      'socket.bru': `
+meta {
+  name: Socket Request
+  type: ws
+  seq: 4
+}
+ws {
+  url: ws://example.com/events
+  body: ws
+}`,
+      'missing-http.bru': `
+meta {
+  name: Missing HTTP
+  type: http
+  seq: 5
+}
+script:pre-request {
+  console.log("no method block");
+}`,
+    });
+
+    const importer = new BrunoImporter();
+    const result = await importer.importCollection(collectionDir);
+
+    expect(result.children).toHaveLength(1);
+    expect((result.children[0] as TrufosRequest).title).toBe('Request');
+    expect(importer.getWarnings()).toEqual([
+      expect.objectContaining({
+        filePath: 'script.bru',
+        itemName: 'Script',
+        itemType: 'js',
+      }),
+      expect.objectContaining({
+        filePath: 'grpc.bru',
+        itemName: 'Grpc Request',
+        itemType: 'grpc',
+      }),
+      expect.objectContaining({
+        filePath: 'socket.bru',
+        itemName: 'Socket Request',
+        itemType: 'websocket',
+      }),
+      expect.objectContaining({
+        filePath: 'missing-http.bru',
+        itemName: 'Missing HTTP',
+        itemType: 'http',
+      }),
+    ]);
+  });
+
   it('imports environments from environments/ directory', async () => {
     const collectionDir = await createBrunoCollection('Test', {
       'environments/dev.bru': `

@@ -65,7 +65,9 @@ declare module '@usebruno/lang' {
 
   export interface BrunoRequest {
     meta: BrunoMeta;
-    http: BrunoHttp;
+    http?: BrunoHttp;
+    grpc?: Record<string, string>;
+    ws?: Record<string, string>;
     headers?: BrunoHeader[];
     params?: BrunoParam[];
     body?: BrunoBody;

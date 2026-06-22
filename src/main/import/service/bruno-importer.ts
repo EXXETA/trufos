@@ -17,6 +17,7 @@ import {
   OAuth2PKCECodeChallengeMethod,
   Oauth2BaseAuthorizationInformation,
 } from 'shim';
+import type { ImportWarning } from 'shim/event-service';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 
@@ -44,10 +45,16 @@ interface BrunoJson {
  * Items are ordered according to their `seq` field in the meta block.
  */
 export class BrunoImporter implements CollectionImporter {
+  private warnings: ImportWarning[] = [];
+  private collectionDir = '';
+
   public async importCollection(srcFilePath: string): Promise<TrufosCollection> {
+    this.warnings = [];
+
     // Accept either the collection directory or the bruno.json file
     const stat = await fs.stat(srcFilePath);
     const collectionDir = stat.isDirectory() ? srcFilePath : path.dirname(srcFilePath);
+    this.collectionDir = collectionDir;
 
     // Read collection metadata
     const brunoJsonPath = path.join(collectionDir, 'bruno.json');
@@ -67,6 +74,10 @@ export class BrunoImporter implements CollectionImporter {
 
     await this.importDirectory(collection, collectionDir);
     return collection;
+  }
+
+  public getWarnings(): ImportWarning[] {
+    return this.warnings;
   }
 
   private async importEnvironments(
@@ -106,7 +117,7 @@ export class BrunoImporter implements CollectionImporter {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
     type SortableEntry = { seq: number; name: string };
-    const requests: (SortableEntry & { parsed: BrunoRequest })[] = [];
+    const requests: (SortableEntry & { parsed: BrunoRequest; filePath: string })[] = [];
     const folders: (SortableEntry & { fullPath: string })[] = [];
 
     for (const entry of entries) {
@@ -118,17 +129,25 @@ export class BrunoImporter implements CollectionImporter {
         folders.push({ seq: Infinity, name: entry.name, fullPath });
       } else if (entry.isFile() && entry.name.endsWith('.bru')) {
         const content = await fs.readFile(fullPath, 'utf8');
-        const parsed = bruToJsonV2(content);
-        const seq = parsed.meta?.seq != null ? parseInt(parsed.meta.seq, 10) : Infinity;
-        requests.push({ seq, name: entry.name, parsed });
+        try {
+          const parsed = bruToJsonV2(content);
+          const seq = parsed.meta?.seq != null ? parseInt(parsed.meta.seq, 10) : Infinity;
+          requests.push({ seq, name: entry.name, parsed, filePath: fullPath });
+        } catch (error) {
+          this.addWarning({
+            message: `Skipped Bruno file because it is not valid Bruno syntax and could not be parsed: ${this.toErrorMessage(error)}`,
+            filePath: this.relativePath(fullPath),
+            itemName: path.basename(entry.name, '.bru'),
+          });
+        }
       }
     }
 
     const bySeqThenName = (a: SortableEntry, b: SortableEntry) =>
       a.seq - b.seq || a.name.localeCompare(b.name);
 
-    for (const { parsed } of requests.sort(bySeqThenName)) {
-      this.importRequest(parent, parsed);
+    for (const { parsed, filePath } of requests.sort(bySeqThenName)) {
+      this.importRequest(parent, parsed, filePath);
     }
 
     for (const { name, fullPath } of folders.sort(bySeqThenName)) {
@@ -154,8 +173,23 @@ export class BrunoImporter implements CollectionImporter {
     parent.children.push(folder);
   }
 
-  private importRequest(parent: TrufosCollection | TrufosFolder, brunoRequest: BrunoRequest): void {
+  private importRequest(
+    parent: TrufosCollection | TrufosFolder,
+    brunoRequest: BrunoRequest,
+    filePath: string
+  ): void {
     const { meta, http, headers = [], params = [], body, auth } = brunoRequest;
+    if (http == null) {
+      const itemName = meta?.name ?? path.basename(filePath, '.bru');
+      const itemType = this.getUnsupportedItemType(brunoRequest);
+      this.addWarning({
+        message: `Skipped Bruno item "${itemName}" because ${this.getUnsupportedItemReason(itemType)}.`,
+        filePath: this.relativePath(filePath),
+        itemName,
+        itemType,
+      });
+      return;
+    }
 
     const parsedUrl = parseUrl(http.url ?? '');
     const extraQueryParams = params
@@ -181,6 +215,46 @@ export class BrunoImporter implements CollectionImporter {
     };
 
     parent.children.push(trufosRequest);
+  }
+
+  private addWarning(warning: ImportWarning) {
+    this.warnings.push(warning);
+    logger.warn(warning.message, warning.filePath);
+  }
+
+  private getUnsupportedItemType(brunoRequest: BrunoRequest): string {
+    if (brunoRequest.grpc != null) return 'grpc';
+    if (brunoRequest.ws != null) return 'websocket';
+    return brunoRequest.meta?.type ?? 'unknown';
+  }
+
+  private getUnsupportedItemReason(itemType: string): string {
+    switch (itemType) {
+      case 'grpc':
+        return 'it is a gRPC request. Trufos currently imports Bruno HTTP requests only';
+      case 'websocket':
+      case 'ws':
+        return 'it is a WebSocket request. Trufos currently imports Bruno HTTP requests only';
+      case 'collection':
+        return 'it is collection metadata, not an HTTP request';
+      case 'http':
+        return 'it is marked as HTTP but does not contain a Bruno HTTP method block such as get, post, put, patch, or delete';
+      case 'js':
+      case 'script':
+        return 'it is a script-only Bruno file. Trufos imports request scripts only when they belong to an HTTP request';
+      case 'unknown':
+        return 'it does not contain Bruno HTTP request data';
+      default:
+        return `Bruno item type "${itemType}" is not supported. Trufos currently imports Bruno HTTP requests only`;
+    }
+  }
+
+  private relativePath(filePath: string): string {
+    return path.relative(this.collectionDir, filePath) || filePath;
+  }
+
+  private toErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 
   private importBody(bodyType: string | undefined, body: BrunoRequest['body']): RequestBody {
@@ -222,7 +296,7 @@ export class BrunoImporter implements CollectionImporter {
           type: RequestBodyType.TEXT,
           mimeType: BODY_MIME_TYPES.formUrlEncoded,
           text: body?.formUrlEncoded
-            ?.filter((f) => f.enabled !== false)
+            ?.filter((f) => f.enabled)
             ?.map((f) => `${encodeURIComponent(f.name)}=${encodeURIComponent(f.value)}`)
             .join('&'),
         };

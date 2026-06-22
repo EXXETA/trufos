@@ -100,9 +100,20 @@ export class SettingsService implements Initializable {
   }
 
   private async readSettings() {
-    this._settings = this.migrateSettings(
-      JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))
-    );
+    const fileContent = await readFile(SettingsService.SETTINGS_FILE, 'utf8');
+    try {
+      this._settings = this.migrateSettings(JSON.parse(fileContent));
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) {
+        throw error;
+      }
+      logger.warn('Settings file is empty or invalid. Recreating default settings.', error);
+      this._settings = {
+        currentCollectionIndex: 0,
+        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+      };
+      await this.writeSettings();
+    }
   }
 
   private migrateSettings(old: VersionedObject): SettingsInfoFile {

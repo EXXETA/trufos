@@ -111,6 +111,40 @@ describe('SettingsService', async () => {
     await expect(settingsService.init()).rejects.toThrow('No migrator found for version 0.0.0');
   });
 
+  it('should recreate default settings when file is empty', async () => {
+    // Arrange
+    await writeFile(SettingsService.SETTINGS_FILE, '');
+
+    // Act
+    await settingsService.init();
+
+    // Assert
+    expect(settingsService.settings).toEqual({
+      currentCollectionIndex: 0,
+      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+    });
+    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
+      settingsService.settings
+    );
+  });
+
+  it('should recreate default settings when file contains invalid JSON', async () => {
+    // Arrange
+    await writeFile(SettingsService.SETTINGS_FILE, '{');
+
+    // Act
+    await settingsService.init();
+
+    // Assert
+    expect(settingsService.settings).toEqual({
+      currentCollectionIndex: 0,
+      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+    });
+    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
+      settingsService.settings
+    );
+  });
+
   it('should handle settings already at current version', async () => {
     // Arrange
     await settingsService.init();

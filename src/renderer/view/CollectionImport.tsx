@@ -17,11 +17,29 @@ import {
 import FilePicker from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
-import { ImportStrategy } from 'shim/event-service';
+import type { ImportStrategy, ImportWarning } from 'shim/event-service';
 import { showError } from '@/error/errorHandler';
 import { Collection } from 'shim/objects/collection';
+import { toast } from '@/components/ui/sonner';
 
 const eventService = RendererEventService.instance;
+
+function showImportWarnings(warnings: ImportWarning[]) {
+  if (warnings.length === 0) return;
+
+  const preview = warnings
+    .slice(0, 3)
+    .map((warning) => {
+      const item = warning.filePath ?? warning.itemName ?? 'Unknown item';
+      return `${item}: ${warning.message}`;
+    })
+    .join(', ');
+  const remaining = warnings.length > 3 ? ` and ${warnings.length - 3} more` : '';
+
+  toast.warning('Import incomplete', {
+    description: `Collection imported, but ${warnings.length} Bruno item(s) were skipped. ${preview}${remaining}`,
+  });
+}
 
 declare type ImportStrategyWithTrufos = ImportStrategy | 'Trufos';
 
@@ -98,12 +116,14 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
       if (strategy === 'Trufos') {
         collection = await eventService.openCollection(srcEntry!.path);
       } else {
-        collection = await eventService.importCollection(
+        const result = await eventService.importCollection(
           srcEntry!.path,
           targetEntry!.path,
           strategy,
           title!
         );
+        collection = result.collection;
+        showImportWarnings(result.warnings);
       }
       await changeCollection(collection);
       onClose?.();
