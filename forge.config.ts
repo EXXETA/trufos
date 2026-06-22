@@ -63,9 +63,9 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({}),
+    new MakerSquirrel({ setupIcon: './images/icon.ico' }),
     new MakerZIP({}, ['linux']),
-    new MakerDMG(),
+    new MakerDMG({ icon: './images/icon.icns' }),
     new MakerDeb({
       options: {
         icon: './images/logo-256.png',
