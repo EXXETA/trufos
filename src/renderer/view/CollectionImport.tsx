@@ -27,17 +27,47 @@ const eventService = RendererEventService.instance;
 function showImportWarnings(warnings: ImportWarning[]) {
   if (warnings.length === 0) return;
 
-  const preview = warnings
-    .slice(0, 3)
-    .map((warning) => {
-      const item = warning.filePath ?? warning.itemName ?? 'Unknown item';
-      return `${item}: ${warning.message}`;
-    })
-    .join(', ');
-  const remaining = warnings.length > 3 ? ` and ${warnings.length - 3} more` : '';
+  const groupedWarnings = warnings.reduce<Map<string, ImportWarning[]>>((groups, warning) => {
+    const group = groups.get(warning.message) ?? [];
+    group.push(warning);
+    groups.set(warning.message, group);
+    return groups;
+  }, new Map());
+
+  const visibleGroups = [...groupedWarnings.entries()].slice(0, 3);
+  const hiddenGroupCount = groupedWarnings.size - visibleGroups.length;
 
   toast.warning('Import incomplete', {
-    description: `Collection imported, but ${warnings.length} Bruno item(s) were skipped. ${preview}${remaining}`,
+    description: (
+      <div className="mt-1 space-y-2">
+        <p>
+          Collection imported, but {warnings.length} Bruno item(s) were skipped because Trufos can
+          only import supported HTTP requests.
+        </p>
+        <div className="space-y-1">
+          {visibleGroups.map(([message, group]) => {
+            const visibleItems = group
+              .slice(0, 2)
+              .map((warning) => warning.filePath ?? warning.itemName ?? 'Unknown item')
+              .join(', ');
+            const hiddenItemCount = group.length - 2;
+
+            return (
+              <div key={message}>
+                <div className="font-medium text-foreground">{message}</div>
+                <div className="text-muted-foreground">
+                  {visibleItems}
+                  {hiddenItemCount > 0 ? `, +${hiddenItemCount} more` : ''}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {hiddenGroupCount > 0 ? (
+          <div className="text-muted-foreground">+{hiddenGroupCount} more problem type(s)</div>
+        ) : null}
+      </div>
+    ),
   });
 }
 
