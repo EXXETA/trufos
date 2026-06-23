@@ -74,7 +74,7 @@ describe('CertificateEditor', () => {
 
     await user.click(screen.getByRole('button', { name: /add certificate/i }));
 
-    expect(onChangeMock).toHaveBeenCalledWith({ certPath: '', keyPath: '', caPath: undefined });
+    expect(onChangeMock).toHaveBeenCalledWith({ certPath: '' });
   });
 
   it('shows clear buttons only for fields that have a value', () => {
@@ -108,7 +108,7 @@ describe('CertificateEditor', () => {
     const clearButtons = screen.getAllByRole('button', { name: /clear/i });
     await user.click(clearButtons[1]); // second Clear = keyPath
 
-    expect(onChangeMock).toHaveBeenCalledWith({ ...CERT, keyPath: '' });
+    expect(onChangeMock).toHaveBeenCalledWith({ ...CERT, keyPath: undefined });
   });
 
   it('clears caPath when its Clear button is clicked', async () => {

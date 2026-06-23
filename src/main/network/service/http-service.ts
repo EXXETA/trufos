@@ -49,7 +49,7 @@ export class HttpService {
       connect: {
         rejectUnauthorized: false,
         cert: await fsp.readFile(cert.certPath),
-        key: await fsp.readFile(cert.keyPath),
+        key: cert.keyPath ? await fsp.readFile(cert.keyPath) : undefined,
         ca: cert.caPath ? await fsp.readFile(cert.caPath) : undefined,
       },
     });

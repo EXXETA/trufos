@@ -8,7 +8,7 @@ import z from 'zod';
 /** File paths for a client certificate used in mutual TLS (mTLS). */
 export const ClientCertificate = z.object({
   certPath: z.string(),
-  keyPath: z.string(),
+  keyPath: z.string().optional(),
   caPath: z.string().optional(),
 });
 export type ClientCertificate = z.infer<typeof ClientCertificate>;
