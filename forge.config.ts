@@ -57,11 +57,12 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     executableName: 'trufos',
-    icon: process.platform === 'darwin'
-      ? './images/macos/icon'
-      : process.platform === 'win32'
-      ? './images/windows/icon'
-      : './images/linux/icons/512x512',
+    icon:
+      process.platform === 'darwin'
+        ? ['./images/macos/icon.icns', './images/macos/icon.icon']
+        : process.platform === 'win32'
+          ? './images/windows/icon'
+          : './images/linux/icons/512x512',
     osxSign,
     osxNotarize,
   },
