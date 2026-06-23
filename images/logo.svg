@@ -26,12 +26,11 @@
    <stop offset="0" stop-color="#fce3d2"></stop>
    <stop offset="1" stop-color="#f6cdb2" stop-opacity="0"></stop>
   </radialGradient>
-  <clipPath id="squircle"><rect x="0" y="0" width="1024" height="1024" rx="228" ry="228"></rect></clipPath>
   <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"></feGaussianBlur></filter>
   <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="16"></feGaussianBlur></filter>
  </defs>
 
- <g clip-path="url(#squircle)">
+ <g>
   <rect width="1024" height="1024" fill="url(#bg)"></rect>
   <rect width="1024" height="1024" fill="url(#glow)"></rect>
   <rect width="1024" height="1024" fill="url(#sheen)"></rect>
@@ -102,6 +101,6 @@
   </g>
 
   <rect width="1024" height="1024" fill="url(#vig)"></rect>
-  <rect x="2" y="2" width="1020" height="1020" rx="226" ry="226" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="3"></rect>
+
  </g>
 </svg>
