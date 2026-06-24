@@ -54,7 +54,7 @@ function showImportWarnings(warnings: ImportWarning[]) {
 
             return (
               <div key={message}>
-                <div className="font-medium text-foreground">{message}</div>
+                <div className="text-foreground font-medium">{message}</div>
                 <div className="text-muted-foreground">
                   {visibleItems}
                   {hiddenItemCount > 0 ? `, +${hiddenItemCount} more` : ''}
