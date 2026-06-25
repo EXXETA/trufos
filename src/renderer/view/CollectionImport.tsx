@@ -149,6 +149,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
           <TabsList className="mt-1 mb-2 ml-0.5 overflow-visible">
             <TabsTrigger value="Trufos">Trufos</TabsTrigger>
             <TabsTrigger value="Postman">Postman</TabsTrigger>
+            <TabsTrigger value="OpenAPI">OpenAPI</TabsTrigger>
             <TabsTrigger value="Bruno">Bruno</TabsTrigger>
             <TabsTrigger value="Insomnia">Insomnia</TabsTrigger>
           </TabsList>
@@ -175,6 +176,36 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               onFileSelected={setSrcEntry}
               onFileRemoved={() => setSrcEntry(undefined)}
               accept=".json"
+              controlled
+            />
+            {/* Flow separator */}
+            <div className="flex items-center justify-center">
+              <div className="bg-separator h-px flex-1" />
+              <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
+              <div className="bg-separator h-px flex-1" />
+            </div>
+            <FilePicker
+              title="Select directory for new collection"
+              description="This is where the imported collection will be placed"
+              entry={targetEntry}
+              icon={<FolderPlusIcon size={36} />}
+              onFileSelected={setTargetEntry}
+              onFileRemoved={() => setTargetEntry(undefined)}
+              directoryMode
+              controlled
+            />
+            <TitleInput value={title ?? ''} onChange={setTitle} />
+          </ImportTabsContent>
+
+          <ImportTabsContent strategy="OpenAPI">
+            <FilePicker
+              title="Select file of the OpenAPI definition"
+              description="OpenAPI definitions use .json, .yaml, or .yml files"
+              entry={srcEntry}
+              icon={<FolderSearchIcon size={36} />}
+              onFileSelected={setSrcEntry}
+              onFileRemoved={() => setSrcEntry(undefined)}
+              accept=".json,.yaml,.yml"
               controlled
             />
             {/* Flow separator */}
