@@ -6,6 +6,19 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 
 const eventService = RendererEventService.instance;
 
+const getFirstEnvironmentKey = (environments: EnvironmentMap) => Object.keys(environments)[0];
+
+const getValidEnvironmentKey = (environments: EnvironmentMap, environmentKey?: string) =>
+  environmentKey != null && environments[environmentKey] != null
+    ? environmentKey
+    : getFirstEnvironmentKey(environments);
+
+const syncSelectedEnvironment = (environmentKey?: string) => {
+  void eventService.selectEnvironment(environmentKey).catch((error) => {
+    console.error('Failed to select environment', error);
+  });
+};
+
 interface EnvironmentState {
   /** The environments of the current collection */
   environments: EnvironmentMap;
@@ -22,30 +35,36 @@ interface EnvironmentActions {
 }
 
 export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>()(
-  immer((set) => ({
+  immer((set, get) => ({
     environments: {},
     selectedEnvironment: undefined,
 
     initialize(environments: EnvironmentMap) {
+      let selectedEnvironment: string | undefined;
       set((state) => {
+        selectedEnvironment = getValidEnvironmentKey(environments, state.selectedEnvironment);
         state.environments = environments;
-        if (Object.keys(environments).length > 0 && !state.selectedEnvironment) {
-          state.selectedEnvironment = Object.keys(environments)[0];
-        }
+        state.selectedEnvironment = selectedEnvironment;
       });
+      syncSelectedEnvironment(selectedEnvironment);
     },
 
     setEnvironments: async (environments) => {
       await eventService.setEnvironmentVariables(environments);
+      let selectedEnvironment: string | undefined;
       set((state) => {
+        selectedEnvironment = getValidEnvironmentKey(environments, state.selectedEnvironment);
         state.environments = environments;
+        state.selectedEnvironment = selectedEnvironment;
       });
+      await eventService.selectEnvironment(selectedEnvironment);
     },
 
     selectEnvironment: async (environmentKey?: string) => {
-      await eventService.selectEnvironment(environmentKey);
+      const selectedEnvironment = getValidEnvironmentKey(get().environments, environmentKey);
+      await eventService.selectEnvironment(selectedEnvironment);
       set((state) => {
-        state.selectedEnvironment = environmentKey;
+        state.selectedEnvironment = selectedEnvironment;
       });
     },
 

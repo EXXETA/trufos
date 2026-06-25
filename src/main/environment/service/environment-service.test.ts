@@ -70,6 +70,40 @@ describe('EnvironmentService', () => {
     expect(environmentService.currentCollection.variables).toEqual(newVariables);
   });
 
+  it('setEnvironmentVariables() should keep the selected environment valid', () => {
+    // Arrange
+    environmentService.currentEnvironmentKey = 'missing';
+    const newEnvironments = {
+      dev: { variables: { host: { value: 'localhost' } } },
+    };
+
+    // Act
+    environmentService.setEnvironmentVariables(newEnvironments);
+
+    // Assert
+    expect(environmentService.currentCollection.environments).toEqual(newEnvironments);
+    expect(environmentService.currentEnvironmentKey).toBe('dev');
+  });
+
+  it('changeCollection() should replace a stale selected environment', async () => {
+    // Arrange
+    environmentService.currentEnvironmentKey = 'missing';
+    const newCollection: Partial<Collection> = {
+      id: randomUUID(),
+      dirPath: '/some/path',
+      variables: {},
+      environments: {
+        dev: { variables: { host: { value: 'localhost' } } },
+      },
+    };
+
+    // Act
+    await environmentService.changeCollection(newCollection as Collection);
+
+    // Assert
+    expect(environmentService.currentEnvironmentKey).toBe('dev');
+  });
+
   it('changeCollection() should load the new collection from PersistenceService', async () => {
     // Arrange
     const newCollection: Partial<Collection> = { id: randomUUID(), dirPath: '/some/path' };

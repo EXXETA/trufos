@@ -32,7 +32,7 @@ export class EnvironmentService implements Initializable {
   /** The currently selected environment in the current collection. */
   public get currentEnvironment() {
     if (this.currentEnvironmentKey == null) return;
-    return this.currentCollection.environments[this.currentEnvironmentKey];
+    return this.currentCollection.environments?.[this.currentEnvironmentKey];
   }
 
   private _currentCollection!: Collection;
@@ -87,6 +87,7 @@ export class EnvironmentService implements Initializable {
   public setEnvironmentVariables(environmentVariables: EnvironmentMap) {
     logger.secret?.debug('Setting environment variables:', environmentVariables);
     this.currentCollection.environments = environmentVariables;
+    this.ensureSelectedEnvironmentExists();
   }
 
   public setClientCertificate(clientCertificate: ClientCertificate | null) {
@@ -104,6 +105,7 @@ export class EnvironmentService implements Initializable {
       typeof collection === 'string'
         ? await persistenceService.loadCollection(collection)
         : collection;
+    this.ensureSelectedEnvironmentExists();
 
     // add collection to the list of open collections if it is not already there
     const path = this.currentCollection.dirPath;
@@ -201,6 +203,11 @@ export class EnvironmentService implements Initializable {
 
   private getVariableValue(key: string) {
     return this.getVariable(key)?.value;
+  }
+
+  private ensureSelectedEnvironmentExists() {
+    if (this.currentEnvironmentKey != null && this.currentEnvironment != null) return;
+    this.currentEnvironmentKey = Object.keys(this.currentCollection.environments ?? {})[0];
   }
 
   /**
