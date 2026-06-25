@@ -43,8 +43,13 @@ jobs:
           github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "synchronize"]'
           # Automatically generate a PR description when none is provided
           github_action_config.auto_describe: "true"
-          # Suggest improvements but do not auto-approve
-          github_action_config.auto_improve: "false"
+          # Walk the diff and post concrete code suggestions (does not auto-approve/merge)
+          github_action_config.auto_improve: "true"
+          # Post suggestions as inline committable comments on the changed files
+          # instead of a single summary table
+          pr_code_suggestions.commitable_code_suggestions: "true"
+          # Mark each automated review with the "Review effort x/5" labels
+          pr_reviewer.enable_review_labels_effort: "true"
 
           # Review focus tailored to Trufos project conventions
           pr_reviewer.extra_instructions: |
