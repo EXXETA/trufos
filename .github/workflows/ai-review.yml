@@ -24,12 +24,18 @@ jobs:
         uses: Codium-ai/pr-agent@v0.34
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-          OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
-          # To use Anthropic Claude instead of OpenAI, comment out OPENAI_KEY above and uncomment:
+          # Provider: Google AI Studio (Gemini) via LiteLLM.
+          # Requires the GEMINI_API_KEY repository secret to be set.
+          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          config.model: "gemini/gemini-2.5-pro"
+          config.fallback_models: '["gemini/gemini-2.5-flash"]'
+          # To use OpenAI instead, uncomment:
+          # OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          # OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
+          # config.model: "gpt-4o"
+          # To use Anthropic Claude instead, uncomment:
           # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # config.ai_provider: anthropic
-          # config.model: claude-sonnet-4-5
+          # config.model: "anthropic/claude-sonnet-4-5"
 
           # Automatically review every new / updated PR
           github_action_config.auto_review: "true"
