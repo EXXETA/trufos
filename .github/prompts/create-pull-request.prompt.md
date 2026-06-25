@@ -21,7 +21,7 @@ Issue number: `${input:issueNumber:GitHub issue number this PR resolves (e.g. 42
 1. Confirm the working tree is clean (`git status`).
 2. Check the current branch name matches the convention `<type>/<issue-id>-<short-description>`.
    - If not, rename the branch: `git branch -m <correct-name>`
-3. Ensure all commits reference the issue number in the format `#<issue-id> - <description>`.
+3. Ensure all commits follow Conventional Commits (`<type>: <description>`).
    - List recent commits: `git log --oneline main..HEAD`
    - If the commit message is wrong, amend it: `git commit --amend`
 
@@ -40,7 +40,7 @@ If `prettier-check` fails, auto-fix and re-commit:
 ```bash
 yarn prettier
 git add .
-git commit -m "#${input:issueNumber} - fix formatting"
+git commit -m "chore: fix formatting"
 ```
 
 ### Step 3 – Push the Branch
@@ -86,6 +86,7 @@ Include screenshots if UI was changed.>
 ```
 
 Rules:
+
 - Mark checklist items `[x]` only when they are actually done.
 - Keep the Changes section factual – no marketing language.
 - If screenshots are relevant (UI changes), note where they should be added.
@@ -94,7 +95,7 @@ Rules:
 
 Create the PR targeting `main` with:
 
-- **Title:** `#${input:issueNumber} - <short description matching the main commit>`
+- **Title:** `<type>: <short description>` matching the main commit (Conventional Commits)
 - **Body:** the composed template from Step 5
 - **Base branch:** `main`
 - **Labels:** apply `enhancement` for features, `bug` for fixes (match the linked issue labels)
@@ -111,11 +112,11 @@ Closes #${input:issueNumber}
 Before submitting the PR, verify:
 
 - [ ] Branch name follows `<type>/<issue-id>-<short-description>`
-- [ ] All commits reference `#${input:issueNumber}`
+- [ ] All commits follow Conventional Commits (`<type>: <description>`)
 - [ ] `yarn test` passes
 - [ ] `yarn lint` passes
 - [ ] `yarn prettier-check` passes
-- [ ] PR title references the issue number
+- [ ] PR title follows Conventional Commits (`<type>: <description>`)
 - [ ] All PR template sections are filled in
 - [ ] Issue is linked (`Closes #${input:issueNumber}`)
 - [ ] Correct labels applied

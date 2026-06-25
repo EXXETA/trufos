@@ -1,5 +1,8 @@
 # Trufos – GitHub Copilot Workspace Instructions
 
+> The canonical, tool-agnostic agent guide lives in [`AGENTS.md`](../AGENTS.md). This file
+> mirrors it for GitHub Copilot; if the two ever disagree, `AGENTS.md` wins.
+
 ## Project Overview
 
 Trufos is a cross-platform desktop REST client built with **Electron**, **React 19**, and **TypeScript**. It uses Vite for bundling, Zustand for state management, Tailwind CSS with Radix UI (shadcn/ui) components, and Vitest + Testing Library for tests.
@@ -13,6 +16,7 @@ The project follows Electron's two-process model:
 - **`src/shim/`** – Shared types and utilities used across both processes
 
 Key renderer directories:
+
 - `components/` – Reusable React components (use shadcn/ui + Radix UI primitives)
 - `state/` – Zustand stores
 - `services/` – Business logic / IPC calls
@@ -21,16 +25,16 @@ Key renderer directories:
 
 ## Tech Stack
 
-| Concern | Technology |
-|---|---|
-| Framework | Electron + React 19 |
-| Language | TypeScript (`noImplicitAny: true`) |
-| Bundler | Vite |
-| Styling | Tailwind CSS v4 + shadcn/ui (Radix UI) |
-| State | Zustand + Immer |
-| Testing | Vitest + Testing Library |
-| Linting | ESLint + Prettier |
-| Package manager | Yarn v4 (Berry) |
+| Concern         | Technology                             |
+| --------------- | -------------------------------------- |
+| Framework       | Electron + React 19                    |
+| Language        | TypeScript (`noImplicitAny: true`)     |
+| Bundler         | Vite                                   |
+| Styling         | Tailwind CSS v4 + shadcn/ui (Radix UI) |
+| State           | Zustand + Immer                        |
+| Testing         | Vitest + Testing Library               |
+| Linting         | ESLint + Prettier                      |
+| Package manager | Yarn v4 (Berry)                        |
 
 ## Code Conventions
 
@@ -46,11 +50,15 @@ Key renderer directories:
 
 ## Commit & Branch Guidelines
 
-- Commit messages must reference the issue: `#<issue-id> - <description in present tense>`
-  - Example: `#42 - add request body editor for JSON payloads`
+- Commit messages follow **Conventional Commits** in English present tense:
+  `<type>: <short description>`
+  - Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`
+  - Example: `feat: add request body editor for JSON payloads`
+  - Keep the subject under 72 characters with no trailing period.
 - Branch names follow the pattern: `<type>/<issue-id>-<short-description>`
   - Types: `feature`, `fix`, `tmp`
   - Example: `feature/42-json-body-editor`
+- See `.github/instructions/commit-and-branch.instructions.md` for the full rules.
 
 ## Development Commands
 
