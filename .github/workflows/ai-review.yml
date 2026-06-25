@@ -31,6 +31,9 @@ jobs:
           # (free-tier quota is 0). Switch to a Pro model only with billing enabled.
           config.model: "gemini/gemini-3.5-flash"
           config.fallback_models: '["gemini/gemini-2.5-flash"]'
+          # PR-Agent v0.34 does not know this model's token window; declare it
+          # explicitly (Gemini Flash input window = 1,048,576 tokens).
+          config.custom_model_max_tokens: "1048576"
           # To use OpenAI instead, uncomment:
           # OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           # OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
