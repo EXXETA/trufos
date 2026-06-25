@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useCollectionActions } from '@/state/collectionStore';
 import { cn } from '@/lib/utils';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
@@ -12,10 +12,11 @@ export interface NavCreateItemProps {
   type: 'folder' | 'request';
   parentId: string;
   depth: number;
+  onCancel: () => void;
 }
 
-export const NavCreateItem = ({ type, parentId, depth }: NavCreateItemProps) => {
-  const { addNewFolder, addNewRequest, setCreatingItem } = useCollectionActions();
+export const NavCreateItem = ({ type, parentId, depth, onCancel }: NavCreateItemProps) => {
+  const { addNewFolder, addNewRequest } = useCollectionActions();
   const [isSaving, setIsSaving] = useState(false);
 
   // Focus and handle save
@@ -30,15 +31,11 @@ export const NavCreateItem = ({ type, parentId, depth }: NavCreateItemProps) => 
       } else {
         await addNewRequest(trimmed, parentId);
       }
-      setCreatingItem(null);
+      onCancel();
     } catch (e) {
       console.error('Failed to create item', e);
       setIsSaving(false);
     }
-  };
-
-  const handleCancel = () => {
-    setCreatingItem(null);
   };
 
   return (
@@ -71,7 +68,7 @@ export const NavCreateItem = ({ type, parentId, depth }: NavCreateItemProps) => 
       <InlineRename
         initialValue=""
         onSave={handleSave}
-        onCancel={handleCancel}
+        onCancel={onCancel}
         inputClassName={type === 'folder' ? 'h-6 text-sm' : 'h-6 text-xs'}
       />
     </div>

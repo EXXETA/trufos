@@ -7,14 +7,13 @@ import {
 import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { handleMouseEvent } from '@/util/callback-util';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { useState } from 'react';
 import { TrufosRequest } from 'shim/objects/request';
 import { cn } from '@/lib/utils';
 import { MoreIcon } from '@/components/icons';
 
 export interface RequestDropdownProps {
   request: TrufosRequest;
-  onRename?: () => void;
+  onRename: () => void;
 }
 
 export const RequestDropdown = ({ request, onRename }: RequestDropdownProps) => {
@@ -38,9 +37,7 @@ export const RequestDropdown = ({ request, onRename }: RequestDropdownProps) => 
         </DropdownMenuTrigger>
 
         <DropdownMenuContent className="w-48 rounded-lg" side="right" align="start">
-          <DropdownMenuItem onClick={handleMouseEvent(() => onRename?.())}>
-            Rename Request
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleMouseEvent(onRename)}>Rename Request</DropdownMenuItem>
 
           <DropdownMenuItem onClick={handleMouseEvent(() => copyRequest(request.id))}>
             Copy Request

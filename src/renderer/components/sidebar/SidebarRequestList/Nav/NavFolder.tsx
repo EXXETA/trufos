@@ -9,15 +9,17 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState } from 'react';
 import { InlineRename } from '@/components/shared/InlineRename';
+import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 
 interface NavFolderProps {
   folderId: Folder['id'];
   depth?: number;
+  onCreateItem?: (item: CreatingItem) => void;
 }
 
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
-export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
+export const NavFolder = ({ folderId, depth = 0, onCreateItem }: NavFolderProps) => {
   const { setFolderOpen, setFolderClose, renameFolder } = useCollectionActions();
   const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
@@ -41,6 +43,13 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
     } else {
       setFolderOpen(folderId);
     }
+  };
+
+  const handleCreateItem = (item: CreatingItem) => {
+    if (item) {
+      setFolderOpen(folderId);
+    }
+    onCreateItem?.(item);
   };
 
   return (
@@ -97,7 +106,11 @@ export const NavFolder = ({ folderId, depth = 0 }: NavFolderProps) => {
                 onClick={stopPropagation}
                 onPointerDown={stopPropagation}
               >
-                <FolderDropdown folder={folder} onRename={() => setIsEditing(true)} />
+                <FolderDropdown
+                  folder={folder}
+                  onRename={() => setIsEditing(true)}
+                  onCreateItem={handleCreateItem}
+                />
               </div>
             </>
           )}

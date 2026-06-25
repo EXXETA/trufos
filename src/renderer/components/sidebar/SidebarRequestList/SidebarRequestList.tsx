@@ -27,15 +27,20 @@ import { cn } from '@/lib/utils';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
+import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 
-export const SidebarRequestList = () => {
+interface SidebarRequestListProps {
+  creatingItem: CreatingItem;
+  onCreateItem: (item: CreatingItem) => void;
+}
+
+export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarRequestListProps) => {
   const children = useCollectionStore((state) => state.collection!.children);
   const collectionId = useCollectionStore((state) => state.collection!.id);
   const openFolders = useCollectionStore((state) => state.openFolders);
   const folders = useCollectionStore((state) => state.folders);
   const requests = useCollectionStore((state) => state.requests);
   const sortMode = useCollectionStore((state) => state.sortMode);
-  const creatingItem = useCollectionStore((state) => state.creatingItem);
   const { moveItem } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -126,7 +131,12 @@ export const SidebarRequestList = () => {
   const renderItems = useMemo(() => {
     const items = sortableItems.map((item) =>
       item.type === 'folder' ? (
-        <NavFolder key={item.id} folderId={item.id} depth={item.depth + 1} />
+        <NavFolder
+          key={item.id}
+          folderId={item.id}
+          depth={item.depth + 1}
+          onCreateItem={onCreateItem}
+        />
       ) : (
         <NavRequest key={item.id} requestId={item.id} depth={item.depth + 1} />
       )
@@ -159,6 +169,7 @@ export const SidebarRequestList = () => {
           type={creatingItem.type}
           parentId={parentId}
           depth={depth}
+          onCancel={() => onCreateItem(null)}
         />
       );
 
@@ -166,7 +177,7 @@ export const SidebarRequestList = () => {
     }
 
     return items;
-  }, [sortableItems, creatingItem, collectionId]);
+  }, [sortableItems, creatingItem, collectionId, onCreateItem]);
 
   return (
     <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
@@ -204,7 +215,7 @@ const DragOverlayContent = ({ itemId }: { itemId: string }) => {
   return null;
 };
 
-const DragOverlayFolder = ({ folder }: { folder: any }) => {
+const DragOverlayFolder = ({ folder }: { folder: Folder }) => {
   return (
     <div
       className={cn(
@@ -225,7 +236,7 @@ const DragOverlayFolder = ({ folder }: { folder: any }) => {
   );
 };
 
-const DragOverlayRequest = ({ request }: { request: any }) => {
+const DragOverlayRequest = ({ request }: { request: TrufosRequest }) => {
   return (
     <div
       className={cn(

@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,17 +11,19 @@ import { useCollectionActions } from '@/state/collectionStore';
 
 import { MoreIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';
+import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 
 export interface FolderDropdownProps {
   folder: Folder;
-  onRename?: () => void;
+  onRename: () => void;
+  onCreateItem: (item: CreatingItem) => void;
 }
 
-export const FolderDropdown = ({ folder, onRename }: FolderDropdownProps) => {
-  const { copyFolder, deleteFolder, setCreatingItem } = useCollectionActions();
+export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdownProps) => {
+  const { copyFolder, deleteFolder } = useCollectionActions();
 
   const openModal = (type: 'folder' | 'request') => {
-    setCreatingItem({ type, parentId: folder.id });
+    onCreateItem({ type, parentId: folder.id });
   };
 
   return (
@@ -47,9 +48,7 @@ export const FolderDropdown = ({ folder, onRename }: FolderDropdownProps) => {
             Add Folder
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleMouseEvent(() => onRename?.())}>
-            Rename Folder
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleMouseEvent(onRename)}>Rename Folder</DropdownMenuItem>
 
           <DropdownMenuItem onClick={handleMouseEvent(() => copyFolder(folder.id))}>
             Copy Folder

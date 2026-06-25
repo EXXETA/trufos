@@ -11,6 +11,7 @@ import { Divider } from '@/components/shared/Divider';
 import { CollectionSettingsModal } from '@/components/shared/settings/CollectionSettingsModal';
 import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 
 const SORT_MODE_LABELS: Record<SortMode, string> = {
   [SortMode.DEFAULT]: 'Manual order',
@@ -35,18 +36,22 @@ const SortIcon = ({ mode }: { mode: SortMode }) => {
   }
 };
 
-export const SidebarHeaderBar = () => {
+interface SidebarHeaderBarProps {
+  onCreateItem: (item: CreatingItem) => void;
+}
+
+export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
   const collection = useCollectionStore((state) => state.collection);
 
   const sortMode = useCollectionStore((state) => state.sortMode);
-  const { setSortMode, setCreatingItem } = useCollectionActions();
+  const { setSortMode } = useCollectionActions();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 
   const openModal = (type: 'request' | 'folder') => {
     if (collection?.id) {
-      setCreatingItem({ type, parentId: collection.id });
+      onCreateItem({ type, parentId: collection.id });
     }
   };
   const cycleSortMode = () => {
