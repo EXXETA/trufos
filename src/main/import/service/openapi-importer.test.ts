@@ -95,9 +95,7 @@ describe('OpenApiImporter', () => {
       base: 'https://api.example.com/v1/pets',
       query: [{ key: 'limit', value: '10', isActive: true }],
     });
-    expect(listPets.headers).toEqual([
-      { key: 'X-Trace-Id', value: 'trace-1', isActive: true },
-    ]);
+    expect(listPets.headers).toEqual([{ key: 'X-Trace-Id', value: 'trace-1', isActive: true }]);
     expect(listPets.body).toEqual({
       type: RequestBodyType.TEXT,
       mimeType: 'text/plain',

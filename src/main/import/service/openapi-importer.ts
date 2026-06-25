@@ -108,7 +108,8 @@ export class OpenApiImporter implements CollectionImporter {
       parentId,
       type: 'request',
       lastModified: Date.now(),
-      title: operation.summary || operation.operationId || `${method.toUpperCase()} ${pathTemplate}`,
+      title:
+        operation.summary || operation.operationId || `${method.toUpperCase()} ${pathTemplate}`,
       url: {
         ...parseUrl(this.joinUrl(baseUrl, pathTemplate)),
         query,
