@@ -24,24 +24,12 @@ jobs:
         uses: Codium-ai/pr-agent@v0.34
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Provider: Google AI Studio (Gemini) via LiteLLM.
-          # Requires the GEMINI_API_KEY repository secret to be set.
-          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Pro requires the Gemini API paid tier (free-tier quota is 0); the
-          # consumer "Google AI Pro" plan does not enable API billing. Flash is
-          # the free-tier fallback.
-          config.model: "gemini/gemini-3.1-pro"
-          config.fallback_models: '["gemini/gemini-3.5-flash"]'
-          # PR-Agent v0.34 does not know these models' token window; declare it
-          # explicitly (Gemini input window = 1,048,576 tokens).
-          config.custom_model_max_tokens: "1048576"
-          # To use OpenAI instead, uncomment:
-          # OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-          # OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
-          # config.model: "gpt-4o"
-          # To use Anthropic Claude instead, uncomment:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
+          # To use Anthropic Claude instead of OpenAI, comment out OPENAI_KEY above and uncomment:
           # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # config.model: "anthropic/claude-sonnet-4-5"
+          # config.ai_provider: anthropic
+          # config.model: claude-sonnet-4-5
 
           # Automatically review every new / updated PR
           github_action_config.auto_review: "true"
@@ -49,13 +37,8 @@ jobs:
           github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "synchronize"]'
           # Automatically generate a PR description when none is provided
           github_action_config.auto_describe: "true"
-          # Walk the diff and post concrete code suggestions (does not auto-approve/merge)
-          github_action_config.auto_improve: "true"
-          # Post suggestions as inline committable comments on the changed files
-          # instead of a single summary table
-          pr_code_suggestions.commitable_code_suggestions: "true"
-          # Mark each automated review with the "Review effort x/5" labels
-          pr_reviewer.enable_review_labels_effort: "true"
+          # Suggest improvements but do not auto-approve
+          github_action_config.auto_improve: "false"
 
           # Review focus tailored to Trufos project conventions
           pr_reviewer.extra_instructions: |
