@@ -27,8 +27,10 @@ jobs:
           # Provider: Google AI Studio (Gemini) via LiteLLM.
           # Requires the GEMINI_API_KEY repository secret to be set.
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          config.model: "gemini/gemini-3.1-pro-preview"
-          config.fallback_models: '["gemini/gemini-3.5-flash"]'
+          # Flash is available on the Gemini API free tier; the Pro models are not
+          # (free-tier quota is 0). Switch to a Pro model only with billing enabled.
+          config.model: "gemini/gemini-3.5-flash"
+          config.fallback_models: '["gemini/gemini-2.5-flash"]'
           # To use OpenAI instead, uncomment:
           # OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           # OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
