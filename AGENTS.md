@@ -98,6 +98,22 @@ Example: `feature/42-json-body-editor`.
 
 Always create or reference a GitHub issue before starting work.
 
+## Pull Requests
+
+- Open every PR against the `main` branch.
+- Run `yarn test`, `yarn lint`, and `yarn prettier-check` and fix all failures before
+  opening the PR.
+- The PR title follows Conventional Commits, matching the main commit
+  (e.g. `feat: add JSON body editor`).
+- Fill in every section of `.github/pull_request_template.md` (Changes, Testing, Checklist).
+  Tick checklist items only when they are actually done.
+- Link the resolved issue with `Closes #<issue-id>` so it auto-closes on merge.
+- Apply matching labels (`enhancement` for features, `bug` for fixes).
+- Request a review from a second person; do not self-merge unreviewed changes.
+- Use merge commits when merging into `main` (no fast-forward merges).
+
+See `.github/prompts/create-pull-request.prompt.md` for the full step-by-step workflow.
+
 ## Further Reading
 
 - `.github/instructions/` – topic-specific instructions (commits, testing, stack).
