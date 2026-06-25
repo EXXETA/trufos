@@ -76,3 +76,9 @@ yarn prettier       # Fix formatting
 - Place test files next to the source file or in `__tests__/` subdirectories.
 - Mock Electron APIs and IPC calls when testing renderer components.
 - Cover edge cases, error states, and async behaviour.
+
+## Designs (Penpot)
+
+The UI design source of truth lives in Penpot. A `penpot` MCP server is preconfigured in
+`.mcp.json`. For `design needed` issues, read the relevant frame before implementing. See the
+"Designs (Penpot via MCP)" section in [`AGENTS.md`](../AGENTS.md) for setup and usage.

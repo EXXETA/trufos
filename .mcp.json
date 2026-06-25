@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "penpot": {
+      "command": "uvx",
+      "args": ["penpot-mcp"],
+      "env": {
+        "PENPOT_API_URL": "https://penpot.soulka.de/api",
+        "PENPOT_USERNAME": "${PENPOT_USERNAME}",
+        "PENPOT_PASSWORD": "${PENPOT_PASSWORD}"
+      }
+    }
+  }
+}

@@ -23,3 +23,6 @@ yarn prettier-check # Check formatting
 - After changes, run `yarn test` and `yarn lint` on the touched files before committing.
 - Follow Conventional Commits and the branch/PR conventions described in `AGENTS.md`.
 - Reference an existing GitHub issue in every branch and PR.
+- For `design needed` issues, read the design from the preconfigured `penpot` MCP server
+  (`.mcp.json`) before implementing. Setup and usage are documented in `AGENTS.md`
+  (section "Designs (Penpot via MCP)").

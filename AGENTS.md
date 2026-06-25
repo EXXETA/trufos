@@ -114,6 +114,29 @@ Always create or reference a GitHub issue before starting work.
 
 See `.github/prompts/create-pull-request.prompt.md` for the full step-by-step workflow.
 
+## Designs (Penpot via MCP)
+
+The UI design source of truth lives in Penpot. Before implementing a `design needed` issue,
+fetch the relevant frame instead of guessing spacing/colors.
+
+A `penpot` MCP server is preconfigured in `.mcp.json` (the [`penpot-mcp`](https://github.com/montevive/penpot-mcp)
+server). It connects to the project's self-hosted Penpot instance and exposes the design
+files as MCP tools/resources (list files, read frames, components, design tokens, export).
+
+One-time setup (per developer):
+
+1. Install [`uv`](https://docs.astral.sh/uv/) (provides `uvx`) and Python 3.12+.
+2. Copy `.env.example` to `.env` and fill in your Penpot credentials
+   (`PENPOT_USERNAME`, `PENPOT_PASSWORD`). `.env` is gitignored — never commit credentials.
+   Prefer a dedicated read-only Penpot account.
+3. Export those variables into the shell that launches your agent so `.mcp.json`'s
+   `${PENPOT_USERNAME}` / `${PENPOT_PASSWORD}` resolve (e.g. `set -a; source .env; set +a`).
+4. Approve/restart the MCP server in your client (Claude Code: confirm the `penpot` server,
+   then `/mcp` to verify it is connected).
+
+Then ask the agent to list the Trufos design files and read the frame for the screen you are
+working on. The Penpot instance URL is set in `.mcp.json`.
+
 ## Further Reading
 
 - `.github/instructions/` – topic-specific instructions (commits, testing, stack).
