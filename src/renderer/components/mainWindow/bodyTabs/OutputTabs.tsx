@@ -27,7 +27,6 @@ export function OutputTabs({ className }: OutputTabsProps) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      event.preventDefault();
       const target = event.target as HTMLElement;
 
       if (
@@ -50,6 +49,8 @@ export function OutputTabs({ className }: OutputTabsProps) {
       const nextTab = tabMap[event.key];
 
       if (!nextTab) return;
+
+      event.preventDefault();
 
       setSelectedTab(nextTab);
     };
