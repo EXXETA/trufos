@@ -22,4 +22,6 @@ yarn prettier-check # Check formatting
 - TypeScript with strict typing — never introduce `any`.
 - After changes, run `yarn test` and `yarn lint` on the touched files before committing.
 - Follow Conventional Commits and the branch naming rules described in `AGENTS.md`.
-- Reference an existing GitHub issue in every branch and PR.
+- Reference an existing GitHub issue in every branch and PR. The PR body **must** mention an
+  issue (e.g. `Closes #<id>`); the `conventional-pr` CI check runs `strict: true` and fails
+  the pipeline otherwise. If no issue exists, create one first, then link it.

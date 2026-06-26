@@ -107,7 +107,10 @@ Always create or reference a GitHub issue before starting work.
   (e.g. `feat: add JSON body editor`).
 - Fill in every section of `.github/pull_request_template.md` (Changes, Testing, Checklist).
   Tick checklist items only when they are actually done.
-- Link the resolved issue with `Closes #<issue-id>` so it auto-closes on merge.
+- **Always reference a GitHub issue in the PR body** (e.g. `Closes #<issue-id>` so it
+  auto-closes on merge). This is mandatory: the `conventional-pr` CI check runs with
+  `strict: true` and **fails the pipeline** if the PR mentions no issue. If no issue exists
+  yet, create one first, then link it.
 - Apply matching labels (`enhancement` for features, `bug` for fixes).
 - Request a review from a second person; do not self-merge unreviewed changes.
 - Use merge commits when merging into `main` (no fast-forward merges).
