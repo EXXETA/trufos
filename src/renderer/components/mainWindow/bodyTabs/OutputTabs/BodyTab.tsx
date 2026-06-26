@@ -10,6 +10,9 @@ import { TextualPrettyRenderer } from './TextualPrettyRenderer';
 import { DefaultRenderer } from './DefaultRenderer';
 import { useStateDerived } from '@/util/react-util';
 import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import { IconButton } from '@/components/ui/icon-button';
+import { RendererEventService } from '@/services/event/renderer-event-service';
 
 enum OutputType {
   RAW = 'Raw',
@@ -69,6 +72,13 @@ export const BodyTab = () => {
             onValueChange={setOutputType}
             items={outputTypes}
           />
+          <IconButton
+            disabled={!response?.id}
+            onClick={() => RendererEventService.instance.downloadResponse(response!.id)}
+            title="Save response body"
+          >
+            <Download className="h-4 w-4" />
+          </IconButton>
         </div>
         <Divider />
       </div>

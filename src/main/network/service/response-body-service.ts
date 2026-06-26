@@ -1,36 +1,46 @@
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
+import type { HttpHeaders } from 'shim/headers';
+
+export interface ResponseBodyEntry {
+  filePath: string;
+  headers: HttpHeaders;
+}
 
 export class ResponseBodyService {
   public static readonly instance = new ResponseBodyService();
 
-  private readonly responseBodyMap = new Map<string, string>();
+  private readonly responseBodyMap = new Map<string, ResponseBodyEntry>();
 
   private constructor() {}
 
-  public register(filePath: string): string {
+  public register(filePath: string, headers: HttpHeaders = {}): string {
     const responseId = randomUUID();
-    this.responseBodyMap.set(responseId, filePath);
+    this.responseBodyMap.set(responseId, { filePath, headers });
     logger.debug(`Registered response body: ${responseId} -> ${filePath}`);
     return responseId;
   }
 
   public getFilePath(responseId: string): string | undefined {
+    return this.responseBodyMap.get(responseId)?.filePath;
+  }
+
+  public getEntry(responseId: string): ResponseBodyEntry | undefined {
     return this.responseBodyMap.get(responseId);
   }
 
   public remove(responseId: string): void {
-    const filePath = this.responseBodyMap.get(responseId);
-    if (filePath) {
-      this.deleteFileIfExists(filePath);
+    const entry = this.responseBodyMap.get(responseId);
+    if (entry) {
+      this.deleteFileIfExists(entry.filePath);
       this.responseBodyMap.delete(responseId);
       logger.debug(`Removed response body: ${responseId}`);
     }
   }
 
   public clear(): void {
-    this.responseBodyMap.forEach((filePath) => {
-      this.deleteFileIfExists(filePath);
+    this.responseBodyMap.forEach((entry) => {
+      this.deleteFileIfExists(entry.filePath);
     });
     this.responseBodyMap.clear();
     logger.debug('Cleared all response bodies');

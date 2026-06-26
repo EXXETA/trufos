@@ -128,7 +128,7 @@ export class HttpService {
       },
       headers: Object.freeze(responseData.headers),
       id: (responseData.body != null
-        ? responseBodyService.register(bodyFile.name!)
+        ? responseBodyService.register(bodyFile.name!, responseData.headers)
         : undefined) as string,
     };
 
