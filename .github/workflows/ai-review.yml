@@ -27,13 +27,13 @@ jobs:
           # Provider: Google AI Studio (Gemini) via LiteLLM.
           # Requires the GEMINI_API_KEY repository secret to be set.
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Pro requires the Gemini API paid tier (free-tier quota is 0); the
-          # consumer "Google AI Pro" plan does not enable API billing. Flash is
-          # the free-tier fallback.
-          config.model: "gemini/gemini-3.1-pro"
-          config.fallback_models: '["gemini/gemini-3.5-flash"]'
+          # Flash models are available on the Gemini API free tier (no billing
+          # required). The previously configured gemini-3.x IDs do not exist and
+          # returned 404 (NOT_FOUND).
+          config.model: "gemini/gemini-2.5-flash"
+          config.fallback_models: '["gemini/gemini-2.0-flash"]'
           # PR-Agent v0.34 does not know these models' token window; declare it
-          # explicitly (Gemini input window = 1,048,576 tokens).
+          # explicitly (Gemini Flash input window = 1,048,576 tokens).
           config.custom_model_max_tokens: "1048576"
           # To use OpenAI instead, uncomment:
           # OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
