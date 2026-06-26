@@ -33,6 +33,17 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault();
+      const target = event.target as HTMLElement;
+
+      if (
+        target.nodeName === 'INPUT' ||
+        target.nodeName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
       const isModifierPressed = event.ctrlKey || event.metaKey;
 
       if (!isModifierPressed) return;
@@ -49,7 +60,6 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
 
       if (!nextTab) return;
 
-      event.preventDefault();
       setSelectedTab(nextTab);
     };
 
