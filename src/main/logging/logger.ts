@@ -13,7 +13,6 @@ console.info('Saving logs at', app.getPath('logs'));
 type TransformableInfoExtended = TransformableInfo & LogEntry;
 
 declare global {
-   
   var logger: winston.Logger & {
     secret: {
       info: (message: string, ...meta: unknown[]) => void;

@@ -1,4 +1,5 @@
-import { AuthorizationType ,
+import {
+  AuthorizationType,
   OAuth2ClientAuthenticationMethod,
   OAuth2ClientCrentialsAuthorizationInformation,
   OAuth2Method,
