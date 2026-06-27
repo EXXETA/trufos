@@ -8,8 +8,7 @@ import {
   BasicAuthorizationInformation,
   BearerAuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
-} from 'shim/objects';
-import { OAuth2ClientCrentialsAuthorizationInformation, OAuth2Method } from 'shim/objects';
+ OAuth2ClientCrentialsAuthorizationInformation, OAuth2Method } from 'shim/objects';
 import ClientCredentialsAuthorizationStrategy from './oauth2/client-credentials';
 
 describe('createAuthStrategy()', () => {

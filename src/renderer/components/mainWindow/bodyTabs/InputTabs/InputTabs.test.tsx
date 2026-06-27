@@ -6,7 +6,7 @@ import { TrufosQueryParam } from 'shim/objects/query-param';
 import { InputTabs } from './InputTabs';
 
 let mockHeaders: TrufosHeader[] = [];
-let mockQueryParams: TrufosQueryParam[] = [];
+const mockQueryParams: TrufosQueryParam[] = [];
 
 // Mock child components to avoid their store dependencies
 vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab', () => ({

@@ -4,9 +4,8 @@ import { fs } from 'memfs';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { Collection } from 'shim/objects/collection';
-import { TrufosRequest } from 'shim/objects/request';
+import { TrufosRequest , RequestBodyType } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
-import { RequestBodyType } from 'shim/objects/request';
 import { Folder } from 'shim/objects/folder';
 
 vi.mock('electron', () => ({
