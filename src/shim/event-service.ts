@@ -215,4 +215,15 @@ export interface IEventService {
    * @param script The script content to save.
    */
   saveScript(request: TrufosRequest, type: ScriptType, script: string): Promise<void>;
+
+  /**
+   * Save a response body to disk. Opens a native save dialog with a suggested filename
+   * derived from the Content-Disposition or Content-Type header, then copies the
+   * response body temp file to the chosen path. The response body never enters the
+   * renderer process.
+   *
+   * @param responseId The ID of the response body to save.
+   * @returns The saved file path, or null if the user cancelled or the body is unavailable.
+   */
+  downloadResponse(responseId: string): Promise<string | null>;
 }

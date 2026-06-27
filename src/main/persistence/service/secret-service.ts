@@ -1,4 +1,5 @@
 import { safeStorage } from 'electron';
+import { Buffer } from 'node:buffer';
 
 export class SecretService {
   public static readonly instance = new SecretService();

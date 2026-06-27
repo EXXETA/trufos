@@ -2,14 +2,13 @@ import './logging/logger';
 
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import 'main/event/main-event-service';
+import { MainEventService } from 'main/event/main-event-service';
 import path from 'node:path';
 import quit from 'electron-squirrel-startup';
 import { SettingsService } from './persistence/service/settings-service';
 import { once } from 'node:events';
 import process from 'node:process';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
-import { MainEventService } from 'main/event/main-event-service';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
