@@ -8,18 +8,20 @@ import { SendButton } from './mainTopBar/SendButton';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
-import { ArrowRight, Loader2, SaveIcon, EraserIcon } from 'lucide-react';
+import { ArrowRight, Loader2, SaveIcon, EraserIcon, Code } from 'lucide-react';
 import { showError } from '@/error/errorHandler';
 import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
+import { CodeGeneratorModal } from './mainTopBar/CodeGeneratorModal';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 export function MainTopBar() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isCodeGenOpen, setIsCodeGenOpen] = useState(false);
 
   const { updateRequest, discardChanges } = useCollectionActions();
   const { addResponse } = useResponseActions();
@@ -48,25 +50,22 @@ export function MainTopBar() {
 
   const saveRequest = useCallback(
     useErrorHandler(async () => {
-      if (request == null) return;
-
-      console.info('Saving request:', request);
       await Promise.all(editor.getModels().map(saveModelContent));
-
-      updateRequest(await eventService.saveChanges(request), true);
+      await eventService.saveChanges(request);
     }),
     [request]
   );
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
-      if (isSaveShortcut && request?.draft) {
-        event.preventDefault();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
         saveRequest();
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
@@ -79,6 +78,10 @@ export function MainTopBar() {
         <UrlInput url={url} onChange={handleUrlChange} />
       </div>
 
+      <IconButton onClick={() => setIsCodeGenOpen(true)} title="Generate code snippet">
+        <Code size={18} />
+      </IconButton>
+
       <IconButton disabled={!request?.draft} onClick={discardChanges}>
         <EraserIcon />
       </IconButton>
@@ -90,6 +93,14 @@ export function MainTopBar() {
       <SendButton onClick={sendRequest} disabled={isLoading}>
         {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
       </SendButton>
+
+      {request && (
+        <CodeGeneratorModal
+          isOpen={isCodeGenOpen}
+          onClose={() => setIsCodeGenOpen(false)}
+          request={request}
+        />
+      )}
     </div>
   );
 }
