@@ -8,6 +8,7 @@ import {
   VariableMap,
   VariableObject,
   EnvironmentMap,
+  TrufosHeader,
 } from './objects';
 import { ClientCertificate } from './objects/collection';
 import { ScriptType } from './scripting';
@@ -15,6 +16,11 @@ import { ScriptType } from './scripting';
 export type ImportStrategy = 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia';
 
 export interface IEventService {
+  /**
+   * Introspects the GraphQL schema at the given URL using the provided headers.
+   */
+  introspectSchema(url: string, headers: TrufosHeader[]): Promise<unknown>;
+
   /**
    * (Re)load the last opened collection.
    * @param force If true, the collection is reloaded even if it is already loaded.

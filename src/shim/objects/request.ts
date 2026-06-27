@@ -10,6 +10,7 @@ export enum RequestBodyType {
   TEXT = 'text',
   FILE = 'file',
   FORM_DATA = 'form-data',
+  GRAPHQL = 'graphql',
 }
 
 export const TextBody = z.object({
@@ -47,7 +48,19 @@ export const FormDataBody = z.object({
 });
 export type FormDataBody = z.infer<typeof FormDataBody>;
 
-export const RequestBody = z.discriminatedUnion('type', [TextBody, FileBody, FormDataBody]);
+export const GraphQLBody = z.object({
+  type: z.literal(RequestBodyType.GRAPHQL),
+  query: z.string().optional(),
+  variables: z.string().optional(),
+});
+export type GraphQLBody = z.infer<typeof GraphQLBody>;
+
+export const RequestBody = z.discriminatedUnion('type', [
+  TextBody,
+  FileBody,
+  FormDataBody,
+  GraphQLBody,
+]);
 export type RequestBody = z.infer<typeof RequestBody>;
 
 export const TrufosRequest = z.object({

@@ -167,7 +167,27 @@ export const createCollectionStore = (collection: Collection) => {
           if (overwrite) {
             state.requests.set(state.selectedRequestId!, updatedRequest as TrufosRequest);
           } else {
-            state.requests.set(state.selectedRequestId!, { ...request, ...updatedRequest });
+            const nextRequest = { ...request, ...updatedRequest };
+            if (
+              updatedRequest.method === RequestMethod.GRAPHQL &&
+              request.method !== RequestMethod.GRAPHQL
+            ) {
+              nextRequest.body = {
+                type: RequestBodyType.GRAPHQL,
+                query: '',
+                variables: '{}',
+              };
+            } else if (
+              request.method === RequestMethod.GRAPHQL &&
+              updatedRequest.method &&
+              updatedRequest.method !== RequestMethod.GRAPHQL
+            ) {
+              nextRequest.body = {
+                type: RequestBodyType.TEXT,
+                mimeType: 'text/plain',
+              };
+            }
+            state.requests.set(state.selectedRequestId!, nextRequest);
             markDraft(state);
           }
         });

@@ -17,16 +17,14 @@ import { RequestMethod } from 'shim/objects/request-method';
 
 function isPKCEConfig(
   auth:
-    | OAuth2ClientAuthorizationCodeFlowInformation
-    | OAuth2ClientAuthorizationCodeFlowPKCEInformation
+    OAuth2ClientAuthorizationCodeFlowInformation | OAuth2ClientAuthorizationCodeFlowPKCEInformation
 ): auth is OAuth2ClientAuthorizationCodeFlowPKCEInformation {
   return auth.method === OAuth2Method.AUTHORIZATION_CODE_PKCE;
 }
 
 export default class AuthCodeFlowAuthorizationStrategy<
   T extends
-    | OAuth2ClientAuthorizationCodeFlowInformation
-    | OAuth2ClientAuthorizationCodeFlowPKCEInformation,
+    OAuth2ClientAuthorizationCodeFlowInformation | OAuth2ClientAuthorizationCodeFlowPKCEInformation,
 > extends OAuth2AuthStrategy<T> {
   private async getCurrentUrl(authorizationUrl: URL, callbackUrl: string) {
     let redirectUrl: URL | undefined;

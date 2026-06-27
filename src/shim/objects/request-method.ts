@@ -8,4 +8,5 @@ export enum RequestMethod {
   HEAD = 'HEAD',
   CONNECT = 'CONNECT',
   TRACE = 'TRACE',
+  GRAPHQL = 'GRAPHQL',
 }

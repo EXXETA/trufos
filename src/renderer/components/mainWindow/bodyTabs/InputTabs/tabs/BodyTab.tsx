@@ -12,6 +12,7 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import BodyTabFileInput from './BodyTabFileInput';
 import BodyTabTextInput from './BodyTabTextInput';
 import { FormDataTab } from './FormDataTab';
+import { GraphQLBodyEditor } from './GraphQLBodyEditor';
 import { Button } from '@/components/ui/button';
 import { WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,8 +24,8 @@ export const BodyTab = () => {
 
   const requestBody = useCollectionStore((state) => selectRequest(state)!.body);
   const mimeType = 'mimeType' in requestBody ? requestBody.mimeType : undefined;
-  const language = mimeTypeToLanguage(mimeType!);
-  const canFormatRequestBody = isFormattableLanguage(language);
+  const language = mimeType ? mimeTypeToLanguage(mimeType) : undefined;
+  const canFormatRequestBody = language ? isFormattableLanguage(language) : false;
 
   const changeBodyType = useCallback(
     (type: RequestBodyType) => {
@@ -37,6 +38,9 @@ export const BodyTab = () => {
           break;
         case RequestBodyType.FORM_DATA:
           setRequestBody({ type, fields: [] });
+          break;
+        case RequestBodyType.GRAPHQL:
+          setRequestBody({ type, query: '', variables: '{}' });
           break;
       }
     },
@@ -59,9 +63,10 @@ export const BodyTab = () => {
                 [RequestBodyType.TEXT, 'Text'],
                 [RequestBodyType.FILE, 'File'],
                 [RequestBodyType.FORM_DATA, 'Form Data'],
+                [RequestBodyType.GRAPHQL, 'GraphQL'],
               ]}
             />
-            {requestBody.type === RequestBodyType.TEXT && (
+            {requestBody.type === RequestBodyType.TEXT && language && (
               <SimpleSelect<Language>
                 value={language}
                 onValueChange={(language) => setRequestBodyMimeType(languageToMimeType(language))}
@@ -93,10 +98,12 @@ export const BodyTab = () => {
         <FormDataTab />
       ) : requestBody.type === RequestBodyType.FILE ? (
         <BodyTabFileInput className="px-4 pb-2" />
+      ) : requestBody.type === RequestBodyType.GRAPHQL ? (
+        <GraphQLBodyEditor />
       ) : (
         <BodyTabTextInput
           className="pr-4"
-          language={language}
+          language={language!}
           onMount={(editorInstance) => {
             editorRef.current = editorInstance;
           }}
