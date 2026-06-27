@@ -23,7 +23,7 @@ export class TemplateVariableSemanticTokensProvider
 
     for (let i = 0; i < model.getLineCount(); i++) {
       this.regex.lastIndex = 0; // reset regex
-      for (let match; (match = this.regex.exec(model.getLineContent(i + 1))) !== null; ) {
+      for (let match; (match = this.regex.exec(model.getLineContent(i + 1))) !== null;) {
         tokens.push({
           lineNumber: i,
           column: match.index,

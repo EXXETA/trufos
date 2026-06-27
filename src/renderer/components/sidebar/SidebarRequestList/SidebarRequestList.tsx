@@ -46,8 +46,7 @@ export const SidebarRequestList = () => {
   const activeSensors = sortMode === SortMode.DEFAULT ? sensors : [];
 
   const sortFn = useMemo(():
-    | ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number)
-    | null => {
+    ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number) | null => {
     if (sortMode === SortMode.AZ_ASC) return (a, b) => a.title.localeCompare(b.title);
     if (sortMode === SortMode.AZ_DESC) return (a, b) => b.title.localeCompare(a.title);
     if (sortMode === SortMode.TIME_DESC)
