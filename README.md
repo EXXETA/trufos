@@ -3,95 +3,57 @@
 [![Discord](https://img.shields.io/discord/1328262093903892530?logo=discord&label=Discord&cacheSeconds=60)](https://discord.gg/sb4nfdevpW)
 ![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FEXXETA%2Ftrufos%2Frefs%2Fheads%2Fmain%2Fpackage.json&query=%24.version&label=version)
 
-<h1 align="center">Trufos - The REST Utility, free and Open Source</h1>
+<h1 align="center">Trufos — The REST Utility, Free and Open Source</h1>
 <p align="center">
-  A REST client that is both easy to use, efficient, and extendable.
+  A fast, offline-first REST client with no account required and no telemetry.
 </p>
-
-As many REST clients exist in the ecosystem, Trufos aims to provide an out-of-the-box experience
-that is fast, user-friendly, and customizable. Below is an overview of current and planned features:
-
-| Feature                                       | Status         | Notes                                                    |
-| --------------------------------------------- | -------------- | -------------------------------------------------------- |
-| Project maturity                              | 🚧 Early Stage | Active development; APIs & data shapes may evolve        |
-| Offline usage (no registration / login)       | ✅ Implemented | Works fully offline; all data stored locally             |
-| Cross-platform (Win / macOS / Linux)          | ✅ Implemented | Electron-based distribution with native packaging        |
-| Handling of large request & response payloads | ✅ Implemented | Streamed & chunked processing keeps UI responsive        |
-| Version control-friendly collections          | ✅ Implemented | Collections stored as JSON for easy diff & collaboration |
-| Third party collection import                 | ✅ Implemented | Currently supports Postman                               |
-| Environment & variable management             | ✅ Implemented | Named environments with scoped variables                 |
-| Authentication (JWT, OAuth 2.0, Basic)        | ✅ Implemented | Strategy factory incl. OAuth2 client credentials         |
-| Scripting (custom request/response handling)  | ✅ Implemented | Running scripts before and after requests                |
-
-If you would like to contribute to this project, please check out our [Contributing Guidelines](./CONTRIBUTING.md).
 
 ![Screenshot nothing selected](docs/images/Screenshot-nothing-selected.png)
 
 ![Screenshot request and response with variable](docs/images/Screenshot-request-variable.png)
 
+Trufos stores your collections as plain JSON files on disk, making them easy to version-control, diff, and share. It works fully offline — no registration, no cloud sync, no telemetry.
+
+**Features:**
+
+- Cross-platform — Windows, macOS, and Linux via Electron
+- Offline-only — all data stays on your machine
+- Version control-friendly — collections stored as JSON
+- Import Postman collections
+- Environment & variable management
+- Authentication — Basic, JWT, OAuth 2.0 (client credentials)
+- Pre/post request scripting
+- Handles large payloads without blocking the UI
+
 ## Installation
 
-Grab the latest release from the [GitHub Releases](https://github.com/EXXETA/trufos/releases) or our [Download](https://exxeta.github.io/trufos/download) page and install it for your platform:
+Grab the latest release from the [GitHub Releases](https://github.com/EXXETA/trufos/releases) or the [Download](https://exxeta.github.io/trufos/download) page:
 
-- Windows: Download the `Setup.exe` installer
-- macOS: Download the `.dmg` image
-- Linux: Download the `.deb` installer or `.zip` file
-
-No account or telemetry is required—Trufos runs locally and keeps your data on your machine.
+- **Windows:** `Setup.exe` installer
+- **macOS:** `.dmg` image
+- **Linux:** `.deb` installer or `.zip` archive
 
 ## Requirements
 
-As Trufos is an Electron application, it can run on Windows, macOS, and Linux without any issues. If
-you want to develop or build this software yourself, you will need Node.js version 24. We use **yarn**
-and not NPM in this project as it can better handle peer dependencies. **Do not install dependencies with NPM!**
+Trufos is an Electron application and runs on Windows, macOS, and Linux. To build or develop locally you need Node.js 24. This project uses **yarn** — do not use npm to install dependencies. If you're using yarn for the first time on your machine, run `corepack enable` before continuing. This project ships yarn with it, you don't need to install it manually on your machine.
 
 ### Local Development
 
-1. Clone this repository
-2. Run `yarn install` to install all dependencies
-3. Run `yarn start` to start the application in development mode
+```sh
+git clone https://github.com/EXXETA/trufos
+cd trufos
+yarn install
+yarn start
+```
 
-### Building the Application
+### Building
 
-1. Run `yarn install` to install all dependencies
-2. Run `yarn run make` to build the application for your platform
-3. The built application will be in the `out/make` directory
-   - Windows: a `Setup.exe` file
-   - macOS: a `.dmg` file
-   - Linux: a `.deb` and a `.zip` file
+```sh
+yarn install
+yarn run make
+```
 
-## Usage
-
-Once Trufos is installed and launched, you can start adding endpoints, customizing them, and making
-calls.
-
-### Example Usage
-
-Here’s a simple example of how to add and utilize an endpoint:
-
-1. Click on "Create New Request".
-2. Enter the URL.
-3. Select the method (`GET`, `POST`, etc.).
-4. Optionally, add headers and body content.
-5. Click "Send Request" and review the response in the results area.
-
-### Importing Collections
-
-You can import existing Postman collections to migrate quickly:
-
-1. Open the collection import view.
-2. Select the Postman collection file or directory.
-3. Confirm import; Trufos will convert and persist it under a folder named after the collection title.
-
-Collections are saved in a version-control-friendly JSON structure so you can diff and review changes.
-
-### Environments & Variables
-
-Define multiple environments (e.g., `dev`, `staging`, `prod`) each with its own variables. Selecting an environment scopes variable resolution for requests. Variables and environments are also stored as JSON ensuring easy collaboration.
-
-### Large Payload Streaming
-
-Trufos uses IPC push streams to process large request/response bodies incrementally. This avoids blocking the UI and keeps memory usage lower when dealing with multi-megabyte payloads.
+The output lands in `out/make` — a `Setup.exe` on Windows, `.dmg` on macOS, and `.deb`/`.zip` on Linux.
 
 ### Development Commands
 
@@ -104,38 +66,31 @@ Trufos uses IPC push streams to process large request/response bodies incrementa
 | `yarn prettier`       | Format code (TS/TSX) with Prettier                |
 | `yarn prettier-check` | Check formatting without writing changes          |
 
+## Usage
+
+### Importing Collections
+
+Open the collection import view, select a Postman collection file or directory, and confirm. Trufos converts and saves it under a folder named after the collection title.
+
+### Environments & Variables
+
+Define named environments (e.g. `dev`, `staging`, `prod`) each with their own variables. Switching environments scopes variable resolution across all requests. Environments are stored as JSON alongside your collections.
+
 ## FAQ
 
-- Where can I find the saved Requests?
-- The saved requests are in this folder:
-  - Mac: `~/Library/Application\ Support/Trufos/default-collection`
-  - Windows: `%AppData%\Trufos\default-collection`
+**Where are my saved requests?**
 
-- Where can I find the logs?
-- The logs are in this folder:
-  - Mac: `~/Library/Logs/Trufos`
-  - Windows: `%AppData%\Trufos\logs`
+- macOS: `~/Library/Application Support/Trufos/default-collection`
+- Windows: `%AppData%\Trufos\default-collection`
+
+**Where are the logs?**
+
+- macOS: `~/Library/Logs/Trufos`
+- Windows: `%AppData%\Trufos\logs`
 
 ## Contributing
 
-If you would like to contribute to this project, please check out our
-[Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md) before you
-begin.
-
-We welcome feedback, suggestions, and pull requests!
-
-### AI Code Review Setup (Maintainers only)
-
-Pull requests are automatically reviewed by [PR-Agent (Codium AI)](https://github.com/Codium-ai/pr-agent).
-After merging the AI review workflow, a repository maintainer must add the following secret under
-**Settings → Secrets and variables → Actions**:
-
-| Secret name  | Value                                  |
-| ------------ | -------------------------------------- |
-| `OPENAI_KEY` | An OpenAI API key (GPT-4o recommended) |
-
-To use Anthropic Claude instead, add `ANTHROPIC_API_KEY` and update the workflow file accordingly
-(see comments in `.github/workflows/ai-review.yml`).
+Check out the [Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md) before you start. Feedback, suggestions, and pull requests are welcome.
 
 ## Licence
 

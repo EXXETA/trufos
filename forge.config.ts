@@ -57,18 +57,23 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     executableName: 'trufos',
-    icon: './images/icon',
+    icon:
+      process.platform === 'darwin'
+        ? ['./images/macos/icon.icns', './images/macos/icon.icon']
+        : process.platform === 'win32'
+          ? './images/windows/icon'
+          : './images/linux/icons/512x512',
     osxSign,
     osxNotarize,
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({}),
+    new MakerSquirrel({ setupIcon: './images/windows/icon.ico' }),
     new MakerZIP({}, ['linux']),
-    new MakerDMG(),
+    new MakerDMG({ icon: './images/macos/icon.icns' }),
     new MakerDeb({
       options: {
-        icon: './images/logo-256.png',
+        icon: './images/linux/icons/256x256.png',
         categories: ['Utility', 'Development'],
         description: 'A cross-platform desktop REST client',
         productDescription: 'Trufos is a cross-platform desktop REST client built with Electron.',
