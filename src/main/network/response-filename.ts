@@ -1,36 +1,9 @@
-const MIME_EXTENSIONS: Record<string, string> = {
-  'application/json': '.json',
-  'application/vnd.api+json': '.json',
-  'text/html': '.html',
-  'text/plain': '.txt',
-  'text/css': '.css',
-  'text/javascript': '.js',
-  'application/javascript': '.js',
-  'text/xml': '.xml',
-  'application/xml': '.xml',
-  'image/png': '.png',
-  'image/jpeg': '.jpg',
-  'image/gif': '.gif',
-  'image/svg+xml': '.svg',
-  'image/webp': '.webp',
-  'image/bmp': '.bmp',
-  'application/pdf': '.pdf',
-  'application/zip': '.zip',
-  'application/gzip': '.gz',
-  'application/x-tar': '.tar',
-  'application/x-bzip2': '.bz2',
-  'application/x-www-form-urlencoded': '.txt',
-  'application/octet-stream': '.bin',
-  'multipart/form-data': '.txt',
-};
+import mime from 'mime-types';
 
-type HeadersInput = Record<string, string | string[] | undefined>;
+import type { HttpHeaders } from 'shim/headers';
 
-function getHeaderValue(headers: HeadersInput, key: string): string | undefined {
-  const actualKey = Object.keys(headers).find((k) => k.toLowerCase() === key.toLowerCase());
-  if (!actualKey) return undefined;
-  const value = headers[actualKey];
-  if (value === undefined) return undefined;
+function getHeaderValue(headers: HttpHeaders, key: string): string | undefined {
+  const value = headers[key.toLowerCase()];
   return Array.isArray(value) ? value[0] : value;
 }
 
@@ -43,34 +16,23 @@ export function sanitizeFilename(name: string): string {
 }
 
 export function parseContentDispositionFilename(disposition: string): string | undefined {
-  const parts = disposition.split(';').map((s) => s.trim());
-
-  for (const part of parts) {
-    if (part.startsWith('filename*=')) {
-      const value = part.slice('filename*='.length);
-      const match = value.match(/^(?:UTF-8|ISO-8859-1)''(.+)$/i);
-      if (match) {
-        try {
-          return sanitizeFilename(decodeURIComponent(match[1]));
-        } catch {
-          return undefined;
-        }
-      }
+  const starMatch = disposition.match(/filename\*=(?:UTF-8|ISO-8859-1)''([^;]+)/i);
+  if (starMatch) {
+    try {
+      return sanitizeFilename(decodeURIComponent(starMatch[1]));
+    } catch {
+      return undefined;
     }
   }
 
-  for (const part of parts) {
-    if (part.startsWith('filename=')) {
-      const value = part.slice('filename='.length);
-      const name = value.replace(/^["']|["']$/g, '').trim();
-      if (name) return sanitizeFilename(name);
-    }
+  const plainMatch = disposition.match(/filename=["']?([^"';\r\n]+)["']?/i);
+  if (plainMatch) {
+    const name = plainMatch[1].trim();
+    if (name) return sanitizeFilename(name);
   }
-
-  return undefined;
 }
 
-export function getSuggestedFilename(headers: HeadersInput): string {
+export function getSuggestedFilename(headers: HttpHeaders): string {
   const disposition = getHeaderValue(headers, 'content-disposition');
   if (disposition) {
     const parsed = parseContentDispositionFilename(disposition);
@@ -79,9 +41,8 @@ export function getSuggestedFilename(headers: HeadersInput): string {
 
   const contentType = getHeaderValue(headers, 'content-type');
   if (contentType) {
-    const mime = contentType.split(';')[0].trim();
-    const ext = MIME_EXTENSIONS[mime] ?? '.bin';
-    return `response${ext}`;
+    const ext = mime.extension(contentType);
+    if (ext) return `response.${ext}`;
   }
 
   return 'response.bin';
