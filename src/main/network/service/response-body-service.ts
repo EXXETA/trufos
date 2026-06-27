@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
+import { copyFile } from 'node:fs/promises';
 import type { HttpHeaders } from 'shim/headers';
 
 export interface ResponseBodyEntry {
@@ -27,6 +28,18 @@ export class ResponseBodyService {
 
   public getEntry(responseId: string): ResponseBodyEntry | undefined {
     return this.responseBodyMap.get(responseId);
+  }
+
+  public async downloadResponse(responseId: string, chosenPath: string): Promise<string | null> {
+    const entry = this.getEntry(responseId);
+    if (!entry) {
+      logger.warn(`Response body not found for ID: ${responseId}`);
+      return null;
+    }
+
+    await copyFile(entry.filePath, chosenPath);
+    logger.info(`Response body saved to ${chosenPath}`);
+    return chosenPath;
   }
 
   public remove(responseId: string): void {

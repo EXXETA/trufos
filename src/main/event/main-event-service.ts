@@ -18,7 +18,6 @@ import { ImportService } from 'main/import/service/import-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { getSuggestedFilename } from 'main/network/response-filename';
-import fs from 'node:fs/promises';
 import { updateElectronApp } from 'update-electron-app';
 
 // register stream events
@@ -230,21 +229,16 @@ export class MainEventService implements IEventService {
     }
 
     const defaultPath = getSuggestedFilename(entry.headers);
-    const parentWindow = this.webContents
-      ? BrowserWindow.fromWebContents(this.webContents) ?? undefined
-      : undefined;
-
-    const { canceled, filePath: chosenPath } = parentWindow
-      ? await dialog.showSaveDialog(parentWindow, { defaultPath })
-      : await dialog.showSaveDialog({ defaultPath });
+    const { canceled, filePath: chosenPath } = await dialog.showSaveDialog(
+      BrowserWindow.fromWebContents(this.webContents!)!,
+      { defaultPath }
+    );
 
     if (canceled || !chosenPath) {
       return null;
     }
 
-    await fs.copyFile(entry.filePath, chosenPath);
-    logger.info(`Response body saved to ${chosenPath}`);
-    return chosenPath;
+    return await ResponseBodyService.instance.downloadResponse(responseId, chosenPath);
   }
 
   updateApp() {

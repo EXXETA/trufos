@@ -2,7 +2,7 @@ import './logging/logger';
 
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import 'main/event/main-event-service';
+import { MainEventService } from 'main/event/main-event-service';
 import path from 'node:path';
 import quit from 'electron-squirrel-startup';
 import { SettingsService } from './persistence/service/settings-service';
