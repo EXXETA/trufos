@@ -24,6 +24,7 @@ import {
 } from '@/state/environmentStore';
 import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { deepEqual } from '@/util/object-util';
 import { ClientCertificate } from 'shim/objects/collection';
 import { VariableObjectWithKey } from 'shim/objects/variables';
 import { EnvironmentMap } from 'shim/objects/environment';
@@ -67,14 +68,10 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
   });
 
   const [draft, setDraft] = useState<CollectionDraft>(buildDraft);
-  // Snapshot of the draft captured when the modal opened. Used to detect unsaved changes.
-  const [initialDraftJson, setInitialDraftJson] = useState('');
+  const [initialDraft, setInitialDraft] = useState<CollectionDraft | null>(null);
 
   const update = (partial: Partial<CollectionDraft>) => setDraft((d) => ({ ...d, ...partial }));
 
-  // Validity is derived directly from the draft rather than from child callbacks, so it stays
-  // correct regardless of which tab is currently mounted (Radix unmounts inactive tabs) and is
-  // recomputed every time the modal reopens.
   const isGeneralValid = draft.title.trim().length > 0;
   const isVariablesValid = getInvalidVariableKeys(draft.variables).size === 0;
   const selectedEnvironment_ =
@@ -85,15 +82,14 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
       : getInvalidVariableKeys(variableMapToArray(selectedEnvironment_.variables)).size === 0;
   const isOverallValid = isGeneralValid && isVariablesValid && isEnvironmentValid;
 
-  // Only allow saving when the form is valid AND something actually changed.
-  const isDirty = JSON.stringify(draft) !== initialDraftJson;
-  const canSave = isOverallValid && isDirty;
+  const somethingChanged = initialDraft !== null && !deepEqual(draft, initialDraft);
+  const canSave = isOverallValid && somethingChanged;
 
   useEffect(() => {
     if (isOpen) {
-      const draft = buildDraft();
-      setDraft(draft);
-      setInitialDraftJson(JSON.stringify(draft));
+      const initial = buildDraft();
+      setDraft(initial);
+      setInitialDraft(initial);
     }
   }, [isOpen]);
 
