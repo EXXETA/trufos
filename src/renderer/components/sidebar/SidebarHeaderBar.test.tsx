@@ -28,8 +28,8 @@ vi.mock('@/components/sidebar/CollectionDropdown', () => ({
   default: () => <div>CollectionDropdown</div>,
 }));
 
-vi.mock('@/components/sidebar/CollectionSettings', () => ({
-  CollectionSettings: () => null,
+vi.mock('@/components/shared/settings/CollectionSettingsModal', () => ({
+  CollectionSettingsModal: () => null,
 }));
 
 vi.mock('@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal', () => ({
