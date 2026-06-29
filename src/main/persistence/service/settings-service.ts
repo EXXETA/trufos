@@ -4,8 +4,11 @@ import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { Initializable } from 'main/shared/initializable';
 import { SemVer } from 'main/util/semver';
 import { BrowserWindowConstructorOptions } from 'electron';
+import { AppSettings } from 'shim/app-settings';
 
-export const VERSION = new SemVer(1, 1, 0);
+const DEFAULT_APP_SETTINGS: AppSettings = { theme: 'system' };
+
+export const VERSION = new SemVer(1, 2, 0);
 
 type VersionedObject = { version: string };
 
@@ -18,24 +21,35 @@ export interface SettingsObject {
 
   /** The state of the main window (size and position) */
   windowState?: Pick<BrowserWindowConstructorOptions, 'width' | 'height' | 'x' | 'y'>;
+
+  /** Application-level UI settings (theme, etc.) */
+  preferences?: AppSettings;
 }
 
-type SettingsInfoFile = SettingsObject & { version: typeof VERSION.string };
+type SettingsInfoFile = SettingsObject & { version: string };
 
 interface SettingsFile_V_1_0_0 {
-  /** The index of the currently opened collection inside the collections array */
   currentCollectionIndex: number;
-
-  /** A list of all the collection directories that have been opened */
   collections: string[];
-
   version: '1.0.0';
+}
+
+interface SettingsFile_V_1_1_0 {
+  currentCollectionIndex: number;
+  collections: string[];
+  windowState?: Pick<BrowserWindowConstructorOptions, 'width' | 'height' | 'x' | 'y'>;
+  version: '1.1.0';
 }
 
 type SettingsMigrator<I, O> = (old: I) => O;
 
 const MIGRATORS = {
-  '1.0.0': (old: SettingsFile_V_1_0_0): SettingsInfoFile => ({ ...old, version: VERSION.string }),
+  '1.0.0': (old: SettingsFile_V_1_0_0): SettingsFile_V_1_1_0 => ({ ...old, version: '1.1.0' }),
+  '1.1.0': (old: SettingsFile_V_1_1_0): SettingsInfoFile => ({
+    ...old,
+    preferences: DEFAULT_APP_SETTINGS,
+    version: VERSION.string,
+  }),
 } as const;
 
 /**
@@ -94,7 +108,7 @@ export class SettingsService implements Initializable {
   }
 
   private async writeSettings() {
-    const settings: SettingsObject & Partial<SettingsInfoFile> = this.modifiableSettings;
+    const settings: SettingsObject & { version?: string } = this.modifiableSettings;
     settings.version = VERSION.string;
     await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(settings, null, 2));
   }

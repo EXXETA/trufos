@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { ThemePreference, TrufosTheme, useAppSettings } from './AppSettingsContext';
+import { TrufosTheme, type ThemePreference } from 'shim/app-settings';
+import { selectThemePreference, useAppSettingsActions, useAppSettingsStore } from '@/state/appSettingsStore';
 
 export { TrufosTheme };
 
@@ -23,15 +24,16 @@ const getSystemTheme = (): TrufosTheme =>
   window.matchMedia('(prefers-color-scheme: dark)').matches ? TrufosTheme.Dark : TrufosTheme.Light;
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { settings, updateSettings } = useAppSettings();
+  const themePreference = useAppSettingsStore(selectThemePreference);
+  const { updateSettings } = useAppSettingsActions();
 
   const [resolvedTheme, setResolvedTheme] = useState<TrufosTheme>(() =>
-    settings.theme === 'system' ? getSystemTheme() : (settings.theme as TrufosTheme)
+    themePreference === 'system' ? getSystemTheme() : (themePreference as TrufosTheme)
   );
 
   useEffect(() => {
-    if (settings.theme !== 'system') {
-      setResolvedTheme(settings.theme as TrufosTheme);
+    if (themePreference !== 'system') {
+      setResolvedTheme(themePreference as TrufosTheme);
       return;
     }
     setResolvedTheme(getSystemTheme());
@@ -40,7 +42,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setResolvedTheme(e.matches ? TrufosTheme.Dark : TrufosTheme.Light);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
-  }, [settings.theme]);
+  }, [themePreference]);
 
   useEffect(() => {
     const root = document.documentElement;

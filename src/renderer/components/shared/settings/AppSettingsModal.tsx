@@ -6,7 +6,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { FiSettings } from 'react-icons/fi';
-import { useAppSettings, TrufosTheme, ThemePreference } from '@/contexts/AppSettingsContext';
+import { TrufosTheme, type ThemePreference } from 'shim/app-settings';
+import { selectThemePreference, useAppSettingsActions, useAppSettingsStore } from '@/state/appSettingsStore';
 import { cn } from '@/lib/utils';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -16,7 +17,8 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 ];
 
 export const AppSettingsModal = () => {
-  const { settings, updateSettings } = useAppSettings();
+  const theme = useAppSettingsStore(selectThemePreference);
+  const { updateSettings } = useAppSettingsActions();
 
   return (
     <Dialog>
@@ -39,7 +41,7 @@ export const AppSettingsModal = () => {
                   onClick={() => updateSettings({ theme: value })}
                   className={cn(
                     'px-4 py-1.5 text-sm transition-colors',
-                    settings.theme === value
+                    theme === value
                       ? 'bg-(--accent-primary) text-white'
                       : 'text-(--text-secondary) hover:bg-(--border) hover:text-(--text-primary)'
                   )}
