@@ -24,24 +24,36 @@ jobs:
         uses: Codium-ai/pr-agent@v0.34
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Provider: Google AI Studio (Gemini) via LiteLLM.
-          # Requires the GEMINI_API_KEY repository secret to be set.
-#          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Flash models are available on the Gemini API free tier (no billing
-          # required). The previously configured gemini-3.x IDs do not exist and
-          # returned 404 (NOT_FOUND).
-#          config.model: "gemini/gemini-2.5-flash"
-#          config.fallback_models: '["gemini/gemini-2.0-flash"]'
-          # PR-Agent v0.34 does not know these models' token window; declare it
-          # explicitly (Gemini Flash input window = 1,048,576 tokens).
-          config.custom_model_max_tokens: "1048576"
-          # To use OpenAI instead, uncomment:
+
+          # === Active provider: Claude Sonnet 4.6 via Exxeta LiteLLM proxy ===
+          # ai.exxeta.info is an OpenAI-compatible LiteLLM proxy fronting Bedrock.
+          # The openai/ prefix forces LiteLLM to honor OPENAI__API_BASE; the model
+          # name after it is the proxy's public id from /v1/models (note the dot:
+          # "claude-sonnet-4.6", not "claude-sonnet-4-6").
+          # OPENAI_API_BASE_URL points at the proxy (e.g. https://ai.exxeta.info/v1);
+          # OPENAI_KEY is a proxy virtual key.
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
-          config.model: "claude-sonnet-4.6"
-          # To use Anthropic Claude instead, uncomment:
+          config.model: "openai/claude-sonnet-4.6"
+          # Override PR-Agent's default fallback (o4-mini, not on this proxy) with
+          # a model the proxy actually serves.
+          config.fallback_models: '["openai/claude-haiku-4.5"]'
+          # PR-Agent v0.34 does not know this model's token window; declare it
+          # explicitly so large diffs are not truncated.
+          config.custom_model_max_tokens: "1000000"
+
+          # === Alternative: Google AI Studio (Gemini) via LiteLLM ===
+          # Comment out the OPENAI_* block above and uncomment the lines below.
+          # Requires the GEMINI_API_KEY repository secret. Flash models are
+          # available on the Gemini free tier (no billing required).
+          # GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # config.model: "gemini/gemini-2.5-flash"
+          # config.fallback_models: '["gemini/gemini-2.0-flash"]'
+
+          # === Alternative: Anthropic Claude (native API) ===
+          # Comment out the OPENAI_* block above and uncomment the lines below.
           # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # config.model: "anthropic/claude-sonnet-4-5"
+          # config.model: "anthropic/claude-sonnet-4-6"
 
           # Automatically review every new / updated PR
           github_action_config.auto_review: "true"
