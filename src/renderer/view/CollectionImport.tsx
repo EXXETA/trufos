@@ -17,11 +17,59 @@ import {
 import FilePicker from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
-import { ImportStrategy } from 'shim/event-service';
+import type { ImportStrategy, ImportWarning } from 'shim/event-service';
 import { showError } from '@/error/errorHandler';
 import { Collection } from 'shim/objects/collection';
+import { toast } from '@/components/ui/sonner';
 
 const eventService = RendererEventService.instance;
+
+function showImportWarnings(warnings: ImportWarning[]) {
+  if (warnings.length === 0) return;
+
+  const groupedWarnings = warnings.reduce<Map<string, ImportWarning[]>>((groups, warning) => {
+    const group = groups.get(warning.message) ?? [];
+    group.push(warning);
+    groups.set(warning.message, group);
+    return groups;
+  }, new Map());
+
+  const visibleGroups = [...groupedWarnings.entries()].slice(0, 3);
+  const hiddenGroupCount = groupedWarnings.size - visibleGroups.length;
+
+  toast.warning('Import incomplete', {
+    description: (
+      <div className="mt-1 space-y-2">
+        <p>
+          Collection imported, but {warnings.length} item(s) were skipped because Trufos can only
+          import supported HTTP requests.
+        </p>
+        <div className="space-y-1">
+          {visibleGroups.map(([message, group]) => {
+            const visibleItems = group
+              .slice(0, 2)
+              .map((warning) => warning.filePath ?? warning.itemName ?? 'Unknown item')
+              .join(', ');
+            const hiddenItemCount = group.length - 2;
+
+            return (
+              <div key={message}>
+                <div className="text-foreground font-medium">{message}</div>
+                <div className="text-muted-foreground">
+                  {visibleItems}
+                  {hiddenItemCount > 0 ? `, +${hiddenItemCount} more` : ''}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {hiddenGroupCount > 0 ? (
+          <div className="text-muted-foreground">+{hiddenGroupCount} more problem type(s)</div>
+        ) : null}
+      </div>
+    ),
+  });
+}
 
 declare type ImportStrategyWithTrufos = ImportStrategy | 'Trufos';
 
@@ -98,12 +146,14 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
       if (strategy === 'Trufos') {
         collection = await eventService.openCollection(srcEntry!.path);
       } else {
-        collection = await eventService.importCollection(
+        const result = await eventService.importCollection(
           srcEntry!.path,
           targetEntry!.path,
           strategy,
           title!
         );
+        collection = result.collection;
+        showImportWarnings(result.warnings);
       }
       await changeCollection(collection);
       onClose?.();
@@ -115,7 +165,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   }, [srcEntry, targetEntry, strategy, title, onClose, changeCollection]);
 
   const dialogFooter = useMemo(() => {
-    if (strategy === 'Bruno' || strategy === 'Insomnia') {
+    if (strategy === 'Insomnia') {
       return null;
     }
     return (
@@ -227,8 +277,34 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             <TitleInput value={title ?? ''} onChange={setTitle} />
           </ImportTabsContent>
 
-          <ImportTabsContent strategy="Bruno" gap={false}>
-            <span>Coming soon...</span>
+          <ImportTabsContent strategy="Bruno">
+            <FilePicker
+              title="Select Bruno collection directory"
+              description="Select the folder containing the bruno.json file"
+              entry={srcEntry}
+              icon={<FolderSearchIcon size={36} />}
+              onFileSelected={setSrcEntry}
+              onFileRemoved={() => setSrcEntry(undefined)}
+              directoryMode
+              controlled
+            />
+            {/* Flow separator */}
+            <div className="flex items-center justify-center">
+              <div className="bg-separator h-px flex-1" />
+              <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
+              <div className="bg-separator h-px flex-1" />
+            </div>
+            <FilePicker
+              title="Select directory for new collection"
+              description="This is where the imported collection will be placed"
+              entry={targetEntry}
+              icon={<FolderPlusIcon size={36} />}
+              onFileSelected={setTargetEntry}
+              onFileRemoved={() => setTargetEntry(undefined)}
+              directoryMode
+              controlled
+            />
+            <TitleInput value={title ?? ''} onChange={setTitle} />
           </ImportTabsContent>
 
           <ImportTabsContent strategy="Insomnia" gap={false}>

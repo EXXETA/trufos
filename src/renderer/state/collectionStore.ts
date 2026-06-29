@@ -164,10 +164,17 @@ export const createCollectionStore = (collection: Collection) => {
           const request = selectRequest(state);
           if (request == null) return;
 
+          const requestId = state.selectedRequestId!;
+          const nextRequest = overwrite
+            ? (updatedRequest as TrufosRequest)
+            : { ...request, ...updatedRequest };
+
+          state.requests.set(requestId, nextRequest);
+          replaceChild(state, nextRequest);
+
           if (overwrite) {
-            state.requests.set(state.selectedRequestId!, updatedRequest as TrufosRequest);
+            return;
           } else {
-            state.requests.set(state.selectedRequestId!, { ...request, ...updatedRequest });
             markDraft(state);
           }
         });
@@ -261,10 +268,12 @@ export const createCollectionStore = (collection: Collection) => {
 
         await eventService.rename(request, title);
         set((state) => {
-          state.requests.set(id, {
+          const updatedRequest = {
             ...request,
             title,
-          });
+          };
+          state.requests.set(id, updatedRequest);
+          replaceChild(state, updatedRequest);
         });
       },
 
@@ -410,7 +419,9 @@ export const createCollectionStore = (collection: Collection) => {
 
         await eventService.rename(folder, title);
         set((state) => {
-          state.folders.set(id, { ...folder, title });
+          const updatedFolder = { ...folder, title };
+          state.folders.set(id, updatedFolder);
+          replaceChild(state, updatedFolder);
         });
       },
 
@@ -569,6 +580,15 @@ const selectParent = (state: CollectionState, parentId: string) => {
   if (state.collection!.id === parentId) return state.collection as Collection;
   return state.folders.get(parentId)!;
 };
+
+const replaceChild = (state: CollectionState, child: Folder | TrufosRequest) => {
+  const parent = selectParent(state, child.parentId);
+  const index = parent.children.findIndex(({ id }) => id === child.id);
+  if (index !== -1) {
+    parent.children[index] = child;
+  }
+};
+
 const selectObject = <T extends TrufosObject>(state: CollectionState, object: T) =>
   isCollection(object)
     ? (state.collection as T)

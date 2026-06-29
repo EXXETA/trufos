@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createCollectionStore } from './collectionStore';
 import { ClientCertificate, Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
+import { AuthorizationType } from 'shim/objects';
 
 vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: vi.fn() },
@@ -13,7 +14,12 @@ vi.mock('@/state/helper/collectionUtil', () => ({
 }));
 
 vi.mock('@/services/event/renderer-event-service', () => ({
-  RendererEventService: { instance: { setClientCertificate: vi.fn() } },
+  RendererEventService: {
+    instance: {
+      rename: vi.fn(),
+      setClientCertificate: vi.fn(),
+    },
+  },
 }));
 
 vi.mock('@/state/variableStore', () => ({
@@ -124,11 +130,27 @@ describe('markDraft', () => {
     const before = Date.now();
     const request = store.getState().requests.get(REQ_ID);
 
-    store.getState().updateAuthorization(request!, { type: 'bearer', token: 'abc' } as any);
+    store.getState().updateAuthorization(request!, {
+      type: AuthorizationType.BEARER,
+      token: 'abc',
+    });
 
     const state = store.getState();
     expect(state.requests.get(REQ_ID)!.draft).toBe(true);
     expect(state.requests.get(REQ_ID)!.lastModified).toBeGreaterThanOrEqual(before);
+  });
+});
+
+describe('renameRequest', () => {
+  it('updates the request in the collection tree after previous edits replaced the map entry', async () => {
+    const store = buildStore();
+
+    store.getState().updateRequest({ url: { base: 'http://example.com', query: [] } });
+    await store.getState().renameRequest(REQ_ID, 'Renamed request');
+
+    const state = store.getState();
+    expect(state.requests.get(REQ_ID)!.title).toBe('Renamed request');
+    expect(state.collection!.children[0].title).toBe('Renamed request');
   });
 });
 

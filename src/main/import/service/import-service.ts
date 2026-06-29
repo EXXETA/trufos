@@ -3,7 +3,8 @@ import { Collection } from 'shim/objects/collection';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { PostmanImporter } from './postman-importer';
 import { OpenApiImporter } from './openapi-importer';
-import { ImportStrategy } from 'shim/event-service';
+import { BrunoImporter } from './bruno-importer';
+import type { ImportResult, ImportStrategy, ImportWarning } from 'shim/event-service';
 import { sanitizeTitle } from 'shim/fs';
 import path from 'path';
 
@@ -13,6 +14,7 @@ export interface CollectionImporter {
    * @param srcFilePath the file or directory to read from
    */
   importCollection(srcFilePath: string): Promise<Collection>;
+  getWarnings?(): ImportWarning[];
 }
 
 const persistenceService = PersistenceService.instance;
@@ -23,6 +25,7 @@ export class ImportService {
   static {
     ImportService.instance.registerImporter('Postman', new PostmanImporter());
     ImportService.instance.registerImporter('OpenAPI', new OpenApiImporter());
+    ImportService.instance.registerImporter('Bruno', new BrunoImporter());
   }
 
   private readonly importers: Map<ImportStrategy, CollectionImporter> = new Map();
@@ -44,7 +47,7 @@ export class ImportService {
     targetDirPath: string,
     strategy: ImportStrategy,
     title?: string
-  ) {
+  ): Promise<ImportResult> {
     // select importer
     const importer = this.importers.get(strategy);
     if (importer === undefined) {
@@ -57,6 +60,7 @@ export class ImportService {
     // read and parse into Trufos collection
     logger.info(`Importing collection from "${srcFilePath}" using strategy "${strategy}"`);
     const collection = await importer.importCollection(srcFilePath);
+    const warnings = importer.getWarnings?.() ?? [];
 
     // set directory
     collection.title = title || collection.title;
@@ -65,6 +69,6 @@ export class ImportService {
     // save on file system
     logger.info('Successfully imported collection:', collection);
     await persistenceService.saveCollection(collection, true);
-    return collection;
+    return { collection, warnings };
   }
 }

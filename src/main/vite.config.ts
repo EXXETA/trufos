@@ -23,5 +23,8 @@ export default defineConfig({
   build: {
     sourcemap: isProduction ? true : 'inline',
     minify: false,
+    rollupOptions: {
+      external: ['@usebruno/lang'],
+    },
   },
 });

@@ -8,11 +8,23 @@ import {
   VariableMap,
   VariableObject,
   EnvironmentMap,
+  ClientCertificate,
 } from './objects';
-import { ClientCertificate } from './objects/collection';
 import { ScriptType } from './scripting';
 
 export type ImportStrategy = 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia';
+
+export interface ImportWarning {
+  message: string;
+  filePath?: string;
+  itemName?: string;
+  itemType?: string;
+}
+
+export interface ImportResult {
+  collection: Collection;
+  warnings: ImportWarning[];
+}
 
 export interface IEventService {
   /**
@@ -165,7 +177,7 @@ export interface IEventService {
     targetDirPath: string,
     strategy: ImportStrategy,
     title?: string
-  ): Promise<Collection>;
+  ): Promise<ImportResult>;
 
   /**
    * Rename the given collection, folder, or request to the new title.
