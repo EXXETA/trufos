@@ -38,6 +38,9 @@ jobs:
           # Override PR-Agent's default fallback (o4-mini, not on this proxy) with
           # a model the proxy actually serves.
           config.fallback_models: '["openai/claude-haiku-4.5"]'
+          # Claude Sonnet 4.6 runs in adaptive thinking on the proxy, which only
+          # accepts temperature=1; PR-Agent's default 0.2 is rejected by Bedrock.
+          config.temperature: "1"
           # PR-Agent v0.34 does not know this model's token window; declare it
           # explicitly so large diffs are not truncated.
           config.custom_model_max_tokens: "1000000"
