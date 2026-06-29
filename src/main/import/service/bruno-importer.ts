@@ -310,10 +310,11 @@ export class BrunoImporter implements CollectionImporter {
         return {
           type: RequestBodyType.TEXT,
           mimeType: BODY_MIME_TYPES.formUrlEncoded,
-          text: body?.formUrlEncoded
-            ?.filter((f) => f.enabled)
-            ?.map((f) => `${encodeURIComponent(f.name)}=${encodeURIComponent(f.value)}`)
-            .join('&'),
+          text:
+            body?.formUrlEncoded
+              ?.filter((f) => f.enabled)
+              ?.map((f) => `${encodeURIComponent(f.name)}=${encodeURIComponent(f.value)}`)
+              .join('&') ?? '',
         };
       case 'file':
         return { type: RequestBodyType.FILE };
@@ -330,7 +331,7 @@ export class BrunoImporter implements CollectionImporter {
       return { type: AuthorizationType.INHERIT };
     }
 
-    if (auth == null) return;
+    if (authType === 'none' || auth == null) return;
 
     if (auth.bearer != null) {
       return {
