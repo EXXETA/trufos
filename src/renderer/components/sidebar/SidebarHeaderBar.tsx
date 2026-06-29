@@ -126,7 +126,6 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
       </SidebarHeader>
 
       <CollectionSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-
     </>
   );
 };
