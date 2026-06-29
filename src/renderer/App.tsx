@@ -18,7 +18,11 @@ export const App = () => {
     RendererEventService.instance
       .getAppSettings()
       .then((settings) => useAppSettingsStore.getState().initialize(settings))
-      .catch((err) => console.error('Failed to load app settings:', err));
+      .catch((err) => {
+        console.error('Failed to load app settings:', err);
+        useAppSettingsStore.getState().initialize(undefined);
+      })
+      .finally(() => window.electron.ipcRenderer.send('renderer-ready'));
   }, []);
 
   return (
