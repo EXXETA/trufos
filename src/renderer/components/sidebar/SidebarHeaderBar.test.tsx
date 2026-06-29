@@ -11,8 +11,18 @@ const renderWithProvider = (ui: React.ReactElement) =>
 const setSortModeMock = vi.fn();
 let currentSortMode: SortMode = SortMode.DEFAULT;
 
+interface MockCollectionState {
+  collection: {
+    id: string;
+    title: string;
+    type: 'collection';
+    children: [];
+  };
+  sortMode: SortMode;
+}
+
 vi.mock('@/state/collectionStore', () => ({
-  useCollectionStore: (selector: (state: any) => any) =>
+  useCollectionStore: <T,>(selector: (state: MockCollectionState) => T) =>
     selector({
       collection: { id: 'col-1', title: 'Test Collection', type: 'collection', children: [] },
       sortMode: currentSortMode,
@@ -32,18 +42,17 @@ vi.mock('@/components/shared/settings/CollectionSettingsModal', () => ({
   CollectionSettingsModal: () => null,
 }));
 
-vi.mock('@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal', () => ({
-  NamingModal: () => null,
-}));
-
 describe('SidebarHeaderBar sort cycle', () => {
+  const onCreateItem = vi.fn();
+
   beforeEach(() => {
     setSortModeMock.mockClear();
+    onCreateItem.mockClear();
     currentSortMode = SortMode.DEFAULT;
   });
 
   it('calls setSortMode with the next mode when sort button is clicked', () => {
-    const { getByRole } = renderWithProvider(<SidebarHeaderBar />);
+    const { getByRole } = renderWithProvider(<SidebarHeaderBar onCreateItem={onCreateItem} />);
     const sortButton = getByRole('button', { name: /sort collection/i });
 
     fireEvent.click(sortButton);
@@ -53,7 +62,7 @@ describe('SidebarHeaderBar sort cycle', () => {
 
   it('cycles back to default after the last mode', () => {
     currentSortMode = SORT_CYCLE[SORT_CYCLE.length - 1]; // SortMode.TIME_ASC
-    const { getByRole } = renderWithProvider(<SidebarHeaderBar />);
+    const { getByRole } = renderWithProvider(<SidebarHeaderBar onCreateItem={onCreateItem} />);
     const sortButton = getByRole('button', { name: /sort collection/i });
 
     fireEvent.click(sortButton);
@@ -64,7 +73,7 @@ describe('SidebarHeaderBar sort cycle', () => {
   it('shows the correct tooltip label when hovering the sort button', async () => {
     const user = userEvent.setup();
     currentSortMode = SortMode.AZ_ASC;
-    renderWithProvider(<SidebarHeaderBar />);
+    renderWithProvider(<SidebarHeaderBar onCreateItem={onCreateItem} />);
 
     const sortButton = screen.getByRole('button', { name: /sort collection/i });
     await user.hover(sortButton);

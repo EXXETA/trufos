@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,22 +8,22 @@ import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { handleMouseEvent } from '@/util/callback-util';
 import { Folder } from 'shim/objects/folder';
 import { useCollectionActions } from '@/state/collectionStore';
-import { NamingModal } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/modals/NamingModal';
+
 import { MoreIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';
+import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 
 export interface FolderDropdownProps {
   folder: Folder;
+  onRename: () => void;
+  onCreateItem: (item: CreatingItem) => void;
 }
 
-export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
+export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdownProps) => {
   const { copyFolder, deleteFolder } = useCollectionActions();
-  const [renameModalIsOpen, setRenameModalIsOpen] = useState(false);
-  const [isCreateModal, setIsCreateModal] = useState<undefined | 'folder' | 'request'>(undefined);
 
-  const openModal = (type: 'folder' | 'request' | undefined) => {
-    setRenameModalIsOpen(true);
-    setIsCreateModal(type);
+  const openModal = (type: 'folder' | 'request') => {
+    onCreateItem({ type, parentId: folder.id });
   };
 
   return (
@@ -49,9 +48,7 @@ export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
             Add Folder
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleMouseEvent(() => openModal(undefined))}>
-            Rename Folder
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleMouseEvent(onRename)}>Rename Folder</DropdownMenuItem>
 
           <DropdownMenuItem onClick={handleMouseEvent(() => copyFolder(folder.id))}>
             Copy Folder
@@ -65,14 +62,6 @@ export const FolderDropdown = ({ folder }: FolderDropdownProps) => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {renameModalIsOpen && (
-        <NamingModal
-          trufosObject={folder}
-          createType={isCreateModal}
-          onClose={() => setRenameModalIsOpen(false)}
-        />
-      )}
     </>
   );
 };

@@ -14,6 +14,7 @@ import {
 import { VariableObjectWithKey } from 'shim/objects/variables';
 import { cn } from '@/lib/utils';
 import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
+import { InlineRename } from '@/components/shared/InlineRename';
 
 export interface EnvironmentEditorProps {
   environments: EnvironmentMap;
@@ -33,7 +34,6 @@ export const EnvironmentEditor = ({
   const [newEnvironmentName, setNewEnvironmentName] = useState('');
   const [isEnvironmentValid, setIsEnvironmentValid] = useState(true);
   const [editingEnvironment, setEditingEnvironment] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
 
   const environmentKeys = Object.keys(environments);
 
@@ -127,25 +127,18 @@ export const EnvironmentEditor = ({
 
   const startEditing = (key: string) => {
     setEditingEnvironment(key);
-    setEditingName(key);
   };
 
-  const saveEdit = () => {
-    if (
-      editingEnvironment &&
-      editingName.trim() &&
-      editingName !== editingEnvironment &&
-      !environments[editingName]
-    ) {
-      renameEnvironment(editingEnvironment, editingName.trim());
+  const saveEdit = (oldKey: string, newKey: string) => {
+    const trimmed = newKey.trim();
+    if (trimmed && trimmed !== oldKey && !environments[trimmed]) {
+      renameEnvironment(oldKey, trimmed);
     }
     setEditingEnvironment(null);
-    setEditingName('');
   };
 
   const cancelEdit = () => {
     setEditingEnvironment(null);
-    setEditingName('');
   };
 
   return (
@@ -205,96 +198,65 @@ export const EnvironmentEditor = ({
                   )}
                   onClick={() => onEnvironmentSelect?.(key)}
                 >
-                  <div className="min-w-0 flex-1">
-                    {editingEnvironment === key ? (
-                      <Input
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            saveEdit();
-                          } else if (e.key === 'Escape') {
-                            cancelEdit();
-                          }
-                        }}
-                        className="bg-background focus-visible:ring-sidebar-ring h-8 w-full text-sm shadow-none focus-visible:ring-2"
-                        autoFocus
-                      />
-                    ) : (
-                      <>
+                  {editingEnvironment === key ? (
+                    <InlineRename
+                      initialValue={key}
+                      onSave={(newName) => saveEdit(key, newName)}
+                      onCancel={cancelEdit}
+                    />
+                  ) : (
+                    <>
+                      <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{key}</div>
                         <div className="text-sidebar-muted-foreground text-xs">
                           {Object.keys(environments[key].variables).length} variables
                         </div>
-                      </>
-                    )}
-                  </div>
-                  <div onClick={(e) => e.stopPropagation()}>
-                    {editingEnvironment === key ? (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          onClick={saveEdit}
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0"
-                          aria-label="Save"
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          onClick={cancelEdit}
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0"
-                          aria-label="Cancel"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
                       </div>
-                    ) : (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            aria-label="More options"
-                          >
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditing(key);
-                            }}
-                          >
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyEnvironment(key);
-                            }}
-                          >
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeEnvironment(key);
-                            }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              aria-label="More options"
+                            >
+                              <MoreVertical className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditing(key);
+                              }}
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyEnvironment(key);
+                              }}
+                            >
+                              <Copy className="mr-2 h-4 w-4" />
+                              Copy
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeEnvironment(key);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
