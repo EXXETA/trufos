@@ -12,4 +12,3 @@ export const AppSettings = z.object({
   theme: ThemePreference,
 });
 export type AppSettings = z.infer<typeof AppSettings>;
-

@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { TrufosTheme, type ThemePreference } from 'shim/app-settings';
-import { selectThemePreference, useAppSettingsActions, useAppSettingsStore } from '@/state/appSettingsStore';
+import {
+  selectThemePreference,
+  useAppSettingsActions,
+  useAppSettingsStore,
+} from '@/state/appSettingsStore';
 
 export { TrufosTheme };
 

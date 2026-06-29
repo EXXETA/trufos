@@ -7,7 +7,11 @@ import {
 } from '@/components/ui/dialog';
 import { FiSettings } from 'react-icons/fi';
 import { TrufosTheme, type ThemePreference } from 'shim/app-settings';
-import { selectThemePreference, useAppSettingsActions, useAppSettingsStore } from '@/state/appSettingsStore';
+import {
+  selectThemePreference,
+  useAppSettingsActions,
+  useAppSettingsStore,
+} from '@/state/appSettingsStore';
 import { cn } from '@/lib/utils';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
