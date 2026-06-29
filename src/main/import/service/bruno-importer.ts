@@ -287,7 +287,11 @@ export class BrunoImporter implements CollectionImporter {
             value:
               f.type === 'file'
                 ? { type: RequestBodyType.FILE, filePath: f.value }
-                : { type: RequestBodyType.TEXT, mimeType: DEFAULT_MIME_TYPE, text: f.value },
+                : {
+                    type: RequestBodyType.TEXT,
+                    mimeType: f.contentType ?? DEFAULT_MIME_TYPE,
+                    text: f.value,
+                  },
           })),
         } satisfies FormDataBody;
       }

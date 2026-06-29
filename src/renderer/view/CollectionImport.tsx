@@ -41,8 +41,8 @@ function showImportWarnings(warnings: ImportWarning[]) {
     description: (
       <div className="mt-1 space-y-2">
         <p>
-          Collection imported, but {warnings.length} Bruno item(s) were skipped because Trufos can
-          only import supported HTTP requests.
+          Collection imported, but {warnings.length} item(s) were skipped because Trufos can only
+          import supported HTTP requests.
         </p>
         <div className="space-y-1">
           {visibleGroups.map(([message, group]) => {
