@@ -181,11 +181,7 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
               <Button onClick={onClose} variant="outline">
                 <span className="leading-4 font-bold">Cancel</span>
               </Button>
-              <Button
-                onClick={save}
-                disabled={!canSave}
-                variant={canSave ? 'default' : 'defaultDisable'}
-              >
+              <Button onClick={save} disabled={!canSave}>
                 <span className="leading-4 font-bold">Save</span>
               </Button>
             </div>

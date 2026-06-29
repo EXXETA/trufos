@@ -40,10 +40,19 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
+    // A disabled "default" button automatically gets the outlined "defaultDisable" look,
+    // so call sites don't need to swap the variant themselves.
+    const resolvedVariant =
+      disabled && (variant == null || variant === 'default') ? 'defaultDisable' : variant;
     return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+      <Comp
+        className={cn(buttonVariants({ variant: resolvedVariant, size, className }))}
+        disabled={disabled}
+        ref={ref}
+        {...props}
+      />
     );
   }
 );
