@@ -63,9 +63,13 @@ jobs:
           github_action_config.auto_describe: "true"
           # Walk the diff and post concrete code suggestions (does not auto-approve/merge)
           github_action_config.auto_improve: "true"
-          # Post suggestions as inline committable comments on the changed files
-          # instead of a single summary table
-          pr_code_suggestions.commitable_code_suggestions: "true"
+          # Collect suggestions in a single persistent comment that is updated on
+          # each run, instead of posting new inline committable comments every push.
+          # This prevents the same suggestion from being re-raised on every commit.
+          pr_code_suggestions.commitable_code_suggestions: "false"
+          # Drop low-importance suggestions (PR-Agent scores 1-10); only surface
+          # those scoring >= 6 to cut noise on long-lived PRs.
+          pr_code_suggestions.suggestions_score_threshold: "6"
           # Mark each automated review with the "Review effort x/5" labels
           pr_reviewer.enable_review_labels_effort: "true"
 
