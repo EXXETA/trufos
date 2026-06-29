@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import { AppSettings } from 'shim/app-settings';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/helper/util';
+import { showError } from '@/error/errorHandler';
 
 const eventService = RendererEventService.instance;
 
@@ -25,7 +26,9 @@ export const useAppSettingsStore = create<AppSettings & AppSettingsActions>()(
       set((state) => {
         Object.assign(state, partial);
       });
-      void eventService.saveAppSettings(get());
+      void eventService.saveAppSettings(get()).catch((err) =>
+        showError('Failed to save app settings', err)
+      );
     },
   }))
 );

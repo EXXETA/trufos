@@ -9,6 +9,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useAppSettingsStore } from '@/state/appSettingsStore';
+import { showError } from '@/error/errorHandler';
 
 const MIN_SIDEBAR_PIXELS = 300;
 const MIN_REQUEST_WINDOW_PIXELS = 500;
@@ -17,12 +18,15 @@ export const App = () => {
   useEffect(() => {
     RendererEventService.instance
       .getAppSettings()
-      .then((settings) => useAppSettingsStore.getState().initialize(settings))
       .catch((err) => {
-        console.error('Failed to load app settings:', err);
-        useAppSettingsStore.getState().initialize(undefined);
+        showError('Failed to load app settings', err);
       })
-      .finally(() => window.electron.ipcRenderer.send('renderer-ready'));
+      .then((settings) => {
+        if (settings) {
+          useAppSettingsStore.getState().initialize(settings);
+        }
+        window.electron.ipcRenderer.send('renderer-ready');
+      });
   }, []);
 
   return (
