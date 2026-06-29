@@ -6,6 +6,13 @@ export enum AuthorizationType {
   BASIC = 'basic',
   INHERIT = 'inherit',
   OAUTH2 = 'oauth2',
+  OAUTH1 = 'oauth1',
+}
+
+export enum OAuth1SignatureMethod {
+  HMAC_SHA1 = 'HMAC-SHA1',
+  HMAC_SHA256 = 'HMAC-SHA256',
+  PLAINTEXT = 'PLAINTEXT',
 }
 
 export enum OAuth2Method {
@@ -92,6 +99,20 @@ export const BasicAuthorizationInformation = z.object({
 });
 export type BasicAuthorizationInformation = z.infer<typeof BasicAuthorizationInformation>;
 
+export const OAuth1AuthorizationInformation = z.object({
+  type: z.literal(AuthorizationType.OAUTH1),
+  consumerKey: z.string(),
+  consumerSecret: z.string(),
+  /** Access token. Optional for two-legged (consumer-only) OAuth. */
+  token: z.string().optional(),
+  /** Access token secret. Optional for two-legged OAuth. */
+  tokenSecret: z.string().optional(),
+  signatureMethod: z.enum(OAuth1SignatureMethod),
+  /** Optional realm to include in the Authorization header. */
+  realm: z.string().optional(),
+});
+export type OAuth1AuthorizationInformation = z.infer<typeof OAuth1AuthorizationInformation>;
+
 export const InheritAuthorizationInformation = z.object({
   type: z.literal(AuthorizationType.INHERIT),
 });
@@ -101,6 +122,7 @@ export const AuthorizationInformationNoInherit = z.discriminatedUnion('type', [
   BearerAuthorizationInformation,
   BasicAuthorizationInformation,
   OAuth2AuthorizationInformation,
+  OAuth1AuthorizationInformation,
 ]);
 export type AuthorizationInformationNoInherit = z.infer<typeof AuthorizationInformationNoInherit>;
 

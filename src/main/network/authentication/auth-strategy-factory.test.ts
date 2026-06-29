@@ -7,10 +7,13 @@ import {
   AuthorizationType,
   BasicAuthorizationInformation,
   BearerAuthorizationInformation,
+  OAuth1AuthorizationInformation,
+  OAuth1SignatureMethod,
   OAuth2ClientAuthenticationMethod,
 } from 'shim/objects';
 import { OAuth2ClientCrentialsAuthorizationInformation, OAuth2Method } from 'shim/objects';
 import ClientCredentialsAuthorizationStrategy from './oauth2/client-credentials';
+import OAuth1AuthStrategy from './oauth1/oauth1-auth';
 
 describe('createAuthStrategy()', () => {
   it('should create a BasicAuthStrategy for basic authentication', () => {
@@ -49,5 +52,16 @@ describe('createAuthStrategy()', () => {
     };
     const strategy = createAuthStrategy(auth);
     expect(strategy).toBeInstanceOf(ClientCredentialsAuthorizationStrategy);
+  });
+
+  it('should create an OAuth1AuthStrategy for OAuth 1.0 authentication', () => {
+    const auth: OAuth1AuthorizationInformation = {
+      type: AuthorizationType.OAUTH1,
+      consumerKey: 'ck',
+      consumerSecret: 'cs',
+      signatureMethod: OAuth1SignatureMethod.HMAC_SHA1,
+    };
+    const strategy = createAuthStrategy(auth);
+    expect(strategy).toBeInstanceOf(OAuth1AuthStrategy);
   });
 });
