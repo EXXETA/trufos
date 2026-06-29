@@ -25,18 +25,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          # === Active provider: Claude Sonnet 4.6 via Exxeta LiteLLM proxy ===
-          # ai.exxeta.info is an OpenAI-compatible LiteLLM proxy that fronts
-          # Bedrock internally, so PR-Agent talks to it like OpenAI. The openai/
-          # prefix forces LiteLLM to honor OPENAI__API_BASE; the model name after
-          # it is the proxy's registered model id (see ai.exxeta.info model list).
-          # OPENAI_API_BASE_URL secret points at the proxy (e.g. https://ai.exxeta.info/v1);
-          # OPENAI_KEY is a proxy virtual key.
+          # === Active provider: Exxeta LiteLLM proxy (OpenAI-compatible) ===
+          # ai.exxeta.info is an OpenAI-compatible LiteLLM proxy fronting Bedrock.
+          # The openai/ prefix forces LiteLLM to honor OPENAI__API_BASE. The OPENAI_KEY
+          # virtual key can only address the "all-team-models" access group (the only
+          # entry returned by /v1/models for this key) — individual model ids like
+          # anthropic.claude-sonnet-4-6 are rejected. The proxy routes the group to its
+          # configured deployment.
+          # OPENAI_API_BASE_URL points at the proxy (e.g. https://ai.exxeta.info/v1).
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
-          config.model: "openai/anthropic.claude-sonnet-4-6"
-          # PR-Agent v0.34 does not know every model's token window; declare it
-          # explicitly so large diffs are not truncated (Sonnet 4.6 input = 1M).
+          config.model: "openai/all-team-models"
+          # Disable PR-Agent's default fallback (o4-mini), which is not addressable
+          # by this key and would also 400.
+          config.fallback_models: "[]"
+          # PR-Agent v0.34 does not know this model's token window; declare it
+          # explicitly so large diffs are not truncated.
           config.custom_model_max_tokens: "1000000"
 
           # === Alternative: Google AI Studio (Gemini) via LiteLLM ===
