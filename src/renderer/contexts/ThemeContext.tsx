@@ -1,17 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { TrufosTheme, type ThemePreference } from 'shim/app-settings';
-import {
-  selectThemePreference,
-  useAppSettingsActions,
-  useAppSettingsStore,
-} from '@/state/appSettingsStore';
+import { TrufosTheme } from 'shim/app-settings';
+import { selectThemePreference, useAppSettingsStore } from '@/state/appSettingsStore';
 
 export { TrufosTheme };
 
 interface ThemeContextType {
   theme: TrufosTheme;
-  setTheme: (theme: ThemePreference) => void;
-  toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -29,7 +23,6 @@ const getSystemTheme = (): TrufosTheme =>
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const themePreference = useAppSettingsStore(selectThemePreference);
-  const { updateSettings } = useAppSettingsActions();
 
   const [resolvedTheme, setResolvedTheme] = useState<TrufosTheme>(() =>
     themePreference === 'system' ? getSystemTheme() : (themePreference as TrufosTheme)
@@ -54,15 +47,5 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     root.classList.add(resolvedTheme);
   }, [resolvedTheme]);
 
-  const setTheme = (theme: ThemePreference) => updateSettings({ theme });
-  const toggleTheme = () =>
-    updateSettings({
-      theme: resolvedTheme === TrufosTheme.Light ? TrufosTheme.Dark : TrufosTheme.Light,
-    });
-
-  return (
-    <ThemeContext.Provider value={{ theme: resolvedTheme, setTheme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme: resolvedTheme }}>{children}</ThemeContext.Provider>;
 };
