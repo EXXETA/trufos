@@ -422,6 +422,14 @@ body:multipart-form {
     }
   });
 
+  it('throws a clear error when bruno.json is missing', async () => {
+    const emptyDir = await fs.mkdtemp(path.join(tmpdir(), 'bruno-empty-'));
+
+    await expect(new BrunoImporter().importCollection(emptyDir)).rejects.toThrow(
+      /valid Bruno collection/i
+    );
+  });
+
   it('imports nested folders and requests', async () => {
     const collectionDir = await createBrunoCollection('Test', {
       'root-request.bru': `

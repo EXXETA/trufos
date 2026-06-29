@@ -1,4 +1,5 @@
 import { CollectionImporter } from './import-service.js';
+import { InternalError, InternalErrorType } from 'main/error/internal-error';
 import { bruToJsonV2, bruToEnvJsonV2, BrunoAuth, BrunoRequest } from '@usebruno/lang';
 import { Collection as TrufosCollection } from 'shim/objects/collection';
 import { Folder as TrufosFolder } from 'shim/objects/folder';
@@ -58,7 +59,17 @@ export class BrunoImporter implements CollectionImporter {
 
     // Read collection metadata
     const brunoJsonPath = path.join(collectionDir, 'bruno.json');
-    const brunoJson = JSON.parse(await fs.readFile(brunoJsonPath, 'utf8')) as BrunoJson;
+    let brunoJson: BrunoJson;
+    try {
+      brunoJson = JSON.parse(await fs.readFile(brunoJsonPath, 'utf8')) as BrunoJson;
+    } catch (error) {
+      throw new InternalError(
+        InternalErrorType.COLLECTION_LOAD_ERROR,
+        `Could not read Bruno collection metadata at "${brunoJsonPath}". ` +
+          'Make sure the selected directory is a valid Bruno collection containing a readable bruno.json.',
+        error instanceof Error ? error : undefined
+      );
+    }
     logger.info('Importing Bruno collection:', brunoJson.name);
 
     const collection: TrufosCollection = {
