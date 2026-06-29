@@ -24,22 +24,27 @@ jobs:
         uses: Codium-ai/pr-agent@v0.34
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Provider: Google AI Studio (Gemini) via LiteLLM.
-          # Requires the GEMINI_API_KEY repository secret to be set.
-#          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Flash models are available on the Gemini API free tier (no billing
-          # required). The previously configured gemini-3.x IDs do not exist and
-          # returned 404 (NOT_FOUND).
-#          config.model: "gemini/gemini-2.5-flash"
-#          config.fallback_models: '["gemini/gemini-2.0-flash"]'
-          # PR-Agent v0.34 does not know these models' token window; declare it
-          # explicitly (Gemini Flash input window = 1,048,576 tokens).
-          config.custom_model_max_tokens: "1048576"
-          # To use OpenAI instead, uncomment:
+
+          # === Active provider: Claude via OpenAI-compatible gateway ===
+          # Routes PR-Agent through an OpenAI-compatible base URL that serves a
+          # Claude model. Requires the OPENAI_KEY and OPENAI_API_BASE_URL secrets.
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
           config.model: "claude-sonnet-4.6"
-          # To use Anthropic Claude instead, uncomment:
+          # PR-Agent v0.34 does not know every model's token window; declare it
+          # explicitly so large diffs are not truncated.
+          config.custom_model_max_tokens: "1048576"
+
+          # === Alternative: Google AI Studio (Gemini) via LiteLLM ===
+          # Comment out the OPENAI_* block above and uncomment the lines below.
+          # Requires the GEMINI_API_KEY repository secret. Flash models are
+          # available on the Gemini free tier (no billing required).
+          # GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # config.model: "gemini/gemini-2.5-flash"
+          # config.fallback_models: '["gemini/gemini-2.0-flash"]'
+
+          # === Alternative: Anthropic Claude (native API) ===
+          # Comment out the OPENAI_* block above and uncomment the lines below.
           # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # config.model: "anthropic/claude-sonnet-4-5"
 
