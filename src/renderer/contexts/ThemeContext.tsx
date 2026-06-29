@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { ThemePreference, TrufosTheme, useAppSettings } from './AppSettingsContext';
 
-type Theme = 'light' | 'dark';
+export { TrufosTheme };
 
 interface ThemeContextType {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+  theme: TrufosTheme;
+  setTheme: (theme: ThemePreference) => void;
   toggleTheme: () => void;
 }
 
@@ -18,50 +19,44 @@ export const useTheme = () => {
   return context;
 };
 
-interface ThemeProviderProps {
-  children: React.ReactNode;
-  defaultTheme?: Theme;
-}
+const getSystemTheme = (): TrufosTheme =>
+  window.matchMedia('(prefers-color-scheme: dark)').matches ? TrufosTheme.Dark : TrufosTheme.Light;
 
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({
-  children,
-  defaultTheme = 'dark',
-}) => {
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { settings, updateSettings } = useAppSettings();
 
-  // TODO: needs to be refactored
-  // useEffect(() => {
-  //   const savedTheme = localStorage.getItem('theme') as Theme;
-  //   if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
-  //     setTheme(savedTheme);
-  //   }
-  // }, []);
+  const [resolvedTheme, setResolvedTheme] = useState<TrufosTheme>(() =>
+    settings.theme === 'system' ? getSystemTheme() : (settings.theme as TrufosTheme)
+  );
+
+  useEffect(() => {
+    if (settings.theme !== 'system') {
+      setResolvedTheme(settings.theme as TrufosTheme);
+      return;
+    }
+    setResolvedTheme(getSystemTheme());
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) =>
+      setResolvedTheme(e.matches ? TrufosTheme.Dark : TrufosTheme.Light);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [settings.theme]);
 
   useEffect(() => {
     const root = document.documentElement;
+    root.classList.remove(TrufosTheme.Light, TrufosTheme.Dark);
+    root.classList.add(resolvedTheme);
+  }, [resolvedTheme]);
 
-    // Remove both classes first
-    root.classList.remove('light', 'dark');
+  const setTheme = (theme: ThemePreference) => updateSettings({ theme });
+  const toggleTheme = () =>
+    updateSettings({
+      theme: resolvedTheme === TrufosTheme.Light ? TrufosTheme.Dark : TrufosTheme.Light,
+    });
 
-    // Add the current theme class
-    root.classList.add(theme);
-
-    // Save to localStorage
-    localStorage.setItem('theme', theme);
-
-    // Debug log
-    console.log('Theme changed to:', theme, 'Classes:', root.classList.toString());
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
-
-  const value = {
-    theme,
-    setTheme,
-    toggleTheme,
-  };
-
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={{ theme: resolvedTheme, setTheme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
 };

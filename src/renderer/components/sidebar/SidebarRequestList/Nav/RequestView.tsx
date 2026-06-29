@@ -19,7 +19,7 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
   return (
-    <div className={cn('group hover:bg-[#333333]')}>
+    <div className={cn('group hover:bg-sidebar-accent')}>
       <span
         className={cn(
           'sidebar-request-list-item',
@@ -36,10 +36,7 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
         onClick={handleMouseEvent(() => setSelectedRequest(requestId))}
       >
         <div
-          className={cn(
-            'flex-shrink-0 text-xs leading-3 font-normal',
-            httpMethodColor(request.method)
-          )}
+          className={cn('shrink-0 text-xs leading-3 font-normal', httpMethodColor(request.method))}
         >
           {request.method}
         </div>
