@@ -25,28 +25,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          # === Active provider: Claude Sonnet 4.6 on Amazon Bedrock ===
-          # PR-Agent routes through LiteLLM. The bedrock/converse/ prefix selects
-          # the Bedrock Converse API; the eu. prefix is the EU cross-region
-          # inference profile. Requires AWS credentials with Bedrock access in an
-          # EU region, plus model access enabled for the inference profile.
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION_NAME: eu-central-1
-          config.model: "bedrock/converse/eu.anthropic.claude-sonnet-4-6"
+          # === Active provider: Claude Sonnet 4.6 via Exxeta LiteLLM proxy ===
+          # ai.exxeta.info is an OpenAI-compatible LiteLLM proxy that fronts
+          # Bedrock internally, so PR-Agent talks to it like OpenAI. The openai/
+          # prefix forces LiteLLM to honor OPENAI__API_BASE; the model name after
+          # it is the proxy's registered model id (see ai.exxeta.info model list).
+          # OPENAI_API_BASE_URL secret points at the proxy (e.g. https://ai.exxeta.info/v1);
+          # OPENAI_KEY is a proxy virtual key.
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
+          config.model: "openai/anthropic.claude-sonnet-4-6"
           # PR-Agent v0.34 does not know every model's token window; declare it
           # explicitly so large diffs are not truncated (Sonnet 4.6 input = 1M).
           config.custom_model_max_tokens: "1000000"
 
-          # === Alternative: Claude via OpenAI-compatible gateway ===
-          # Comment out the AWS_* block above and uncomment the lines below.
-          # The openai/ prefix forces LiteLLM to honor OPENAI__API_BASE.
-          # OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-          # OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
-          # config.model: "openai/claude-sonnet-4-6"
-
           # === Alternative: Google AI Studio (Gemini) via LiteLLM ===
-          # Comment out the AWS_* block above and uncomment the lines below.
+          # Comment out the OPENAI_* block above and uncomment the lines below.
           # Requires the GEMINI_API_KEY repository secret. Flash models are
           # available on the Gemini free tier (no billing required).
           # GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -54,7 +48,7 @@ jobs:
           # config.fallback_models: '["gemini/gemini-2.0-flash"]'
 
           # === Alternative: Anthropic Claude (native API) ===
-          # Comment out the AWS_* block above and uncomment the lines below.
+          # Comment out the OPENAI_* block above and uncomment the lines below.
           # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # config.model: "anthropic/claude-sonnet-4-6"
 
