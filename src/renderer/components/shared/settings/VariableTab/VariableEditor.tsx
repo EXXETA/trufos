@@ -23,7 +23,7 @@ export interface VariableEditorProps {
   onVariablesChange?: (variables: VariableObjectWithKey[]) => void;
 }
 
-function getInvalidVariableKeys(variables: VariableObjectWithKey[]) {
+export function getInvalidVariableKeys(variables: VariableObjectWithKey[]) {
   const allKeys = new Set<string>();
   const invalidKeys = new Set<string>();
   for (const { key } of variables) {

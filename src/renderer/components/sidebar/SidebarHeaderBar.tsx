@@ -9,7 +9,7 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { Collection } from 'shim/objects/collection';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
-import { CollectionSettings } from '@/components/sidebar/CollectionSettings';
+import { CollectionSettingsModal } from '@/components/shared/settings/CollectionSettingsModal';
 import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -129,11 +129,7 @@ export const SidebarHeaderBar = () => {
         />
       )}
 
-      <CollectionSettings
-        isOpen={isSettingsOpen}
-        trufosObject={collection as Collection}
-        onClose={() => setIsSettingsOpen(!isSettingsOpen)}
-      />
+      <CollectionSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </>
   );
 };

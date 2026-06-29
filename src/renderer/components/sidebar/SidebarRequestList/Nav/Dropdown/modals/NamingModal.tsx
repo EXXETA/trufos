@@ -67,7 +67,7 @@ export const NamingModal = ({ createType, trufosObject, onClose }: NamingModalPr
             />
           </div>
           <DialogFooter className="bottom-0">
-            <Button disabled={!isValid} variant={isValid ? 'default' : 'defaultDisable'}>
+            <Button disabled={!isValid}>
               <span className="leading-4 font-bold">Save</span>
             </Button>
             <Button type="reset" variant="destructive">
