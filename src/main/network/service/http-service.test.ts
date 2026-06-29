@@ -475,12 +475,43 @@ describe('HttpService', () => {
     expect(executeSpy.mock.calls[0]?.[0]).toEqual(preScript);
     expect(executeSpy.mock.calls[1]?.[0]).toEqual(postScript);
   });
+
+  it('fetchAsync() should correctly format and serialize a GraphQL request', async () => {
+    // Arrange
+    const responseBodyMock = { data: { hello: 'world' } };
+    const url = new URL('https://example.com/graphql');
+    const httpService = setupMockHttpService(url, responseBodyMock, undefined, 'POST');
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'GraphQL Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GRAPHQL,
+      headers: [],
+      body: {
+        type: RequestBodyType.GRAPHQL,
+        query: 'query { hello }',
+        variables: '{"someVar": "val"}',
+      },
+    };
+
+    // Act
+    const result = await httpService.fetchAsync(request);
+
+    // Assert
+    expect(result.metaInfo.status).toEqual(200);
+    const filePath = responseBodyService.getFilePath(result.id);
+    const responseBody = JSON.parse(fs.readFileSync(filePath!, 'utf8'));
+    expect(responseBody).toEqual(responseBodyMock);
+  });
 });
 
 function setupMockHttpService(
   url: URL,
   body: object | string | null,
-  headers?: IncomingHttpHeaders
+  headers?: IncomingHttpHeaders,
+  method = 'GET'
 ) {
   let bodyString;
   switch (typeof body) {
@@ -496,7 +527,7 @@ function setupMockHttpService(
 
   const mockClient = mockAgent.get(url.origin);
   mockClient
-    .intercept({ path: url.pathname })
+    .intercept({ path: url.pathname, method })
     .reply(200, bodyString ?? undefined, { headers: headers });
   return new HttpService(() => Promise.resolve(mockAgent));
 }

@@ -4,6 +4,7 @@ import { TemplateVariableCompletionItemsProvider } from './template-variable-com
 import { TemplateVariableHoverProvider } from './template-variable-hover-provider';
 import { TemplateVariableSemanticTokensProvider } from './template-variable-semantic-tokens-provider';
 import trufosDeclaration from '@/assets/trufos-scripting-api.d.ts?raw';
+import { GraphQLCompletionItemsProvider } from './graphql-autocomplete';
 
 languages.typescript.javascriptDefaults.addExtraLib(trufosDeclaration);
 
@@ -64,6 +65,8 @@ languages.registerCompletionItemProvider(
   supportedLanguages,
   new TemplateVariableCompletionItemsProvider()
 );
+
+languages.registerCompletionItemProvider('graphql', new GraphQLCompletionItemsProvider());
 
 // hover provider (shows template variable value on hover)
 languages.registerHoverProvider(supportedLanguages, new TemplateVariableHoverProvider());

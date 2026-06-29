@@ -11,6 +11,7 @@ import type {
   ScriptType,
   IEventService,
   ImportStrategy,
+  TrufosHeader,
 } from 'shim';
 import type { ClientCertificate } from 'shim/objects/collection';
 import { PersistenceService } from '../persistence/service/persistence-service';
@@ -19,6 +20,7 @@ import { ScriptingService } from 'main/scripting/scripting-service';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
+import undici from 'undici';
 
 // register stream events
 import './stream-events';
@@ -252,5 +254,89 @@ export class MainEventService implements IEventService {
       },
       updateInterval: '1 hour',
     });
+  }
+
+  async introspectSchema(url: string, headers: TrufosHeader[]): Promise<any> {
+    logger.info('Introspecting GraphQL schema at URL:', url);
+    const undiciHeaders: Record<string, string> = {
+      'content-type': 'application/json',
+    };
+    for (const h of headers) {
+      if (h.isActive) {
+        undiciHeaders[h.key.toLowerCase()] = h.value;
+      }
+    }
+
+    const introspectionQuery = `
+      query IntrospectionQuery {
+        __schema {
+          queryType { name }
+          mutationType { name }
+          subscriptionType { name }
+          types {
+            kind
+            name
+            description
+            fields(includeDeprecated: true) {
+              name
+              description
+              args {
+                name
+                description
+                type {
+                  kind
+                  name
+                  ofType {
+                    kind
+                    name
+                    ofType {
+                      kind
+                      name
+                      ofType {
+                        kind
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+              type {
+                kind
+                name
+                ofType {
+                  kind
+                  name
+                  ofType {
+                    kind
+                    name
+                    ofType {
+                      kind
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const payload = JSON.stringify({
+      query: introspectionQuery,
+    });
+
+    const response = await undici.request(url, {
+      method: 'POST',
+      headers: undiciHeaders,
+      body: payload,
+    });
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new Error(`Introspection failed with status code ${response.statusCode}`);
+    }
+
+    const responseBody = await response.body.json();
+    return responseBody;
   }
 }

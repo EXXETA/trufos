@@ -20,5 +20,7 @@ export const httpMethodColor = (request: RequestMethod) => {
       return 'http-method-color-get';
     case RequestMethod.TRACE:
       return 'http-method-color-get';
+    case RequestMethod.GRAPHQL:
+      return 'http-method-color-graphql';
   }
 };

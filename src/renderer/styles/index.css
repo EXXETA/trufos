@@ -85,6 +85,7 @@
     --http-post: #853aff;
     --http-delete: #f845a6;
     --http-patch: #d88f00;
+    --http-graphql: #e10098;
     --disabled: #94a3b8;
 
     --success: #16a34a;
@@ -170,6 +171,7 @@
     --http-post: #9f72fe;
     --http-delete: #ee5c99;
     --http-patch: #efa349;
+    --http-graphql: #ff60c6;
     --disabled: #444444;
 
     --success: #2bb361;
@@ -222,6 +224,9 @@
   }
   .http-method-color-patch {
     color: var(--http-patch);
+  }
+  .http-method-color-graphql {
+    color: var(--http-graphql);
   }
 
   /* Scrollbar (webkit) */
@@ -313,6 +318,7 @@
   --color-http-post: var(--http-post);
   --color-http-delete: var(--http-delete);
   --color-http-patch: var(--http-patch);
+  --color-http-graphql: var(--http-graphql);
 
   --color-state-success: var(--success);
   --color-state-error: var(--error);

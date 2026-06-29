@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { RequestBody, RequestBodyType, TrufosRequest, GraphQLBody } from 'shim/objects/request';
+import { RequestMethod } from 'shim/objects/request-method';
 import { buildUrl } from 'shim/objects/url';
 import { TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
@@ -86,11 +87,13 @@ export class HttpService {
 
     const [body, size] = await this.readBody(request);
 
+    const method = request.method === RequestMethod.GRAPHQL ? 'POST' : request.method;
+
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
       dispatcher: await this._dispatcherProvider(),
-      method: request.method,
+      method,
       headers: {
         ['content-type']: this.getContentType(request.body),
         ['authorization']: authorization,
@@ -153,6 +156,27 @@ export class HttpService {
       }
       case RequestBodyType.FILE:
         return this.readFileBody(request.body.filePath);
+      case RequestBodyType.GRAPHQL: {
+        const gqlBody = request.body as GraphQLBody;
+        const resolvedQuery = await environmentService.setVariablesInString(gqlBody.query ?? '');
+        const resolvedVariablesStr = await environmentService.setVariablesInString(
+          gqlBody.variables ?? '{}'
+        );
+        let parsedVariables = {};
+        if (resolvedVariablesStr.trim()) {
+          try {
+            parsedVariables = JSON.parse(resolvedVariablesStr);
+          } catch (e) {
+            // Keep variables as empty object if not valid JSON
+          }
+        }
+        const payload = JSON.stringify({
+          query: resolvedQuery,
+          variables: parsedVariables,
+          operationName: null,
+        });
+        return [Readable.from(payload), Buffer.byteLength(payload)];
+      }
       case RequestBodyType.FORM_DATA:
         const form = new FormData();
         for (const field of request.body.fields) {
@@ -198,6 +222,8 @@ export class HttpService {
           return body.mimeType ?? 'text/plain';
         case RequestBodyType.FILE:
           return body.mimeType ?? 'application/octet-stream';
+        case RequestBodyType.GRAPHQL:
+          return 'application/json';
       }
     }
   }
