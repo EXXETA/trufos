@@ -26,19 +26,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Provider: Google AI Studio (Gemini) via LiteLLM.
           # Requires the GEMINI_API_KEY repository secret to be set.
-          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+#          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # Flash models are available on the Gemini API free tier (no billing
           # required). The previously configured gemini-3.x IDs do not exist and
           # returned 404 (NOT_FOUND).
-          config.model: "gemini/gemini-2.5-flash"
-          config.fallback_models: '["gemini/gemini-2.0-flash"]'
+#          config.model: "gemini/gemini-2.5-flash"
+#          config.fallback_models: '["gemini/gemini-2.0-flash"]'
           # PR-Agent v0.34 does not know these models' token window; declare it
           # explicitly (Gemini Flash input window = 1,048,576 tokens).
           config.custom_model_max_tokens: "1048576"
           # To use OpenAI instead, uncomment:
-          # OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-          # OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
-          # config.model: "gpt-4o"
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          OPENAI__API_BASE: ${{ secrets.OPENAI_API_BASE_URL }}
+          config.model: "claude-sonnet-4.6"
           # To use Anthropic Claude instead, uncomment:
           # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # config.model: "anthropic/claude-sonnet-4-5"
