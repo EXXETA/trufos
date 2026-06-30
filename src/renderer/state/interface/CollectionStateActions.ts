@@ -140,7 +140,14 @@ export interface CollectionStateActions {
    * @param title
    * @param parentId
    */
-  addNewFolder(title?: string, parentId?: string): Promise<void>;
+  addNewFolder(title?: string, parentId?: string, description?: string): Promise<void>;
+
+  /**
+   * Update folder metadata without renaming the folder directory.
+   * @param id the folder id
+   * @param updates the fields to persist
+   */
+  updateFolder(id: Folder['id'], updates: Partial<Pick<Folder, 'description'>>): Promise<void>;
 
   /**
    * Delete the folder to the file system
@@ -197,6 +204,12 @@ export interface CollectionStateActions {
    * @param title The new title of the collection.
    */
   renameCollection(title: string): Promise<void>;
+
+  /**
+   * Update collection metadata without renaming the collection directory.
+   * @param updates the fields to persist
+   */
+  updateCollection(updates: Partial<Pick<Collection, 'description'>>): Promise<void>;
 
   /**
    * Close the currently opened collection.

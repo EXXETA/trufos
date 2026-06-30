@@ -13,6 +13,7 @@ const OPEN_API_DOCUMENT = {
   info: {
     title: 'Petstore API',
     version: '1.0.0',
+    description: 'Petstore API description',
   },
   servers: [{ url: 'https://api.example.com/v1' }],
   components: {
@@ -28,6 +29,7 @@ const OPEN_API_DOCUMENT = {
       get: {
         tags: ['Pets'],
         summary: 'List pets',
+        description: 'List all pets',
         security: [{ bearerAuth: [] }],
         parameters: [
           {
@@ -68,6 +70,7 @@ const OPEN_API_DOCUMENT = {
       },
     },
   },
+  tags: [{ name: 'Pets', description: 'Pet operations' }],
 };
 
 describe('OpenApiImporter', () => {
@@ -81,15 +84,18 @@ describe('OpenApiImporter', () => {
 
     expect(result.type).toBe('collection');
     expect(result.title).toBe('Petstore API');
+    expect(result.description).toBe('Petstore API description');
     expect(result.children.length).toBe(2);
 
     const folder = result.children[0] as Folder;
     expect(folder.type).toBe('folder');
     expect(folder.title).toBe('Pets');
+    expect(folder.description).toBe('Pet operations');
     expect(folder.children.length).toBe(2);
 
     const listPets = folder.children[0] as TrufosRequest;
     expect(listPets.title).toBe('List pets');
+    expect(listPets.description).toBe('List all pets');
     expect(listPets.method).toBe('GET');
     expect(listPets.url).toEqual({
       base: 'https://api.example.com/v1/pets',

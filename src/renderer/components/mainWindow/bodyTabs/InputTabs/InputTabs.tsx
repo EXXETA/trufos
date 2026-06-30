@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab';
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';
+import { DescriptionTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/DescriptionTab';
 import { ParamsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ParamsTab';
 import { AuthorizationTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/AuthorizationTab/AuthorizationTab';
 import { ScriptTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab';
@@ -31,6 +32,7 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
     <Tabs className={className} defaultValue="body">
       <TabsList>
         <TabsTrigger value="body">Body</TabsTrigger>
+        <TabsTrigger value="description">Description</TabsTrigger>
         <TabsTrigger value="queryParams">
           {activeParamsCount === 0 ? 'Parameters' : `Parameters (${activeParamsCount})`}
         </TabsTrigger>
@@ -44,6 +46,10 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
 
       <TabsContent value="body">
         <BodyTab />
+      </TabsContent>
+
+      <TabsContent value="description">
+        <DescriptionTab />
       </TabsContent>
 
       <TabsContent value="queryParams">

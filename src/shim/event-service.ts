@@ -57,6 +57,12 @@ export interface IEventService {
   saveRequest(request: TrufosRequest, textBody?: string): Promise<TrufosRequest>;
 
   /**
+   * Save the current collection to the file system.
+   * @param collection The collection to save.
+   */
+  saveCollection(collection: Collection): Promise<Collection>;
+
+  /**
    * Copies the given request and returns the copied request.
    * If the request has a non-draft request body, it is copied as well.
    *

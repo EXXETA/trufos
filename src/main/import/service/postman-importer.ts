@@ -24,6 +24,15 @@ import {
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 
+function extractDescription(description: unknown): string | undefined {
+  if (typeof description === 'string') return description;
+  if (description != null && typeof description === 'object' && 'content' in description) {
+    const content = (description as { content?: unknown }).content;
+    if (typeof content === 'string') return content;
+  }
+  return undefined;
+}
+
 /**
  * An importer for Postman collections. It will import the collection and all of its variables,
  * folders and requests. It imports using the DFS algorithm.
@@ -55,6 +64,7 @@ export class PostmanImporter implements CollectionImporter {
       type: 'collection',
       lastModified: Date.now(),
       title: postmanCollection.name,
+      description: extractDescription((postmanCollection as { description?: unknown }).description),
       dirPath: '', // must be set after import
       children: [],
       variables,
@@ -83,6 +93,7 @@ export class PostmanImporter implements CollectionImporter {
       type: 'folder',
       lastModified: Date.now(),
       title: postmanFolder.name,
+      description: extractDescription((postmanFolder as { description?: unknown }).description),
       children: [],
     };
 
@@ -118,6 +129,7 @@ export class PostmanImporter implements CollectionImporter {
       type: 'request',
       lastModified: Date.now(),
       title: item.name,
+      description: extractDescription((item as { description?: unknown }).description),
       url: parseUrl(request.url.toString()),
       headers: request.headers.all().map((header) => ({
         key: header.key,

@@ -269,6 +269,7 @@ describe('PersistenceService', () => {
     collection.children.push(request);
 
     await persistenceService.saveCollection(collection, true);
+    await writeFile(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME), 'body text');
     const oldInfo = JSON.parse(
       await readFile(
         path.join(
@@ -300,6 +301,9 @@ describe('PersistenceService', () => {
     ) as RequestInfoFile;
     expect(newInfo.method).toBe(request.method);
     expect(newInfo).not.toEqual(oldInfo);
+    expect(await readFile(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME), 'utf-8')).toBe(
+      'body text'
+    );
   });
 
   it('saveCollection() should save the metadata of the collection', async () => {

@@ -43,6 +43,7 @@ export class OpenApiImporter implements CollectionImporter {
       type: 'collection',
       lastModified: Date.now(),
       title: document.info.title,
+      description: document.info.description,
       dirPath: '',
       children: [],
       variables: {},
@@ -78,7 +79,7 @@ export class OpenApiImporter implements CollectionImporter {
           continue;
         }
 
-        const folder = this.getOrCreateFolder(collection, foldersByTag, firstTag);
+        const folder = this.getOrCreateFolder(collection, foldersByTag, firstTag, document);
         request.parentId = folder.id;
         folder.children.push(request);
       }
@@ -110,6 +111,7 @@ export class OpenApiImporter implements CollectionImporter {
       lastModified: Date.now(),
       title:
         operation.summary || operation.operationId || `${method.toUpperCase()} ${pathTemplate}`,
+      description: operation.description,
       url: {
         ...parseUrl(this.joinUrl(baseUrl, pathTemplate)),
         query,
@@ -124,10 +126,13 @@ export class OpenApiImporter implements CollectionImporter {
   private getOrCreateFolder(
     collection: TrufosCollection,
     foldersByTag: Map<string, TrufosFolder>,
-    tag: string
+    tag: string,
+    document: OpenApiDocument
   ) {
     let folder = foldersByTag.get(tag);
     if (folder != null) return folder;
+
+    const tagDescription = document.tags?.find((candidate) => candidate.name === tag)?.description;
 
     folder = {
       id: randomUUID(),
@@ -135,6 +140,7 @@ export class OpenApiImporter implements CollectionImporter {
       type: 'folder',
       lastModified: Date.now(),
       title: tag,
+      description: tagDescription,
       children: [],
     };
     foldersByTag.set(tag, folder);

@@ -4,9 +4,11 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { MdOutlineContentCopy } from 'react-icons/md';
 import { TypographyLineClamp } from '@/components/shared/TypographyLineClamp';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { MarkdownPreview } from '@/components/shared/MarkdownPreview';
 
 const eventService = RendererEventService.instance;
 
@@ -15,11 +17,21 @@ export interface GeneralEditorProps {
   name: string;
   /** Called when the user edits the collection name. */
   onNameChange: (name: string) => void;
+  /** The current value of the collection description input. */
+  description: string;
+  /** Called when the user edits the collection description. */
+  onDescriptionChange: (description: string) => void;
   /** Called after the collection has been closed so the parent can dismiss the modal. */
   onCloseCollection: () => void;
 }
 
-export const GeneralEditor = ({ name, onNameChange, onCloseCollection }: GeneralEditorProps) => {
+export const GeneralEditor = ({
+  name,
+  onNameChange,
+  description,
+  onDescriptionChange,
+  onCloseCollection,
+}: GeneralEditorProps) => {
   const { closeCollection } = useCollectionActions();
   const collection = useCollectionStore((s) => s.collection);
   const [collections, setCollections] = useState<CollectionBase[]>([]);
@@ -62,6 +74,21 @@ export const GeneralEditor = ({ name, onNameChange, onCloseCollection }: General
       )}
 
       <Input value={name} type="text" onChange={handleChangeName} />
+
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-muted-foreground">Description</label>
+        <Textarea
+          value={description}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+          placeholder="Describe this collection..."
+          rows={4}
+        />
+        {description.trim().length > 0 ? (
+          <div className="bg-muted/10 border-border max-h-40 overflow-y-auto rounded-md border p-3 text-sm">
+            <MarkdownPreview content={description} />
+          </div>
+        ) : null}
+      </div>
 
       {!collection?.isDefault && (
         <>

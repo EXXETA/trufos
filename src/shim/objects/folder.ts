@@ -1,5 +1,5 @@
 import { TrufosRequest } from './request';
-import z from 'zod';
+import { z } from 'zod';
 
 export const Folder = z.object({
   id: z.string(),
@@ -7,6 +7,7 @@ export const Folder = z.object({
   type: z.literal('folder'),
   lastModified: z.number(),
   title: z.string(),
+  description: z.string().optional(),
   get children() {
     return z.union([Folder, TrufosRequest]).array();
   },

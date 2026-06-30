@@ -224,21 +224,6 @@
     color: var(--http-patch);
   }
 
-  /* Scrollbar (webkit) */
-  .tabs-scrollbar::-webkit-scrollbar {
-    width: 8px;
-  }
-  .tabs-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .tabs-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--disabled);
-    border-radius: 4px;
-  }
-  .tabs-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
-  }
-
   .scrollbar > .slider {
     background: var(--disabled);
     border-radius: 4px;

@@ -161,6 +161,7 @@ export class EnvironmentService implements Initializable {
         collections.push({
           id: collection.id,
           title: collection.title,
+          description: collection.description,
           dirPath,
         });
       } catch (e) {

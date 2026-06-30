@@ -378,13 +378,14 @@ export const createCollectionStore = (collection: Collection) => {
 
       setDraftFlag: () => set(markDraft),
 
-      addNewFolder: async (title?, parentId?) => {
+      addNewFolder: async (title?, parentId?, description?) => {
         await eventService.saveFolder({
           // @ts-expect-error id is assigned by the backend upon creation
           id: null,
           parentId: parentId ?? get().collection!.id,
           type: 'folder',
           title: title ?? (Math.random() + 1).toString(36).substring(7),
+          description,
           lastModified: Date.now(),
           children: [],
         });
@@ -420,6 +421,24 @@ export const createCollectionStore = (collection: Collection) => {
         await eventService.rename(folder, title);
         set((state) => {
           const updatedFolder = { ...folder, title };
+          state.folders.set(id, updatedFolder);
+          replaceChild(state, updatedFolder);
+        });
+      },
+
+      updateFolder: async (id: Folder['id'], updates: Partial<Pick<Folder, 'description'>>) => {
+        const folder = selectFolder(get(), id);
+        if (folder == null) return;
+
+        const updatedFolder: Folder = {
+          ...folder,
+          ...updates,
+          lastModified: Date.now(),
+        };
+
+        await eventService.saveFolder(updatedFolder);
+
+        set((state) => {
           state.folders.set(id, updatedFolder);
           replaceChild(state, updatedFolder);
         });
@@ -491,6 +510,24 @@ export const createCollectionStore = (collection: Collection) => {
 
         set((state) => {
           state.collection!.title = title;
+        });
+      },
+
+      updateCollection: async (updates: Partial<Pick<Collection, 'description'>>) => {
+        const current = get().collection;
+        if (current == null) return;
+
+        const collection: Collection = {
+          ...current,
+          ...updates,
+          variables: useVariableStore.getState().variables,
+          environments: useEnvironmentStore.getState().environments,
+        };
+
+        await eventService.saveCollection(collection);
+
+        set((state) => {
+          state.collection = { ...state.collection!, ...updates };
         });
       },
 

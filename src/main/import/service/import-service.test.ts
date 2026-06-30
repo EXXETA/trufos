@@ -42,6 +42,7 @@ describe('ImportService', () => {
     const firstChild = childrenLevel1[0] as TrufosRequest;
     expect(firstChild.type).toBe('request');
     expect(firstChild.title).toBe('200 ok');
+    expect(firstChild.description).toContain('This is H1');
     expect(firstChild.url).toEqual({
       base: 'http://echo.getpostman.com/status/200',
       query: [{ key: 'key', value: 'value', isActive: true }],

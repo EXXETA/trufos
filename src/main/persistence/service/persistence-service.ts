@@ -209,8 +209,6 @@ export class PersistenceService {
       body.type = RequestBodyType.TEXT; // enforce type
       delete body.text; // only present once, if imported collection
       await fs.writeFile(path.join(dirPath, TEXT_BODY_FILE_NAME), textBody);
-    } else if (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME))) {
-      await fs.unlink(path.join(dirPath, TEXT_BODY_FILE_NAME));
     }
     return request;
   }
