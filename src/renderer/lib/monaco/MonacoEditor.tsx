@@ -1,5 +1,5 @@
 import { Editor, EditorProps, OnMount } from '@monaco-editor/react';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme, TrufosTheme } from '@/contexts/ThemeContext';
 import { editor } from 'monaco-editor';
 import { useEffect, useRef } from 'react';
 
@@ -30,7 +30,7 @@ export default function MonacoEditor({ model, onMount, ...props }: MonacoEditorP
 
   return (
     <Editor
-      theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
+      theme={theme === TrufosTheme.Dark ? 'vs-dark' : 'vs-light'}
       keepCurrentModel
       {...props}
       onMount={handleMount}

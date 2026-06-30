@@ -19,7 +19,7 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
   return (
-    <div className={cn('group hover:bg-[#333333]')}>
+    <div className={cn('group hover:bg-sidebar-accent')}>
       <span
         className={cn(
           'sidebar-request-list-item',
@@ -36,10 +36,7 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
         onClick={handleMouseEvent(() => setSelectedRequest(requestId))}
       >
         <div
-          className={cn(
-            'flex-shrink-0 text-xs leading-3 font-normal',
-            httpMethodColor(request.method)
-          )}
+          className={cn('shrink-0 text-xs leading-3 font-normal', httpMethodColor(request.method))}
         >
           {request.method}
         </div>
@@ -60,13 +57,13 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
         ) : (
           <>
             <div className="flex min-w-0 flex-1 items-center">
-              <span className="font-lato flex-1 truncate text-xs leading-3 text-[var(--text-secondary)]">
+              <span className="font-lato flex-1 truncate text-xs leading-3 text-(--text-secondary)">
                 {request.title ?? request.url.base}
               </span>
             </div>
 
             <div
-              className="sidebar-row-menu flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+              className="sidebar-row-menu flex h-4 w-4 shrink-0 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >

@@ -54,8 +54,8 @@ const createWindow = async () => {
     // pass webContents to MainEventService for push notifications
     mainEventService.webContents = mainWindow.webContents;
 
-    // show once rendered
-    once(mainWindow, 'ready-to-show').then(() => mainWindow.show());
+    // show once the renderer has loaded and applied the saved theme
+    once(ipcMain, 'renderer-ready').then(() => mainWindow.show());
 
     // open links in default browser
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
