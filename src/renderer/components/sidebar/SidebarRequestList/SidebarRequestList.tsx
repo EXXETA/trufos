@@ -27,12 +27,68 @@ import { cn } from '@/lib/utils';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
-import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 
+import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 interface SidebarRequestListProps {
   creatingItem: CreatingItem;
   onCreateItem: (item: CreatingItem) => void;
 }
+
+const DragOverlayFolder = ({ folder }: { folder: any }) => {
+  return (
+    <div
+      className={cn(
+        'sidebar-request-list-item',
+        'flex items-center gap-1 px-5 py-2',
+        'bg-background border-accent rounded border shadow-lg',
+        'cursor-grabbing'
+      )}
+    >
+      <div className="flex h-6 w-6 items-center justify-center">
+        <SmallArrow size={24} />
+      </div>
+      <div className="flex items-center gap-1">
+        <FolderIcon size={16} />
+        <span>{folder.title}</span>
+      </div>
+    </div>
+  );
+};
+
+const DragOverlayRequest = ({ request }: { request: any }) => {
+  return (
+    <div
+      className={cn(
+        'sidebar-request-list-item',
+        'flex gap-2 px-5 py-3.5',
+        'bg-background border-accent rounded border shadow-lg',
+        'cursor-grabbing'
+      )}
+    >
+      <div className={cn('text-xs leading-3 font-bold', httpMethodColor(request.method))}>
+        {request.method}
+      </div>
+      <p className="text-xs leading-3">{request.title ?? request.url}</p>
+    </div>
+  );
+};
+
+/** Drag overlay that looks like the actual sidebar items */
+const DragOverlayContent = ({ itemId }: { itemId: string }) => {
+  const request = useCollectionStore((state) => state.requests.get(itemId));
+  const folder = useCollectionStore((state) => state.folders.get(itemId));
+
+  if (folder) {
+    return <DragOverlayFolder folder={folder} />;
+  }
+
+  if (request) {
+    return <DragOverlayRequest request={request} />;
+  }
+
+  return null;
+};
 
 export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarRequestListProps) => {
   const children = useCollectionStore((state) => state.collection!.children);
@@ -41,7 +97,8 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   const folders = useCollectionStore((state) => state.folders);
   const requests = useCollectionStore((state) => state.requests);
   const sortMode = useCollectionStore((state) => state.sortMode);
-  const { moveItem } = useCollectionActions();
+  const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
+  const { moveItem, setSelectedRequest } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -87,6 +144,11 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     [sortedChildren, openFolders, collectionId, sortedFolders]
   );
 
+  const visibleRequestIds = useMemo(
+    () => flattenedItems.filter((item) => item.type === 'request').map((item) => item.id),
+    [flattenedItems]
+  );
+
   // During drag: remove children of the dragged folder so they travel with it
   const sortableItems = useMemo(() => {
     if (!activeId) return flattenedItems;
@@ -94,6 +156,41 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   }, [flattenedItems, activeId]);
 
   const sortableIds = useMemo(() => sortableItems.map((item) => item.id), [sortableItems]);
+
+  const navigateRequest = (direction: -1 | 1) => {
+    if (!selectedRequestId) return;
+
+    const currentIndex = visibleRequestIds.indexOf(selectedRequestId);
+
+    if (currentIndex === -1) return;
+
+    const nextIndex =
+      direction < 0
+        ? Math.max(currentIndex - 1, 0)
+        : Math.min(currentIndex + 1, visibleRequestIds.length - 1);
+
+    const nextRequestId = visibleRequestIds[nextIndex];
+
+    if (nextRequestId && nextRequestId !== selectedRequestId) {
+      setSelectedRequest(nextRequestId);
+    }
+  };
+
+  useHotkeys(
+    [
+      {
+        keys: 'mod+pageup',
+        handler: () => navigateRequest(-1),
+      },
+      {
+        keys: 'mod+pagedown',
+        handler: () => navigateRequest(1),
+      },
+    ],
+    {
+      enabled: !!selectedRequestId,
+    }
+  );
 
   const handleDragStart = ({ active }: DragStartEvent) => {
     setActiveId(active.id as string);
@@ -196,60 +293,5 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
         </DragOverlay>
       </DndContext>
     </SidebarContent>
-  );
-};
-
-/** Drag overlay that looks like the actual sidebar items */
-const DragOverlayContent = ({ itemId }: { itemId: string }) => {
-  const request = useCollectionStore((state) => state.requests.get(itemId));
-  const folder = useCollectionStore((state) => state.folders.get(itemId));
-
-  if (folder) {
-    return <DragOverlayFolder folder={folder} />;
-  }
-
-  if (request) {
-    return <DragOverlayRequest request={request} />;
-  }
-
-  return null;
-};
-
-const DragOverlayFolder = ({ folder }: { folder: Folder }) => {
-  return (
-    <div
-      className={cn(
-        'sidebar-request-list-item',
-        'flex items-center gap-1 px-5 py-2',
-        'bg-background border-accent rounded border shadow-lg',
-        'cursor-grabbing'
-      )}
-    >
-      <div className="flex h-6 w-6 items-center justify-center">
-        <SmallArrow size={24} />
-      </div>
-      <div className="flex items-center gap-1">
-        <FolderIcon size={16} />
-        <span>{folder.title}</span>
-      </div>
-    </div>
-  );
-};
-
-const DragOverlayRequest = ({ request }: { request: TrufosRequest }) => {
-  return (
-    <div
-      className={cn(
-        'sidebar-request-list-item',
-        'flex gap-2 px-5 py-3.5',
-        'bg-background border-accent rounded border shadow-lg',
-        'cursor-grabbing'
-      )}
-    >
-      <div className={cn('text-xs leading-3 font-bold', httpMethodColor(request.method))}>
-        {request.method}
-      </div>
-      <p className="text-xs leading-3">{request.title ?? request.url}</p>
-    </div>
   );
 };

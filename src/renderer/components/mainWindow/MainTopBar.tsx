@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { RequestMethod } from 'shim/objects/request-method';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
@@ -14,6 +14,7 @@ import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -58,19 +59,13 @@ export function MainTopBar() {
     [request]
   );
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
-      if (isSaveShortcut && request?.draft) {
-        event.preventDefault();
-        saveRequest();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [saveRequest]);
+  useHotkeys(
+    [
+      { keys: 'mod+s', handler: saveRequest },
+      { keys: 'mod+enter', handler: sendRequest },
+    ],
+    { skipFormElements: false }
+  );
 
   return (
     <div className="mb-6 flex items-center gap-6">

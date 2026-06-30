@@ -1,18 +1,23 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab';
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';
 import { ParamsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ParamsTab';
 import { AuthorizationTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/AuthorizationTab/AuthorizationTab';
 import { ScriptTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 
 interface InputTabsProps {
   className: string;
 }
 
+type InputTabValue = 'body' | 'queryParams' | 'headers' | 'authorization' | 'scripts';
+
 export function InputTabs(props: Readonly<InputTabsProps>) {
   const { className } = props;
+
+  const [selectedTab, setSelectedTab] = useState<InputTabValue>('body');
 
   const headers = useCollectionStore((state) => selectRequest(state)!.headers);
   const queryParams = useCollectionStore((state) => selectRequest(state)!.url.query);
@@ -27,8 +32,36 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
     [queryParams]
   );
 
+  useHotkeys([
+    {
+      keys: 'mod+1',
+      handler: () => setSelectedTab('body'),
+    },
+    {
+      keys: 'mod+2',
+      handler: () => setSelectedTab('queryParams'),
+    },
+    {
+      keys: 'mod+3',
+      handler: () => setSelectedTab('headers'),
+    },
+    {
+      keys: 'mod+4',
+      handler: () => setSelectedTab('authorization'),
+    },
+    {
+      keys: 'mod+5',
+      handler: () => setSelectedTab('scripts'),
+    },
+  ]);
+
   return (
-    <Tabs className={className} defaultValue="body">
+    <Tabs
+      className={className}
+      defaultValue="body"
+      value={selectedTab}
+      onValueChange={(value) => setSelectedTab(value as InputTabValue)}
+    >
       <TabsList>
         <TabsTrigger value="body">Body</TabsTrigger>
         <TabsTrigger value="queryParams">
