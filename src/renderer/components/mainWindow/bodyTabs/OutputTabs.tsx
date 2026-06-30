@@ -12,6 +12,7 @@ import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseS
 import { selectResponse, useResponseStore } from '@/state/responseStore';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { BodyTab } from './OutputTabs/BodyTab';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 
 interface OutputTabsProps {
   className: string;
@@ -25,42 +26,19 @@ export function OutputTabs({ className }: OutputTabsProps) {
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-
-      if (
-        target.nodeName === 'INPUT' ||
-        target.nodeName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-
-      const isModifierPressed = event.ctrlKey || event.metaKey;
-
-      if (!isModifierPressed) return;
-
-      const tabMap: Record<string, OutputTabValue> = {
-        '6': 'body',
-        '7': 'header',
-      };
-
-      const nextTab = tabMap[event.key];
-
-      if (!nextTab) return;
-
-      event.preventDefault();
-
-      setSelectedTab(nextTab);
-    };
-
-    window.addEventListener('keydown', handleKeyDown, true);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, []);
+  useHotkeys(
+    [
+      {
+        keys: 'mod+6',
+        handler: () => setSelectedTab('body'),
+      },
+      {
+        keys: 'mod+7',
+        handler: () => setSelectedTab('header'),
+      },
+    ],
+    { skipFormElements: false }
+  );
 
   if (response == null) {
     return (

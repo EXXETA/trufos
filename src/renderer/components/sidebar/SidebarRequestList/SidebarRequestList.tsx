@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -27,8 +27,9 @@ import { cn } from '@/lib/utils';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
-import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 
+import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 interface SidebarRequestListProps {
   creatingItem: CreatingItem;
   onCreateItem: (item: CreatingItem) => void;
@@ -156,41 +157,40 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
 
   const sortableIds = useMemo(() => sortableItems.map((item) => item.id), [sortableItems]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isModifierPressed = event.ctrlKey || event.metaKey;
+  const navigateRequest = (direction: -1 | 1) => {
+    if (!selectedRequestId) return;
 
-      if (!isModifierPressed) return;
+    const currentIndex = visibleRequestIds.indexOf(selectedRequestId);
 
-      const key = event.key.toLowerCase();
+    if (currentIndex === -1) return;
 
-      if (key !== 'pageup' && key !== 'pagedown') return;
+    const nextIndex =
+      direction < 0
+        ? Math.max(currentIndex - 1, 0)
+        : Math.min(currentIndex + 1, visibleRequestIds.length - 1);
 
-      if (!selectedRequestId) return;
+    const nextRequestId = visibleRequestIds[nextIndex];
 
-      const currentIndex = visibleRequestIds.indexOf(selectedRequestId);
-
-      if (currentIndex === -1) return;
-
-      const nextIndex =
-        key === 'pageup'
-          ? Math.max(currentIndex - 1, 0)
-          : Math.min(currentIndex + 1, visibleRequestIds.length - 1);
-
-      const nextRequestId = visibleRequestIds[nextIndex];
-
-      if (!nextRequestId || nextRequestId === selectedRequestId) return;
-
-      event.preventDefault();
+    if (nextRequestId && nextRequestId !== selectedRequestId) {
       setSelectedRequest(nextRequestId);
-    };
+    }
+  };
 
-    window.addEventListener('keydown', handleKeyDown, true);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [selectedRequestId, visibleRequestIds, setSelectedRequest]);
+  useHotkeys(
+    [
+      {
+        keys: 'mod+pageup',
+        handler: () => navigateRequest(-1),
+      },
+      {
+        keys: 'mod+pagedown',
+        handler: () => navigateRequest(1),
+      },
+    ],
+    {
+      enabled: !!selectedRequestId,
+    }
+  );
 
   const handleDragStart = ({ active }: DragStartEvent) => {
     setActiveId(active.id as string);

@@ -6,6 +6,7 @@ import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab
 import { ParamsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ParamsTab';
 import { AuthorizationTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/AuthorizationTab/AuthorizationTab';
 import { ScriptTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 
 interface InputTabsProps {
   className: string;
@@ -31,45 +32,31 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
     [queryParams]
   );
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-
-      if (
-        target.nodeName === 'INPUT' ||
-        target.nodeName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-
-      const isModifierPressed = event.ctrlKey || event.metaKey;
-
-      if (!isModifierPressed) return;
-
-      const tabMap: Record<string, InputTabValue> = {
-        '1': 'body',
-        '2': 'queryParams',
-        '3': 'headers',
-        '4': 'authorization',
-        '5': 'scripts',
-      };
-
-      const nextTab = tabMap[event.key];
-
-      if (!nextTab) return;
-
-      event.preventDefault();
-
-      setSelectedTab(nextTab);
-    };
-
-    window.addEventListener('keydown', handleKeyDown, true);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, []);
+  useHotkeys(
+    [
+      {
+        keys: 'mod+1',
+        handler: () => setSelectedTab('body'),
+      },
+      {
+        keys: 'mod+2',
+        handler: () => setSelectedTab('queryParams'),
+      },
+      {
+        keys: 'mod+3',
+        handler: () => setSelectedTab('headers'),
+      },
+      {
+        keys: 'mod+4',
+        handler: () => setSelectedTab('authorization'),
+      },
+      {
+        keys: 'mod+5',
+        handler: () => setSelectedTab('scripts'),
+      },
+    ],
+    { skipFormElements: false }
+  );
 
   return (
     <Tabs

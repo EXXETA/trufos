@@ -14,6 +14,7 @@ import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -57,37 +58,42 @@ export function MainTopBar() {
     }),
     [request]
   );
+  
+  useHotkeys([
+    { keys: 'mod+s', handler: saveRequest },
+    { keys: 'mod+enter', handler: sendRequest },
+  ]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey)) return;
-
-      switch (event.key.toLowerCase()) {
-        case 's':
-          if (!request?.draft) return;
-
-          event.preventDefault();
-          saveRequest();
-          break;
-
-        case 'enter':
-          if (!request || isLoading) return;
-
-          event.preventDefault();
-          sendRequest();
-          break;
-
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [request, isLoading, saveRequest, sendRequest]);
+  // useEffect(() => {
+  //   const handleKeyDown = (event: KeyboardEvent) => {
+  //     if (!(event.ctrlKey || event.metaKey)) return;
+  //
+  //     switch (event.key.toLowerCase()) {
+  //       case 's':
+  //         if (!request?.draft) return;
+  //
+  //         event.preventDefault();
+  //         saveRequest();
+  //         break;
+  //
+  //       case 'enter':
+  //         if (!request || isLoading) return;
+  //
+  //         event.preventDefault();
+  //         sendRequest();
+  //         break;
+  //
+  //       default:
+  //         break;
+  //     }
+  //   };
+  //
+  //   window.addEventListener('keydown', handleKeyDown);
+  //
+  //   return () => {
+  //     window.removeEventListener('keydown', handleKeyDown);
+  //   };
+  // }, [request, isLoading, saveRequest, sendRequest]);
 
   return (
     <div className="mb-6 flex items-center gap-6">
