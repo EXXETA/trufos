@@ -33,7 +33,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/mime-types": "^3.0.1",
-    "@types/node": "^24.13.2",
+    "@types/node": "^26.0.1",
     "@types/postman-collection": "^3.5.11",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
