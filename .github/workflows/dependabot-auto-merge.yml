@@ -1,9 +1,13 @@
 name: Dependabot Auto-merge
 
-# Auto-merges Dependabot **patch** updates once the released version is at least
-# 12 hours old and required CI checks pass. The age gate avoids merging freshly
-# published versions that may be yanked or contain regressions. Minor and major
-# updates are never auto-merged.
+# Auto-merges Dependabot **patch** updates once the released version has been
+# published for at least DEPENDABOT_MIN_AGE_DAYS days and required CI checks
+# pass. The age gate avoids merging freshly published versions that may be
+# yanked or compromised (supply-chain safety). Minor and major updates are
+# never auto-merged.
+#
+# Configure the age gate via the repository variable DEPENDABOT_MIN_AGE_DAYS
+# (Settings → Secrets and variables → Actions → Variables); defaults to 3 days.
 #
 # Requires repository setting "Allow auto-merge" and branch protection with the
 # CI checks (ci.yml / pr.yml) marked as required.
@@ -19,9 +23,8 @@ permissions:
   contents: write
   pull-requests: write
 
-# Minimum age (in hours) the released version must have before auto-merging.
 env:
-  MIN_AGE_HOURS: '12'
+  MIN_AGE_DAYS: ${{ vars.DEPENDABOT_MIN_AGE_DAYS || '3' }}
   CANDIDATE_LABEL: 'dependabot-patch'
 
 jobs:
@@ -29,6 +32,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]' || github.event_name == 'schedule'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/workflows/dependabot-auto-merge.sh
+          sparse-checkout-cone-mode: false
+
       - name: Fetch Dependabot metadata
         id: meta
         if: github.event_name == 'pull_request_target'
@@ -55,76 +64,4 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
           UPDATED_DEPENDENCIES: ${{ steps.meta.outputs.updated-dependencies-json }}
-        run: |
-          set -euo pipefail
-
-          # Age (in whole hours) since a package version was published on npm.
-          # Prints -1 when the publish time is unknown.
-          publish_age_hours() {
-            local pkg="$1" ver="$2" published now
-            published=$(curl -sf "https://registry.npmjs.org/$(printf '%s' "$pkg" | sed 's:/:%2f:')" \
-              | jq -r --arg v "$ver" '.time[$v] // empty') || published=""
-            if [ -z "$published" ]; then echo "-1"; return; fi
-            published=$(date -u -d "$published" +%s)
-            now=$(date -u +%s)
-            echo $(( (now - published) / 3600 ))
-          }
-
-          # Returns 0 if every "<pkg> <version>" pair on stdin was published at
-          # least MIN_AGE_HOURS ago (uses the newest = smallest age, the most
-          # conservative choice for grouped updates).
-          newest_old_enough() {
-            local pkg ver age min_age=999999 saw=0
-            while read -r pkg ver; do
-              [ -z "$pkg" ] && continue
-              saw=1
-              age=$(publish_age_hours "$pkg" "$ver")
-              echo "  $pkg@$ver -> ${age}h old"
-              if [ "$age" -lt 0 ]; then
-                echo "  publish time for $pkg@$ver unknown; not merging yet"
-                return 1
-              fi
-              if [ "$age" -lt "$min_age" ]; then min_age=$age; fi
-            done
-            if [ "$saw" -eq 0 ]; then return 1; fi
-            [ "$min_age" -ge "$MIN_AGE_HOURS" ]
-          }
-
-          enable_auto_merge() {
-            local url="$1"
-            echo "Enabling auto-merge for $url"
-            gh pr merge --auto --squash "$url"
-          }
-
-          if [ "$EVENT_NAME" = "pull_request_target" ]; then
-            if [ "$UPDATE_TYPE" != "version-update:semver-patch" ]; then
-              echo "Update type '$UPDATE_TYPE' is not a patch; skipping auto-merge."
-              exit 0
-            fi
-            pairs=$(printf '%s' "$UPDATED_DEPENDENCIES" \
-              | jq -r '.[] | "\(.dependencyName) \(.newVersion)"')
-            echo "Checking publish age for:"; printf '%s\n' "$pairs"
-            if printf '%s\n' "$pairs" | newest_old_enough; then
-              enable_auto_merge "$PR_URL"
-            else
-              echo "Newest version younger than ${MIN_AGE_HOURS}h; will re-check later."
-            fi
-            exit 0
-          fi
-
-          # Scheduled re-evaluation of labelled patch PRs that were too young.
-          echo "Re-evaluating open patch PRs labelled '$CANDIDATE_LABEL'..."
-          gh pr list --repo "$REPO" --state open --label "$CANDIDATE_LABEL" \
-            --json url,title --jq '.[] | [.url, .title] | @tsv' \
-          | while IFS=$'\t' read -r url title; do
-              # Single-package Dependabot titles: "Bump <pkg> from <a> to <b>".
-              if [[ "$title" =~ Bump\ (.+)\ from\ .+\ to\ ([^ ]+) ]]; then
-                pkg="${BASH_REMATCH[1]}"; ver="${BASH_REMATCH[2]}"
-                echo "PR $url -> $pkg@$ver"
-                if printf '%s %s\n' "$pkg" "$ver" | newest_old_enough; then
-                  enable_auto_merge "$url"
-                fi
-              else
-                echo "PR $url: cannot parse version from title; handled on next sync event."
-              fi
-            done
+        run: bash .github/workflows/dependabot-auto-merge.sh
