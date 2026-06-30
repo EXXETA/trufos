@@ -59,10 +59,8 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
     const currentIndex = SORT_CYCLE.indexOf(sortMode);
     setSortMode(SORT_CYCLE[(currentIndex + 1) % SORT_CYCLE.length]);
   };
-  
-  useHotkeys([
-    {keys: 'mod+n', handler: () => openModal('request')}
-  ])
+
+  useHotkeys([{ keys: 'mod+n', handler: () => openModal('request') }]);
 
   return (
     <>

@@ -26,18 +26,16 @@ export function OutputTabs({ className }: OutputTabsProps) {
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
 
-  useHotkeys(
-    [
-      {
-        keys: 'mod+6',
-        handler: () => setSelectedTab('body'),
-      },
-      {
-        keys: 'mod+7',
-        handler: () => setSelectedTab('header'),
-      },
-    ]
-  );
+  useHotkeys([
+    {
+      keys: 'mod+6',
+      handler: () => setSelectedTab('body'),
+    },
+    {
+      keys: 'mod+7',
+      handler: () => setSelectedTab('header'),
+    },
+  ]);
 
   if (response == null) {
     return (

@@ -58,7 +58,7 @@ export function MainTopBar() {
     }),
     [request]
   );
-  
+
   useHotkeys(
     [
       { keys: 'mod+s', handler: saveRequest },

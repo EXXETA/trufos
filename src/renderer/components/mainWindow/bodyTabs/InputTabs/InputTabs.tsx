@@ -32,30 +32,28 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
     [queryParams]
   );
 
-  useHotkeys(
-    [
-      {
-        keys: 'mod+1',
-        handler: () => setSelectedTab('body'),
-      },
-      {
-        keys: 'mod+2',
-        handler: () => setSelectedTab('queryParams'),
-      },
-      {
-        keys: 'mod+3',
-        handler: () => setSelectedTab('headers'),
-      },
-      {
-        keys: 'mod+4',
-        handler: () => setSelectedTab('authorization'),
-      },
-      {
-        keys: 'mod+5',
-        handler: () => setSelectedTab('scripts'),
-      },
-    ]
-  );
+  useHotkeys([
+    {
+      keys: 'mod+1',
+      handler: () => setSelectedTab('body'),
+    },
+    {
+      keys: 'mod+2',
+      handler: () => setSelectedTab('queryParams'),
+    },
+    {
+      keys: 'mod+3',
+      handler: () => setSelectedTab('headers'),
+    },
+    {
+      keys: 'mod+4',
+      handler: () => setSelectedTab('authorization'),
+    },
+    {
+      keys: 'mod+5',
+      handler: () => setSelectedTab('scripts'),
+    },
+  ]);
 
   return (
     <Tabs
