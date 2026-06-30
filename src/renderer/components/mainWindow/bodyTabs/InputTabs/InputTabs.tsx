@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab';
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';

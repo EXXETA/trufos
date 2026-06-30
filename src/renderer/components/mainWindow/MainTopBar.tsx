@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { RequestMethod } from 'shim/objects/request-method';
 import { useErrorHandler } from '@/components/ui/use-toast';
 import { HttpService } from '@/services/http/http-service';
