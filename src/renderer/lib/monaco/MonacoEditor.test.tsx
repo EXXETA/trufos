@@ -56,7 +56,10 @@ vi.mock('@monaco-editor/loader', () => ({
   },
 }));
 
-vi.mock('@/contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'light' }) }));
+vi.mock('@/contexts/ThemeContext', () => ({
+  TrufosTheme: { Light: 'light', Dark: 'dark' },
+  useTheme: () => ({ theme: 'light' }),
+}));
 vi.mock('monaco-editor', () => ({ editor: {} }));
 
 // Use the real @monaco-editor/react, wrapping <Editor> only to capture the
