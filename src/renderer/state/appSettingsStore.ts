@@ -27,7 +27,7 @@ export const useAppSettingsStore = create<AppSettings & AppSettingsActions>()(
         Object.assign(state, partial);
       });
       void eventService
-        .saveAppSettings(get())
+        .saveAppSettings(AppSettings.parse(get()))
         .catch((err) => showError('Failed to save app settings', err));
     },
   }))
