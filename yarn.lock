@@ -11523,7 +11523,7 @@ __metadata:
     ts-node: "npm:^10.9.2"
     typescript: "npm:6.0.3"
     undici: "npm:^8.5.0"
-    update-electron-app: "npm:^3.2.0"
+    update-electron-app: "npm:^3.3.0"
     vite: "npm:^8.1.0"
     vitest: "npm:^4.1.9"
     webpack: "npm:^5.107.2"
@@ -11944,13 +11944,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"update-electron-app@npm:^3.2.0":
-  version: 3.2.0
-  resolution: "update-electron-app@npm:3.2.0"
+"update-electron-app@npm:^3.3.0":
+  version: 3.3.0
+  resolution: "update-electron-app@npm:3.3.0"
   dependencies:
     github-url-to-object: "npm:^4.0.4"
     ms: "npm:^2.1.1"
-  checksum: 10c0/b8e29d384d5ae5c65705879863afe662fb5853c4350ebd8f7dab1a0c1db6413096b43d9b27a1f6215ce93d8424a8945be0b6b527f9e51cdf5201ff2b33541f90
+  checksum: 10c0/692d82ecb9df4824f0d712f69a38fbf5c05ec42c9ffc3bb85bbdb7142e80eaf0c7668a465242cdce9bda022f6bd0896ffa305d292e6e187bee0e0a28d9d7f257
   languageName: node
   linkType: hard
 
