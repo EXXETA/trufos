@@ -36,8 +36,7 @@ export function OutputTabs({ className }: OutputTabsProps) {
         keys: 'mod+7',
         handler: () => setSelectedTab('header'),
       },
-    ],
-    { skipFormElements: false }
+    ]
   );
 
   if (response == null) {

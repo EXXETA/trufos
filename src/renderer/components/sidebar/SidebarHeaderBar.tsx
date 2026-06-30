@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { CollectionSettingsModal } from '@/components/shared/settings/Collection
 import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 
 const SORT_MODE_LABELS: Record<SortMode, string> = {
   [SortMode.DEFAULT]: 'Manual order',
@@ -58,27 +59,10 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
     const currentIndex = SORT_CYCLE.indexOf(sortMode);
     setSortMode(SORT_CYCLE[(currentIndex + 1) % SORT_CYCLE.length]);
   };
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isModifierPressed = event.ctrlKey || event.metaKey;
-
-      if (!isModifierPressed) return;
-
-      if (event.key.toLowerCase() !== 'n') return;
-
-      if (creationModalState.isOpen) return;
-
-      event.preventDefault();
-      openModal('request');
-    };
-
-    window.addEventListener('keydown', handleKeyDown, true);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [creationModalState.isOpen, openModal]);
+  
+  useHotkeys([
+    {keys: 'mod+n', handler: () => openModal('request')}
+  ])
 
   return (
     <>

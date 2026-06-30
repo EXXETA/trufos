@@ -59,41 +59,13 @@ export function MainTopBar() {
     [request]
   );
   
-  useHotkeys([
-    { keys: 'mod+s', handler: saveRequest },
-    { keys: 'mod+enter', handler: sendRequest },
-  ]);
-
-  // useEffect(() => {
-  //   const handleKeyDown = (event: KeyboardEvent) => {
-  //     if (!(event.ctrlKey || event.metaKey)) return;
-  //
-  //     switch (event.key.toLowerCase()) {
-  //       case 's':
-  //         if (!request?.draft) return;
-  //
-  //         event.preventDefault();
-  //         saveRequest();
-  //         break;
-  //
-  //       case 'enter':
-  //         if (!request || isLoading) return;
-  //
-  //         event.preventDefault();
-  //         sendRequest();
-  //         break;
-  //
-  //       default:
-  //         break;
-  //     }
-  //   };
-  //
-  //   window.addEventListener('keydown', handleKeyDown);
-  //
-  //   return () => {
-  //     window.removeEventListener('keydown', handleKeyDown);
-  //   };
-  // }, [request, isLoading, saveRequest, sendRequest]);
+  useHotkeys(
+    [
+      { keys: 'mod+s', handler: saveRequest },
+      { keys: 'mod+enter', handler: sendRequest },
+    ],
+    { skipFormElements: false }
+  );
 
   return (
     <div className="mb-6 flex items-center gap-6">

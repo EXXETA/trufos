@@ -54,8 +54,7 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
         keys: 'mod+5',
         handler: () => setSelectedTab('scripts'),
       },
-    ],
-    { skipFormElements: false }
+    ]
   );
 
   return (
