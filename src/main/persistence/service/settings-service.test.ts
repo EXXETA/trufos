@@ -68,7 +68,7 @@ describe('SettingsService', async () => {
     });
   });
 
-  it('should migrate settings from 1.0.0 to 1.1.0 on init', async () => {
+  it('should migrate settings from 1.0.0 to current version on init', async () => {
     // Arrange
     const oldSettings = {
       version: '1.0.0',
@@ -92,9 +92,34 @@ describe('SettingsService', async () => {
 
     // Assert - file now has migrated version
     const fileContent = JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
-    expect(fileContent.version).toBe('1.1.0');
+    expect(fileContent.version).toBe(VERSION.string);
     expect(fileContent.currentCollectionIndex).toBe(1);
     expect(fileContent.collections).toEqual(['path/to/collection1', 'path/to/collection2']);
+    expect(fileContent.preferences).toEqual({ theme: 'system' });
+  });
+
+  it('should migrate settings from 1.1.0 to current version on init', async () => {
+    // Arrange
+    const oldSettings = {
+      version: '1.1.0',
+      currentCollectionIndex: 0,
+      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+      windowState: { width: 1280, height: 800 },
+    };
+    await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(oldSettings));
+
+    // Act
+    await settingsService.init();
+
+    // Assert - preferences added with defaults
+    expect(settingsService.settings.preferences).toEqual({ theme: 'system' });
+    expect(settingsService.settings.windowState).toEqual({ width: 1280, height: 800 });
+
+    // Assert - persisted correctly
+    await settingsService.updateSettings({});
+    const fileContent = JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
+    expect(fileContent.version).toBe(VERSION.string);
+    expect(fileContent.preferences).toEqual({ theme: 'system' });
   });
 
   it('should throw error when migrating from unknown version', async () => {

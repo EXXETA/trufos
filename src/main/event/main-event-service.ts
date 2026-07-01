@@ -11,8 +11,10 @@ import type {
   ScriptType,
   IEventService,
   ImportStrategy,
+  AppSettings,
 } from 'shim';
 import type { ClientCertificate } from 'shim/objects/collection';
+import { SettingsService } from '../persistence/service/settings-service';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { ImportService } from 'main/import/service/import-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
@@ -244,6 +246,14 @@ export class MainEventService implements IEventService {
     }
 
     return await ResponseBodyService.instance.downloadResponse(responseId, chosenPath);
+  }
+
+  async getAppSettings(): Promise<AppSettings | undefined> {
+    return SettingsService.instance.settings.preferences;
+  }
+
+  async saveAppSettings(settings: AppSettings): Promise<void> {
+    await SettingsService.instance.updateSettings({ preferences: settings });
   }
 
   updateApp() {

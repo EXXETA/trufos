@@ -1,0 +1,67 @@
+name: Dependabot Auto-merge
+
+# Auto-merges Dependabot **patch** updates once the released version has been
+# published for at least DEPENDABOT_MIN_AGE_DAYS days and required CI checks
+# pass. The age gate avoids merging freshly published versions that may be
+# yanked or compromised (supply-chain safety). Minor and major updates are
+# never auto-merged.
+#
+# Configure the age gate via the repository variable DEPENDABOT_MIN_AGE_DAYS
+# (Settings → Secrets and variables → Actions → Variables); defaults to 3 days.
+#
+# Requires repository setting "Allow auto-merge" and branch protection with the
+# CI checks (ci.yml / pr.yml) marked as required.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+  # Re-evaluate patch PRs that were still too young on a previous run.
+  schedule:
+    - cron: '0 */4 * * *'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  MIN_AGE_DAYS: ${{ vars.DEPENDABOT_MIN_AGE_DAYS || '3' }}
+  CANDIDATE_LABEL: 'dependabot-patch'
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]' || github.event_name == 'schedule'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/workflows/dependabot-auto-merge.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Fetch Dependabot metadata
+        id: meta
+        if: github.event_name == 'pull_request_target'
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Mark patch PRs so the scheduled run can re-evaluate them later, even
+      # though fetch-metadata is only available on the pull_request event.
+      - name: Label patch PRs
+        if: >-
+          github.event_name == 'pull_request_target' &&
+          steps.meta.outputs.update-type == 'version-update:semver-patch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr edit "$PR_URL" --add-label "$CANDIDATE_LABEL"
+
+      - name: Evaluate and enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          UPDATED_DEPENDENCIES: ${{ steps.meta.outputs.updated-dependencies-json }}
+        run: bash .github/workflows/dependabot-auto-merge.sh

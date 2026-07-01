@@ -72,4 +72,6 @@ export class RendererEventService implements IEventService {
   saveScript = createEventMethod('saveScript');
   downloadResponse = createEventMethod('downloadResponse');
   setClientCertificate = createEventMethod('setClientCertificate');
+  getAppSettings = createEventMethod('getAppSettings');
+  saveAppSettings = createEventMethod('saveAppSettings');
 }

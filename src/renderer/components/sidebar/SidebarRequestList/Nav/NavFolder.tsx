@@ -69,7 +69,7 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem }: NavFolderProps)
             'px-5',
             'cursor-grab active:cursor-grabbing',
             'gap-1',
-            'hover:[background-color:#333333]',
+            'hover:bg-sidebar-accent',
             getIndentation(depth)
           )}
         >
@@ -104,7 +104,7 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem }: NavFolderProps)
               </div>
 
               <div
-                className="sidebar-row-menu flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+                className="sidebar-row-menu flex h-4 w-4 shrink-0 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
                 onClick={stopPropagation}
                 onPointerDown={stopPropagation}
               >

@@ -11,6 +11,7 @@ import {
   ClientCertificate,
 } from './objects';
 import { ScriptType } from './scripting';
+import { AppSettings } from './app-settings';
 
 export type ImportStrategy = 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia';
 
@@ -244,4 +245,15 @@ export interface IEventService {
    * @returns The saved file path, or null if the user cancelled or the body is unavailable.
    */
   downloadResponse(responseId: string): Promise<string | null>;
+
+  /**
+   * Returns the persisted application settings.
+   */
+  getAppSettings(): Promise<AppSettings | undefined>;
+
+  /**
+   * Persists the application settings to disk.
+   * @param settings The new application settings.
+   */
+  saveAppSettings(settings: AppSettings): Promise<void>;
 }
