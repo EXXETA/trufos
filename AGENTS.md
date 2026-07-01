@@ -141,9 +141,11 @@ One-time setup (per developer):
 4. Approve/restart the MCP server in your client (Claude Code: confirm the `penpot` server,
    then `/mcp`; VS Code/Copilot: run `MCP: List Servers`) to verify it is connected.
 
-Then ask the agent to list the Trufos design files and read the frame for the screen you are
-working on. For a reviewable verification, record the project/file/frame that was read in the
-issue or PR.
+Then ask the agent to read the relevant Penpot file/frame for the screen you are working on.
+The public read-only account may only list its default `Drafts` project via `list_projects`;
+use the `file-id`, `page-id`, and `board-id` from the Penpot link in the issue when needed
+(the main Trufos file currently uses `file-id=88a057e2-ffe4-81cb-8005-c2e9c63649bf`). For a
+reviewable verification, record the project/file/frame that was read in the issue or PR.
 
 ## Further Reading
 
