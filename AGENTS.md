@@ -114,6 +114,39 @@ Always create or reference a GitHub issue before starting work.
 
 See `.github/prompts/create-pull-request.prompt.md` for the full step-by-step workflow.
 
+## Designs (Penpot via MCP)
+
+The UI design source of truth usually lives in Penpot. Before implementing a `design needed`
+issue, verify the linked issue/design source first. If the issue points to Figma or another
+tool, use that source instead of assuming Penpot. Otherwise fetch the relevant Penpot frame
+instead of guessing spacing/colors.
+
+A `penpot` MCP server is preconfigured for Claude Code in `.mcp.json` and for VS Code/Copilot
+in `.vscode/mcp.json`. Both use the [`penpot-mcp`](https://github.com/montevive/penpot-mcp)
+server pinned to `penpot-mcp==0.1.2`. It connects to the project's self-hosted Penpot instance
+and exposes Penpot projects/files as MCP tools/resources (list projects/files, read files,
+search objects, inspect object trees, export objects).
+
+One-time setup (per developer):
+
+1. Install [`uv`](https://docs.astral.sh/uv/) (provides `uvx`) and Python 3.12+.
+2. Copy `.env.example` to `.env`. It contains the intentionally published read-only Trufos
+   Penpot account (`PENPOT_API_URL`, `PENPOT_USERNAME`, `PENPOT_PASSWORD`). If you replace it
+   with private credentials, keep them in `.env` only; `.env` is gitignored and must not be
+   committed.
+3. Export those variables into the shell that launches your agent so `.mcp.json`'s
+   `${PENPOT_API_URL}` / `${PENPOT_USERNAME}` / `${PENPOT_PASSWORD}` resolve
+   (e.g. `set -a; source .env; set +a`). VS Code/Copilot reads the same `.env` via
+   `.vscode/mcp.json`.
+4. Approve/restart the MCP server in your client (Claude Code: confirm the `penpot` server,
+   then `/mcp`; VS Code/Copilot: run `MCP: List Servers`) to verify it is connected.
+
+Then ask the agent to read the relevant Penpot file/frame for the screen you are working on.
+The public read-only account may only list its default `Drafts` project via `list_projects`;
+use the `file-id`, `page-id`, and `board-id` from the Penpot link in the issue when needed
+(the main Trufos file currently uses `file-id=88a057e2-ffe4-81cb-8005-c2e9c63649bf`). For a
+reviewable verification, record the project/file/frame that was read in the issue or PR.
+
 ## Further Reading
 
 - `.github/instructions/` – topic-specific instructions (commits, testing, stack).

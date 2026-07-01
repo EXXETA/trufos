@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "penpot": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "penpot-mcp==0.1.2", "penpot-mcp"],
+      "envFile": "${workspaceFolder}/.env"
+    }
+  }
+}
