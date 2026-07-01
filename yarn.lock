@@ -4142,15 +4142,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@usebruno/lang@npm:^0.36.0":
-  version: 0.36.0
-  resolution: "@usebruno/lang@npm:0.36.0"
+"@usebruno/lang@npm:^0.37.0":
+  version: 0.37.0
+  resolution: "@usebruno/lang@npm:0.37.0"
   dependencies:
     arcsecond: "npm:^5.0.0"
     dotenv: "npm:^16.3.1"
     lodash: "npm:^4.17.21"
     ohm-js: "npm:^16.6.0"
-  checksum: 10c0/7e8bba8e3148c74b9d4766bc7f5be7336073c60e7197f2f2644c32cc81fd6dfc21a457f06885034de24dd72d6d5acde3ce45558386256b79394fba860fc0e7b0
+  checksum: 10c0/04b0a0d2a50cecb493a5bc86f9094628f7eb6d9012a0bd4a86a440d209e4f956838786e3695c52282c3df80c269bb8176620bdf3458de7601ef86694664d79cd
   languageName: node
   linkType: hard
 
@@ -11481,7 +11481,7 @@ __metadata:
     "@types/tmp": "npm:^0.2.6"
     "@typescript-eslint/eslint-plugin": "npm:^8.62.1"
     "@typescript-eslint/parser": "npm:^8.62.1"
-    "@usebruno/lang": "npm:^0.36.0"
+    "@usebruno/lang": "npm:^0.37.0"
     "@vitejs/plugin-react": "npm:^6.0.3"
     "@vitest/coverage-v8": "npm:^4.1.9"
     class-variance-authority: "npm:^0.7.1"
