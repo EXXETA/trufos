@@ -130,10 +130,10 @@ search objects, inspect object trees, export objects).
 One-time setup (per developer):
 
 1. Install [`uv`](https://docs.astral.sh/uv/) (provides `uvx`) and Python 3.12+.
-2. Copy `.env.example` to `.env` and fill in your Penpot credentials
-   (`PENPOT_API_URL`, `PENPOT_USERNAME`, `PENPOT_PASSWORD`). `.env` is gitignored — never
-   commit credentials. Use a dedicated low-privilege/read-only Penpot account, not your
-   personal login. If credentials leak, rotate the account password and revoke active sessions.
+2. Copy `.env.example` to `.env`. It contains the intentionally published read-only Trufos
+   Penpot account (`PENPOT_API_URL`, `PENPOT_USERNAME`, `PENPOT_PASSWORD`). If you replace it
+   with private credentials, keep them in `.env` only; `.env` is gitignored and must not be
+   committed.
 3. Export those variables into the shell that launches your agent so `.mcp.json`'s
    `${PENPOT_API_URL}` / `${PENPOT_USERNAME}` / `${PENPOT_PASSWORD}` resolve
    (e.g. `set -a; source .env; set +a`). VS Code/Copilot reads the same `.env` via
