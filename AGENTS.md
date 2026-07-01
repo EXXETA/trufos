@@ -116,26 +116,34 @@ See `.github/prompts/create-pull-request.prompt.md` for the full step-by-step wo
 
 ## Designs (Penpot via MCP)
 
-The UI design source of truth lives in Penpot. Before implementing a `design needed` issue,
-fetch the relevant frame instead of guessing spacing/colors.
+The UI design source of truth usually lives in Penpot. Before implementing a `design needed`
+issue, verify the linked issue/design source first. If the issue points to Figma or another
+tool, use that source instead of assuming Penpot. Otherwise fetch the relevant Penpot frame
+instead of guessing spacing/colors.
 
-A `penpot` MCP server is preconfigured in `.mcp.json` (the [`penpot-mcp`](https://github.com/montevive/penpot-mcp)
-server). It connects to the project's self-hosted Penpot instance and exposes the design
-files as MCP tools/resources (list files, read frames, components, design tokens, export).
+A `penpot` MCP server is preconfigured for Claude Code in `.mcp.json` and for VS Code/Copilot
+in `.vscode/mcp.json`. Both use the [`penpot-mcp`](https://github.com/montevive/penpot-mcp)
+server pinned to `penpot-mcp==0.1.2`. It connects to the project's self-hosted Penpot instance
+and exposes Penpot projects/files as MCP tools/resources (list projects/files, read files,
+search objects, inspect object trees, export objects).
 
 One-time setup (per developer):
 
 1. Install [`uv`](https://docs.astral.sh/uv/) (provides `uvx`) and Python 3.12+.
 2. Copy `.env.example` to `.env` and fill in your Penpot credentials
-   (`PENPOT_USERNAME`, `PENPOT_PASSWORD`). `.env` is gitignored — never commit credentials.
-   Prefer a dedicated read-only Penpot account.
+   (`PENPOT_API_URL`, `PENPOT_USERNAME`, `PENPOT_PASSWORD`). `.env` is gitignored — never
+   commit credentials. Use a dedicated low-privilege/read-only Penpot account, not your
+   personal login. If credentials leak, rotate the account password and revoke active sessions.
 3. Export those variables into the shell that launches your agent so `.mcp.json`'s
-   `${PENPOT_USERNAME}` / `${PENPOT_PASSWORD}` resolve (e.g. `set -a; source .env; set +a`).
+   `${PENPOT_API_URL}` / `${PENPOT_USERNAME}` / `${PENPOT_PASSWORD}` resolve
+   (e.g. `set -a; source .env; set +a`). VS Code/Copilot reads the same `.env` via
+   `.vscode/mcp.json`.
 4. Approve/restart the MCP server in your client (Claude Code: confirm the `penpot` server,
-   then `/mcp` to verify it is connected).
+   then `/mcp`; VS Code/Copilot: run `MCP: List Servers`) to verify it is connected.
 
 Then ask the agent to list the Trufos design files and read the frame for the screen you are
-working on. The Penpot instance URL is set in `.mcp.json`.
+working on. For a reviewable verification, record the project/file/frame that was read in the
+issue or PR.
 
 ## Further Reading
 

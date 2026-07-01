@@ -79,6 +79,6 @@ yarn prettier       # Fix formatting
 
 ## Designs (Penpot)
 
-The UI design source of truth lives in Penpot. A `penpot` MCP server is preconfigured in
-`.mcp.json`. For `design needed` issues, read the relevant frame before implementing. See the
-"Designs (Penpot via MCP)" section in [`AGENTS.md`](../AGENTS.md) for setup and usage.
+When Penpot is the linked design source, use the preconfigured `penpot` MCP server in
+`.vscode/mcp.json` before implementing `design needed` issues. See the "Designs (Penpot via
+MCP)" section in [`AGENTS.md`](../AGENTS.md) for setup, credential handling, and verification.
