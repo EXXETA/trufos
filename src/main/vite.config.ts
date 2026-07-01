@@ -8,6 +8,9 @@ export default defineConfig({
     alias: {
       main: __dirname,
       shim: path.resolve(__dirname, '..', 'shim'),
+      // Force CJS entry: ohm-js ESM bundle only exports { default, extras },
+      // so require('ohm-js').grammar is undefined without this alias.
+      'ohm-js': path.resolve(__dirname, '..', '..', 'node_modules', 'ohm-js', 'index.js'),
     },
   },
   server: {
@@ -23,8 +26,5 @@ export default defineConfig({
   build: {
     sourcemap: isProduction ? true : 'inline',
     minify: false,
-    rollupOptions: {
-      external: ['@usebruno/lang'],
-    },
   },
 });
