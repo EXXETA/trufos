@@ -277,7 +277,16 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   }, [sortableItems, creatingItem, collectionId, onCreateItem]);
 
   return (
-    <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
+    <SidebarContent
+      className={cn(
+        '-mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto',
+        '[scrollbar-width:thin] [scrollbar-color:var(--disabled)_transparent]',
+        '[&::-webkit-scrollbar]:w-1',
+        '[&::-webkit-scrollbar-track]:bg-transparent',
+        '[&::-webkit-scrollbar-thumb]:rounded-full',
+        '[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50'
+      )}
+    >
       <DndContext
         sensors={activeSensors}
         collisionDetection={closestCenter}

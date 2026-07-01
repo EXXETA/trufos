@@ -43,6 +43,7 @@ export class RendererEventService implements IEventService {
   }
 
   saveRequest = createEventMethod('saveRequest');
+  saveCollection = createEventMethod('saveCollection');
   copyRequest = createEventMethod('copyRequest');
   sendRequest = createEventMethod('sendRequest');
   getAppVersion = createEventMethod('getAppVersion');

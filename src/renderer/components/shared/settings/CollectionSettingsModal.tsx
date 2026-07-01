@@ -42,6 +42,7 @@ export interface CollectionSettingsModalProps {
  */
 type CollectionDraft = {
   title: string;
+  description: string;
   variables: VariableObjectWithKey[];
   environments: EnvironmentMap;
   selectedEnvironment?: string;
@@ -51,16 +52,18 @@ type CollectionDraft = {
 export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsModalProps) => {
   const { setVariables } = useVariableActions();
   const { setEnvironments, selectEnvironment } = useEnvironmentActions();
-  const { setClientCertificate, renameCollection } = useCollectionActions();
+  const { setClientCertificate, renameCollection, updateCollection } = useCollectionActions();
 
   const variables = useVariableStore(selectVariables);
   const environments = useEnvironmentStore(selectEnvironments);
   const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
   const storedCertificate = useCollectionStore((s) => s.collection?.clientCertificate ?? null);
   const collectionTitle = useCollectionStore((s) => s.collection?.title ?? '');
+  const collectionDescription = useCollectionStore((s) => s.collection?.description ?? '');
 
   const buildDraft = (): CollectionDraft => ({
     title: collectionTitle,
+    description: collectionDescription,
     variables: variableMapToArray(variables),
     environments,
     selectedEnvironment,
@@ -99,6 +102,7 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
     await setEnvironments(draft.environments);
     await selectEnvironment(draft.selectedEnvironment);
     await setClientCertificate(draft.clientCertificate);
+    await updateCollection({ description: draft.description.trim() === '' ? undefined : draft.description });
 
     // rename must run last
     const newTitle = draft.title.trim();
@@ -144,6 +148,8 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
                 <GeneralEditor
                   name={draft.title}
                   onNameChange={(title) => update({ title })}
+                  description={draft.description}
+                  onDescriptionChange={(description) => update({ description })}
                   onCloseCollection={onClose}
                 />
               </div>

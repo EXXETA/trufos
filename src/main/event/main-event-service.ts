@@ -116,6 +116,11 @@ export class MainEventService implements IEventService {
     return await persistenceService.saveRequest(request, textBody);
   }
 
+  async saveCollection(collection: Collection) {
+    await persistenceService.saveCollection(collection);
+    return collection;
+  }
+
   async saveScript(request: TrufosRequest, type: ScriptType, script: string) {
     return await persistenceService.saveScript(request, type, script);
   }

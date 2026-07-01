@@ -16,10 +16,11 @@ import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types
 export interface FolderDropdownProps {
   folder: Folder;
   onRename: () => void;
+  onEditDescription: () => void;
   onCreateItem: (item: CreatingItem) => void;
 }
 
-export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdownProps) => {
+export const FolderDropdown = ({ folder, onRename, onEditDescription, onCreateItem }: FolderDropdownProps) => {
   const { copyFolder, deleteFolder } = useCollectionActions();
 
   const openModal = (type: 'folder' | 'request') => {
@@ -49,6 +50,8 @@ export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdow
           </DropdownMenuItem>
 
           <DropdownMenuItem onClick={handleMouseEvent(onRename)}>Rename Folder</DropdownMenuItem>
+
+          <DropdownMenuItem onClick={handleMouseEvent(onEditDescription)}>Edit Description</DropdownMenuItem>
 
           <DropdownMenuItem onClick={handleMouseEvent(() => copyFolder(folder.id))}>
             Copy Folder

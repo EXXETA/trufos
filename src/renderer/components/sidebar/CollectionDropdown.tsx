@@ -74,9 +74,18 @@ export default function CollectionDropdown() {
           <DropdownMenuSeparator />
         </div>
 
-        <div className="tabs-scrollbar max-h-[calc(75vh-102px)] overflow-y-auto">
+        <div
+          className={cn(
+            'max-h-[calc(75vh-102px)] overflow-y-auto',
+            '[scrollbar-width:thin] [scrollbar-color:var(--disabled)_transparent]',
+            '[&::-webkit-scrollbar]:w-1',
+            '[&::-webkit-scrollbar-track]:bg-transparent',
+            '[&::-webkit-scrollbar-thumb]:rounded-full',
+            '[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50'
+          )}
+        >
           <DropdownMenuGroup>
-            {collections.map(({ title, dirPath }, i) => (
+            {collections.map(({ title, description, dirPath }, i) => (
               <DropdownMenuItem
                 key={`${title}-${i}`}
                 onClick={() => changeCollection(dirPath)}
@@ -84,8 +93,14 @@ export default function CollectionDropdown() {
               >
                 <CollectionIcon size={16} color="secondary" />
 
-                <div className="grid items-start gap-0">
+                <div className="grid min-w-0 items-start gap-0">
                   <TypographyLineClamp contentClassname="text-xs">{title}</TypographyLineClamp>
+
+                  {description ? (
+                    <TypographyLineClamp contentClassname="text-[10px] text-muted-foreground">
+                      {description}
+                    </TypographyLineClamp>
+                  ) : null}
 
                   <TypographyLineClamp contentClassname="text-[8px]">{dirPath}</TypographyLineClamp>
                 </div>

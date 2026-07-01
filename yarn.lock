@@ -11498,6 +11498,7 @@ __metadata:
     immer: "npm:^11.1.8"
     jsdom: "npm:^29.1.1"
     lucide-react: "npm:1.22.0"
+    marked: "npm:^18.0.5"
     memfs: "npm:^4.57.8"
     mime-types: "npm:^3.0.2"
     monaco-editor: "npm:^0.55.1"

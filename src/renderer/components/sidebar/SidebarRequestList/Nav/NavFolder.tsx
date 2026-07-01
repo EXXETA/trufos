@@ -10,6 +10,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useState } from 'react';
 import { InlineRename } from '@/components/shared/InlineRename';
 import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
+import { FolderDescriptionModal } from '@/components/shared/settings/FolderDescriptionModal';
 
 interface NavFolderProps {
   folderId: Folder['id'];
@@ -24,6 +25,7 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem }: NavFolderProps)
   const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
   const [isEditing, setIsEditing] = useState(false);
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: folderId,
@@ -109,6 +111,7 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem }: NavFolderProps)
                 <FolderDropdown
                   folder={folder}
                   onRename={() => setIsEditing(true)}
+                  onEditDescription={() => setIsDescriptionOpen(true)}
                   onCreateItem={handleCreateItem}
                 />
               </div>
@@ -116,6 +119,12 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem }: NavFolderProps)
           )}
         </SidebarMenuSubButton>
       </SidebarGroup>
+
+      <FolderDescriptionModal
+        folderId={folderId}
+        isOpen={isDescriptionOpen}
+        onClose={() => setIsDescriptionOpen(false)}
+      />
     </div>
   );
 };
