@@ -10,6 +10,7 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 import ts from 'typescript';
 import { resolve } from 'node:path';
 import { writeFile } from 'node:fs/promises';
+import { name as packageName } from './package.json';
 
 let osxNotarize: ForgePackagerOptions['osxNotarize'];
 let osxSign: ForgePackagerOptions['osxSign'];
@@ -56,7 +57,7 @@ const config: ForgeConfig = {
   },
   packagerConfig: {
     asar: true,
-    executableName: 'trufos',
+    executableName: process.platform === 'linux' ? packageName : undefined,
     icon:
       process.platform === 'darwin'
         ? ['./images/macos/icon.icns', './images/macos/icon.icon']
