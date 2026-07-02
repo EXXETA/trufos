@@ -2,7 +2,7 @@ import { AuthorizationInformation, AuthorizationType } from 'shim/objects';
 import BasicAuthStrategy from './basic-auth';
 import BearerAuthStrategy from './bearer-auth';
 import AuthStrategy from './auth-strategy';
-import OAuth1AuthStrategy from './oauth1/oauth1-auth';
+import { createOAuth1Strategy } from './oauth1/strategy-factory';
 import { createOAuth2Strategy } from './oauth2/strategy-factory';
 
 /**
@@ -22,7 +22,7 @@ export function createAuthStrategy(
     case AuthorizationType.OAUTH2:
       return createOAuth2Strategy(auth);
     case AuthorizationType.OAUTH1:
-      return new OAuth1AuthStrategy(auth);
+      return createOAuth1Strategy(auth);
     default:
       throw new Error(`Unsupported authentication type: ${auth.type}`);
   }

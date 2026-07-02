@@ -2,16 +2,17 @@ import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   AuthorizationType,
-  OAuth1AuthorizationInformation,
+  OAuth1ExistingTokenAuthorizationInformation,
+  OAuth1Method,
   OAuth1SignatureMethod,
 } from 'shim/objects';
-import OAuth1AuthStrategy from './oauth1-auth';
+import ExistingTokenOAuth1Strategy from './existing-token';
 
 const NONCE = 'fixednonce';
 const TIMESTAMP = '1234567890';
 
 /** Strategy with deterministic nonce/timestamp for assertions. */
-class TestOAuth1AuthStrategy extends OAuth1AuthStrategy {
+class TestOAuth1AuthStrategy extends ExistingTokenOAuth1Strategy {
   protected generateNonce() {
     return NONCE;
   }
@@ -41,10 +42,11 @@ function parseOAuthHeader(header: string): Record<string, string> {
 }
 
 function baseAuth(
-  overrides: Partial<OAuth1AuthorizationInformation> = {}
-): OAuth1AuthorizationInformation {
+  overrides: Partial<OAuth1ExistingTokenAuthorizationInformation> = {}
+): OAuth1ExistingTokenAuthorizationInformation {
   return {
     type: AuthorizationType.OAUTH1,
+    method: OAuth1Method.EXISTING_TOKEN,
     consumerKey: 'ck',
     consumerSecret: 'cs',
     signatureMethod: OAuth1SignatureMethod.HMAC_SHA1,
@@ -52,7 +54,7 @@ function baseAuth(
   };
 }
 
-describe('OAuth1AuthStrategy', () => {
+describe('ExistingTokenOAuth1Strategy', () => {
   it('produces a valid HMAC-SHA1 signature over method, base URL and params', async () => {
     const strategy = new TestOAuth1AuthStrategy(baseAuth());
     const header = await strategy.getAuthHeader({

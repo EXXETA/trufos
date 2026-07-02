@@ -15,6 +15,13 @@ export enum OAuth1SignatureMethod {
   PLAINTEXT = 'PLAINTEXT',
 }
 
+export enum OAuth1Method {
+  /** Manual / two-legged: consumer-only, or a pre-issued access token pasted in. No browser. */
+  EXISTING_TOKEN = 'existing-token',
+  /** Interactive three-legged flow: obtain the access token via a browser login. */
+  AUTHORIZATION = 'authorization',
+}
+
 export enum OAuth2Method {
   CLIENT_CREDENTIALS = 'client-credentials',
   AUTHORIZATION_CODE = 'authorization-code',
@@ -99,18 +106,46 @@ export const BasicAuthorizationInformation = z.object({
 });
 export type BasicAuthorizationInformation = z.infer<typeof BasicAuthorizationInformation>;
 
-export const OAuth1AuthorizationInformation = z.object({
+export const Oauth1BaseAuthorizationInformation = z.object({
   type: z.literal(AuthorizationType.OAUTH1),
+  method: z.enum(OAuth1Method),
   consumerKey: z.string(),
   consumerSecret: z.string(),
-  /** Access token. Optional for two-legged (consumer-only) OAuth. */
-  token: z.string().optional(),
-  /** Access token secret. Optional for two-legged OAuth. */
-  tokenSecret: z.string().optional(),
   signatureMethod: z.enum(OAuth1SignatureMethod),
   /** Optional realm to include in the Authorization header. */
   realm: z.string().optional(),
 });
+export type Oauth1BaseAuthorizationInformation = z.infer<typeof Oauth1BaseAuthorizationInformation>;
+
+export const OAuth1ExistingTokenAuthorizationInformation =
+  Oauth1BaseAuthorizationInformation.extend({
+    method: z.literal(OAuth1Method.EXISTING_TOKEN),
+    /** Access token. Optional for two-legged (consumer-only) OAuth. */
+    token: z.string().optional(),
+    /** Access token secret. Optional for two-legged OAuth. */
+    tokenSecret: z.string().optional(),
+  });
+export type OAuth1ExistingTokenAuthorizationInformation = z.infer<
+  typeof OAuth1ExistingTokenAuthorizationInformation
+>;
+
+export const OAuth1AuthorizationFlowInformation = Oauth1BaseAuthorizationInformation.extend({
+  method: z.literal(OAuth1Method.AUTHORIZATION),
+  /** Temporary-credentials endpoint (RFC 5849 §2.1). */
+  requestTokenUrl: z.string(),
+  /** Resource-owner authorization endpoint opened in the browser (RFC 5849 §2.2). */
+  authorizationUrl: z.string(),
+  /** Token endpoint that exchanges the verifier for an access token (RFC 5849 §2.3). */
+  accessTokenUrl: z.string(),
+  /** Redirect URL intercepted in the browser to capture the oauth_verifier. */
+  callbackUrl: z.string(),
+});
+export type OAuth1AuthorizationFlowInformation = z.infer<typeof OAuth1AuthorizationFlowInformation>;
+
+export const OAuth1AuthorizationInformation = z.discriminatedUnion('method', [
+  OAuth1ExistingTokenAuthorizationInformation,
+  OAuth1AuthorizationFlowInformation,
+]);
 export type OAuth1AuthorizationInformation = z.infer<typeof OAuth1AuthorizationInformation>;
 
 export const InheritAuthorizationInformation = z.object({

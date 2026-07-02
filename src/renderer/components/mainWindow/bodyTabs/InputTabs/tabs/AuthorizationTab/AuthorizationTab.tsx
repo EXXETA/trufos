@@ -2,6 +2,7 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import {
   AuthorizationInformation,
   AuthorizationType,
+  OAuth1Method,
   OAuth1SignatureMethod,
   OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
@@ -83,6 +84,15 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
   },
   [AuthorizationType.OAUTH1]: {
     ...BASE_FORM,
+    method: {
+      type: 'select',
+      label: 'OAuth 1.0 Grant Type',
+      options: [
+        { value: OAuth1Method.EXISTING_TOKEN, label: 'Existing Token / Two-legged' },
+        { value: OAuth1Method.AUTHORIZATION, label: 'Authorization (3-legged)' },
+      ],
+      defaultValue: OAuth1Method.EXISTING_TOKEN,
+    },
     consumerKey: {
       type: 'text',
       label: 'Consumer Key',
@@ -93,6 +103,30 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
       label: 'Consumer Secret',
       placeholder: 'Enter consumer secret',
     },
+  },
+};
+
+/** Signature method + realm fields shared by every OAuth 1.0 grant type. */
+const OAUTH1_SHARED_FORM: FormComponentConfiguration = {
+  signatureMethod: {
+    type: 'select',
+    label: 'Signature Method',
+    options: [
+      { value: OAuth1SignatureMethod.HMAC_SHA1, label: 'HMAC-SHA1' },
+      { value: OAuth1SignatureMethod.HMAC_SHA256, label: 'HMAC-SHA256' },
+      { value: OAuth1SignatureMethod.PLAINTEXT, label: 'PLAINTEXT' },
+    ],
+    defaultValue: OAuth1SignatureMethod.HMAC_SHA1,
+  },
+  realm: {
+    type: 'text',
+    label: 'Realm',
+    placeholder: '(optional) Enter realm',
+  },
+};
+
+const OAUTH1_FORMS: { [K in OAuth1Method]: FormComponentConfiguration } = {
+  [OAuth1Method.EXISTING_TOKEN]: {
     token: {
       type: 'text',
       label: 'Token',
@@ -103,21 +137,30 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
       label: 'Token Secret',
       placeholder: '(optional) Enter token secret',
     },
-    signatureMethod: {
-      type: 'select',
-      label: 'Signature Method',
-      options: [
-        { value: OAuth1SignatureMethod.HMAC_SHA1, label: 'HMAC-SHA1' },
-        { value: OAuth1SignatureMethod.HMAC_SHA256, label: 'HMAC-SHA256' },
-        { value: OAuth1SignatureMethod.PLAINTEXT, label: 'PLAINTEXT' },
-      ],
-      defaultValue: OAuth1SignatureMethod.HMAC_SHA1,
-    },
-    realm: {
+    ...OAUTH1_SHARED_FORM,
+  },
+  [OAuth1Method.AUTHORIZATION]: {
+    requestTokenUrl: {
       type: 'text',
-      label: 'Realm',
-      placeholder: '(optional) Enter realm',
+      label: 'Request Token URL',
+      placeholder: 'https://example.com/oauth/request_token',
     },
+    authorizationUrl: {
+      type: 'text',
+      label: 'Authorize URL',
+      placeholder: 'https://example.com/oauth/authorize',
+    },
+    accessTokenUrl: {
+      type: 'text',
+      label: 'Access Token URL',
+      placeholder: 'https://example.com/oauth/access_token',
+    },
+    callbackUrl: {
+      type: 'text',
+      label: 'Callback URL',
+      placeholder: 'https://example.com/oauth/callback',
+    },
+    ...OAUTH1_SHARED_FORM,
   },
 };
 
@@ -249,6 +292,11 @@ export const AuthorizationTab = () => {
         ...FORMS[type],
         ...OAUTH2_FORMS[auth.method],
       };
+    } else if (auth?.type === AuthorizationType.OAUTH1) {
+      form = {
+        ...FORMS[type],
+        ...OAUTH1_FORMS[auth.method],
+      };
     } else {
       form = FORMS[type];
     }
@@ -257,7 +305,7 @@ export const AuthorizationTab = () => {
 
   return (
     <div className="relative h-full p-4">
-      <div className="absolute top-[16px] right-[16px] left-[16px] z-10 space-y-4 pb-4">
+      <div className="absolute top-4 right-4 left-4 z-10 space-y-4 pb-4">
         <ModularForm
           config={form}
           // @ts-expect-error data may contain 'none' type which is handled by the form

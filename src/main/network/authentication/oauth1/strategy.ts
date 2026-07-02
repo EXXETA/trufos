@@ -2,6 +2,12 @@ import crypto from 'node:crypto';
 import { OAuth1AuthorizationInformation, OAuth1SignatureMethod } from 'shim/objects';
 import AuthStrategy, { AuthRequestContext } from '../auth-strategy';
 
+/** The token/secret used to sign the actual request. Both empty means two-legged. */
+export interface OAuth1Token {
+  token?: string;
+  tokenSecret?: string;
+}
+
 /**
  * OAuth 1.0 (RFC 5849) request signing.
  *
@@ -10,34 +16,73 @@ import AuthStrategy, { AuthRequestContext } from '../auth-strategy';
  * normalized request parameters (query parameters plus the protocol `oauth_*`
  * parameters).
  *
+ * Subclasses provide the access token via {@link resolveToken}: the manual
+ * variant returns the configured token, the interactive variant runs the
+ * three-legged browser flow.
+ *
  * Limitation: `application/x-www-form-urlencoded` body parameters are not yet
  * included in the signature base string. Requests that carry signed parameters
  * in the body are therefore not fully supported.
  */
-export default class OAuth1AuthStrategy extends AuthStrategy<OAuth1AuthorizationInformation> {
+export default abstract class OAuth1AuthStrategy<
+  T extends OAuth1AuthorizationInformation,
+> extends AuthStrategy<T> {
   async getAuthHeader(context?: AuthRequestContext): Promise<string> {
     if (context == null) {
       throw new Error('OAuth 1.0 requires the request method and URL to sign the request');
     }
 
-    const url = new URL(context.url);
+    const { token, tokenSecret } = await this.resolveToken();
+    return this.buildOAuthHeader({
+      httpMethod: context.method,
+      url: new URL(context.url),
+      token,
+      tokenSecret,
+      includeRealm: true,
+    });
+  }
+
+  /** Obtain the access token/secret used to sign the request. */
+  protected abstract resolveToken(): Promise<OAuth1Token>;
+
+  /**
+   * Build a signed `OAuth ...` header value.
+   * @param httpMethod The HTTP method of the signed request.
+   * @param url The request URL (query parameters are included in the signature).
+   * @param token The `oauth_token` to include, if any.
+   * @param tokenSecret The token secret used in the signing key (empty if none).
+   * @param extraParams Extra protocol parameters to sign, e.g. `oauth_callback`
+   * or `oauth_verifier`.
+   * @param includeRealm Whether to prepend the configured realm to the header.
+   */
+  protected buildOAuthHeader(opts: {
+    httpMethod: string;
+    url: URL;
+    token?: string;
+    tokenSecret?: string;
+    extraParams?: Record<string, string>;
+    includeRealm?: boolean;
+  }): string {
+    const { httpMethod, url, token, tokenSecret, extraParams, includeRealm } = opts;
+
     const oauthParams: Record<string, string> = {
       oauth_consumer_key: this.authInfo.consumerKey,
       oauth_nonce: this.generateNonce(),
       oauth_signature_method: this.authInfo.signatureMethod,
       oauth_timestamp: this.generateTimestamp(),
       oauth_version: '1.0',
+      ...extraParams,
     };
-    if (this.authInfo.token != null && this.authInfo.token !== '') {
-      oauthParams.oauth_token = this.authInfo.token;
+    if (token != null && token !== '') {
+      oauthParams.oauth_token = token;
     }
 
-    const signature = this.sign(context.method, url, oauthParams);
-    oauthParams.oauth_signature = signature;
+    oauthParams.oauth_signature = this.sign(httpMethod, url, oauthParams, tokenSecret ?? '');
 
-    const headerParams = this.authInfo.realm
-      ? { realm: this.authInfo.realm, ...oauthParams }
-      : oauthParams;
+    const headerParams =
+      includeRealm && this.authInfo.realm
+        ? { realm: this.authInfo.realm, ...oauthParams }
+        : oauthParams;
     const serialized = Object.entries(headerParams)
       .map(
         ([key, value]) =>
@@ -49,8 +94,13 @@ export default class OAuth1AuthStrategy extends AuthStrategy<OAuth1Authorization
   }
 
   /** Compute the `oauth_signature` value (not yet percent-encoded for the header). */
-  private sign(method: string, url: URL, oauthParams: Record<string, string>): string {
-    const signingKey = `${OAuth1AuthStrategy.percentEncode(this.authInfo.consumerSecret)}&${OAuth1AuthStrategy.percentEncode(this.authInfo.tokenSecret ?? '')}`;
+  private sign(
+    method: string,
+    url: URL,
+    oauthParams: Record<string, string>,
+    tokenSecret: string
+  ): string {
+    const signingKey = `${OAuth1AuthStrategy.percentEncode(this.authInfo.consumerSecret)}&${OAuth1AuthStrategy.percentEncode(tokenSecret)}`;
 
     if (this.authInfo.signatureMethod === OAuth1SignatureMethod.PLAINTEXT) {
       return signingKey;
@@ -108,7 +158,7 @@ export default class OAuth1AuthStrategy extends AuthStrategy<OAuth1Authorization
   }
 
   /** RFC 3986 percent-encoding (encodes everything except unreserved characters). */
-  private static percentEncode(value: string): string {
+  protected static percentEncode(value: string): string {
     return encodeURIComponent(value).replace(
       /[!*'()]/g,
       (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
