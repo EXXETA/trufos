@@ -2,6 +2,7 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import {
   AuthorizationInformation,
   AuthorizationType,
+  OAuth1SignatureMethod,
   OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
@@ -19,6 +20,7 @@ const LABELS: { [K in AuthorizationTypeOrNone]: string } = {
   [AuthorizationType.BEARER]: 'Bearer Token',
   [AuthorizationType.BASIC]: 'Basic Auth',
   [AuthorizationType.OAUTH2]: 'OAuth 2.0',
+  [AuthorizationType.OAUTH1]: 'OAuth 1.0',
 };
 
 const BASE_FORM = {
@@ -77,6 +79,44 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
         { value: OAuth2Method.AUTHORIZATION_CODE_PKCE, label: 'Authorization Code with PKCE' },
       ],
       defaultValue: OAuth2Method.CLIENT_CREDENTIALS,
+    },
+  },
+  [AuthorizationType.OAUTH1]: {
+    ...BASE_FORM,
+    consumerKey: {
+      type: 'text',
+      label: 'Consumer Key',
+      placeholder: 'Enter consumer key',
+    },
+    consumerSecret: {
+      type: 'password',
+      label: 'Consumer Secret',
+      placeholder: 'Enter consumer secret',
+    },
+    token: {
+      type: 'text',
+      label: 'Token',
+      placeholder: '(optional) Enter access token',
+    },
+    tokenSecret: {
+      type: 'password',
+      label: 'Token Secret',
+      placeholder: '(optional) Enter token secret',
+    },
+    signatureMethod: {
+      type: 'select',
+      label: 'Signature Method',
+      options: [
+        { value: OAuth1SignatureMethod.HMAC_SHA1, label: 'HMAC-SHA1' },
+        { value: OAuth1SignatureMethod.HMAC_SHA256, label: 'HMAC-SHA256' },
+        { value: OAuth1SignatureMethod.PLAINTEXT, label: 'PLAINTEXT' },
+      ],
+      defaultValue: OAuth1SignatureMethod.HMAC_SHA1,
+    },
+    realm: {
+      type: 'text',
+      label: 'Realm',
+      placeholder: '(optional) Enter realm',
     },
   },
 };

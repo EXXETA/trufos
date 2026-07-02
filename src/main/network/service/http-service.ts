@@ -63,20 +63,24 @@ export class HttpService {
   public async fetchAsync(request: TrufosRequest) {
     logger.info('Sending request:', request);
 
+    // resolve variables (except in body, which is resolved stream-based during send)
+    const url = await environmentService.setVariablesInString(buildUrl(request.url));
+
     // set authorization header if the request has authentication information
     let authorization: string | undefined;
     if (request.auth != null) {
       try {
         logger.debug('Generating authentication header');
-        authorization = await environmentService.getAuthorizationHeader(request.auth);
+        authorization = await environmentService.getAuthorizationHeader(request.auth, {
+          method: request.method,
+          url,
+        });
       } catch (e) {
         logger.error('Failed to generate authentication header:', e);
         throw new Error('Please check your authentication settings and try again');
       }
     }
 
-    // resolve variables (except in body, which is resolved stream-based during send)
-    const url = await environmentService.setVariablesInString(buildUrl(request.url));
     const headers = await this.resolveVariablesInHeaders(
       this.trufosHeadersToUndiciHeaders(request.headers)
     );
