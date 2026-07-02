@@ -1,5 +1,5 @@
-import { fixupConfigRules, fixupPluginRules } from "@eslint/compat";
-import _import from "eslint-plugin-import";
+import { fixupConfigRules } from "@eslint/compat";
+import gitignore from "eslint-config-flat-gitignore";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
 import path from "node:path";
@@ -15,18 +15,13 @@ const compat = new FlatCompat({
     allConfig: js.configs.all
 });
 
-export default [...fixupConfigRules(compat.extends(
+export default [gitignore(), ...fixupConfigRules(compat.extends(
     "eslint:recommended",
     "plugin:@typescript-eslint/eslint-recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:import/recommended",
-    "plugin:import/electron",
-    "plugin:import/typescript",
+    "plugin:import-x/recommended",
+    "plugin:import-x/typescript",
 )), {
-    plugins: {
-        import: fixupPluginRules(_import),
-    },
-
     languageOptions: {
         globals: {
             ...globals.browser,
@@ -37,11 +32,13 @@ export default [...fixupConfigRules(compat.extends(
     },
 
     settings: {
-        "import/parsers": {
+        "import-x/core-modules": ["electron"],
+
+        "import-x/parsers": {
             "@typescript-eslint/parser": [".ts", ".tsx"],
         },
 
-        "import/resolver": {
+        "import-x/resolver": {
             typescript: {
                 alwaysTryTypes: true,
             },
@@ -49,6 +46,6 @@ export default [...fixupConfigRules(compat.extends(
     },
 
     rules: {
-        "import/no-unresolved": "error",
+        "import-x/no-unresolved": "error",
     },
 }];
