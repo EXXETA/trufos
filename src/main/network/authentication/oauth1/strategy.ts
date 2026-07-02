@@ -34,7 +34,8 @@ export default abstract class OAuth1AuthStrategy<
 
     const { token, tokenSecret } = await this.resolveToken();
     return this.buildOAuthHeader({
-      httpMethod: context.method,
+      // RFC 5849 §3.4.1.2 requires the method in uppercase; normalize at the entry point.
+      httpMethod: context.method.toUpperCase(),
       url: new URL(context.url),
       token,
       tokenSecret,
@@ -123,7 +124,10 @@ export default abstract class OAuth1AuthStrategy<
       params.push([key, value]);
     }
     for (const [key, value] of Object.entries(oauthParams)) {
-      params.push([key, value]);
+      // RFC 5849 §3.4.1.3: the oauth_signature parameter is never part of the base string.
+      if (key !== 'oauth_signature') {
+        params.push([key, value]);
+      }
     }
 
     const normalizedParams = params
@@ -154,7 +158,8 @@ export default abstract class OAuth1AuthStrategy<
       (scheme === 'http' && url.port === '80') ||
       (scheme === 'https' && url.port === '443');
     const authority = isDefaultPort ? host : `${host}:${url.port}`;
-    return `${scheme}://${authority}${url.pathname}`;
+    // RFC 5849 §3.4.1.2: the path must never be empty; default to "/".
+    return `${scheme}://${authority}${url.pathname || '/'}`;
   }
 
   /** RFC 3986 percent-encoding (encodes everything except unreserved characters). */

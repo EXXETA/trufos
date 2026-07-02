@@ -91,8 +91,9 @@ export default class AuthorizationOAuth1Strategy extends OAuth1AuthStrategy<OAut
       headers: { authorization: authorizationHeader },
     });
     if (!response.ok) {
+      const body = await response.text().catch(() => '');
       throw new Error(
-        `OAuth 1.0 token request to ${url.href} failed with status ${response.status}`
+        `OAuth 1.0 token request to ${url.href} failed with status ${response.status}: ${body}`
       );
     }
     return new URLSearchParams(await response.text());
