@@ -73,7 +73,7 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
     ...BASE_FORM,
     method: {
       type: 'select',
-      label: 'OAuth 2.0 Method',
+      label: 'Grant Type',
       options: [
         { value: OAuth2Method.CLIENT_CREDENTIALS, label: 'Client Credentials' },
         { value: OAuth2Method.AUTHORIZATION_CODE, label: 'Authorization Code' },
@@ -86,7 +86,7 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
     ...BASE_FORM,
     method: {
       type: 'select',
-      label: 'OAuth 1.0 Grant Type',
+      label: 'Flow',
       options: [
         { value: OAuth1Method.EXISTING_TOKEN, label: 'Existing Token / Two-legged' },
         { value: OAuth1Method.AUTHORIZATION, label: 'Authorization (3-legged)' },
@@ -129,7 +129,7 @@ const OAUTH1_FORMS: { [K in OAuth1Method]: FormComponentConfiguration } = {
   [OAuth1Method.EXISTING_TOKEN]: {
     token: {
       type: 'text',
-      label: 'Token',
+      label: 'Access Token',
       placeholder: '(optional) Enter access token',
     },
     tokenSecret: {
@@ -147,7 +147,7 @@ const OAUTH1_FORMS: { [K in OAuth1Method]: FormComponentConfiguration } = {
     },
     authorizationUrl: {
       type: 'text',
-      label: 'Authorize URL',
+      label: 'Authorization URL',
       placeholder: 'https://example.com/oauth/authorize',
     },
     accessTokenUrl: {
@@ -182,7 +182,7 @@ const OAUTH2_BASE_FORM: FormComponentConfiguration = {
   },
   tokenUrl: {
     type: 'text',
-    label: 'Token URL',
+    label: 'Access Token URL',
     placeholder: 'https://example.com/oauth2/token',
   },
   scope: {
@@ -192,7 +192,7 @@ const OAUTH2_BASE_FORM: FormComponentConfiguration = {
   },
   clientAuthenticationMethod: {
     type: 'select',
-    label: 'Client Authentication Method',
+    label: 'Client Authentication',
     options: [
       {
         value: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
