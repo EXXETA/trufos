@@ -901,7 +901,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@eslint/compat@npm:^2.1.0":
+"@eslint/compat@npm:^2.0.3, @eslint/compat@npm:^2.1.0":
   version: 2.1.0
   resolution: "@eslint/compat@npm:2.1.0"
   dependencies:
@@ -6072,6 +6072,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"eslint-config-flat-gitignore@npm:2.3.0":
+  version: 2.3.0
+  resolution: "eslint-config-flat-gitignore@npm:2.3.0"
+  dependencies:
+    "@eslint/compat": "npm:^2.0.3"
+  peerDependencies:
+    eslint: ^9.5.0 || ^10.0.0
+  checksum: 10c0/31aac4524c2bb9f4fb9532674570f93540f4c24e71a19a07898f9f418d7c5b245284105062faf185dbfd6f54eeddf64ad3b68a66651050d61315a9a17e8a1983
+  languageName: node
+  linkType: hard
+
 "eslint-import-context@npm:^0.1.8, eslint-import-context@npm:^0.1.9":
   version: 0.1.9
   resolution: "eslint-import-context@npm:0.1.9"
@@ -10711,6 +10722,7 @@ __metadata:
     electron-devtools-installer: "npm:^4.0.0"
     electron-squirrel-startup: "npm:^1.0.1"
     eslint: "npm:^10.5.0"
+    eslint-config-flat-gitignore: "npm:2.3.0"
     eslint-import-resolver-typescript: "npm:^4.4.5"
     eslint-plugin-import-x: "npm:4.17.1"
     globals: "npm:^17.7.0"

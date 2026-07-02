@@ -1,4 +1,5 @@
 import { fixupConfigRules } from "@eslint/compat";
+import gitignore from "eslint-config-flat-gitignore";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
 import path from "node:path";
@@ -14,9 +15,7 @@ const compat = new FlatCompat({
     allConfig: js.configs.all
 });
 
-export default [{
-    ignores: ["**/dist/**", "**/out/**", ".vite/**", ".webpack/**", "coverage/**"],
-}, ...fixupConfigRules(compat.extends(
+export default [gitignore(), ...fixupConfigRules(compat.extends(
     "eslint:recommended",
     "plugin:@typescript-eslint/eslint-recommended",
     "plugin:@typescript-eslint/recommended",
