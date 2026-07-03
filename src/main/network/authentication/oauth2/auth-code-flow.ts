@@ -11,9 +11,7 @@ import {
   randomPKCECodeVerifier,
   randomState,
 } from 'openid-client';
-import { BrowserWindow } from 'electron';
-import { once } from 'node:events';
-import { RequestMethod } from 'shim/objects/request-method';
+import { openAuthorizationWindow } from '../util/browser-auth';
 
 function isPKCEConfig(
   auth:
@@ -26,32 +24,6 @@ export default class AuthCodeFlowAuthorizationStrategy<
   T extends
     OAuth2ClientAuthorizationCodeFlowInformation | OAuth2ClientAuthorizationCodeFlowPKCEInformation,
 > extends OAuth2AuthStrategy<T> {
-  private async getCurrentUrl(authorizationUrl: URL, callbackUrl: string) {
-    let redirectUrl: URL | undefined;
-
-    // create the browser window.
-    const window = new BrowserWindow({ title: 'OAuth2 Auth Code Flow' });
-    const { session } = window.webContents;
-    if (this.authInfo.cache !== true) {
-      session.clearStorageData();
-    }
-
-    // intercept the callback URL to get the auth code
-    session.webRequest.onBeforeRequest({ urls: [callbackUrl + '?*'] }, (details, callback) => {
-      if (details.method.toUpperCase() === RequestMethod.GET) {
-        logger.secret.info(`Completed auth code login with redirect URL: ${details.url}`);
-        callback({ cancel: true });
-        redirectUrl = URL.parse(details.url) ?? undefined;
-        window.close();
-      }
-    });
-
-    logger.secret.info(`Opening window with authorization URL: ${authorizationUrl}`);
-    window.loadURL(authorizationUrl.toString());
-    await once(window, 'close');
-    return redirectUrl;
-  }
-
   protected async getTokens() {
     const configuration = this.getConfiguration();
     const parameters = this.getParameters();
@@ -71,7 +43,10 @@ export default class AuthCodeFlowAuthorizationStrategy<
     const authorizationUrl = buildAuthorizationUrl(configuration, parameters);
 
     // open browser window to get the authorization code
-    const codeUrl = await this.getCurrentUrl(authorizationUrl, parameters.redirect_uri);
+    const codeUrl = await openAuthorizationWindow(authorizationUrl, parameters.redirect_uri, {
+      cache: this.authInfo.cache,
+      title: 'OAuth2 Auth Code Flow',
+    });
     if (codeUrl == null) {
       throw new Error('Authorization code not received');
     }

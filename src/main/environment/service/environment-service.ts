@@ -8,6 +8,7 @@ import { getSystemVariable, getSystemVariables } from './system-variable';
 import { SettingsService } from 'main/persistence/service/settings-service';
 import { AuthorizationInformation, AuthorizationType } from 'shim/objects';
 import { createAuthStrategy } from 'main/network/authentication/auth-strategy-factory';
+import { AuthRequestContext } from 'main/network/authentication/auth-strategy';
 import { EnvironmentMap } from 'shim/objects/environment';
 
 const persistenceService = PersistenceService.instance;
@@ -227,17 +228,22 @@ export class EnvironmentService implements Initializable {
    * authorization type of `INHERIT`, it will recursively get the authorization header from the
    * current collection.
    * @param auth The authorization information to get the header for.
+   * @param context Information about the request being sent, required by strategies
+   * that sign the request (OAuth 1.0).
    * @returns The authorization header as a string, or undefined if no authorization is set.
    */
   public async getAuthorizationHeader(
-    auth?: AuthorizationInformation
+    auth?: AuthorizationInformation,
+    context?: AuthRequestContext
   ): Promise<string | undefined> {
     if (auth == null) {
       return;
     } else if (auth.type === AuthorizationType.INHERIT) {
-      return this.getAuthorizationHeader(this.currentCollection.auth);
+      return this.getAuthorizationHeader(this.currentCollection.auth, context);
     } else {
-      return await createAuthStrategy(await this.setVariablesRecursive(auth)).getAuthHeader();
+      return await createAuthStrategy(await this.setVariablesRecursive(auth)).getAuthHeader(
+        context
+      );
     }
   }
 }

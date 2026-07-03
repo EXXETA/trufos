@@ -3,7 +3,7 @@ import { createCollectionStore } from './collectionStore';
 import { ClientCertificate, Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
-import { AuthorizationType } from 'shim/objects';
+import { AuthorizationType, OAuth2Method } from 'shim/objects';
 
 vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: vi.fn() },
@@ -138,6 +138,38 @@ describe('markDraft', () => {
     const state = store.getState();
     expect(state.requests.get(REQ_ID)!.draft).toBe(true);
     expect(state.requests.get(REQ_ID)!.lastModified).toBeGreaterThanOrEqual(before);
+  });
+
+  it('updateAuthorization merges fields when the type is unchanged', () => {
+    const store = buildStore();
+    const request = store.getState().requests.get(REQ_ID);
+
+    store.getState().updateAuthorization(request!, { type: AuthorizationType.BASIC });
+    store.getState().updateAuthorization(store.getState().requests.get(REQ_ID)!, {
+      username: 'user',
+    });
+
+    expect(store.getState().requests.get(REQ_ID)!.auth).toEqual({
+      type: AuthorizationType.BASIC,
+      username: 'user',
+    });
+  });
+
+  it('updateAuthorization drops stale fields when the type changes', () => {
+    const store = buildStore();
+    const request = store.getState().requests.get(REQ_ID);
+
+    // Simulate a previous type whose discriminator fields must not leak into the next type.
+    store.getState().updateAuthorization(request!, {
+      type: AuthorizationType.OAUTH2,
+      method: OAuth2Method.AUTHORIZATION_CODE,
+    } as never);
+    store.getState().updateAuthorization(store.getState().requests.get(REQ_ID)!, {
+      type: AuthorizationType.OAUTH1,
+    });
+
+    // Only the new type remains — no stale `method` from OAuth2.
+    expect(store.getState().requests.get(REQ_ID)!.auth).toEqual({ type: AuthorizationType.OAUTH1 });
   });
 });
 

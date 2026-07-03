@@ -2,6 +2,8 @@ import { selectRequest, useCollectionActions, useCollectionStore } from '@/state
 import {
   AuthorizationInformation,
   AuthorizationType,
+  OAuth1Method,
+  OAuth1SignatureMethod,
   OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
@@ -19,6 +21,7 @@ const LABELS: { [K in AuthorizationTypeOrNone]: string } = {
   [AuthorizationType.BEARER]: 'Bearer Token',
   [AuthorizationType.BASIC]: 'Basic Auth',
   [AuthorizationType.OAUTH2]: 'OAuth 2.0',
+  [AuthorizationType.OAUTH1]: 'OAuth 1.0',
 };
 
 const BASE_FORM = {
@@ -70,7 +73,7 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
     ...BASE_FORM,
     method: {
       type: 'select',
-      label: 'OAuth 2.0 Method',
+      label: 'Grant Type',
       options: [
         { value: OAuth2Method.CLIENT_CREDENTIALS, label: 'Client Credentials' },
         { value: OAuth2Method.AUTHORIZATION_CODE, label: 'Authorization Code' },
@@ -78,6 +81,86 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
       ],
       defaultValue: OAuth2Method.CLIENT_CREDENTIALS,
     },
+  },
+  [AuthorizationType.OAUTH1]: {
+    ...BASE_FORM,
+    method: {
+      type: 'select',
+      label: 'Flow',
+      options: [
+        { value: OAuth1Method.EXISTING_TOKEN, label: 'Existing Token / Two-legged' },
+        { value: OAuth1Method.AUTHORIZATION, label: 'Authorization (3-legged)' },
+      ],
+      defaultValue: OAuth1Method.EXISTING_TOKEN,
+    },
+    consumerKey: {
+      type: 'text',
+      label: 'Consumer Key',
+      placeholder: 'Enter consumer key',
+    },
+    consumerSecret: {
+      type: 'password',
+      label: 'Consumer Secret',
+      placeholder: 'Enter consumer secret',
+    },
+  },
+};
+
+/** Signature method + realm fields shared by every OAuth 1.0 grant type. */
+const OAUTH1_SHARED_FORM: FormComponentConfiguration = {
+  signatureMethod: {
+    type: 'select',
+    label: 'Signature Method',
+    options: [
+      { value: OAuth1SignatureMethod.HMAC_SHA1, label: 'HMAC-SHA1' },
+      { value: OAuth1SignatureMethod.HMAC_SHA256, label: 'HMAC-SHA256' },
+      { value: OAuth1SignatureMethod.PLAINTEXT, label: 'PLAINTEXT' },
+    ],
+    defaultValue: OAuth1SignatureMethod.HMAC_SHA1,
+  },
+  realm: {
+    type: 'text',
+    label: 'Realm',
+    placeholder: '(optional) Enter realm',
+  },
+};
+
+const OAUTH1_FORMS: { [K in OAuth1Method]: FormComponentConfiguration } = {
+  [OAuth1Method.EXISTING_TOKEN]: {
+    token: {
+      type: 'text',
+      label: 'Access Token',
+      placeholder: '(optional) Enter access token',
+    },
+    tokenSecret: {
+      type: 'password',
+      label: 'Token Secret',
+      placeholder: '(optional) Enter token secret',
+    },
+    ...OAUTH1_SHARED_FORM,
+  },
+  [OAuth1Method.AUTHORIZATION]: {
+    requestTokenUrl: {
+      type: 'text',
+      label: 'Request Token URL',
+      placeholder: 'https://example.com/oauth/request_token',
+    },
+    authorizationUrl: {
+      type: 'text',
+      label: 'Authorization URL',
+      placeholder: 'https://example.com/oauth/authorize',
+    },
+    accessTokenUrl: {
+      type: 'text',
+      label: 'Access Token URL',
+      placeholder: 'https://example.com/oauth/access_token',
+    },
+    callbackUrl: {
+      type: 'text',
+      label: 'Callback URL',
+      placeholder: 'https://example.com/oauth/callback',
+    },
+    ...OAUTH1_SHARED_FORM,
   },
 };
 
@@ -99,7 +182,7 @@ const OAUTH2_BASE_FORM: FormComponentConfiguration = {
   },
   tokenUrl: {
     type: 'text',
-    label: 'Token URL',
+    label: 'Access Token URL',
     placeholder: 'https://example.com/oauth2/token',
   },
   scope: {
@@ -109,7 +192,7 @@ const OAUTH2_BASE_FORM: FormComponentConfiguration = {
   },
   clientAuthenticationMethod: {
     type: 'select',
-    label: 'Client Authentication Method',
+    label: 'Client Authentication',
     options: [
       {
         value: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
@@ -209,6 +292,11 @@ export const AuthorizationTab = () => {
         ...FORMS[type],
         ...OAUTH2_FORMS[auth.method],
       };
+    } else if (auth?.type === AuthorizationType.OAUTH1) {
+      form = {
+        ...FORMS[type],
+        ...OAUTH1_FORMS[auth.method],
+      };
     } else {
       form = FORMS[type];
     }
@@ -217,7 +305,7 @@ export const AuthorizationTab = () => {
 
   return (
     <div className="relative h-full p-4">
-      <div className="absolute top-[16px] right-[16px] left-[16px] z-10 space-y-4 pb-4">
+      <div className="absolute top-4 right-4 left-4 z-10 space-y-4 pb-4">
         <ModularForm
           config={form}
           // @ts-expect-error data may contain 'none' type which is handled by the form

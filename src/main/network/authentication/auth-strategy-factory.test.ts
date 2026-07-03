@@ -7,10 +7,16 @@ import {
   AuthorizationType,
   BasicAuthorizationInformation,
   BearerAuthorizationInformation,
+  OAuth1AuthorizationFlowInformation,
+  OAuth1ExistingTokenAuthorizationInformation,
+  OAuth1Method,
+  OAuth1SignatureMethod,
   OAuth2ClientAuthenticationMethod,
 } from 'shim/objects';
 import { OAuth2ClientCrentialsAuthorizationInformation, OAuth2Method } from 'shim/objects';
 import ClientCredentialsAuthorizationStrategy from './oauth2/client-credentials';
+import ExistingTokenOAuth1Strategy from './oauth1/existing-token';
+import AuthorizationOAuth1Strategy from './oauth1/authorization';
 
 describe('createAuthStrategy()', () => {
   it('should create a BasicAuthStrategy for basic authentication', () => {
@@ -49,5 +55,33 @@ describe('createAuthStrategy()', () => {
     };
     const strategy = createAuthStrategy(auth);
     expect(strategy).toBeInstanceOf(ClientCredentialsAuthorizationStrategy);
+  });
+
+  it('should create an ExistingTokenOAuth1Strategy for OAuth 1.0 existing-token auth', () => {
+    const auth: OAuth1ExistingTokenAuthorizationInformation = {
+      type: AuthorizationType.OAUTH1,
+      method: OAuth1Method.EXISTING_TOKEN,
+      consumerKey: 'ck',
+      consumerSecret: 'cs',
+      signatureMethod: OAuth1SignatureMethod.HMAC_SHA1,
+    };
+    const strategy = createAuthStrategy(auth);
+    expect(strategy).toBeInstanceOf(ExistingTokenOAuth1Strategy);
+  });
+
+  it('should create an AuthorizationOAuth1Strategy for OAuth 1.0 authorization flow', () => {
+    const auth: OAuth1AuthorizationFlowInformation = {
+      type: AuthorizationType.OAUTH1,
+      method: OAuth1Method.AUTHORIZATION,
+      consumerKey: 'ck',
+      consumerSecret: 'cs',
+      signatureMethod: OAuth1SignatureMethod.HMAC_SHA1,
+      requestTokenUrl: 'https://example.com/oauth/request_token',
+      authorizationUrl: 'https://example.com/oauth/authorize',
+      accessTokenUrl: 'https://example.com/oauth/access_token',
+      callbackUrl: 'http://localhost/callback',
+    };
+    const strategy = createAuthStrategy(auth);
+    expect(strategy).toBeInstanceOf(AuthorizationOAuth1Strategy);
   });
 });
