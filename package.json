@@ -92,7 +92,7 @@
     "@react-icons/all-files": "^4.1.0",
     "@readme/openapi-parser": "^6.2.0",
     "@tailwindcss/vite": "^4.3.2",
-    "@usebruno/lang": "^0.37.0",
+    "@usebruno/lang": "^0.37.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
