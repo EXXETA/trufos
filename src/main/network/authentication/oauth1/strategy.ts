@@ -80,18 +80,18 @@ export default abstract class OAuth1AuthStrategy<
 
     oauthParams.oauth_signature = this.sign(httpMethod, url, oauthParams, tokenSecret ?? '');
 
-    const headerParams =
-      includeRealm && this.authInfo.realm
-        ? { realm: this.authInfo.realm, ...oauthParams }
-        : oauthParams;
-    const serialized = Object.entries(headerParams)
-      .map(
-        ([key, value]) =>
-          `${OAuth1AuthStrategy.percentEncode(key)}="${OAuth1AuthStrategy.percentEncode(value)}"`
-      )
-      .join(', ');
+    const serialized = Object.entries(oauthParams).map(
+      ([key, value]) =>
+        `${OAuth1AuthStrategy.percentEncode(key)}="${OAuth1AuthStrategy.percentEncode(value)}"`
+    );
 
-    return `OAuth ${serialized}`;
+    // RFC 5849 §3.5.1: `realm` is not an OAuth protocol parameter and follows RFC 2617
+    // quoted-string rules, so it must not be percent-encoded like the oauth_* parameters.
+    if (includeRealm && this.authInfo.realm) {
+      serialized.unshift(`realm="${OAuth1AuthStrategy.quoteString(this.authInfo.realm)}"`);
+    }
+
+    return `OAuth ${serialized.join(', ')}`;
   }
 
   /** Compute the `oauth_signature` value (not yet percent-encoded for the header). */
@@ -168,6 +168,11 @@ export default abstract class OAuth1AuthStrategy<
       /[!*'()]/g,
       (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
     );
+  }
+
+  /** Escape a value for an RFC 2617 quoted-string (used for the `realm` header parameter). */
+  private static quoteString(value: string): string {
+    return value.replace(/[\\"]/g, (char) => `\\${char}`);
   }
 
   protected generateNonce(): string {

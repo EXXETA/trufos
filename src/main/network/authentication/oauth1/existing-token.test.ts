@@ -158,6 +158,18 @@ describe('ExistingTokenOAuth1Strategy', () => {
     expect(parseOAuthHeader(header).realm).toBe('https://example.com');
   });
 
+  it('does not percent-encode the realm value (RFC 5849 §3.5.1 quoted-string)', async () => {
+    const strategy = new TestOAuth1AuthStrategy(baseAuth({ realm: 'Photos Realm' }));
+    const header = await strategy.getAuthHeader({
+      method: 'GET',
+      url: 'https://example.com/',
+    });
+
+    // The realm is emitted verbatim as a quoted string, not OAuth percent-encoded.
+    expect(header).toContain('realm="Photos Realm"');
+    expect(header).not.toContain('Photos%20Realm');
+  });
+
   it('throws when no request context is provided', async () => {
     const strategy = new TestOAuth1AuthStrategy(baseAuth());
     await expect(strategy.getAuthHeader()).rejects.toThrow(/method and URL/i);

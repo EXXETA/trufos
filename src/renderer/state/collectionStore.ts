@@ -453,9 +453,13 @@ export const createCollectionStore = (collection: Collection) => {
       updateAuthorization: (object, updatedFields) => {
         set((state) => {
           object = selectObject(state, object);
+          const newType = (updatedFields as Partial<AuthorizationInformation> | null)?.type;
           if (updatedFields == null) {
             delete object.auth;
-          } else if (object.auth == null) {
+          } else if (object.auth == null || (newType != null && newType !== object.auth.type)) {
+            // A changed type discriminates a different union member, so replace instead of
+            // merging: keeping fields from the previous type (e.g. an OAuth2 `method`) would
+            // leave the auth in an invalid, unparseable state.
             object.auth = updatedFields as AuthorizationInformation;
           } else {
             object.auth = { ...object.auth, ...updatedFields };
