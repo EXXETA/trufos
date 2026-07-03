@@ -1,13 +1,8 @@
 {
   "mcpServers": {
     "penpot": {
-      "command": "uvx",
-      "args": ["--from", "penpot-mcp==0.1.2", "penpot-mcp"],
-      "env": {
-        "PENPOT_API_URL": "${PENPOT_API_URL}",
-        "PENPOT_USERNAME": "${PENPOT_USERNAME}",
-        "PENPOT_PASSWORD": "${PENPOT_PASSWORD}"
-      }
+      "type": "http",
+      "url": "https://penpot.soulka.de/mcp/stream?userToken=eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.vJuK3zmLuIwQ1KMtgtkdFmZdU1Sg5iMJKOWSrVNGp6pHNTB_nr_bSg.E4I1rxVVDbV1YUkK.3poZ6NlTdbxr5qJD1Gb4W7wLI5bGs_JtPF1AHalsoF-BOZjWZ-DNVkQuAyEwvJu_0S_9q4HQvIsJsXKrjAliTKouo3869o0YdsL_m0FC6msQhmRHhHiOdSQqR9GPY2qkcWep9B9TpQYOmjqIzyvFP1JTY38k-3siX0QGDMHJhdWVNgkFO6SdTHvQKOWmMi-mI-CPG0IUoiyS.L7V54CPPLOnCGlS8aLiNHQ"
     }
   }
 }
