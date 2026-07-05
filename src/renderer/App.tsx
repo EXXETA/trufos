@@ -2,6 +2,8 @@ import '@/styles/index.css';
 import { useEffect } from 'react';
 import { Menubar } from '@/view/Menubar';
 import { RequestWindow } from '@/view/RequestWindow';
+import { CollectionRunner } from '@/view/CollectionRunner';
+import { useCollectionRunnerStore } from '@/state/collectionRunnerStore';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
@@ -15,6 +17,8 @@ const MIN_SIDEBAR_PIXELS = 300;
 const MIN_REQUEST_WINDOW_PIXELS = 500;
 
 export const App = () => {
+  const isRunnerOpen = useCollectionRunnerStore((state) => state.isOpen);
+
   useEffect(() => {
     RendererEventService.instance
       .getAppSettings()
@@ -40,7 +44,7 @@ export const App = () => {
               </ResizablePanel>
               <ResizableHandle />
               <ResizablePanel defaultSize="75%" minSize={MIN_REQUEST_WINDOW_PIXELS}>
-                <RequestWindow />
+                {isRunnerOpen ? <CollectionRunner /> : <RequestWindow />}
               </ResizablePanel>
             </ResizablePanelGroup>
           </SidebarProvider>
