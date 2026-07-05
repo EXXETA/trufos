@@ -24,6 +24,6 @@ yarn prettier-check # Check formatting
 - Follow Conventional Commits and the branch naming rules described in `AGENTS.md`.
 - Reference an existing GitHub issue in every branch and PR.
 - For `design needed` issues, read the design from the preconfigured `penpot` MCP server
-  (`.mcp.json`) before implementing when Penpot is the linked design source. Setup and usage
-  are documented in `AGENTS.md` (section "Designs (Penpot via MCP)"); run `/mcp` to check the
-  connection.
+  (`.mcp.json`) before implementing when Penpot is the linked design source. Setup, the
+  required `PENPOT_MCP_URL`, and the Penpot-side MCP connection step are documented in
+  `AGENTS.md` (section "Designs (Penpot via MCP)"); run `/mcp` to check the connection.
