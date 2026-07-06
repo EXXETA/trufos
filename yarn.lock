@@ -10731,7 +10731,7 @@ __metadata:
     ts-loader: "npm:^9.6.2"
     ts-node: "npm:^10.9.2"
     typescript: "npm:6.0.3"
-    undici: "npm:^8.6.0"
+    undici: "npm:^8.7.0"
     update-electron-app: "npm:^3.3.0"
     vite: "npm:^8.1.3"
     vitest: "npm:^4.1.9"
@@ -10913,10 +10913,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici@npm:^8.6.0":
-  version: 8.6.0
-  resolution: "undici@npm:8.6.0"
-  checksum: 10c0/1d3c72ab9712fe242e30dadcf539aa990b3848308af360f3a09336d1d27f8c8e896db3c5483ac002494f609f17976bc83bb4eaf5bbb5eb7878d801219ec1ae15
+"undici@npm:^8.7.0":
+  version: 8.7.0
+  resolution: "undici@npm:8.7.0"
+  checksum: 10c0/b7e5ecb4de82fa4f905011a77544fe7ba4da06f27167ff99313a7ae2869f3cb233d676dcd085533bc69f36989bc40871f5ae6ea6e4c9b91db92616b9e91b579d
   languageName: node
   linkType: hard
 
