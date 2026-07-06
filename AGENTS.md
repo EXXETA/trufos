@@ -122,30 +122,29 @@ tool, use that source instead of assuming Penpot. Otherwise fetch the relevant P
 instead of guessing spacing/colors.
 
 A `penpot` MCP server is preconfigured for Claude Code in `.mcp.json` and for VS Code/Copilot
-in `.vscode/mcp.json`. Both use the [`penpot-mcp`](https://github.com/montevive/penpot-mcp)
-server pinned to `penpot-mcp==0.1.2`. It connects to the project's self-hosted Penpot instance
-and exposes Penpot projects/files as MCP tools/resources (list projects/files, read files,
-search objects, inspect object trees, export objects).
+in `.vscode/mcp.json`. Both use Penpot's HTTP MCP endpoint and read the full server URL from
+`PENPOT_MCP_URL`. The URL is generated in Penpot under **Your account -> Integrations -> MCP
+Server** and includes the MCP key as a `userToken` query parameter.
 
 One-time setup (per developer):
 
-1. Install [`uv`](https://docs.astral.sh/uv/) (provides `uvx`) and Python 3.12+.
-2. Copy `.env.example` to `.env`. It contains the intentionally published read-only Trufos
-   Penpot account (`PENPOT_API_URL`, `PENPOT_USERNAME`, `PENPOT_PASSWORD`). If you replace it
-   with private credentials, keep them in `.env` only; `.env` is gitignored and must not be
-   committed.
-3. Export those variables into the shell that launches your agent so `.mcp.json`'s
-   `${PENPOT_API_URL}` / `${PENPOT_USERNAME}` / `${PENPOT_PASSWORD}` resolve
-   (e.g. `set -a; source .env; set +a`). VS Code/Copilot reads the same `.env` via
-   `.vscode/mcp.json`.
-4. Approve/restart the MCP server in your client (Claude Code: confirm the `penpot` server,
-   then `/mcp`; VS Code/Copilot: run `MCP: List Servers`) to verify it is connected.
+1. In Penpot, enable **Your account -> Integrations -> MCP Server** and generate an MCP key.
+2. Copy `.env.example` to `.env` and set `PENPOT_MCP_URL` to the full server URL from Penpot
+   (for example, `https://<penpot-domain>/mcp/stream?userToken=<mcp-key>`). Keep `.env`
+   gitignored; never commit the real URL because it contains a secret token.
+3. Export `PENPOT_MCP_URL` into the shell that launches your agent so `.mcp.json` can resolve
+   `${PENPOT_MCP_URL}` (e.g. `set -a; source .env; set +a`). VS Code/Copilot reads the same
+   value from `.env` via `.vscode/mcp.json`.
+4. Open the target Penpot file and run **File -> MCP Server -> Connect** so the MCP server has
+   an active file context.
+5. Approve/restart the MCP server in your client (Claude Code: confirm the `penpot` server,
+   then `/mcp`; VS Code/Copilot: run `MCP: List Servers`) and start with a read-only prompt
+   such as "list pages in this file" to verify the connection.
 
 Then ask the agent to read the relevant Penpot file/frame for the screen you are working on.
-The public read-only account may only list its default `Drafts` project via `list_projects`;
-use the `file-id`, `page-id`, and `board-id` from the Penpot link in the issue when needed
-(the main Trufos file currently uses `file-id=88a057e2-ffe4-81cb-8005-c2e9c63649bf`). For a
-reviewable verification, record the project/file/frame that was read in the issue or PR.
+Penpot MCP operates on the currently focused page in the active Penpot tab, so switch to the
+right page/frame before asking the agent to inspect it. For reviewable verification, record
+the project/file/frame or active page that was read in the issue or PR.
 
 ## Further Reading
 

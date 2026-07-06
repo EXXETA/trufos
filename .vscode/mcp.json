@@ -1,9 +1,8 @@
 {
   "servers": {
     "penpot": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["--from", "penpot-mcp==0.1.2", "penpot-mcp"],
+      "type": "sse",
+      "url": "${env:PENPOT_MCP_URL}",
       "envFile": "${workspaceFolder}/.env"
     }
   }

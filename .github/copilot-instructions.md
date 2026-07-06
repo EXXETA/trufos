@@ -81,4 +81,5 @@ yarn prettier       # Fix formatting
 
 When Penpot is the linked design source, use the preconfigured `penpot` MCP server in
 `.vscode/mcp.json` before implementing `design needed` issues. See the "Designs (Penpot via
-MCP)" section in [`AGENTS.md`](../AGENTS.md) for setup, credential handling, and verification.
+MCP)" section in [`AGENTS.md`](../AGENTS.md) for `PENPOT_MCP_URL` setup, credential handling,
+the Penpot-side MCP connection step, and verification.

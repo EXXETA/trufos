@@ -1,13 +1,8 @@
 {
   "mcpServers": {
     "penpot": {
-      "command": "uvx",
-      "args": ["--from", "penpot-mcp==0.1.2", "penpot-mcp"],
-      "env": {
-        "PENPOT_API_URL": "${PENPOT_API_URL}",
-        "PENPOT_USERNAME": "${PENPOT_USERNAME}",
-        "PENPOT_PASSWORD": "${PENPOT_PASSWORD}"
-      }
+      "type": "sse",
+      "url": "${PENPOT_MCP_URL}"
     }
   }
 }
