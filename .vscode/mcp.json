@@ -1,7 +1,7 @@
 {
   "servers": {
     "penpot": {
-      "type": "http",
+      "type": "sse",
       "url": "${env:PENPOT_MCP_URL}",
       "envFile": "${workspaceFolder}/.env"
     }
