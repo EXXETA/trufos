@@ -1,16 +1,22 @@
 import { IpcPushStream } from '@/lib/ipc-stream';
-import { getBodyModel, getScriptModel } from '@/lib/monaco/models';
+import { getBodyModel, getScriptModel, getVariablesModel } from '@/lib/monaco/models';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
 
 export async function setRequestTextBody(requestId: string, request?: TrufosRequest) {
   const model = getBodyModel(requestId);
+  const variablesModel = getVariablesModel(requestId);
   if (request?.body?.type === RequestBodyType.TEXT) {
     const stream = await IpcPushStream.open(request, 'utf-8');
     model.setValue(await stream.readAll());
+    variablesModel.setValue('');
+  } else if (request?.body?.type === RequestBodyType.GRAPHQL) {
+    model.setValue(request.body.query ?? '');
+    variablesModel.setValue(request.body.variables ?? '{}');
   } else {
     model.setValue('');
+    variablesModel.setValue('');
   }
 }
 
