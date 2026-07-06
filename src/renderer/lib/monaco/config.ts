@@ -1,4 +1,5 @@
 import './language';
+import './theme';
 import { loader } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import workers from 'virtual:monaco-workers';

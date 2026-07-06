@@ -30,7 +30,7 @@ export default function MonacoEditor({ model, onMount, ...props }: MonacoEditorP
 
   return (
     <Editor
-      theme={theme === TrufosTheme.Dark ? 'vs-dark' : 'vs-light'}
+      theme={theme === TrufosTheme.Dark ? 'trufos-dark' : 'trufos-light'}
       keepCurrentModel
       {...props}
       onMount={handleMount}
