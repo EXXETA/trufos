@@ -374,7 +374,10 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
       await Promise.all(editor.getModels().map(saveModelContent));
 
       for (const request of requestsToRun) {
-        if (runIdRef.current !== runId) return;
+        if (runIdRef.current !== runId) {
+          abortActiveRequest();
+          return;
+        }
         setResults((current) => ({ ...current, [request.id]: { state: 'running' } }));
 
         const requestStartedAt = performance.now();
@@ -382,14 +385,20 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
         activeRequestAbortKeyRef.current = abortKey;
         try {
           const response = await httpService.sendRequest(request, abortKey);
-          if (runIdRef.current !== runId) return;
+          if (runIdRef.current !== runId) {
+            abortActiveRequest();
+            return;
+          }
           addResponse(request.id, response);
           const state = isSuccessfulStatus(response.metaInfo.status) ? 'passed' : 'failed';
           setResults((current) => ({ ...current, [request.id]: { state, response } }));
 
           if (stopOnFirstFailure && state === 'failed') break;
         } catch (error) {
-          if (runIdRef.current !== runId) return;
+          if (runIdRef.current !== runId) {
+            abortActiveRequest();
+            return;
+          }
           const message = error instanceof Error ? error.message : String(error);
           setResults((current) => ({
             ...current,
