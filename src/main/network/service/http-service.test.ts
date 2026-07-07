@@ -66,6 +66,30 @@ describe('HttpService', () => {
     expect(responseBody).toEqual(text);
   });
 
+  it('fetchAsync() should send a text-body request without a body file (e.g. never opened in the editor)', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/no-body-file');
+    const httpService = setupMockHttpService(url, 'OK');
+    vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockResolvedValue(undefined);
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Test Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+    };
+
+    // Act
+    const result = await httpService.fetchAsync(request);
+
+    // Assert
+    expect(result.metaInfo.status).toEqual(200);
+  });
+
   it('fetchAsync() should calculate the response size using actual file size, ignoring content-length header', async () => {
     // Arrange
     const responseBodyMock = {

@@ -13,6 +13,7 @@ vi.mock('@/services/event/renderer-event-service', () => ({
         listeners[event] = listener;
       }),
       emit: vi.fn(),
+      selectEnvironment: vi.fn().mockResolvedValue(undefined),
       loadCollection: vi.fn().mockResolvedValue({
         id: 'col-1',
         type: 'collection',

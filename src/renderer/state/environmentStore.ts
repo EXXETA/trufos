@@ -22,17 +22,26 @@ interface EnvironmentActions {
 }
 
 export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>()(
-  immer((set) => ({
+  immer((set, get) => ({
     environments: {},
     selectedEnvironment: undefined,
 
     initialize(environments: EnvironmentMap) {
+      const previousSelection = get().selectedEnvironment;
+      const environmentKeys = Object.keys(environments);
+      let nextSelection = previousSelection;
       set((state) => {
         state.environments = environments;
-        if (Object.keys(environments).length > 0 && !state.selectedEnvironment) {
-          state.selectedEnvironment = Object.keys(environments)[0];
+        if (state.selectedEnvironment == null || environments[state.selectedEnvironment] == null) {
+          state.selectedEnvironment = environmentKeys[0] ?? undefined;
         }
+        nextSelection = state.selectedEnvironment;
       });
+      // The main process resolves variables based on its own selected environment,
+      // so an auto-selection here must be propagated via IPC.
+      if (nextSelection !== previousSelection) {
+        eventService.selectEnvironment(nextSelection).catch(console.error);
+      }
     },
 
     setEnvironments: async (environments) => {

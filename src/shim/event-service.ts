@@ -43,7 +43,13 @@ export interface IEventService {
    * Send an HTTP request.
    * @param request The request to send.
    */
-  sendRequest(request: TrufosRequest): Promise<TrufosResponse>;
+  sendRequest(request: TrufosRequest, abortKey?: string): Promise<TrufosResponse>;
+
+  /**
+   * Abort an in-flight HTTP request started with the given abort key.
+   * @param abortKey The key passed to sendRequest.
+   */
+  abortRequest(abortKey: string): void;
 
   /**
    * Saves the request to the file system. The draft flag is respected. If a

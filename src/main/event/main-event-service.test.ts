@@ -4,9 +4,8 @@ import { fs } from 'memfs';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { Collection } from 'shim/objects/collection';
-import { TrufosRequest } from 'shim/objects/request';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
-import { RequestBodyType } from 'shim/objects/request';
 import { Folder } from 'shim/objects/folder';
 
 vi.mock('electron', () => ({
@@ -204,6 +203,31 @@ describe('MainEventService', () => {
 
       expect(saveCollectionSpy).not.toHaveBeenCalled();
       expect(webContentsSend).not.toHaveBeenCalled();
+    });
+
+    it('passes an abort signal for keyed requests and aborts it by key', async () => {
+      const collection = makeCollection({ x: { value: 'before' } });
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
+
+      const { HttpService } = await import('../network/service/http-service.js');
+      let signal: AbortSignal | undefined;
+      vi.mocked(HttpService.instance.fetchAsync).mockImplementation((_request, abortSignal) => {
+        signal = abortSignal;
+        return new Promise((_, reject) => {
+          abortSignal?.addEventListener('abort', () => reject(new Error('aborted')));
+        });
+      });
+
+      const eventService = new MainEventService();
+      const requestPromise = eventService
+        .sendRequest(makeRequest(), 'runner-request-1')
+        .catch(() => undefined);
+      await vi.waitFor(() => expect(signal).toBeDefined());
+
+      await eventService.abortRequest('runner-request-1');
+      await requestPromise;
+
+      expect(signal?.aborted).toBe(true);
     });
 
     it('persists and pushes when ScriptingService emits variables-changed', async () => {

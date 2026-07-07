@@ -3,7 +3,7 @@ import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/components/icons';
-import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown } from 'lucide-react';
+import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown, Play } from 'lucide-react';
 
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
@@ -39,9 +39,10 @@ const SortIcon = ({ mode }: { mode: SortMode }) => {
 
 interface SidebarHeaderBarProps {
   onCreateItem: (item: CreatingItem) => void;
+  onRunCollection?: () => void;
 }
 
-export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
+export const SidebarHeaderBar = ({ onCreateItem, onRunCollection }: SidebarHeaderBarProps) => {
   const collection = useCollectionStore((state) => state.collection);
 
   const sortMode = useCollectionStore((state) => state.sortMode);
@@ -65,7 +66,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
   return (
     <>
       <SidebarHeader className="flex-col gap-6">
-        <CollectionDropdown />
+        <CollectionDropdown onRunCollection={onRunCollection} />
 
         <Divider />
 
@@ -92,6 +93,27 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
           </Tooltip>
 
           <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className={cn(buttonClassName, 'text-text-secondary')}
+                  variant={'ghost'}
+                  type="button"
+                  size={'icon'}
+                  onClick={onRunCollection}
+                  aria-label="Run collection"
+                >
+                  <Play size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                className="bg-sidebar-accent text-sidebar-accent-foreground border-0 px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
+              >
+                Run collection
+              </TooltipContent>
+            </Tooltip>
+
             <Button
               className={buttonClassName}
               variant={'ghost'}
