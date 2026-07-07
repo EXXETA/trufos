@@ -45,16 +45,45 @@ Key renderer directories:
 
 ## Code Conventions
 
-- All code must be **TypeScript** with strict typing – avoid `any`.
+- All code must be **TypeScript** with strict typing – never introduce `any`, and avoid
+  broad casts such as `as unknown as X` that bypass the type checker.
 - Use **functional React components** with hooks; no class components.
 - Prefer **named exports** over default exports for components and utilities.
-- Use **Tailwind CSS** utility classes for styling; avoid inline styles.
-- Use **shadcn/ui** components before writing custom UI primitives.
 - State shared across components belongs in a **Zustand store** (`src/renderer/state/`).
 - IPC communication must go through typed handlers defined in `src/main/event/` and exposed
   via preload.
-- Use **Zod** for runtime validation and schema definitions.
+- Use **Zod** for runtime validation and schema definitions. Validate data at runtime
+  boundaries (IPC payloads, files read from disk, network responses) instead of asserting
+  types with casts.
 - Use **Winston** for logging in the main process.
+
+### UI Components & Styling
+
+- Before writing a custom UI primitive, check in this order:
+  1. An existing **shadcn/ui** component in `src/renderer/components/ui/` (button, dialog,
+     dropdown-menu, select, popover, …).
+  2. A **Radix UI** primitive (`@radix-ui/react-*`) wrapped in the shadcn/ui style.
+  3. Only then a hand-rolled component.
+
+  This keeps focus handling, keyboard navigation, and accessibility consistent for free.
+
+- Use **Tailwind CSS v4** utility classes for styling; avoid inline styles and one-off CSS
+  files. Follow the patterns of neighbouring components – e.g. compose conditional classes
+  with the `cn()` helper (`src/renderer/lib/utils.ts`) rather than string concatenation.
+
+### Serialization & Comparison
+
+- Do **not** use `JSON.stringify` for equality checks, cache keys, memoization inputs, or
+  change detection. Property order is not semantically meaningful but changes the output
+  (`{"a":1,"b":2}` vs `{"b":2,"a":1}`), and values like `undefined`, `Map`, or `Date`
+  serialize lossily – both cause missed or spurious updates. If serialization genuinely is
+  the right tool for a comparison, document in a comment why the output is deterministic
+  for that data.
+- Prefer typed, structured comparisons: compare the relevant fields explicitly, or use a
+  dedicated deep-equality helper.
+- Prefer stable, typed data models plus **Zod** parsing over ad hoc string serialization
+  when data crosses a boundary (IPC, persistence). Parse into a typed structure once at the
+  boundary and work with that structure afterwards.
 
 ## Development Commands
 
