@@ -420,9 +420,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   const stopRun = () => {
     runIdRef.current++;
     abortActiveRequest();
-    setResults((current) =>
-      Object.fromEntries(Object.entries(current).filter(([, result]) => result.state !== 'running'))
-    );
+    setResults({});
     setTotalDuration(performance.now() - runStartRef.current);
     setIsRunning(false);
   };

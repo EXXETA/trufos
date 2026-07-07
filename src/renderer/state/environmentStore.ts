@@ -32,7 +32,7 @@ export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>
       set((state) => {
         state.environments = environments;
         if (state.selectedEnvironment == null || environments[state.selectedEnvironment] == null) {
-          state.selectedEnvironment = environmentKeys[0];
+          state.selectedEnvironment = environmentKeys[0] ?? undefined;
         }
       });
       // The main process resolves variables based on its own selected environment,

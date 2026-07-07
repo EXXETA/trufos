@@ -400,6 +400,7 @@ describe('CollectionRunner execution', () => {
     expect(sendRequestMock).toHaveBeenCalledTimes(1);
     expect(abortRequestMock).toHaveBeenCalledWith(sendRequestMock.mock.calls[0][1]);
     expect(screen.queryAllByText('Passed')).toHaveLength(0);
+    expect(screen.getAllByText('Pending')).toHaveLength(4);
   });
 
   it('resets previous results when a new run starts', async () => {
