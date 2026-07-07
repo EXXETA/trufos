@@ -1,5 +1,5 @@
 import { editor, Uri } from 'monaco-editor';
-import { TrufosRequest } from 'shim/objects/request';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 
@@ -13,6 +13,7 @@ const SCHEME = 'trufos';
 
 export interface RequestModels {
   body: editor.ITextModel;
+  variables: editor.ITextModel;
   scripts: Map<ScriptType, editor.ITextModel>;
   response: editor.ITextModel;
 }
@@ -37,6 +38,10 @@ export function bodyUri(requestId: string): Uri {
   return Uri.from({ scheme: SCHEME, path: `/requests/${requestId}/body` });
 }
 
+export function variablesUri(requestId: string): Uri {
+  return Uri.from({ scheme: SCHEME, path: `/requests/${requestId}/variables` });
+}
+
 export function scriptUri(requestId: string, scriptType: ScriptType): Uri {
   return Uri.from({ scheme: SCHEME, path: `/requests/${requestId}/script/${scriptType}` });
 }
@@ -46,15 +51,18 @@ export function responseUri(requestId: string): Uri {
 }
 
 /** Parse a model URI and return its metadata, or null if it is not a trufos model. */
-function parseModelUri(
-  uri: Uri
-): { requestId: string; kind: 'body' | 'script' | 'response'; scriptType?: ScriptType } | null {
+function parseModelUri(uri: Uri): {
+  requestId: string;
+  kind: 'body' | 'variables' | 'script' | 'response';
+  scriptType?: ScriptType;
+} | null {
   if (uri.scheme !== SCHEME) return null;
-  // path: /requests/{id}/body|response  or  /requests/{id}/script/{type}
-  const match = uri.path.match(/^\/requests\/([^/]+)\/(body|response|script\/([^/]+))$/);
+  // path: /requests/{id}/body|variables|response  or  /requests/{id}/script/{type}
+  const match = uri.path.match(/^\/requests\/([^/]+)\/(body|variables|response|script\/([^/]+))$/);
   if (!match) return null;
   const requestId = match[1];
   if (match[2] === 'body') return { requestId, kind: 'body' };
+  if (match[2] === 'variables') return { requestId, kind: 'variables' };
   if (match[2] === 'response') return { requestId, kind: 'response' };
   return { requestId, kind: 'script', scriptType: match[3] as ScriptType };
 }
@@ -67,6 +75,7 @@ export function createModelsForRequest(requestId: string): RequestModels {
   }
   const models: RequestModels = {
     body: editor.createModel('', undefined, bodyUri(requestId)),
+    variables: editor.createModel('', 'json', variablesUri(requestId)),
     scripts: new Map(
       Object.values(ScriptType).map((type) => [
         type,
@@ -87,6 +96,10 @@ export function getBodyModel(requestId: string): editor.ITextModel {
   return registry.get(requestId)!.body;
 }
 
+export function getVariablesModel(requestId: string): editor.ITextModel {
+  return registry.get(requestId)!.variables;
+}
+
 export function getScriptModel(requestId: string, scriptType: ScriptType): editor.ITextModel {
   return registry.get(requestId)!.scripts.get(scriptType)!;
 }
@@ -101,6 +114,7 @@ export function disposeModelsForRequest(requestId: string): void {
   // Dispose each model — this triggers onWillDisposeModel for body & script,
   // which handles persisting their content.
   models.body.dispose();
+  models.variables.dispose();
   for (const scriptModel of models.scripts.values()) {
     scriptModel.dispose();
   }
@@ -124,8 +138,12 @@ export async function saveModelContent(model: editor.ITextModel): Promise<void> 
   const request = getRequest(parsed.requestId);
   if (!request) return;
 
-  if (parsed.kind === 'body') {
-    await eventService.saveRequest(request, model.getValue());
+  if (parsed.kind === 'body' || parsed.kind === 'variables') {
+    if (request.body.type === RequestBodyType.GRAPHQL) {
+      await eventService.saveRequest(requestWithGraphQLModelValues(request));
+    } else if (parsed.kind === 'body') {
+      await eventService.saveRequest(request, model.getValue());
+    }
   } else if (parsed.kind === 'script' && parsed.scriptType != null) {
     await eventService.saveScript(request, parsed.scriptType, model.getValue());
   }
@@ -139,9 +157,26 @@ editor.onWillDisposeModel((model) => {
   const request = getRequest(parsed.requestId);
   if (!request) return;
 
-  if (parsed.kind === 'body') {
-    void eventService.saveRequest(request, model.getValue());
+  if (parsed.kind === 'body' || parsed.kind === 'variables') {
+    if (request.body.type === RequestBodyType.GRAPHQL) {
+      void eventService.saveRequest(requestWithGraphQLModelValues(request));
+    } else if (parsed.kind === 'body') {
+      void eventService.saveRequest(request, model.getValue());
+    }
   } else if (parsed.kind === 'script' && parsed.scriptType != null) {
     void eventService.saveScript(request, parsed.scriptType, model.getValue());
   }
 });
+
+function requestWithGraphQLModelValues(request: TrufosRequest): TrufosRequest {
+  if (request.body.type !== RequestBodyType.GRAPHQL) return request;
+  const models = registry.get(request.id);
+  return {
+    ...request,
+    body: {
+      ...request.body,
+      query: models?.body.getValue() ?? request.body.query,
+      variables: models?.variables.getValue() ?? request.body.variables,
+    },
+  };
+}

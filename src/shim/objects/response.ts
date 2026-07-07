@@ -12,6 +12,7 @@ export const MetaInfo = z.object({
   duration: z.number(),
   size: ResponseSize,
   status: z.number(),
+  graphqlErrors: z.number().optional(),
 });
 export type MetaInfo = z.infer<typeof MetaInfo>;
 

@@ -25,6 +25,9 @@ export function ResponseStatus() {
   return (
     <span className="response-status truncate text-nowrap">
       <span className={'text-sm ' + statusColorClass}>{statusText}</span>
+      {metaInfo.graphqlErrors != null && metaInfo.graphqlErrors > 0 && (
+        <span className="text-error ml-2 text-sm">GraphQL errors: {metaInfo.graphqlErrors}</span>
+      )}
       <span className="ml-2 text-sm">{durationText}</span>
       <Tooltip>
         <TooltipTrigger asChild>

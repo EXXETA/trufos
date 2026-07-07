@@ -15,6 +15,7 @@ import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { Readable } from 'node:stream';
+import { text } from 'node:stream/consumers';
 
 const mockAgent = new MockAgent({ connections: 1 });
 const environmentService = EnvironmentService.instance;
@@ -342,8 +343,9 @@ describe('HttpService', () => {
     const httpService = new HttpService(() => Promise.resolve(mockAgent));
 
     const fileContent = 'test file content';
-    const { Readable } = require('node:stream');
-    vi.spyOn(fileSystemService, 'readFile').mockResolvedValue(Readable.from([fileContent]));
+    vi.spyOn(fileSystemService, 'readFile').mockResolvedValue(
+      Readable.from([fileContent]) as fs.ReadStream
+    );
     vi.spyOn(fs, 'statSync').mockReturnValue({ size: fileContent.length } as fs.Stats);
 
     const request: TrufosRequest = {
@@ -475,12 +477,193 @@ describe('HttpService', () => {
     expect(executeSpy.mock.calls[0]?.[0]).toEqual(preScript);
     expect(executeSpy.mock.calls[1]?.[0]).toEqual(postScript);
   });
+
+  it('fetchAsync() should serialize GraphQL POST requests', async () => {
+    const url = new URL('https://example.com/graphql');
+    const httpService = setupMockHttpService(url, { data: { hello: 'world' } }, undefined, 'POST');
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: Date.now(),
+      title: 'GraphQL POST',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: {
+        type: RequestBodyType.GRAPHQL,
+        query: 'query Hello($name: String!) { hello(name: $name) }',
+        variables: '{"name":"Ada"}',
+        operationName: 'Hello',
+      },
+    };
+
+    await httpService.fetchAsync(request);
+
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    expect(lastCall?.method).toEqual('POST');
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
+    expect(lastCall.headers['content-type']).toEqual('application/json');
+    expect(JSON.parse(await text(lastCall?.body as unknown as Readable))).toEqual({
+      query: 'query Hello($name: String!) { hello(name: $name) }',
+      variables: { name: 'Ada' },
+      operationName: 'Hello',
+    });
+  });
+
+  it('fetchAsync() should accept pasted GraphQL JSON bodies', async () => {
+    const url = new URL('https://example.com/graphql');
+    const httpService = setupMockHttpService(url, { data: { getAllTcps: [] } }, undefined, 'POST');
+    const query =
+      'query { getAllTcps(where: { treasuryCompassSC: { tcId: { eq: 19 } } }) { id status } }';
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: Date.now(),
+      title: 'GraphQL pasted JSON',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: {
+        type: RequestBodyType.GRAPHQL,
+        query: JSON.stringify({ query }),
+        variables: '{}',
+      },
+    };
+
+    await httpService.fetchAsync(request);
+
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    expect(JSON.parse(await text(lastCall?.body as unknown as Readable))).toEqual({
+      query,
+      variables: {},
+    });
+  });
+
+  it('fetchAsync() should serialize GraphQL query requests over GET', async () => {
+    const url = new URL('https://example.com/graphql');
+    const query = 'query Hello { hello }';
+    const path = `/graphql?${new URLSearchParams({
+      query,
+      variables: '{}',
+      operationName: 'Hello',
+    }).toString()}`;
+    const httpService = setupMockHttpService(
+      url,
+      { data: { hello: 'world' } },
+      undefined,
+      'GET',
+      path
+    );
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: Date.now(),
+      title: 'GraphQL GET',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: {
+        type: RequestBodyType.GRAPHQL,
+        query,
+        variables: '{}',
+        operationName: 'Hello',
+      },
+    };
+
+    await httpService.fetchAsync(request);
+
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    expect(lastCall?.method).toEqual('GET');
+    expect(lastCall?.body).toBeUndefined();
+  });
+
+  it('fetchAsync() should reject GraphQL mutations over GET', async () => {
+    const url = new URL('https://example.com/graphql');
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: Date.now(),
+      title: 'GraphQL GET Mutation',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: {
+        type: RequestBodyType.GRAPHQL,
+        query: 'mutation Save { saveThing }',
+        variables: '{}',
+      },
+    };
+
+    await expect(httpService.fetchAsync(request)).rejects.toThrow(
+      'GraphQL mutations cannot be sent over GET'
+    );
+  });
+
+  it('fetchAsync() should reject invalid GraphQL variables JSON', async () => {
+    const url = new URL('https://example.com/graphql');
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: Date.now(),
+      title: 'GraphQL Invalid Variables',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: {
+        type: RequestBodyType.GRAPHQL,
+        query: 'query Hello { hello }',
+        variables: '{',
+      },
+    };
+
+    await expect(httpService.fetchAsync(request)).rejects.toThrow(
+      'GraphQL variables must be valid JSON'
+    );
+  });
+
+  it('fetchAsync() should expose GraphQL errors returned with HTTP 200', async () => {
+    const responseBody = { data: null, errors: [{ message: 'Nope' }, { message: 'Still nope' }] };
+    const url = new URL('https://example.com/graphql');
+    const httpService = setupMockHttpService(url, responseBody, undefined, 'POST');
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: Date.now(),
+      title: 'GraphQL Errors',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: {
+        type: RequestBodyType.GRAPHQL,
+        query: 'query Hello { hello }',
+        variables: '{}',
+      },
+    };
+
+    const response = await httpService.fetchAsync(request);
+
+    expect(response.metaInfo.status).toEqual(200);
+    expect(response.metaInfo.graphqlErrors).toEqual(2);
+  });
 });
 
 function setupMockHttpService(
   url: URL,
   body: object | string | null,
-  headers?: IncomingHttpHeaders
+  headers?: IncomingHttpHeaders,
+  method = 'GET',
+  path = url.pathname
 ) {
   let bodyString;
   switch (typeof body) {
@@ -495,8 +678,6 @@ function setupMockHttpService(
   }
 
   const mockClient = mockAgent.get(url.origin);
-  mockClient
-    .intercept({ path: url.pathname })
-    .reply(200, bodyString ?? undefined, { headers: headers });
+  mockClient.intercept({ path, method }).reply(200, bodyString ?? undefined, { headers: headers });
   return new HttpService(() => Promise.resolve(mockAgent));
 }

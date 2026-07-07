@@ -5,16 +5,19 @@ import { TemplateVariableHoverProvider } from './template-variable-hover-provide
 import { TemplateVariableSemanticTokensProvider } from './template-variable-semantic-tokens-provider';
 import trufosDeclaration from '@/assets/trufos-scripting-api.d.ts?raw';
 
+// @ts-expect-error Monaco exposes TypeScript defaults at runtime, but its barrel type is narrow.
 languages.typescript.javascriptDefaults.addExtraLib(trufosDeclaration);
 
 export enum Language {
   JSON = 'json',
+  GRAPHQL = 'graphql',
   XML = 'xml',
   TEXT = 'plaintext',
 }
 
 const LANGUAGE_TO_MIME_TYPE_MAP: Record<Language, string> = {
   [Language.JSON]: 'application/json',
+  [Language.GRAPHQL]: 'application/graphql',
   [Language.XML]: 'application/xml',
   [Language.TEXT]: 'text/plain',
 };
@@ -43,13 +46,33 @@ export function mimeTypeToLanguage(mimeType: string): Language {
   return MIME_TYPE_TO_LANGUAGE_MAP[mimeType];
 }
 
-const supportedLanguages = [Language.JSON, Language.XML, Language.TEXT];
+const supportedLanguages = [Language.JSON, Language.GRAPHQL, Language.XML, Language.TEXT];
 const formattableLanguages = new Set([Language.JSON, Language.XML]);
 
 // plaintext using fast syntax highlighting
 languages.setMonarchTokensProvider(Language.TEXT, {
   tokenizer: {
     root: [[/\{\{\s*(\$?\w+)\s*}}/, 'variable.template']],
+  },
+});
+
+languages.setMonarchTokensProvider(Language.GRAPHQL, {
+  tokenizer: {
+    root: [
+      [/#.*$/, 'comment'],
+      [/\b(query|mutation|fragment|on|schema|type|input|enum|interface|union|scalar)\b/, 'keyword'],
+      [/\$[A-Za-z_][\w]*/, 'variable'],
+      [/[A-Za-z_][\w]*(?=\s*:)/, 'attribute.name'],
+      [/[A-Za-z_][\w]*/, 'identifier'],
+      [/[{}()[\]:=!|&]/, 'delimiter'],
+      [/"([^"\\]|\\.)*$/, 'string.invalid'],
+      [/"/, { token: 'string.quote', bracket: '@open', next: '@string' }],
+    ],
+    string: [
+      [/[^\\"]+/, 'string'],
+      [/\\./, 'string.escape'],
+      [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
+    ],
   },
 });
 

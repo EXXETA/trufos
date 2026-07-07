@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { GraphQLBody, RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
 import { TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
@@ -77,7 +77,7 @@ export class HttpService {
         });
       } catch (e) {
         logger.error('Failed to generate authentication header:', e);
-        throw new Error('Please check your authentication settings and try again');
+        throw new Error('Please check your authentication settings and try again', { cause: e });
       }
     }
 
@@ -88,11 +88,11 @@ export class HttpService {
     // execute pre-request script if it exists
     await this.executeScript(request, ScriptType.PRE_REQUEST);
 
-    const [body, size] = await this.readBody(request);
+    const [body, size, requestUrl] = await this.readBody(request, url);
 
     // measure duration of the request
     const now = getSteadyTimestamp();
-    const responseData = await undici.request(url, {
+    const responseData = await undici.request(requestUrl ?? url, {
       dispatcher: await this._dispatcherProvider(),
       method: request.method,
       headers: {
@@ -119,6 +119,8 @@ export class HttpService {
       logger.debug('Successfully written response body');
     }
 
+    const graphqlErrors = await this.countGraphQLErrors(request, bodyFile.name);
+
     // return a new Response instance
     const response: TrufosResponse = {
       type: 'response',
@@ -129,6 +131,7 @@ export class HttpService {
           responseData.headers,
           responseData.body != null ? (bodyFile.name ?? undefined) : undefined
         ),
+        graphqlErrors,
       },
       headers: Object.freeze(responseData.headers),
       id: (responseData.body != null
@@ -145,7 +148,10 @@ export class HttpService {
    * @param request request object
    * @returns request body as stream or null if there is no body
    */
-  private async readBody(request: TrufosRequest): Promise<[(Readable | FormData)?, number?]> {
+  private async readBody(
+    request: TrufosRequest,
+    url: string
+  ): Promise<[(Readable | FormData)?, number?, string?]> {
     if (request.body == null) {
       return [];
     }
@@ -157,7 +163,9 @@ export class HttpService {
       }
       case RequestBodyType.FILE:
         return this.readFileBody(request.body.filePath);
-      case RequestBodyType.FORM_DATA:
+      case RequestBodyType.GRAPHQL:
+        return this.readGraphQLBody(request.body, request.method, url);
+      case RequestBodyType.FORM_DATA: {
         const form = new FormData();
         for (const field of request.body.fields) {
           switch (field.value.type) {
@@ -167,7 +175,7 @@ export class HttpService {
                 await environmentService.setVariablesInString(field.value.text ?? '')
               );
               break;
-            case RequestBodyType.FILE:
+            case RequestBodyType.FILE: {
               const [body] = await this.readFileBody(field.value.filePath);
               if (body != null) {
                 const fileName = field.value.fileName ?? 'file';
@@ -176,13 +184,93 @@ export class HttpService {
                 form.append(field.key, value);
               }
               break;
+            }
             default:
               throw new Error('Unknown form data field value type');
           }
         }
         return [form];
+      }
       default:
         throw new Error('Unknown body type');
+    }
+  }
+
+  private async readGraphQLBody(
+    body: GraphQLBody,
+    method: string,
+    requestUrl: string
+  ): Promise<[Readable?, number?, string?]> {
+    const { query, variables, operationName } = await this.resolveGraphQLBody(body);
+
+    if (method === 'GET') {
+      if (/^\s*mutation\b/i.test(query)) {
+        throw new Error('GraphQL mutations cannot be sent over GET');
+      }
+      const url = new URL(requestUrl);
+      url.searchParams.set('query', query);
+      if (body.variables?.trim()) url.searchParams.set('variables', JSON.stringify(variables));
+      if (operationName != null) url.searchParams.set('operationName', operationName);
+      return [undefined, undefined, url.toString()];
+    }
+
+    const payload = JSON.stringify({ query, variables, operationName });
+    return [Readable.from(payload), Buffer.byteLength(payload)];
+  }
+
+  private async resolveGraphQLBody(body: GraphQLBody) {
+    const queryInput = await environmentService.setVariablesInString(body.query ?? '');
+    const pastedPayload = this.parseGraphQLJsonPayload(queryInput);
+    const hasVariablesOverride =
+      body.variables != null && body.variables.trim() !== '' && body.variables.trim() !== '{}';
+    const variablesText = hasVariablesOverride
+      ? await environmentService.setVariablesInString(body.variables ?? '{}')
+      : JSON.stringify(pastedPayload?.variables ?? {});
+
+    return {
+      query: pastedPayload?.query ?? queryInput,
+      variables: this.parseGraphQLVariables(variablesText),
+      operationName: body.operationName?.trim() || pastedPayload?.operationName,
+    };
+  }
+
+  private parseGraphQLJsonPayload(input: string) {
+    try {
+      const parsed = JSON.parse(input) as {
+        query?: unknown;
+        variables?: unknown;
+        operationName?: unknown;
+      };
+      if (typeof parsed.query !== 'string') return undefined;
+      return {
+        query: parsed.query,
+        variables: parsed.variables,
+        operationName: typeof parsed.operationName === 'string' ? parsed.operationName : undefined,
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  private parseGraphQLVariables(resolvedVariables: string) {
+    if (!resolvedVariables.trim()) return {};
+    try {
+      return JSON.parse(resolvedVariables) as Record<string, unknown>;
+    } catch (error) {
+      throw new Error('GraphQL variables must be valid JSON', { cause: error });
+    }
+  }
+
+  private async countGraphQLErrors(request: TrufosRequest, responseBodyPath?: string) {
+    if (request.body?.type !== RequestBodyType.GRAPHQL || responseBodyPath == null)
+      return undefined;
+    try {
+      const responseBody = JSON.parse(await fsp.readFile(responseBodyPath, 'utf8')) as {
+        errors?: unknown[];
+      };
+      return Array.isArray(responseBody.errors) ? responseBody.errors.length : undefined;
+    } catch {
+      return undefined;
     }
   }
 
@@ -202,6 +290,8 @@ export class HttpService {
           return body.mimeType ?? 'text/plain';
         case RequestBodyType.FILE:
           return body.mimeType ?? 'application/octet-stream';
+        case RequestBodyType.GRAPHQL:
+          return 'application/json';
       }
     }
   }
