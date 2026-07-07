@@ -127,11 +127,7 @@ function ResponseBodyPreview({ response }: { response: TrufosResponse }) {
 
   useResponseData(response, 'utf-8', setBody);
 
-  return (
-    <pre className="tabs-scrollbar h-full min-h-0 overflow-auto text-xs break-words whitespace-pre-wrap">
-      {body}
-    </pre>
-  );
+  return <pre className="text-xs break-words whitespace-pre-wrap">{body}</pre>;
 }
 
 function ResponseDetail({ response }: { response: TrufosResponse }) {
@@ -167,7 +163,9 @@ function ResponseDetail({ response }: { response: TrufosResponse }) {
           <ResponseBodyPreview response={response} />
         </TabsContent>
         <TabsContent className={tabContentClassName} value="headers">
-          <pre className="text-xs">{formatHeaders(response.headers)}</pre>
+          <pre className="text-xs break-words whitespace-pre-wrap">
+            {formatHeaders(response.headers)}
+          </pre>
         </TabsContent>
       </Tabs>
     </div>

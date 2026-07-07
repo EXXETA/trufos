@@ -31,4 +31,4 @@ export const useViewStore = create<ViewState & ViewActions>()(
 );
 
 export const selectIsCollectionRunnerOpen = (state: ViewState) => state.isCollectionRunnerOpen;
-export const useViewActions = () => useViewStore(useActions());
+export const useViewActions = (): ViewActions => useViewStore(useActions());
