@@ -60,7 +60,7 @@ export class HttpService {
    * @param request request object
    * @returns response object
    */
-  public async fetchAsync(request: TrufosRequest) {
+  public async fetchAsync(request: TrufosRequest, signal?: AbortSignal) {
     logger.info('Sending request:', request);
 
     // resolve variables (except in body, which is resolved stream-based during send)
@@ -77,7 +77,7 @@ export class HttpService {
         });
       } catch (e) {
         logger.error('Failed to generate authentication header:', e);
-        throw new Error('Please check your authentication settings and try again');
+        throw new Error('Please check your authentication settings and try again', { cause: e });
       }
     }
 
@@ -103,6 +103,7 @@ export class HttpService {
         ...headers,
       },
       body,
+      signal,
     });
 
     const duration = getDurationFromNow(now);
@@ -160,17 +161,18 @@ export class HttpService {
       }
       case RequestBodyType.FILE:
         return this.readFileBody(request.body.filePath);
-      case RequestBodyType.FORM_DATA:
+      case RequestBodyType.FORM_DATA: {
         const form = new FormData();
         for (const field of request.body.fields) {
           switch (field.value.type) {
-            case RequestBodyType.TEXT:
+            case RequestBodyType.TEXT: {
               form.append(
                 field.key,
                 await environmentService.setVariablesInString(field.value.text ?? '')
               );
               break;
-            case RequestBodyType.FILE:
+            }
+            case RequestBodyType.FILE: {
               const [body] = await this.readFileBody(field.value.filePath);
               if (body != null) {
                 const fileName = field.value.fileName ?? 'file';
@@ -179,11 +181,13 @@ export class HttpService {
                 form.append(field.key, value);
               }
               break;
+            }
             default:
               throw new Error('Unknown form data field value type');
           }
         }
         return [form];
+      }
       default:
         throw new Error('Unknown body type');
     }

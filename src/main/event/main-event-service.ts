@@ -78,6 +78,7 @@ function toError(error: unknown) {
 export class MainEventService implements IEventService {
   public static readonly instance = new MainEventService();
   public webContents: WebContents | null = null;
+  private readonly abortControllers = new Map<string, AbortController>();
 
   private constructor() {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
@@ -108,8 +109,24 @@ export class MainEventService implements IEventService {
     return await environmentService.listCollections();
   }
 
-  async sendRequest(request: TrufosRequest) {
-    return await HttpService.instance.fetchAsync(request);
+  async sendRequest(request: TrufosRequest, abortKey?: string) {
+    if (abortKey == null) {
+      return await HttpService.instance.fetchAsync(request);
+    }
+
+    const abortController = new AbortController();
+    this.abortControllers.set(abortKey, abortController);
+
+    try {
+      return await HttpService.instance.fetchAsync(request, abortController.signal);
+    } finally {
+      this.abortControllers.delete(abortKey);
+    }
+  }
+
+  async abortRequest(abortKey: string) {
+    this.abortControllers.get(abortKey)?.abort();
+    this.abortControllers.delete(abortKey);
   }
 
   async saveRequest(request: TrufosRequest, textBody?: string) {

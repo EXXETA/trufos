@@ -13,10 +13,10 @@ export class HttpService {
    * @returns The response.
    * @throws {DisplayableError} If anything fails.
    */
-  public async sendRequest(request: TrufosRequest) {
+  public async sendRequest(request: TrufosRequest, abortKey?: string) {
     try {
       console.info('Sending request:', request);
-      const response = await eventService.sendRequest(request);
+      const response = await eventService.sendRequest(request, abortKey);
       console.info('Received response:', response);
       return response;
     } catch (error) {
@@ -33,5 +33,9 @@ export class HttpService {
       }
       throw new DisplayableError(description, 'Could not send Request', error);
     }
+  }
+
+  public async abortRequest(abortKey: string) {
+    await eventService.abortRequest(abortKey);
   }
 }

@@ -41,6 +41,15 @@ describe('environmentStore', () => {
       expect(selectEnvironmentMock).not.toHaveBeenCalled();
     });
 
+    it('resets an existing selection that is missing in the new environments', () => {
+      useEnvironmentStore.setState({ selectedEnvironment: 'prod' });
+
+      useEnvironmentStore.getState().initialize({ dev: { variables: {} } });
+
+      expect(useEnvironmentStore.getState().selectedEnvironment).toBe('dev');
+      expect(selectEnvironmentMock).toHaveBeenCalledWith('dev');
+    });
+
     it('does not select anything when there are no environments', () => {
       useEnvironmentStore.getState().initialize({});
 

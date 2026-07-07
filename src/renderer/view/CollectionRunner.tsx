@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { editor } from 'monaco-editor';
 import { ChevronDown, ChevronRight, Loader2, Play, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -54,7 +54,11 @@ type RunnerItem =
 type RunnerResult =
   | { state: 'running' }
   | { state: 'passed' | 'failed'; response: TrufosResponse }
-  | { state: 'failed'; error: string; duration: number };
+  | { state: 'error'; error: string; duration: number };
+
+function isFailure(result?: RunnerResult) {
+  return result?.state === 'failed' || result?.state === 'error';
+}
 
 interface CollectionRunnerProps {
   open: boolean;
@@ -237,29 +241,47 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   // Incremented to invalidate an in-flight run (stop button, collection switch, unmount).
   const runIdRef = useRef(0);
   const runStartRef = useRef(0);
+  const abortSequenceRef = useRef(0);
+  const activeRequestAbortKeyRef = useRef<string | undefined>(undefined);
   const knownRequestIdsRef = useRef<Set<string>>(new Set(requests.keys()));
   const requestsRef = useRef(requests);
   requestsRef.current = requests;
 
-  useEffect(() => () => void runIdRef.current++, []);
+  const abortActiveRequest = useCallback(() => {
+    const abortKey = activeRequestAbortKeyRef.current;
+    if (abortKey == null) return;
+
+    activeRequestAbortKeyRef.current = undefined;
+    void httpService.abortRequest(abortKey).catch(console.error);
+  }, []);
+
+  useEffect(
+    () => () => {
+      runIdRef.current++;
+      abortActiveRequest();
+    },
+    [abortActiveRequest]
+  );
 
   // Abort an in-flight run when the modal is closed.
   useEffect(() => {
     if (!open) {
       runIdRef.current++;
+      abortActiveRequest();
       setIsRunning(false);
     }
-  }, [open]);
+  }, [abortActiveRequest, open]);
 
   useEffect(() => {
     runIdRef.current++;
+    abortActiveRequest();
     setSelectedRequestIds(new Set(requestsRef.current.keys()));
     setResults({});
     setRunOrder([]);
     setExpandedRows(new Set());
     setTotalDuration(null);
     setIsRunning(false);
-  }, [collection?.id]);
+  }, [abortActiveRequest, collection?.id]);
 
   // Keep the selection in sync when requests are added or removed in the sidebar
   // without discarding the user's choices or any run results.
@@ -294,7 +316,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   );
 
   const passed = runOrder.filter((id) => results[id]?.state === 'passed').length;
-  const failed = runOrder.filter((id) => results[id]?.state === 'failed').length;
+  const failed = runOrder.filter((id) => isFailure(results[id])).length;
   const done = passed + failed;
   const totalRequests = selectedRequests.length;
   // The summary reflects the last run once one exists, the current selection otherwise.
@@ -356,8 +378,10 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
         setResults((current) => ({ ...current, [request.id]: { state: 'running' } }));
 
         const requestStartedAt = performance.now();
+        const abortKey = `${runId}:${request.id}:${abortSequenceRef.current++}`;
+        activeRequestAbortKeyRef.current = abortKey;
         try {
-          const response = await httpService.sendRequest(request);
+          const response = await httpService.sendRequest(request, abortKey);
           if (runIdRef.current !== runId) return;
           addResponse(request.id, response);
           const state = isSuccessfulStatus(response.metaInfo.status) ? 'passed' : 'failed';
@@ -370,13 +394,17 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
           setResults((current) => ({
             ...current,
             [request.id]: {
-              state: 'failed',
+              state: 'error',
               error: message,
               duration: performance.now() - requestStartedAt,
             },
           }));
 
           if (stopOnFirstFailure) break;
+        } finally {
+          if (activeRequestAbortKeyRef.current === abortKey) {
+            activeRequestAbortKeyRef.current = undefined;
+          }
         }
       }
     } catch (error) {
@@ -391,6 +419,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
 
   const stopRun = () => {
     runIdRef.current++;
+    abortActiveRequest();
     setResults((current) =>
       Object.fromEntries(Object.entries(current).filter(([, result]) => result.state !== 'running'))
     );
@@ -458,7 +487,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                 className={cn(
                   'h-1 flex-1 rounded-full',
                   result?.state === 'passed' && 'bg-state-success',
-                  result?.state === 'failed' && 'bg-danger',
+                  isFailure(result) && 'bg-danger',
                   result?.state === 'running' && 'bg-accent-primary animate-pulse',
                   result == null && 'bg-border'
                 )}
@@ -596,12 +625,15 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
             <div className="tabs-scrollbar min-h-0 flex-1 overflow-y-auto">
               {orderedRequests.map((request) => {
                 const result = results[request.id];
-                const response = result && 'response' in result ? result.response : undefined;
+                const response =
+                  result?.state === 'passed' || result?.state === 'failed'
+                    ? result.response
+                    : undefined;
                 const isExpanded = expandedRows.has(request.id);
                 const isSelected = selectedRequestIds.has(request.id);
                 const duration =
                   response?.metaInfo.duration ??
-                  (result && 'duration' in result ? result.duration : undefined);
+                  (result?.state === 'error' ? result.duration : undefined);
                 return (
                   <Collapsible
                     key={request.id}
@@ -643,7 +675,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                     <CollapsibleContent className="border-border bg-background-secondary/40 border-b px-4 py-4">
                       {result == null ? (
                         <p className="text-text-secondary text-sm">No result yet.</p>
-                      ) : 'error' in result ? (
+                      ) : result.state === 'error' ? (
                         <p className="text-danger text-sm">{result.error}</p>
                       ) : result.state === 'running' ? (
                         <p className="text-text-secondary text-sm">Request is running.</p>

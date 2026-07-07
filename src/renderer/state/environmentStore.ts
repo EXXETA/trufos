@@ -28,10 +28,11 @@ export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>
 
     initialize(environments: EnvironmentMap) {
       const previousSelection = get().selectedEnvironment;
+      const environmentKeys = Object.keys(environments);
       set((state) => {
         state.environments = environments;
-        if (Object.keys(environments).length > 0 && !state.selectedEnvironment) {
-          state.selectedEnvironment = Object.keys(environments)[0];
+        if (state.selectedEnvironment == null || environments[state.selectedEnvironment] == null) {
+          state.selectedEnvironment = environmentKeys[0];
         }
       });
       // The main process resolves variables based on its own selected environment,
