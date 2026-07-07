@@ -152,8 +152,11 @@ export class HttpService {
 
     switch (request.body.type) {
       case RequestBodyType.TEXT: {
+        // The body file only exists once the request was opened in the editor, so
+        // requests that were never opened (e.g. sent via the collection runner) have none.
         const requestBodyStream = await persistenceService.loadTextBodyOfRequest(request);
-        return [environmentService.setVariablesInStream(requestBodyStream!) as Readable];
+        if (requestBodyStream == null) return [];
+        return [environmentService.setVariablesInStream(requestBodyStream) as Readable];
       }
       case RequestBodyType.FILE:
         return this.readFileBody(request.body.filePath);
