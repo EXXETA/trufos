@@ -47,6 +47,10 @@ Key renderer directories:
 
 - All code must be **TypeScript** with strict typing – never introduce `any`, and avoid
   broad casts such as `as unknown as X` that bypass the type checker.
+- Annotate **explicit return types** on exported functions, hooks, and public class methods
+  (e.g. `buildMenu(): Menu`, `useViewActions = (): ViewActions => …`). Inference is fine for
+  private helpers and inline callbacks. This is the most common finding of the PR review
+  bot – annotating up front avoids a review round-trip.
 - Use **functional React components** with hooks; no class components.
 - Prefer **named exports** over default exports for components and utilities.
 - State shared across components belongs in a **Zustand store** (`src/renderer/state/`).
