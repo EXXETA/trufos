@@ -131,7 +131,12 @@ function ResponseBodyPreview({ response }: { response: TrufosResponse }) {
 }
 
 function ResponseDetail({ response }: { response: TrufosResponse }) {
-  const tabContentClassName = 'border-border min-h-0 rounded-md border bg-transparent p-3';
+  // Overrides the shadcn defaults to match the compact tab style from the runner design.
+  const tabTriggerClassName = cn(
+    'h-auto rounded-md px-3 py-1 text-xs font-semibold',
+    'data-[state=active]:bg-accent-primary/10 data-[state=active]:text-accent-primary data-[state=active]:shadow-none'
+  );
+  const tabContentClassName = 'border-border mt-3 min-h-0 rounded border bg-transparent p-3';
 
   return (
     <div className="grid min-h-[320px] grid-rows-[auto_1fr] gap-3">
@@ -148,14 +153,11 @@ function ResponseDetail({ response }: { response: TrufosResponse }) {
         </span>
       </div>
       <Tabs className="min-h-0 bg-transparent" defaultValue="body">
-        <TabsList className="h-auto bg-transparent">
-          <TabsTrigger className="h-auto rounded-md px-3 py-1 text-xs font-semibold" value="body">
+        <TabsList className="h-auto gap-1 bg-transparent">
+          <TabsTrigger className={tabTriggerClassName} value="body">
             Body
           </TabsTrigger>
-          <TabsTrigger
-            className="h-auto rounded-md px-3 py-1 text-xs font-semibold"
-            value="headers"
-          >
+          <TabsTrigger className={tabTriggerClassName} value="headers">
             Headers
           </TabsTrigger>
         </TabsList>
