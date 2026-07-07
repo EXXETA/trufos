@@ -12,9 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResponseData } from '@/components/mainWindow/bodyTabs/OutputTabs/PrettyRenderer';
 import { HttpService } from '@/services/http/http-service';
 import { httpMethodColor } from '@/services/StyleHelper';
+import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
 import { saveModelContent } from '@/lib/monaco/models';
 import { cn } from '@/lib/utils';
 import { useCollectionStore } from '@/state/collectionStore';
@@ -125,24 +127,19 @@ function ResponseBodyPreview({ response }: { response: TrufosResponse }) {
 
   useResponseData(response, 'utf-8', setBody);
 
-  return (
-    <pre className="tabs-scrollbar h-full min-h-0 overflow-auto text-xs break-words whitespace-pre-wrap">
-      {body}
-    </pre>
-  );
+  return <pre className="text-xs break-words whitespace-pre-wrap">{body}</pre>;
 }
 
 function ResponseDetail({ response }: { response: TrufosResponse }) {
-  const [tab, setTab] = useState<'body' | 'headers'>('body');
-
-  const tabClassName = (active: boolean) =>
-    cn(
-      'cursor-pointer rounded-md px-3 py-1 text-xs font-semibold',
-      active ? 'bg-accent-primary/10 text-accent-primary' : 'text-text-secondary'
-    );
+  // Overrides the shadcn defaults to match the compact tab style from the runner design.
+  const tabTriggerClassName = cn(
+    'h-auto rounded-md px-3 py-1 text-xs font-semibold',
+    'data-[state=active]:bg-accent-primary/10 data-[state=active]:text-accent-primary data-[state=active]:shadow-none'
+  );
+  const tabContentClassName = 'border-border mt-3 min-h-0 rounded border bg-transparent p-3';
 
   return (
-    <div className="grid min-h-[320px] grid-rows-[auto_auto_1fr] gap-3">
+    <div className="grid min-h-[320px] grid-rows-[auto_1fr] gap-3">
       <div className="text-text-secondary flex gap-5 text-sm">
         <span>
           Status:{' '}
@@ -155,31 +152,24 @@ function ResponseDetail({ response }: { response: TrufosResponse }) {
           </span>
         </span>
       </div>
-      <div className="flex gap-1">
-        <button
-          className={tabClassName(tab === 'body')}
-          type="button"
-          onClick={() => setTab('body')}
-        >
-          Body
-        </button>
-        <button
-          className={tabClassName(tab === 'headers')}
-          type="button"
-          onClick={() => setTab('headers')}
-        >
-          Headers
-        </button>
-      </div>
-      <div className="border-border min-h-0 rounded border p-3">
-        {tab === 'body' ? (
+      <Tabs className="min-h-0 bg-transparent" defaultValue="body">
+        <TabsList className="h-auto gap-1 bg-transparent">
+          <TabsTrigger className={tabTriggerClassName} value="body">
+            Body
+          </TabsTrigger>
+          <TabsTrigger className={tabTriggerClassName} value="headers">
+            Headers
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent className={tabContentClassName} value="body">
           <ResponseBodyPreview response={response} />
-        ) : (
-          <pre className="tabs-scrollbar h-full min-h-0 overflow-auto text-xs">
+        </TabsContent>
+        <TabsContent className={tabContentClassName} value="headers">
+          <pre className="text-xs break-words whitespace-pre-wrap">
             {formatHeaders(response.headers)}
           </pre>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -550,8 +540,10 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                   return (
                     <label
                       key={item.id}
-                      className="hover:bg-sidebar-accent flex cursor-pointer items-center gap-2 px-4 py-2 text-sm"
-                      style={{ paddingLeft: 16 + item.depth * 18 }}
+                      className={cn(
+                        'hover:bg-sidebar-accent flex cursor-pointer items-center gap-2 py-2 pr-4 text-sm',
+                        getIndentation(item.depth)
+                      )}
                     >
                       <Checkbox
                         checked={checked}
@@ -571,8 +563,10 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                 return (
                   <label
                     key={item.id}
-                    className="hover:bg-sidebar-accent flex cursor-pointer items-center gap-2 px-4 py-2 text-sm"
-                    style={{ paddingLeft: 16 + item.depth * 18 }}
+                    className={cn(
+                      'hover:bg-sidebar-accent flex cursor-pointer items-center gap-2 py-2 pr-4 text-sm',
+                      getIndentation(item.depth)
+                    )}
                   >
                     <Checkbox
                       checked={selectedRequestIds.has(item.id)}
