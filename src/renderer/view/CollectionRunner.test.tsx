@@ -463,7 +463,7 @@ describe('CollectionRunner result details', () => {
     expect(screen.getByText('Status:')).toBeDefined();
     expect(screen.getByText('Duration:')).toBeDefined();
 
-    await user.click(screen.getByRole('button', { name: 'Headers' }));
+    await user.click(screen.getByRole('tab', { name: 'Headers' }));
     expect(screen.getByText(/content-type/)).toBeDefined();
   });
 

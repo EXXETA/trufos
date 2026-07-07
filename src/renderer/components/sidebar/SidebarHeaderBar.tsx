@@ -6,6 +6,7 @@ import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/comp
 import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown, Play } from 'lucide-react';
 
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useViewActions } from '@/state/viewStore';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
 import { CollectionSettingsModal } from '@/components/shared/settings/CollectionSettingsModal';
@@ -39,14 +40,14 @@ const SortIcon = ({ mode }: { mode: SortMode }) => {
 
 interface SidebarHeaderBarProps {
   onCreateItem: (item: CreatingItem) => void;
-  onRunCollection?: () => void;
 }
 
-export const SidebarHeaderBar = ({ onCreateItem, onRunCollection }: SidebarHeaderBarProps) => {
+export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
   const collection = useCollectionStore((state) => state.collection);
 
   const sortMode = useCollectionStore((state) => state.sortMode);
   const { setSortMode } = useCollectionActions();
+  const { openCollectionRunner } = useViewActions();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
@@ -66,7 +67,7 @@ export const SidebarHeaderBar = ({ onCreateItem, onRunCollection }: SidebarHeade
   return (
     <>
       <SidebarHeader className="flex-col gap-6">
-        <CollectionDropdown onRunCollection={onRunCollection} />
+        <CollectionDropdown />
 
         <Divider />
 
@@ -100,7 +101,7 @@ export const SidebarHeaderBar = ({ onCreateItem, onRunCollection }: SidebarHeade
                   variant={'ghost'}
                   type="button"
                   size={'icon'}
-                  onClick={onRunCollection}
+                  onClick={openCollectionRunner}
                   aria-label="Run collection"
                 >
                   <Play size={16} />

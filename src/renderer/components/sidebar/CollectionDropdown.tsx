@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useViewActions } from '@/state/viewStore';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { CollectionBase } from 'shim/objects/collection';
 import { cn } from '@/lib/utils';
@@ -19,12 +20,9 @@ import { CollectionCreate } from '@/view/CollectionCreate';
 
 const eventService = RendererEventService.instance;
 
-interface CollectionDropdownProps {
-  onRunCollection?: () => void;
-}
-
-export default function CollectionDropdown({ onRunCollection }: CollectionDropdownProps) {
+export default function CollectionDropdown() {
   const { changeCollection } = useCollectionActions();
+  const { openCollectionRunner } = useViewActions();
   const collection = useCollectionStore((state) => state.collection);
   const [collections, setCollections] = useState<CollectionBase[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -74,7 +72,7 @@ export default function CollectionDropdown({ onRunCollection }: CollectionDropdo
               <span>Import Collection</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={() => onRunCollection?.()} className={'px-4 py-3'}>
+            <DropdownMenuItem onClick={openCollectionRunner} className={'px-4 py-3'}>
               <span>Run Collection</span>
             </DropdownMenuItem>
           </DropdownMenuGroup>
