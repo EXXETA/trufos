@@ -3,6 +3,7 @@ import './logging/logger';
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { MainEventService } from 'main/event/main-event-service';
+import { MenuBuilder } from 'main/menu';
 import path from 'node:path';
 import quit from 'electron-squirrel-startup';
 import { SettingsService } from './persistence/service/settings-service';
@@ -53,6 +54,9 @@ const createWindow = async () => {
 
     // pass webContents to MainEventService for push notifications
     mainEventService.webContents = mainWindow.webContents;
+
+    // register the native application menu
+    new MenuBuilder(mainWindow).buildMenu();
 
     // show once the renderer has loaded and applied the saved theme
     once(ipcMain, 'renderer-ready').then(() => mainWindow.show());
