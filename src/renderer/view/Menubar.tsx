@@ -5,12 +5,16 @@ import { SidebarHeaderBar } from '@/components/sidebar/SidebarHeaderBar';
 import { SidebarRequestList } from '@/components/sidebar/SidebarRequestList/SidebarRequestList';
 import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 
-export const Menubar = () => {
+interface MenubarProps {
+  onRunCollection: () => void;
+}
+
+export const Menubar = ({ onRunCollection }: MenubarProps) => {
   const [creatingItem, setCreatingItem] = useState<CreatingItem>(null);
 
   return (
     <Sidebar className={'flex h-screen flex-col p-6'} collapsible={'none'}>
-      <SidebarHeaderBar onCreateItem={setCreatingItem} />
+      <SidebarHeaderBar onCreateItem={setCreatingItem} onRunCollection={onRunCollection} />
       <SidebarRequestList creatingItem={creatingItem} onCreateItem={setCreatingItem} />
       <FooterBar />
     </Sidebar>

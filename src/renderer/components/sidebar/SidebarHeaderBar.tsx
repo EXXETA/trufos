@@ -6,7 +6,6 @@ import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/comp
 import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown, Play } from 'lucide-react';
 
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { useCollectionRunnerActions } from '@/state/collectionRunnerStore';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
 import { CollectionSettingsModal } from '@/components/shared/settings/CollectionSettingsModal';
@@ -40,14 +39,14 @@ const SortIcon = ({ mode }: { mode: SortMode }) => {
 
 interface SidebarHeaderBarProps {
   onCreateItem: (item: CreatingItem) => void;
+  onRunCollection?: () => void;
 }
 
-export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
+export const SidebarHeaderBar = ({ onCreateItem, onRunCollection }: SidebarHeaderBarProps) => {
   const collection = useCollectionStore((state) => state.collection);
 
   const sortMode = useCollectionStore((state) => state.sortMode);
   const { setSortMode } = useCollectionActions();
-  const { openRunner } = useCollectionRunnerActions();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
@@ -67,7 +66,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
   return (
     <>
       <SidebarHeader className="flex-col gap-6">
-        <CollectionDropdown />
+        <CollectionDropdown onRunCollection={onRunCollection} />
 
         <Divider />
 
@@ -97,14 +96,14 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className={buttonClassName}
+                  className={cn(buttonClassName, 'text-text-secondary')}
                   variant={'ghost'}
                   type="button"
                   size={'icon'}
-                  onClick={openRunner}
+                  onClick={onRunCollection}
                   aria-label="Run collection"
                 >
-                  <Play size={16} className="text-text-secondary" />
+                  <Play size={16} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent

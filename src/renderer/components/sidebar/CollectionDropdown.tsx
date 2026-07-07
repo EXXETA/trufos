@@ -19,7 +19,11 @@ import { CollectionCreate } from '@/view/CollectionCreate';
 
 const eventService = RendererEventService.instance;
 
-export default function CollectionDropdown() {
+interface CollectionDropdownProps {
+  onRunCollection?: () => void;
+}
+
+export default function CollectionDropdown({ onRunCollection }: CollectionDropdownProps) {
   const { changeCollection } = useCollectionActions();
   const collection = useCollectionStore((state) => state.collection);
   const [collections, setCollections] = useState<CollectionBase[]>([]);
@@ -68,6 +72,10 @@ export default function CollectionDropdown() {
 
             <DropdownMenuItem onClick={() => setShowImport(true)} className={'px-4 py-3'}>
               <span>Import Collection</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem onClick={() => onRunCollection?.()} className={'px-4 py-3'}>
+              <span>Run Collection</span>
             </DropdownMenuItem>
           </DropdownMenuGroup>
 
