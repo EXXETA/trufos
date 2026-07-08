@@ -57,10 +57,14 @@ export const App = () => {
               </ResizablePanel>
               <ResizableHandle />
               <ResizablePanel defaultSize="75%" minSize={MIN_REQUEST_WINDOW_PIXELS}>
-                <RequestWindow />
+                {/* The runner replaces the request window as an alternative main view. */}
+                {isCollectionRunnerOpen ? (
+                  <CollectionRunner open onClose={closeCollectionRunner} />
+                ) : (
+                  <RequestWindow />
+                )}
               </ResizablePanel>
             </ResizablePanelGroup>
-            <CollectionRunner open={isCollectionRunnerOpen} onClose={closeCollectionRunner} />
             <CollectionSettingsModal
               isOpen={isCollectionSettingsOpen}
               onClose={closeCollectionSettings}
