@@ -7,7 +7,7 @@ import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-nati
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
-import ts from 'typescript';
+import { createProgram, forEachChild, isInterfaceDeclaration, TypeFormatFlags } from 'typescript';
 import { resolve } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { name as packageName } from './package.json';
@@ -21,27 +21,38 @@ if (process.env.APPLE_API_KEY && process.env.APPLE_API_KEY_ID && process.env.APP
     appleApiIssuer: process.env.APPLE_API_ISSUER,
   };
   osxSign = true;
+} else {
+  console.warn(
+    'Apple API key not found.',
+    'macOS notarization and code signing will be disabled.',
+    'Set APPLE_API_KEY, APPLE_API_KEY_ID, and APPLE_API_ISSUER environment variables to enable.'
+  );
+  osxSign = {
+    identity: '-',
+    identityValidation: false,
+    optionsForFile: () => ({ hardenedRuntime: false }),
+  };
 }
 
 const config: ForgeConfig = {
   hooks: {
     generateAssets: async () => {
       const shimPath = resolve('src/shim/scripting.ts');
-      const program = ts.createProgram([shimPath], { strict: true });
+      const program = createProgram([shimPath], { strict: true });
       const checker = program.getTypeChecker();
       const sourceFile = program.getSourceFile(shimPath);
       if (!sourceFile) throw new Error('scripting.ts not found');
 
       const declarations: string[] = [];
-      ts.forEachChild(sourceFile, (node) => {
-        if (ts.isInterfaceDeclaration(node) && node.name.text === 'GlobalScriptingApi') {
+      forEachChild(sourceFile, (node) => {
+        if (isInterfaceDeclaration(node) && node.name.text === 'GlobalScriptingApi') {
           const type = checker.getTypeAtLocation(node);
           for (const symbol of checker.getPropertiesOfType(type)) {
             const propType = checker.getTypeOfSymbolAtLocation(symbol, node);
             const propTypeStr = checker.typeToString(
               propType,
               undefined,
-              ts.TypeFormatFlags.NoTruncation
+              TypeFormatFlags.NoTruncation
             );
             declarations.push(`declare const ${symbol.name}: ${propTypeStr};`);
           }
