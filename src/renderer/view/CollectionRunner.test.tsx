@@ -39,6 +39,15 @@ vi.mock('@/components/mainWindow/bodyTabs/OutputTabs/PrettyRenderer', () => ({
   useResponseData: vi.fn(),
 }));
 
+// react-resizable-panels registers document-level pointer handlers that call
+// preventDefault; with jsdom's zero-sized rects they swallow clicks meant for
+// Radix items, so the layout components are reduced to plain containers here.
+vi.mock('@/components/ui/resizable', () => ({
+  ResizablePanelGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  ResizablePanel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  ResizableHandle: () => null,
+}));
+
 vi.mock('@/error/errorHandler', () => ({
   showError: (...args: unknown[]) => showErrorMock(...args),
 }));
@@ -183,6 +192,21 @@ describe('CollectionRunner rendering', () => {
     expect(screen.getByText('Orders')).toBeDefined();
     const folderRow = screen.getByText('Orders').closest('label')!;
     expect(within(folderRow).getByText('2')).toBeDefined();
+  });
+
+  it('collapses and expands folder contents in the checklist', async () => {
+    const user = userEvent.setup();
+    renderRunner();
+
+    // Folder children appear in the checklist and in the results table.
+    expect(screen.getAllByText('List Orders')).toHaveLength(2);
+
+    await user.click(screen.getByRole('button', { name: 'Collapse Orders' }));
+    // Hidden in the checklist, still listed in the results table.
+    expect(screen.getAllByText('List Orders')).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Expand Orders' }));
+    expect(screen.getAllByText('List Orders')).toHaveLength(2);
   });
 
   it('selects all requests by default and shows the count on the run button', () => {

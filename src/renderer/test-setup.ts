@@ -19,6 +19,13 @@ HTMLElement.prototype.setPointerCapture = vi.fn();
 // Scroll APIs (used by Radix UI for keyboard navigation)
 HTMLElement.prototype.scrollIntoView = vi.fn();
 
+// ResizeObserver (used by react-resizable-panels)
+globalThis.ResizeObserver = class ResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+};
+
 afterEach(() => {
   cleanup();
 });

@@ -12,8 +12,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useResponseData } from '@/components/mainWindow/bodyTabs/OutputTabs/PrettyRenderer';
-import { FolderIcon } from '@/components/icons';
+import { FolderIcon, SmallArrow } from '@/components/icons';
 import { HttpService } from '@/services/http/http-service';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
@@ -37,12 +38,18 @@ const httpService = HttpService.instance;
 /** Sentinel for "no environment" since radix Select does not allow empty item values. */
 const NO_ENVIRONMENT = '__none__';
 
+// Same constraints as the main layout in App so the rail matches the sidebar.
+const MIN_SIDEBAR_PIXELS = 300;
+const MIN_RESULTS_PIXELS = 500;
+
 type RunnerItem =
   | {
       type: 'folder';
       id: string;
       title: string;
       depth: number;
+      /** Ids of all folders this item is nested in */
+      ancestors: string[];
       requestIds: string[];
     }
   | {
@@ -50,6 +57,8 @@ type RunnerItem =
       id: string;
       title: string;
       depth: number;
+      /** Ids of all folders this item is nested in */
+      ancestors: string[];
       request: TrufosRequest;
     };
 
@@ -79,7 +88,8 @@ function buildRunnerItems(
   children: Array<Folder | TrufosRequest>,
   folders: Map<string, Folder>,
   requests: Map<string, TrufosRequest>,
-  depth = 0
+  depth = 0,
+  ancestors: string[] = []
 ): RunnerItem[] {
   return children.flatMap((child): RunnerItem[] => {
     if (child.type === 'request') {
@@ -90,6 +100,7 @@ function buildRunnerItems(
           id: request.id,
           title: request.title || request.url.base,
           depth,
+          ancestors,
           request,
         },
       ];
@@ -102,9 +113,10 @@ function buildRunnerItems(
         id: folder.id,
         title: folder.title,
         depth,
+        ancestors,
         requestIds: collectRequestIds(folder, folders),
       },
-      ...buildRunnerItems(folder.children, folders, requests, depth + 1),
+      ...buildRunnerItems(folder.children, folders, requests, depth + 1, [...ancestors, folder.id]),
     ];
   });
 }
@@ -226,6 +238,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   const [results, setResults] = useState<Record<string, RunnerResult>>({});
   const [runOrder, setRunOrder] = useState<string[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [totalDuration, setTotalDuration] = useState<number | null>(null);
 
   // Incremented to invalidate an in-flight run (stop button, collection switch, unmount).
@@ -279,6 +292,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     setResults({});
     setRunOrder([]);
     setExpandedRows(new Set());
+    setCollapsedFolders(new Set());
     setTotalDuration(null);
     setIsRunning(false);
   }, [abortActiveRequest, collection?.id]);
@@ -300,6 +314,12 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   const items = useMemo(
     () => buildRunnerItems(collection?.children ?? [], folders, requests),
     [collection?.children, folders, requests]
+  );
+
+  // Items inside a collapsed folder are hidden from the checklist but stay selected.
+  const visibleItems = useMemo(
+    () => items.filter((item) => !item.ancestors.some((id) => collapsedFolders.has(id))),
+    [items, collapsedFolders]
   );
 
   const orderedRequests = useMemo(
@@ -343,6 +363,18 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
         } else {
           next.delete(requestId);
         }
+      }
+      return next;
+    });
+  };
+
+  const toggleFolderCollapsed = (folderId: string) => {
+    setCollapsedFolders((current) => {
+      const next = new Set(current);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
       }
       return next;
     });
@@ -437,85 +469,9 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   if (!open) return null;
 
   return (
-    <div className="grid h-full w-full grid-rows-[auto_auto_1fr_auto] p-6">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-xl leading-6 font-semibold">Collection Runner</h2>
-          <p className="text-text-secondary mt-1 truncate text-sm">
-            {collection?.title ?? 'Current collection'}
-          </p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-3">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-text-secondary">Environment</span>
-            <Select
-              value={selectedEnvironment ?? NO_ENVIRONMENT}
-              onValueChange={(value) =>
-                void selectEnvironment(value === NO_ENVIRONMENT ? undefined : value)
-              }
-              disabled={isRunning}
-            >
-              <SelectTrigger
-                className="border-border h-8 gap-2 rounded-md border px-3"
-                aria-label="Select environment"
-              >
-                <SelectValue placeholder="No environment" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_ENVIRONMENT}>No environment</SelectItem>
-                {Object.keys(environments).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {key}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {isRunning && (
-            <>
-              <span className="text-text-secondary text-sm tabular-nums">
-                {done} / {runOrder.length} done
-              </span>
-              <Button className="text-danger gap-2" onClick={stopRun} variant="secondary">
-                <Square className="h-3.5 w-3.5" />
-                Stop
-              </Button>
-            </>
-          )}
-          <Button
-            className="text-text-secondary hover:text-text-primary"
-            variant="ghost"
-            size="icon"
-            type="button"
-            onClick={onClose}
-            aria-label="Close collection runner"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className={cn('flex gap-1', runOrder.length > 0 && 'mb-4')}>
-        {runOrder.map((requestId) => {
-          const result = results[requestId];
-          return (
-            <span
-              key={requestId}
-              className={cn(
-                'h-1 flex-1 rounded-full',
-                result?.state === 'passed' && 'bg-state-success',
-                isFailure(result) && 'bg-danger',
-                result?.state === 'running' && 'bg-accent-primary animate-pulse',
-                result == null && 'bg-border'
-              )}
-            />
-          );
-        })}
-      </div>
-
-      <div className="grid min-h-0 grid-cols-[minmax(260px,360px)_1fr] gap-6">
-        <aside className="border-border bg-sidebar flex min-h-0 flex-col rounded-lg border">
+    <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
+      <ResizablePanel defaultSize="25%" minSize={MIN_SIDEBAR_PIXELS}>
+        <aside className="bg-sidebar flex h-full flex-col">
           <div className="border-border flex items-center justify-between border-b px-4 py-3">
             <span className="text-sm font-semibold">Requests</span>
             <div className="flex gap-2 text-xs">
@@ -547,7 +503,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
           </div>
 
           <div className="tabs-scrollbar min-h-0 flex-1 overflow-y-auto py-2">
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               if (item.type === 'folder') {
                 const checkedCount = item.requestIds.filter((id) =>
                   selectedRequestIds.has(id)
@@ -558,6 +514,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                     : checkedCount === item.requestIds.length
                       ? true
                       : 'indeterminate';
+                const isCollapsed = collapsedFolders.has(item.id);
                 return (
                   <label
                     key={item.id}
@@ -574,6 +531,21 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                         setRequestsSelected(item.requestIds, value === true)
                       }
                     />
+                    <button
+                      className={cn(
+                        'h-6 w-6 shrink-0 cursor-pointer transition-transform duration-300 ease-in-out',
+                        isCollapsed ? 'rotate-270' : 'rotate-0'
+                      )}
+                      type="button"
+                      aria-label={isCollapsed ? `Expand ${item.title}` : `Collapse ${item.title}`}
+                      aria-expanded={!isCollapsed}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        toggleFolderCollapsed(item.id);
+                      }}
+                    >
+                      <SmallArrow size={24} />
+                    </button>
                     <FolderIcon size={16} />
                     <span className="flex-1 truncate">{item.title}</span>
                     <span className="text-text-secondary ml-auto text-xs tabular-nums">
@@ -638,100 +610,182 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
             </Button>
           </div>
         </aside>
+      </ResizablePanel>
 
-        <main className="border-border bg-card flex min-h-0 flex-col rounded-lg border">
-          <div className="border-border text-text-secondary grid grid-cols-[minmax(180px,1fr)_90px_100px_90px] gap-4 border-b px-4 py-3 text-xs font-semibold tracking-wide uppercase">
-            <span>Name</span>
-            <span>Status</span>
-            <span>Result</span>
-            <span>Time</span>
+      <ResizableHandle />
+
+      <ResizablePanel defaultSize="75%" minSize={MIN_RESULTS_PIXELS}>
+        <div className="grid h-full grid-rows-[auto_auto_1fr_auto] p-6">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="text-xl leading-6 font-semibold">Collection Runner</h2>
+              <p className="text-text-secondary mt-1 truncate text-sm">
+                {collection?.title ?? 'Current collection'}
+              </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-text-secondary">Environment</span>
+                <Select
+                  value={selectedEnvironment ?? NO_ENVIRONMENT}
+                  onValueChange={(value) =>
+                    void selectEnvironment(value === NO_ENVIRONMENT ? undefined : value)
+                  }
+                  disabled={isRunning}
+                >
+                  <SelectTrigger
+                    className="border-border h-8 gap-2 rounded-md border px-3"
+                    aria-label="Select environment"
+                  >
+                    <SelectValue placeholder="No environment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_ENVIRONMENT}>No environment</SelectItem>
+                    {Object.keys(environments).map((key) => (
+                      <SelectItem key={key} value={key}>
+                        {key}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {isRunning && (
+                <>
+                  <span className="text-text-secondary text-sm tabular-nums">
+                    {done} / {runOrder.length} done
+                  </span>
+                  <Button className="text-danger gap-2" onClick={stopRun} variant="secondary">
+                    <Square className="h-3.5 w-3.5" />
+                    Stop
+                  </Button>
+                </>
+              )}
+              <Button
+                className="text-text-secondary hover:text-text-primary"
+                variant="ghost"
+                size="icon"
+                type="button"
+                onClick={onClose}
+                aria-label="Close collection runner"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          <div className="tabs-scrollbar min-h-0 flex-1 overflow-y-auto">
-            {orderedRequests.map((request) => {
-              const result = results[request.id];
-              const response =
-                result?.state === 'passed' || result?.state === 'failed'
-                  ? result.response
-                  : undefined;
-              const isExpanded = expandedRows.has(request.id);
-              const isSelected = selectedRequestIds.has(request.id);
-              const duration =
-                response?.metaInfo.duration ??
-                (result?.state === 'error' ? result.duration : undefined);
+          <div className={cn('flex gap-1', runOrder.length > 0 && 'mb-4')}>
+            {runOrder.map((requestId) => {
+              const result = results[requestId];
               return (
-                <Collapsible
-                  key={request.id}
-                  open={isExpanded}
-                  onOpenChange={() => toggleExpanded(request.id)}
-                >
-                  <CollapsibleTrigger asChild>
-                    <button
-                      className={cn(
-                        'hover:bg-sidebar-accent grid w-full grid-cols-[minmax(180px,1fr)_90px_100px_90px] items-center gap-4 border-b px-4 py-3 text-left text-sm',
-                        !isSelected && 'opacity-50'
-                      )}
-                      type="button"
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0" />
-                        )}
-                        <span
-                          className={cn(
-                            'w-12 shrink-0 text-xs font-bold',
-                            httpMethodColor(request.method)
-                          )}
-                        >
-                          {request.method}
-                        </span>
-                        <span className="truncate">{request.title || request.url.base}</span>
-                      </span>
-                      <span className="tabular-nums">{response?.metaInfo.status ?? '-'}</span>
-                      <ResultPill result={result} />
-                      <span className="tabular-nums">
-                        {duration == null ? '-' : formatDuration(duration)}
-                      </span>
-                    </button>
-                  </CollapsibleTrigger>
-
-                  <CollapsibleContent className="border-border bg-background-secondary/40 border-b px-4 py-4">
-                    {result == null ? (
-                      <p className="text-text-secondary text-sm">No result yet.</p>
-                    ) : result.state === 'error' ? (
-                      <p className="text-danger text-sm">{result.error}</p>
-                    ) : result.state === 'running' ? (
-                      <p className="text-text-secondary text-sm">Request is running.</p>
-                    ) : (
-                      <ResponseDetail response={result.response} />
-                    )}
-                  </CollapsibleContent>
-                </Collapsible>
+                <span
+                  key={requestId}
+                  className={cn(
+                    'h-1 flex-1 rounded-full',
+                    result?.state === 'passed' && 'bg-state-success',
+                    isFailure(result) && 'bg-danger',
+                    result?.state === 'running' && 'bg-accent-primary animate-pulse',
+                    result == null && 'bg-border'
+                  )}
+                />
               );
             })}
           </div>
-        </main>
-      </div>
 
-      <div className="flex items-center gap-3 pt-4">
-        <div className="border-border bg-card flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
-          <span className="text-base font-bold tabular-nums">{totalInRun}</span>
-          <span className="text-text-secondary text-xs">total</span>
+          <main className="border-border bg-card flex min-h-0 flex-col rounded-lg border">
+            <div className="border-border text-text-secondary grid grid-cols-[minmax(180px,1fr)_90px_100px_90px] gap-4 border-b px-4 py-3 text-xs font-semibold tracking-wide uppercase">
+              <span>Name</span>
+              <span>Status</span>
+              <span>Result</span>
+              <span>Time</span>
+            </div>
+
+            <div className="tabs-scrollbar min-h-0 flex-1 overflow-y-auto">
+              {orderedRequests.map((request) => {
+                const result = results[request.id];
+                const response =
+                  result?.state === 'passed' || result?.state === 'failed'
+                    ? result.response
+                    : undefined;
+                const isExpanded = expandedRows.has(request.id);
+                const isSelected = selectedRequestIds.has(request.id);
+                const duration =
+                  response?.metaInfo.duration ??
+                  (result?.state === 'error' ? result.duration : undefined);
+                return (
+                  <Collapsible
+                    key={request.id}
+                    open={isExpanded}
+                    onOpenChange={() => toggleExpanded(request.id)}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <button
+                        className={cn(
+                          'hover:bg-sidebar-accent grid w-full grid-cols-[minmax(180px,1fr)_90px_100px_90px] items-center gap-4 border-b px-4 py-3 text-left text-sm',
+                          !isSelected && 'opacity-50'
+                        )}
+                        type="button"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 shrink-0" />
+                          )}
+                          <span
+                            className={cn(
+                              'w-12 shrink-0 text-xs font-bold',
+                              httpMethodColor(request.method)
+                            )}
+                          >
+                            {request.method}
+                          </span>
+                          <span className="truncate">{request.title || request.url.base}</span>
+                        </span>
+                        <span className="tabular-nums">{response?.metaInfo.status ?? '-'}</span>
+                        <ResultPill result={result} />
+                        <span className="tabular-nums">
+                          {duration == null ? '-' : formatDuration(duration)}
+                        </span>
+                      </button>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent className="border-border bg-background-secondary/40 border-b px-4 py-4">
+                      {result == null ? (
+                        <p className="text-text-secondary text-sm">No result yet.</p>
+                      ) : result.state === 'error' ? (
+                        <p className="text-danger text-sm">{result.error}</p>
+                      ) : result.state === 'running' ? (
+                        <p className="text-text-secondary text-sm">Request is running.</p>
+                      ) : (
+                        <ResponseDetail response={result.response} />
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
+            </div>
+          </main>
+
+          <div className="flex items-center gap-3 pt-4">
+            <div className="border-border bg-card flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
+              <span className="text-base font-bold tabular-nums">{totalInRun}</span>
+              <span className="text-text-secondary text-xs">total</span>
+            </div>
+            <div className="border-border bg-card flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
+              <span className="text-state-success text-base font-bold tabular-nums">{passed}</span>
+              <span className="text-text-secondary text-xs">passed</span>
+            </div>
+            <div className="border-border bg-card flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
+              <span className="text-danger text-base font-bold tabular-nums">{failed}</span>
+              <span className="text-text-secondary text-xs">failed</span>
+            </div>
+            <span className="text-text-secondary ml-auto text-sm tabular-nums">
+              Elapsed {totalDuration == null ? '-' : formatDuration(totalDuration)}
+            </span>
+          </div>
         </div>
-        <div className="border-border bg-card flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
-          <span className="text-state-success text-base font-bold tabular-nums">{passed}</span>
-          <span className="text-text-secondary text-xs">passed</span>
-        </div>
-        <div className="border-border bg-card flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
-          <span className="text-danger text-base font-bold tabular-nums">{failed}</span>
-          <span className="text-text-secondary text-xs">failed</span>
-        </div>
-        <span className="text-text-secondary ml-auto text-sm tabular-nums">
-          Elapsed {totalDuration == null ? '-' : formatDuration(totalDuration)}
-        </span>
-      </div>
-    </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
