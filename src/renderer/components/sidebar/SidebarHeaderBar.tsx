@@ -1,15 +1,13 @@
-import { useState } from 'react';
 import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/components/icons';
-import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown, Play } from 'lucide-react';
+import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown } from 'lucide-react';
 
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useViewActions } from '@/state/viewStore';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
-import { CollectionSettingsModal } from '@/components/shared/settings/CollectionSettingsModal';
 import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
@@ -47,9 +45,8 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
 
   const sortMode = useCollectionStore((state) => state.sortMode);
   const { setSortMode } = useCollectionActions();
-  const { openCollectionRunner } = useViewActions();
+  const { openCollectionSettings } = useViewActions();
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 
   const openModal = (type: 'request' | 'folder') => {
@@ -65,93 +62,68 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
   useHotkeys([{ keys: 'mod+n', handler: () => openModal('request') }]);
 
   return (
-    <>
-      <SidebarHeader className="flex-col gap-6">
-        <CollectionDropdown />
+    <SidebarHeader className="flex-col gap-6">
+      <CollectionDropdown />
 
-        <Divider />
+      <Divider />
 
-        <div className="-mt-4 mb-2 flex w-full items-center justify-between">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                className={cn(buttonClassName, 'text-text-secondary ml-3')}
-                variant={'ghost'}
-                type="button"
-                size={'icon'}
-                onClick={cycleSortMode}
-                aria-label="Sort collection"
-              >
-                <SortIcon mode={sortMode} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent
-              side="right"
-              className="bg-sidebar-accent text-sidebar-accent-foreground border-0 px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
-            >
-              {SORT_MODE_LABELS[sortMode]}
-            </TooltipContent>
-          </Tooltip>
-
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className={cn(buttonClassName, 'text-text-secondary')}
-                  variant={'ghost'}
-                  type="button"
-                  size={'icon'}
-                  onClick={openCollectionRunner}
-                  aria-label="Run collection"
-                >
-                  <Play size={16} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent
-                side="bottom"
-                className="bg-sidebar-accent text-sidebar-accent-foreground border-0 px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
-              >
-                Run collection
-              </TooltipContent>
-            </Tooltip>
-
+      <div className="-mt-4 mb-2 flex w-full items-center justify-between">
+        <Tooltip>
+          <TooltipTrigger asChild>
             <Button
-              className={buttonClassName}
+              className={cn(buttonClassName, 'text-text-secondary ml-3')}
               variant={'ghost'}
               type="button"
               size={'icon'}
-              onClick={() => openModal('request')}
-              aria-label="Add new request"
+              onClick={cycleSortMode}
+              aria-label="Sort collection"
             >
-              <CreateRequestIcon size={16} color={'secondary'} />
+              <SortIcon mode={sortMode} />
             </Button>
+          </TooltipTrigger>
+          <TooltipContent
+            side="right"
+            className="bg-sidebar-accent text-sidebar-accent-foreground border-0 px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
+          >
+            {SORT_MODE_LABELS[sortMode]}
+          </TooltipContent>
+        </Tooltip>
 
-            <Button
-              className={buttonClassName}
-              variant={'ghost'}
-              size={'icon'}
-              type="button"
-              onClick={() => openModal('folder')}
-              aria-label="Add new folder"
-            >
-              <AddFolderIcon size={16} color={'secondary'} />
-            </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            className={buttonClassName}
+            variant={'ghost'}
+            type="button"
+            size={'icon'}
+            onClick={() => openModal('request')}
+            aria-label="Add new request"
+          >
+            <CreateRequestIcon size={16} color={'secondary'} />
+          </Button>
 
-            <Button
-              className={buttonClassName}
-              variant={'ghost'}
-              size={'icon'}
-              type="button"
-              onClick={() => setIsSettingsOpen(true)}
-              aria-label="Collection settings"
-            >
-              <SettingsIcon size={16} color={'secondary'} />
-            </Button>
-          </div>
+          <Button
+            className={buttonClassName}
+            variant={'ghost'}
+            size={'icon'}
+            type="button"
+            onClick={() => openModal('folder')}
+            aria-label="Add new folder"
+          >
+            <AddFolderIcon size={16} color={'secondary'} />
+          </Button>
+
+          <Button
+            className={buttonClassName}
+            variant={'ghost'}
+            size={'icon'}
+            type="button"
+            onClick={openCollectionSettings}
+            aria-label="Collection settings"
+          >
+            <SettingsIcon size={16} color={'secondary'} />
+          </Button>
         </div>
-      </SidebarHeader>
-
-      <CollectionSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-    </>
+      </div>
+    </SidebarHeader>
   );
 };

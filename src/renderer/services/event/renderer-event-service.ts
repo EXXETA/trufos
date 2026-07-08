@@ -25,6 +25,10 @@ function createEventMethod<T extends keyof IEventService>(methodName: T) {
 export interface RendererEventService {
   on(event: 'before-close', listener: () => void): this;
 
+  on(event: 'show-collection-runner', listener: () => void): this;
+
+  on(event: 'show-collection-settings', listener: () => void): this;
+
   emit(event: 'ready-to-close'): this;
 }
 
