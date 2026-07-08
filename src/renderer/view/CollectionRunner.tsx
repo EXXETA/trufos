@@ -335,6 +335,10 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     [orderedRequests, selectedRequestIds]
   );
 
+  // The progress bar shows the last run once one exists, the current selection otherwise.
+  const progressIds =
+    runOrder.length > 0 ? runOrder : selectedRequests.map((request) => request.id);
+
   const passed = runOrder.filter((id) => results[id]?.state === 'passed').length;
   const failed = runOrder.filter((id) => isFailure(results[id])).length;
   const done = passed + failed;
@@ -472,6 +476,41 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
       <ResizablePanel defaultSize="25%" minSize={MIN_SIDEBAR_PIXELS}>
         <aside className="bg-sidebar flex h-full flex-col">
+          <div className="border-border flex items-center gap-2 border-b px-4 py-3">
+            <Select
+              value={selectedEnvironment ?? NO_ENVIRONMENT}
+              onValueChange={(value) =>
+                void selectEnvironment(value === NO_ENVIRONMENT ? undefined : value)
+              }
+              disabled={isRunning}
+            >
+              <SelectTrigger
+                className="border-border h-8 min-w-0 flex-1 gap-2 rounded-md border px-3"
+                aria-label="Select environment"
+              >
+                <SelectValue placeholder="No environment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_ENVIRONMENT}>No environment</SelectItem>
+                {Object.keys(environments).map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {key}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              className="text-text-secondary hover:text-text-primary shrink-0"
+              variant="ghost"
+              size="icon"
+              type="button"
+              onClick={onClose}
+              aria-label="Close collection runner"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
           <div className="border-border flex items-center justify-between border-b px-4 py-3">
             <span className="text-sm font-semibold">Requests</span>
             <div className="flex gap-2 text-xs">
@@ -625,31 +664,6 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
             </div>
 
             <div className="flex shrink-0 items-center gap-3">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-text-secondary">Environment</span>
-                <Select
-                  value={selectedEnvironment ?? NO_ENVIRONMENT}
-                  onValueChange={(value) =>
-                    void selectEnvironment(value === NO_ENVIRONMENT ? undefined : value)
-                  }
-                  disabled={isRunning}
-                >
-                  <SelectTrigger
-                    className="border-border h-8 gap-2 rounded-md border px-3"
-                    aria-label="Select environment"
-                  >
-                    <SelectValue placeholder="No environment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_ENVIRONMENT}>No environment</SelectItem>
-                    {Object.keys(environments).map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {key}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               {isRunning && (
                 <>
                   <span className="text-text-secondary text-sm tabular-nums">
@@ -661,35 +675,30 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                   </Button>
                 </>
               )}
-              <Button
-                className="text-text-secondary hover:text-text-primary"
-                variant="ghost"
-                size="icon"
-                type="button"
-                onClick={onClose}
-                aria-label="Close collection runner"
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
           </div>
 
-          <div className={cn('flex gap-1', runOrder.length > 0 && 'mb-4')}>
-            {runOrder.map((requestId) => {
-              const result = results[requestId];
-              return (
-                <span
-                  key={requestId}
-                  className={cn(
-                    'h-1 flex-1 rounded-full',
-                    result?.state === 'passed' && 'bg-state-success',
-                    isFailure(result) && 'bg-danger',
-                    result?.state === 'running' && 'bg-accent-primary animate-pulse',
-                    result == null && 'bg-border'
-                  )}
-                />
-              );
-            })}
+          {/* Before the first run the bar previews one neutral segment per selected request. */}
+          <div className="mb-4 flex gap-1">
+            {progressIds.length === 0 ? (
+              <span className="bg-border h-1 flex-1 rounded-full" />
+            ) : (
+              progressIds.map((requestId) => {
+                const result = runOrder.length > 0 ? results[requestId] : undefined;
+                return (
+                  <span
+                    key={requestId}
+                    className={cn(
+                      'h-1 flex-1 rounded-full',
+                      result?.state === 'passed' && 'bg-state-success',
+                      isFailure(result) && 'bg-danger',
+                      result?.state === 'running' && 'bg-accent-primary animate-pulse',
+                      result == null && 'bg-border'
+                    )}
+                  />
+                );
+              })
+            )}
           </div>
 
           <main className="border-border bg-card flex min-h-0 flex-col rounded-lg border">
