@@ -394,9 +394,10 @@ describe('CollectionRunner execution', () => {
 
     await user.click(screen.getByRole('button', { name: /run 4 requests/i }));
 
-    // "Running" appears twice: as the result pill and as the run button label.
-    expect(screen.getAllByText('Running')).toHaveLength(2);
-    expect(screen.getByRole('button', { name: /stop/i })).toBeDefined();
+    // "Running" appears once as the result pill; the run button becomes the stop button.
+    expect(screen.getAllByText('Running')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /stop run/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /run 4 requests/i })).toBeNull();
     expect(screen.getByText('0 / 4 done')).toBeDefined();
     for (const checkbox of screen.getAllByRole('checkbox')) {
       expect(checkbox.hasAttribute('disabled')).toBe(true);

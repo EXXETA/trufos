@@ -477,6 +477,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
       <ResizablePanel defaultSize="25%" minSize={MIN_SIDEBAR_PIXELS}>
         <aside className="bg-sidebar flex h-full flex-col">
           <div className="border-border flex items-center gap-2 border-b px-4 py-3">
+            <span className="text-text-secondary shrink-0 text-xs">Environment</span>
             <Select
               value={selectedEnvironment ?? NO_ENVIRONMENT}
               onValueChange={(value) =>
@@ -485,7 +486,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
               disabled={isRunning}
             >
               <SelectTrigger
-                className="border-border h-8 min-w-0 flex-1 gap-2 rounded-md border px-3"
+                className="border-border h-7 w-auto min-w-0 flex-1 gap-2 rounded-md border px-2 text-xs"
                 aria-label="Select environment"
               >
                 <SelectValue placeholder="No environment" />
@@ -633,20 +634,21 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
               Stop on first failure
             </label>
 
-            <Button
-              className="w-full gap-2"
-              disabled={isRunning || selectedRequests.length === 0}
-              onClick={runCollection}
-            >
-              {isRunning ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
+            {isRunning ? (
+              <Button className="text-danger w-full gap-2" onClick={stopRun} variant="secondary">
+                <Square className="h-3.5 w-3.5" />
+                Stop run
+              </Button>
+            ) : (
+              <Button
+                className="w-full gap-2"
+                disabled={selectedRequests.length === 0}
+                onClick={runCollection}
+              >
                 <Play className="h-4 w-4" />
-              )}
-              {isRunning
-                ? 'Running'
-                : `Run ${totalRequests} ${totalRequests === 1 ? 'request' : 'requests'}`}
-            </Button>
+                {`Run ${totalRequests} ${totalRequests === 1 ? 'request' : 'requests'}`}
+              </Button>
+            )}
           </div>
         </aside>
       </ResizablePanel>
@@ -665,15 +667,9 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
 
             <div className="flex shrink-0 items-center gap-3">
               {isRunning && (
-                <>
-                  <span className="text-text-secondary text-sm tabular-nums">
-                    {done} / {runOrder.length} done
-                  </span>
-                  <Button className="text-danger gap-2" onClick={stopRun} variant="secondary">
-                    <Square className="h-3.5 w-3.5" />
-                    Stop
-                  </Button>
-                </>
+                <span className="text-text-secondary text-sm tabular-nums">
+                  {done} / {runOrder.length} done
+                </span>
               )}
             </div>
           </div>
