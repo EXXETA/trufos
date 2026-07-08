@@ -51,20 +51,21 @@ export const App = () => {
       <ThemeProvider>
         <TooltipProvider delayDuration={750}>
           <SidebarProvider className="grid">
-            <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
-              <ResizablePanel defaultSize="25%" minSize={MIN_SIDEBAR_PIXELS}>
-                <Menubar />
-              </ResizablePanel>
-              <ResizableHandle />
-              <ResizablePanel defaultSize="75%" minSize={MIN_REQUEST_WINDOW_PIXELS}>
-                {/* The runner replaces the request window as an alternative main view. */}
-                {isCollectionRunnerOpen ? (
-                  <CollectionRunner open onClose={closeCollectionRunner} />
-                ) : (
+            {/* The runner replaces the whole layout as an alternative full-width view;
+                its own request checklist makes the sidebar redundant. */}
+            {isCollectionRunnerOpen ? (
+              <CollectionRunner open onClose={closeCollectionRunner} />
+            ) : (
+              <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
+                <ResizablePanel defaultSize="25%" minSize={MIN_SIDEBAR_PIXELS}>
+                  <Menubar />
+                </ResizablePanel>
+                <ResizableHandle />
+                <ResizablePanel defaultSize="75%" minSize={MIN_REQUEST_WINDOW_PIXELS}>
                   <RequestWindow />
-                )}
-              </ResizablePanel>
-            </ResizablePanelGroup>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            )}
             <CollectionSettingsModal
               isOpen={isCollectionSettingsOpen}
               onClose={closeCollectionSettings}

@@ -514,7 +514,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
       </div>
 
       <div className="grid min-h-0 grid-cols-[minmax(260px,360px)_1fr] gap-6">
-        <aside className="border-border flex min-h-0 flex-col rounded-lg border">
+        <aside className="border-border bg-card flex min-h-0 flex-col rounded-lg border">
           <div className="border-border flex items-center justify-between border-b px-4 py-3">
             <span className="text-sm font-semibold">Requests</span>
             <div className="flex gap-2 text-xs">
@@ -621,7 +621,6 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
               className="w-full gap-2"
               disabled={isRunning || selectedRequests.length === 0}
               onClick={runCollection}
-              variant="secondary"
             >
               {isRunning ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -635,7 +634,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
           </div>
         </aside>
 
-        <main className="border-border flex min-h-0 flex-col rounded-lg border">
+        <main className="border-border bg-card flex min-h-0 flex-col rounded-lg border">
           <div className="border-border text-text-secondary grid grid-cols-[minmax(180px,1fr)_90px_100px_90px] gap-4 border-b px-4 py-3 text-xs font-semibold tracking-wide uppercase">
             <span>Name</span>
             <span>Status</span>
@@ -712,15 +711,15 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
       </div>
 
       <div className="flex items-center gap-3 pt-4">
-        <div className="border-border flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
+        <div className="border-border bg-card flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
           <span className="text-base font-bold tabular-nums">{totalInRun}</span>
           <span className="text-text-secondary text-xs">total</span>
         </div>
-        <div className="border-border flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
+        <div className="border-border bg-card flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
           <span className="text-state-success text-base font-bold tabular-nums">{passed}</span>
           <span className="text-text-secondary text-xs">passed</span>
         </div>
-        <div className="border-border flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
+        <div className="border-border bg-card flex items-baseline gap-2 rounded-lg border px-3.5 py-1.5">
           <span className="text-danger text-base font-bold tabular-nums">{failed}</span>
           <span className="text-text-secondary text-xs">failed</span>
         </div>
