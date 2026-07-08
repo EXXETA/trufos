@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResponseData } from '@/components/mainWindow/bodyTabs/OutputTabs/PrettyRenderer';
+import { FolderIcon } from '@/components/icons';
 import { HttpService } from '@/services/http/http-service';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
@@ -514,7 +515,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
       </div>
 
       <div className="grid min-h-0 grid-cols-[minmax(260px,360px)_1fr] gap-6">
-        <aside className="border-border bg-card flex min-h-0 flex-col rounded-lg border">
+        <aside className="border-border bg-sidebar flex min-h-0 flex-col rounded-lg border">
           <div className="border-border flex items-center justify-between border-b px-4 py-3">
             <span className="text-sm font-semibold">Requests</span>
             <div className="flex gap-2 text-xs">
@@ -561,18 +562,20 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                   <label
                     key={item.id}
                     className={cn(
-                      'hover:bg-sidebar-accent flex cursor-pointer items-center gap-2 py-2 pr-4 text-sm',
+                      'hover:bg-sidebar-accent flex cursor-pointer items-center gap-1 py-2 pr-4 text-sm',
                       getIndentation(item.depth)
                     )}
                   >
                     <Checkbox
+                      className="mr-2"
                       checked={checked}
                       disabled={isRunning || item.requestIds.length === 0}
                       onCheckedChange={(value) =>
                         setRequestsSelected(item.requestIds, value === true)
                       }
                     />
-                    <span className="truncate font-medium">{item.title}</span>
+                    <FolderIcon size={16} />
+                    <span className="flex-1 truncate">{item.title}</span>
                     <span className="text-text-secondary ml-auto text-xs tabular-nums">
                       {item.requestIds.length}
                     </span>
@@ -584,7 +587,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                 <label
                   key={item.id}
                   className={cn(
-                    'hover:bg-sidebar-accent flex cursor-pointer items-center gap-2 py-2 pr-4 text-sm',
+                    'hover:bg-sidebar-accent flex cursor-pointer items-center gap-3 py-3.5 pr-4',
                     getIndentation(item.depth)
                   )}
                 >
@@ -595,13 +598,15 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                   />
                   <span
                     className={cn(
-                      'w-12 shrink-0 text-xs font-bold',
+                      'shrink-0 text-xs leading-3 font-normal',
                       httpMethodColor(item.request.method)
                     )}
                   >
                     {item.request.method}
                   </span>
-                  <span className="truncate">{item.title}</span>
+                  <span className="font-lato flex-1 truncate text-xs leading-3 text-(--text-secondary)">
+                    {item.title}
+                  </span>
                 </label>
               );
             })}
