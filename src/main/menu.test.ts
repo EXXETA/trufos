@@ -26,9 +26,11 @@ vi.mock('electron', () => ({
 
 import { MenuBuilder } from './menu';
 
+const sendMock = vi.fn();
+
 function createMainWindow() {
   return {
-    webContents: { on: vi.fn(), inspectElement: vi.fn() },
+    webContents: { on: vi.fn(), inspectElement: vi.fn(), send: sendMock },
   } as unknown as BrowserWindow;
 }
 
@@ -84,6 +86,7 @@ describe('MenuBuilder', () => {
     expect(template.map((item) => item.label ?? item.role)).toEqual([
       'Trufos',
       'Edit',
+      'Collection',
       'View',
       'Window',
       'help',
@@ -96,6 +99,7 @@ describe('MenuBuilder', () => {
     expect(template.map((item) => item.label ?? item.role)).toEqual([
       '&File',
       '&Edit',
+      '&Collection',
       '&View',
       'help',
     ]);
@@ -115,6 +119,25 @@ describe('MenuBuilder', () => {
       expect(prodStrings).not.toContain('reload');
       expect(prodStrings).not.toContain('toggleDevTools');
       expect(prodStrings).toContain('togglefullscreen');
+    }
+  );
+
+  it.each(['darwin', 'win32'] as const)(
+    'opens the collection runner and settings from the Collection menu on %s',
+    (platform) => {
+      const template = buildTemplate(platform);
+      const collectionMenu = template.find((item) => item.label?.includes('Collection'))!;
+      const items = collectionMenu.submenu as MenuItemConstructorOptions[];
+
+      const runItem = items.find((item) => item.label === 'Run Collection')!;
+      expect(runItem.accelerator).toBe('CmdOrCtrl+Shift+R');
+      (runItem.click as () => void)();
+      expect(sendMock).toHaveBeenCalledWith('show-collection-runner');
+
+      const settingsItem = items.find((item) => item.label === 'Settings…')!;
+      expect(settingsItem.accelerator).toBe('CmdOrCtrl+Shift+,');
+      (settingsItem.click as () => void)();
+      expect(sendMock).toHaveBeenCalledWith('show-collection-settings');
     }
   );
 

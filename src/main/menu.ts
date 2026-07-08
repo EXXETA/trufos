@@ -53,6 +53,23 @@ export class MenuBuilder {
     return submenu;
   }
 
+  private buildCollectionSubmenu(): MenuItemConstructorOptions[] {
+    return [
+      {
+        label: 'Run Collection',
+        accelerator: 'CmdOrCtrl+Shift+R',
+        click: () => this.mainWindow.webContents.send('show-collection-runner'),
+      },
+      { type: 'separator' },
+      {
+        // CmdOrCtrl+, stays reserved for the general app settings.
+        label: 'Settings…',
+        accelerator: 'CmdOrCtrl+Shift+,',
+        click: () => this.mainWindow.webContents.send('show-collection-settings'),
+      },
+    ];
+  }
+
   private buildHelpSubmenu(): MenuItemConstructorOptions[] {
     return [
       {
@@ -83,6 +100,7 @@ export class MenuBuilder {
         ],
       },
       { label: 'Edit', submenu: this.buildEditSubmenu() },
+      { label: 'Collection', submenu: this.buildCollectionSubmenu() },
       { label: 'View', submenu: this.buildViewSubmenu() },
       {
         label: 'Window',
@@ -105,6 +123,7 @@ export class MenuBuilder {
         submenu: [{ role: 'close' }, { role: 'quit' }],
       },
       { label: '&Edit', submenu: this.buildEditSubmenu() },
+      { label: '&Collection', submenu: this.buildCollectionSubmenu() },
       { label: '&View', submenu: this.buildViewSubmenu() },
       { role: 'help', submenu: this.buildHelpSubmenu() },
     ];
