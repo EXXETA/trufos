@@ -52,8 +52,8 @@ const createWindow = async () => {
       show: false,
     });
 
-    // pass webContents to MainEventService for push notifications
-    mainEventService.webContents = mainWindow.webContents;
+    // pass the main window to MainEventService for push notifications and dialog parenting
+    mainEventService.window = mainWindow;
 
     // register the native application menu
     new MenuBuilder(mainWindow).buildMenu();
