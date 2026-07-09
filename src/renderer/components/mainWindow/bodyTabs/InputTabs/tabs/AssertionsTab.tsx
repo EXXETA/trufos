@@ -196,12 +196,17 @@ function AssertionRow({
 
       <TableCell>
         {usesExpected(assertion.operator) && (
-          <input
-            className="w-full bg-transparent outline-hidden"
-            placeholder={getExpectedPlaceholder(assertion)}
-            value={assertion.expected ?? ''}
-            onChange={(event) => onUpdate(index, { expected: event.target.value })}
-          />
+          <div className="flex items-center gap-1">
+            <input
+              className="w-full bg-transparent outline-hidden"
+              placeholder={getExpectedPlaceholder(assertion)}
+              value={assertion.expected ?? ''}
+              onChange={(event) => onUpdate(index, { expected: event.target.value })}
+            />
+            {assertion.type === AssertionType.RESPONSE_TIME && (
+              <span className="text-text-secondary shrink-0 text-xs">ms</span>
+            )}
+          </div>
         )}
       </TableCell>
 
