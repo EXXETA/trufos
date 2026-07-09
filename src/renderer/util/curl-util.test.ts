@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildCurlCommand } from './curl-util';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
+import { AuthorizationType } from 'shim/objects/auth';
 
 function makeRequest(overrides: Partial<TrufosRequest> = {}): TrufosRequest {
   return {
@@ -139,5 +140,68 @@ describe('buildCurlCommand', () => {
     expect(buildCurlCommand(request)).toBe(
       "curl -X GET 'https://example.com/api' \\\n  -H 'Accept: application/json'"
     );
+  });
+
+  it('percent-encodes reserved characters in query values', () => {
+    const request = makeRequest({
+      url: {
+        base: 'https://echo.free.beeceptor.com',
+        query: [{ key: 'some-query', value: "with-value '!!'", isActive: true }],
+      },
+    });
+
+    const command = buildCurlCommand(request);
+    expect(command).toContain('some-query=with-value%20');
+    expect(command).not.toContain("with-value '!!'");
+  });
+
+  it('keeps template variables in query values unresolved and unencoded', () => {
+    const request = makeRequest({
+      url: {
+        base: 'https://example.com/api',
+        query: [{ key: 'token', value: '{{authToken}}', isActive: true }],
+      },
+    });
+
+    expect(buildCurlCommand(request)).toContain('token={{authToken}}');
+  });
+
+  it('adds a resolved Authorization header for bearer auth', () => {
+    const request = makeRequest({
+      auth: { type: AuthorizationType.BEARER, token: '{{token}}' },
+    });
+
+    expect(buildCurlCommand(request)).toContain("-H 'Authorization: Bearer {{token}}'");
+  });
+
+  it('adds a resolved Authorization header for basic auth', () => {
+    const request = makeRequest({
+      auth: { type: AuthorizationType.BASIC, username: 'user', password: 'pass' },
+    });
+
+    expect(buildCurlCommand(request)).toContain(`-H 'Authorization: Basic ${btoa('user:pass')}'`);
+  });
+
+  it('does not override an explicitly set Authorization header with auth config', () => {
+    const request = makeRequest({
+      headers: [{ key: 'Authorization', value: 'Bearer explicit', isActive: true }],
+      auth: { type: AuthorizationType.BEARER, token: 'from-auth-tab' },
+    });
+
+    const command = buildCurlCommand(request);
+    expect(command).toContain("-H 'Authorization: Bearer explicit'");
+    expect(command).not.toContain('from-auth-tab');
+  });
+
+  it('skips form-data file fields without a path or file name', () => {
+    const request = makeRequest({
+      method: RequestMethod.POST,
+      body: {
+        type: RequestBodyType.FORM_DATA,
+        fields: [{ key: 'empty-file', isActive: true, value: { type: RequestBodyType.FILE } }],
+      },
+    });
+
+    expect(buildCurlCommand(request)).not.toContain('-F');
   });
 });
