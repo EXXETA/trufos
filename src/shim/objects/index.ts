@@ -10,3 +10,4 @@ export * from './request-method';
 export * from './object';
 export * from './query-param';
 export * from './response';
+export * from './history';

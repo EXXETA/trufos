@@ -1,6 +1,7 @@
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { DisplayableError } from '@/error/DisplayableError';
 import { TrufosRequest } from 'shim/objects/request';
+import { useHistoryStore } from '@/state/historyStore';
 
 const eventService = RendererEventService.instance;
 
@@ -18,9 +19,11 @@ export class HttpService {
       console.info('Sending request:', request);
       const response = await eventService.sendRequest(request, abortKey);
       console.info('Received response:', response);
+      void useHistoryStore.getState().loadHistory();
       return response;
     } catch (error) {
       console.error('Error during request:', error);
+      void useHistoryStore.getState().loadHistory();
       let description = 'An error occurred while sending the request';
       if (error instanceof DisplayableError) {
         throw error;

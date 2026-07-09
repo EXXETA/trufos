@@ -29,6 +29,8 @@ export interface RendererEventService {
 
   on(event: 'show-collection-settings', listener: () => void): this;
 
+  on(event: 'show-history', listener: () => void): this;
+
   emit(event: 'ready-to-close'): this;
 }
 
@@ -78,4 +80,6 @@ export class RendererEventService implements IEventService {
   setClientCertificate = createEventMethod('setClientCertificate');
   getAppSettings = createEventMethod('getAppSettings');
   saveAppSettings = createEventMethod('saveAppSettings');
+  getHistory = createEventMethod('getHistory');
+  clearHistory = createEventMethod('clearHistory');
 }

@@ -31,7 +31,8 @@ export const App = () => {
     // Entry points of the native application menu (Collection > ...).
     RendererEventService.instance
       .on('show-collection-runner', () => useViewStore.getState().openCollectionRunner())
-      .on('show-collection-settings', () => useViewStore.getState().openCollectionSettings());
+      .on('show-collection-settings', () => useViewStore.getState().openCollectionSettings())
+      .on('show-history', () => useViewStore.getState().setSidebarTab('history'));
 
     RendererEventService.instance
       .getAppSettings()

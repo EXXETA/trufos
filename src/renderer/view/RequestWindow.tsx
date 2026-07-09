@@ -1,6 +1,7 @@
 import { MainTopBar } from '@/components/mainWindow/MainTopBar';
 import { MainBody } from '@/components/mainWindow/MainBody';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { selectSidebarTab, useViewStore } from '@/state/viewStore';
 import { EmptyWildWest } from '@/assets/EmptyWildWest';
 import { MouseEvent, useCallback, useEffect, useRef } from 'react';
 import { registerGetRequest } from '@/lib/monaco/models';
@@ -11,6 +12,7 @@ export function RequestWindow() {
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const requests = useCollectionStore((state) => state.requests);
   const { addNewRequest } = useCollectionActions();
+  const sidebarTab = useViewStore(selectSidebarTab);
 
   // Register the getRequest callback once so onWillDisposeModel can resolve requests.
   const requestsRef = useRef(requests);
@@ -43,15 +45,20 @@ export function RequestWindow() {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center p-6">
         <EmptyWildWest />
-        <span className="mt-2 text-center">
-          <a
-            className="text-accent-primary mr-1 cursor-pointer underline"
-            onClick={handleAddNewRequest}
-          >
-            Create
-          </a>
-          or select a request to get started
-        </span>
+        {sidebarTab === 'history' ? (
+          // Creating a request makes no sense while browsing the history.
+          <span className="mt-2 text-center">Select a history entry to restore it</span>
+        ) : (
+          <span className="mt-2 text-center">
+            <a
+              className="text-accent-primary mr-1 cursor-pointer underline"
+              onClick={handleAddNewRequest}
+            >
+              Create
+            </a>
+            or select a request to get started
+          </span>
+        )}
       </div>
     );
   }

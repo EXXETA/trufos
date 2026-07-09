@@ -60,6 +60,11 @@ export class MenuBuilder {
         accelerator: 'CmdOrCtrl+Shift+R',
         click: () => this.mainWindow.webContents.send('show-collection-runner'),
       },
+      {
+        label: 'History',
+        accelerator: 'CmdOrCtrl+Shift+H',
+        click: () => this.mainWindow.webContents.send('show-history'),
+      },
       { type: 'separator' },
       {
         // CmdOrCtrl+, stays reserved for the general app settings.

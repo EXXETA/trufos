@@ -9,6 +9,7 @@ import {
   VariableObject,
   EnvironmentMap,
   ClientCertificate,
+  HistoryEntry,
 } from './objects';
 import { ScriptType } from './scripting';
 import { AppSettings } from './app-settings';
@@ -256,4 +257,14 @@ export interface IEventService {
    * @param settings The new application settings.
    */
   saveAppSettings(settings: AppSettings): Promise<void>;
+
+  /**
+   * Get request history entries.
+   */
+  getHistory(limit?: number): Promise<HistoryEntry[]>;
+
+  /**
+   * Clear request history.
+   */
+  clearHistory(): Promise<void>;
 }
