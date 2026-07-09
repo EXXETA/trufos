@@ -5,17 +5,17 @@ import {
   EnvironmentMap,
   RequestMethod,
   TrufosHeader,
-  TrufosObjectType,
   AuthorizationInformation,
   AuthorizationInformationNoInherit,
+  Assertion,
 } from 'shim/objects';
 import { ClientCertificate } from 'shim/objects/collection';
 import { SemVer } from 'main/util/semver';
 import { AbstractInfoFileMigrator } from './migrator';
-import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v2-3-0';
+import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v2-4-0';
 import z from 'zod';
 
-export const VERSION = new SemVer(2, 4, 0);
+export const VERSION = new SemVer(2, 5, 0);
 
 export const InfoFileBase = z.object({
   id: z.string(),
@@ -30,6 +30,7 @@ export const RequestInfoFile = InfoFileBase.extend({
   headers: TrufosHeader.array(),
   body: RequestBody,
   auth: AuthorizationInformation.optional(),
+  assertions: Assertion.array().optional(),
 });
 export type RequestInfoFile = z.infer<typeof RequestInfoFile>;
 
@@ -48,15 +49,15 @@ export const InfoFile = z.union([RequestInfoFile, FolderInfoFile, CollectionInfo
 export type InfoFile = z.infer<typeof InfoFile>;
 
 /**
- * Migrates schema `v2.3.0` to `v2.4.0`.
+ * Migrates schema `v2.4.0` to `v2.5.0`.
  *
  * Changes:
- * - Adds optional `clientCertificate` field to CollectionInfoFile for mTLS support.
+ * - Adds optional `assertions` field to RequestInfoFile for no-code response assertions.
  */
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
+  async migrate(old: OldInfoFile): Promise<InfoFile> {
     return Object.assign(old, { version: VERSION.toString() });
   }
 }
