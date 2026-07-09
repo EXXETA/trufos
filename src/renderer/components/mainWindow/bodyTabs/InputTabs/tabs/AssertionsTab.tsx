@@ -62,7 +62,7 @@ const defaultOperatorByType: Record<AssertionType, AssertionOperator> = {
   [AssertionType.JSON_PATH]: AssertionOperator.EXISTS,
 };
 
-export const AssertionsTab = (): React.ReactNode => {
+export const AssertionsTab = () => {
   const { addAssertion, deleteAssertion, updateAssertion, setAssertionActive } =
     useCollectionActions();
   const assertions = useCollectionStore(selectAssertions);
@@ -128,7 +128,7 @@ function AssertionRow({
   onDelete,
   onUpdate,
   onActiveChange,
-}: Readonly<AssertionRowProps>): React.ReactNode {
+}: Readonly<AssertionRowProps>) {
   const handleTypeChange = (type: AssertionType): void => {
     onUpdate(index, {
       type,

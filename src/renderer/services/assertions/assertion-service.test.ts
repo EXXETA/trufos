@@ -131,7 +131,7 @@ describe('evaluateAssertions', () => {
     ]);
   });
 
-  it('reports JSON path assertions as failed when response body cannot be read', async () => {
+  it('reports a read failure separately from invalid JSON', async () => {
     open.mockRejectedValueOnce(new Error('stream failed'));
     const assertions: Assertion[] = [
       {
@@ -148,7 +148,7 @@ describe('evaluateAssertions', () => {
         assertionId: 'json',
         name: 'JSON path $.data.id exists',
         passed: false,
-        message: 'Response body is not valid JSON',
+        message: 'Response body could not be read',
       },
     ]);
   });

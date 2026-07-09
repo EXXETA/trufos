@@ -18,16 +18,28 @@ export async function evaluateAssertions(
   const needsBody = activeAssertions.some(
     (assertion) => assertion.type === AssertionType.JSON_PATH
   );
-  const body = needsBody ? await readResponseBodySafely(response) : undefined;
-  const jsonBody = body == null ? undefined : parseJson(body);
 
-  return activeAssertions.map((assertion) => evaluateAssertion(assertion, response, jsonBody));
+  let jsonBody: unknown;
+  let jsonBodyError = 'Response body is not valid JSON';
+  if (needsBody) {
+    const body = await readResponseBodySafely(response);
+    if (body == null) {
+      jsonBodyError = 'Response body could not be read';
+    } else {
+      jsonBody = parseJson(body);
+    }
+  }
+
+  return activeAssertions.map((assertion) =>
+    evaluateAssertion(assertion, response, jsonBody, jsonBodyError)
+  );
 }
 
 function evaluateAssertion(
   assertion: Assertion,
   response: TrufosResponse,
-  jsonBody: unknown
+  jsonBody: unknown,
+  jsonBodyError: string
 ): AssertionResult {
   try {
     switch (assertion.type) {
@@ -38,7 +50,7 @@ function evaluateAssertion(
       case AssertionType.HEADER:
         return evaluateHeaderAssertion(assertion, response);
       case AssertionType.JSON_PATH:
-        return evaluateJsonPathAssertion(assertion, jsonBody);
+        return evaluateJsonPathAssertion(assertion, jsonBody, jsonBodyError);
     }
   } catch (error) {
     return {
@@ -105,8 +117,12 @@ function evaluateHeaderAssertion(assertion: Assertion, response: TrufosResponse)
   );
 }
 
-function evaluateJsonPathAssertion(assertion: Assertion, jsonBody: unknown): AssertionResult {
-  if (jsonBody == null) throw new Error('Response body is not valid JSON');
+function evaluateJsonPathAssertion(
+  assertion: Assertion,
+  jsonBody: unknown,
+  jsonBodyError: string
+): AssertionResult {
+  if (jsonBody == null) throw new Error(jsonBodyError);
 
   const path = assertion.target?.trim();
   if (!path) throw new Error('JSON path missing');
