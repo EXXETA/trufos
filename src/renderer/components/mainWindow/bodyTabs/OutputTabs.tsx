@@ -97,7 +97,7 @@ export function OutputTabs({ className }: OutputTabsProps) {
       </TabsContent>
 
       <TabsContent value="assertions" className="p-4">
-        <div className="h-0">
+        <div>
           <Table className="w-full table-auto">
             <TableHeader>
               <TableRow>
