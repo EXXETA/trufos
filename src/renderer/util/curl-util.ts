@@ -3,9 +3,10 @@ import { AuthorizationType } from 'shim/objects/auth';
 import { TrufosURL } from 'shim/objects/url';
 
 type VariableResolver = (value: string) => Promise<string>;
+type CurlRequest = Omit<TrufosRequest, 'body'> & { body?: RequestBody | null };
 
 export interface ResolvedCurlRequest {
-  request: TrufosRequest;
+  request: CurlRequest;
   textBody?: string;
 }
 
@@ -152,7 +153,7 @@ async function resolveCurlAuth(
  * collection variables, and system variables in the same precedence as sending.
  */
 export async function resolveCurlCommandVariables(
-  request: TrufosRequest,
+  request: CurlRequest,
   textBody: string | undefined,
   resolveVariables: VariableResolver
 ): Promise<ResolvedCurlRequest> {
@@ -169,7 +170,7 @@ export async function resolveCurlCommandVariables(
           value: await resolveVariables(header.value),
         }))
       ),
-      body: body as TrufosRequest['body'],
+      body,
       auth: await resolveCurlAuth(request.auth, resolveVariables),
     },
     textBody: await resolveOptional(textBody, resolveVariables),
@@ -200,7 +201,7 @@ function buildAuthHeader(auth: TrufosRequest['auth']): string | undefined {
  * text body. Callers load it separately because it is stored on disk.
  * @returns The cURL command, one option per line.
  */
-export function buildCurlCommand(request: TrufosRequest, textBody?: string): string {
+export function buildCurlCommand(request: CurlRequest, textBody?: string): string {
   const parts = [`curl -X ${request.method} ${shellQuote(buildCurlUrl(request.url))}`];
 
   const activeHeaders = request.headers.filter((header) => header.isActive);
