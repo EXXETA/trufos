@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, FC, PropsWithChildren } from 'react';
 import { Loader2 } from 'lucide-react';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import {
   createCollectionStore,
   CollectionStoreProvider as StoreProvider,
@@ -26,9 +27,8 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
         storeRef.current = createCollectionStore(collection);
 
         // Sync variables changed by scripts back to the frontend stores
-        // @ts-expect-error listener receives ipcEvent + payload but on() only types ...unknown[]
         rendererEventService.on(
-          'collection-variables-updated',
+          MainProcessEvent.CollectionVariablesUpdated,
           (_ipcEvent, { variables, environments }) => {
             useVariableStore.getState().initialize(variables);
             useEnvironmentStore.getState().initialize(environments);
@@ -36,14 +36,14 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
         );
 
         // Set up before-close handler: flush all active editor models to disk
-        rendererEventService.on('before-close', async () => {
+        rendererEventService.on(MainProcessEvent.BeforeClose, async () => {
           try {
             console.info('Saving all active editor models before close');
             await Promise.all(editor.getModels().map(saveModelContent));
           } catch (error) {
             console.error('Error while saving models before closing:', error);
           } finally {
-            rendererEventService.emit('ready-to-close');
+            rendererEventService.emit(RendererEvent.ReadyToClose);
           }
         });
 

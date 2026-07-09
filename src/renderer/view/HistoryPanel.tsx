@@ -12,6 +12,7 @@ import { Trash2, RotateCw, Clock, ArrowUpRight, X } from 'lucide-react';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
 import { parseUrl } from 'shim/objects/url';
+import { getDateText, getSizeText, getTimeText } from '@/util/format-util';
 
 export const HistoryPanel = () => {
   const entries = useHistoryStore(selectHistoryEntries);
@@ -33,49 +34,21 @@ export const HistoryPanel = () => {
     }
   };
 
+  // Restoring intentionally edits the original request (it becomes a draft, like
+  // any manual edit would). It is only offered while that request still exists
+  // and only via the explicit restore button, never as a side effect of merely
+  // clicking a history entry.
   const handleRestore = (entry: (typeof entries)[number]) => {
-    // If the original request exists in the current collection, select it first
-    let targetRequestId = selectedRequestId;
-    if (entry.sourceRequestId && requests.has(entry.sourceRequestId)) {
+    if (!entry.sourceRequestId || !requests.has(entry.sourceRequestId)) return;
+
+    if (entry.sourceRequestId !== selectedRequestId) {
       setSelectedRequest(entry.sourceRequestId);
-      targetRequestId = entry.sourceRequestId;
     }
-
-    if (!targetRequestId) {
-      alert('Please select or create a request to restore these details into.');
-      return;
-    }
-
-    // Parse the URL and update the request
-    const parsedUrl = parseUrl(entry.request.url);
     updateRequest({
-      url: parsedUrl,
+      url: parseUrl(entry.request.url),
       method: entry.request.method,
       headers: entry.request.headers,
     });
-  };
-
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString(undefined, {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   return (
@@ -130,12 +103,12 @@ export const HistoryPanel = () => {
           </div>
         ) : (
           entries.map((entry) => {
-            const hasOriginal = entry.sourceRequestId && requests.has(entry.sourceRequestId);
+            const hasOriginal =
+              entry.sourceRequestId != null && requests.has(entry.sourceRequestId);
             return (
               <div
                 key={entry.id}
-                className="group hover:bg-sidebar-accent hover:border-border relative flex cursor-pointer flex-col rounded-lg border border-transparent p-2.5 transition-all duration-200"
-                onClick={() => handleRestore(entry)}
+                className="group hover:bg-sidebar-accent hover:border-border relative flex flex-col rounded-lg border border-transparent p-2.5 transition-all duration-200"
               >
                 <div className="mb-1 flex items-center justify-between">
                   <span
@@ -147,8 +120,8 @@ export const HistoryPanel = () => {
                     {entry.request.method}
                   </span>
                   <div className="text-text-secondary flex items-center gap-1.5 text-[10px]">
-                    <span>{formatDate(entry.timestamp)}</span>
-                    <span>{formatTime(entry.timestamp)}</span>
+                    <span>{getDateText(entry.timestamp)}</span>
+                    <span>{getTimeText(entry.timestamp)}</span>
                   </div>
                 </div>
 
@@ -181,7 +154,7 @@ export const HistoryPanel = () => {
                     {entry.response.size > 0 && (
                       <>
                         <span>•</span>
-                        <span>{formatSize(entry.response.size)}</span>
+                        <span>{getSizeText(entry.response.size)}</span>
                       </>
                     )}
                   </div>
@@ -197,9 +170,14 @@ export const HistoryPanel = () => {
                     size="icon"
                     variant="secondary"
                     className="border-border h-6 w-6 rounded-md border shadow-sm"
+                    onClick={() => handleRestore(entry)}
+                    disabled={!hasOriginal}
                     title={
-                      hasOriginal ? 'Restore to original request' : 'Restore to selected request'
+                      hasOriginal
+                        ? 'Restore to original request'
+                        : 'The original request no longer exists'
                     }
+                    aria-label="Restore request"
                   >
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   </Button>

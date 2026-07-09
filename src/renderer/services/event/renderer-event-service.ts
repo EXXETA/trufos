@@ -1,5 +1,6 @@
 import { MainProcessError } from '@/error/MainProcessError';
-import { IEventService } from 'shim/event-service';
+import { IEventService, MainProcessEvent, RendererEvent } from 'shim/event-service';
+import type { EnvironmentMap, VariableMap } from 'shim/objects';
 
 /**
  * Creates a method that sends an IPC event to the main process and returns the result. If the
@@ -23,23 +24,28 @@ function createEventMethod<T extends keyof IEventService>(methodName: T) {
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export interface RendererEventService {
-  on(event: 'before-close', listener: () => void): this;
+  on(
+    event: MainProcessEvent.CollectionVariablesUpdated,
+    listener: (
+      event: unknown,
+      data: { variables: VariableMap; environments: EnvironmentMap }
+    ) => void
+  ): this;
 
-  on(event: 'show-collection-runner', listener: () => void): this;
+  on(
+    event: Exclude<MainProcessEvent, MainProcessEvent.CollectionVariablesUpdated>,
+    listener: () => void
+  ): this;
 
-  on(event: 'show-collection-settings', listener: () => void): this;
-
-  on(event: 'show-history', listener: () => void): this;
-
-  emit(event: 'ready-to-close'): this;
+  emit(event: RendererEvent.ReadyToClose): this;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class RendererEventService implements IEventService {
   public static readonly instance = new RendererEventService();
 
-  on(event: string, listener: (...args: unknown[]) => void) {
-    window.electron.ipcRenderer.on(event, listener);
+  on(event: string, listener: (...args: never[]) => void) {
+    window.electron.ipcRenderer.on(event, listener as (...args: unknown[]) => void);
     return this;
   }
 

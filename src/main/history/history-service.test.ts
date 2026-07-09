@@ -4,7 +4,7 @@ import { EnvironmentService } from 'main/environment/service/environment-service
 import { USER_DATA_DIR, exists } from 'main/util/fs-util';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { TrufosRequest, TrufosResponse, RequestMethod } from 'shim';
+import { TrufosRequest, TrufosResponse, RequestMethod, RequestBodyType } from 'shim';
 import type { Collection } from 'shim/objects/collection';
 
 const testCollectionDir = path.join(USER_DATA_DIR, 'test-history-collection');
@@ -20,6 +20,7 @@ describe('HistoryService', () => {
       variables: {},
       environments: {},
       children: [],
+      lastModified: Date.now(),
     };
     (
       EnvironmentService.instance as unknown as { _currentCollection: Collection }
@@ -50,7 +51,7 @@ describe('HistoryService', () => {
         { key: 'Content-Type', value: 'application/json', isActive: true },
         { key: 'Authorization', value: 'Bearer super-secret-token', isActive: true },
       ],
-      body: { type: 'text', mimeType: 'application/json', text: 'hello body' },
+      body: { type: RequestBodyType.TEXT, mimeType: 'application/json', text: 'hello body' },
     };
 
     const response: TrufosResponse = {
@@ -93,7 +94,7 @@ describe('HistoryService', () => {
       url: { base: 'https://example.com/api', query: [] },
       method: RequestMethod.GET,
       headers: [],
-      body: { type: 'text', mimeType: 'application/json', text: '' },
+      body: { type: RequestBodyType.TEXT, mimeType: 'application/json', text: '' },
     };
 
     await HistoryService.instance.recordEntry(request, {
@@ -118,7 +119,7 @@ describe('HistoryService', () => {
       url: { base: 'https://example.com/api', query: [] },
       method: RequestMethod.GET,
       headers: [],
-      body: { type: 'text', mimeType: 'application/json', text: '' },
+      body: { type: RequestBodyType.TEXT, mimeType: 'application/json', text: '' },
     };
 
     const response: TrufosResponse = {
@@ -146,6 +147,26 @@ describe('HistoryService', () => {
     expect(entries[0].timestamp).toBe(1700000000000 + 104 * 10);
   });
 
+  it('clears the history of all given collections on startup', async () => {
+    const request: TrufosRequest = {
+      id: 'req-1',
+      parentId: 'col-1',
+      type: 'request',
+      lastModified: Date.now(),
+      title: 'My Request',
+      url: { base: 'https://example.com/api', query: [] },
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'application/json', text: '' },
+    };
+
+    await HistoryService.instance.recordEntry(request, { error: 'boom', duration: 1 });
+    expect(await HistoryService.instance.loadEntries()).toHaveLength(1);
+
+    await HistoryService.instance.clearOnStartup([testCollectionDir, '/does/not/exist']);
+    expect(await HistoryService.instance.loadEntries()).toHaveLength(0);
+  });
+
   it('clears history correctly', async () => {
     const request: TrufosRequest = {
       id: 'req-1',
@@ -156,7 +177,7 @@ describe('HistoryService', () => {
       url: { base: 'https://example.com/api', query: [] },
       method: RequestMethod.GET,
       headers: [],
-      body: { type: 'text', mimeType: 'application/json', text: '' },
+      body: { type: RequestBodyType.TEXT, mimeType: 'application/json', text: '' },
     };
 
     const response: TrufosResponse = {

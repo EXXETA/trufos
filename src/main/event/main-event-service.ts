@@ -6,6 +6,7 @@ import type {
   TrufosObject,
   Folder,
   TrufosRequest,
+  TrufosResponse,
   VariableMap,
   EnvironmentMap,
   ScriptType,
@@ -13,6 +14,7 @@ import type {
   ImportStrategy,
   AppSettings,
 } from 'shim';
+import { MainProcessEvent } from 'shim/event-service';
 import type { ClientCertificate } from 'shim/objects/collection';
 import { SettingsService } from '../persistence/service/settings-service';
 import { PersistenceService } from '../persistence/service/persistence-service';
@@ -91,7 +93,10 @@ export class MainEventService implements IEventService {
       void persistenceService
         .saveCollection(environmentService.currentCollection)
         .then(() =>
-          this.webContents?.send('collection-variables-updated', { variables, environments })
+          this.webContents?.send(MainProcessEvent.CollectionVariablesUpdated, {
+            variables,
+            environments,
+          })
         )
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });

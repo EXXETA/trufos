@@ -19,11 +19,9 @@ export class HttpService {
       console.info('Sending request:', request);
       const response = await eventService.sendRequest(request, abortKey);
       console.info('Received response:', response);
-      void useHistoryStore.getState().loadHistory();
       return response;
     } catch (error) {
       console.error('Error during request:', error);
-      void useHistoryStore.getState().loadHistory();
       let description = 'An error occurred while sending the request';
       if (error instanceof DisplayableError) {
         throw error;
@@ -35,6 +33,9 @@ export class HttpService {
         }
       }
       throw new DisplayableError(description, 'Could not send Request', error);
+    } finally {
+      // The main process records a history entry for both outcomes.
+      void useHistoryStore.getState().loadHistory();
     }
   }
 

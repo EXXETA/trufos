@@ -27,6 +27,22 @@ export class HistoryService {
   }
 
   /**
+   * Deletes the history of all given collections. Called once on app startup so
+   * the history is ephemeral per session and its schema can change freely
+   * without needing migrations.
+   * @param collectionDirPaths The directories of all known collections.
+   */
+  public async clearOnStartup(collectionDirPaths: string[]): Promise<void> {
+    for (const dirPath of collectionDirPaths) {
+      try {
+        await fs.rm(this.getHistoryDir(dirPath), { recursive: true, force: true });
+      } catch (error) {
+        logger.warn(`Failed to clear history of collection at ${dirPath}:`, error);
+      }
+    }
+  }
+
+  /**
    * Records a request/response entry in the history.
    * Redacts sensitive headers and limits body/response size.
    */

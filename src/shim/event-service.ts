@@ -14,6 +14,34 @@ import {
 import { ScriptType } from './scripting';
 import { AppSettings } from './app-settings';
 
+/**
+ * Fire-and-forget IPC events pushed from the main process to the renderer.
+ * Every `webContents.send()` call and its renderer-side listener must use this
+ * enum so event names stay unique and dead events are easy to spot.
+ */
+export enum MainProcessEvent {
+  /** The window is about to close; the renderer should flush unsaved state. */
+  BeforeClose = 'before-close',
+  /** The variables or environments of the current collection changed. */
+  CollectionVariablesUpdated = 'collection-variables-updated',
+  /** Opens the collection runner view (Collection menu). */
+  ShowCollectionRunner = 'show-collection-runner',
+  /** Opens the collection settings modal (Collection menu). */
+  ShowCollectionSettings = 'show-collection-settings',
+  /** Opens the sidebar history panel (Collection menu). */
+  ShowHistory = 'show-history',
+}
+
+/**
+ * Fire-and-forget IPC events sent from the renderer to the main process.
+ */
+export enum RendererEvent {
+  /** The renderer finished initializing and the window can be shown. */
+  RendererReady = 'renderer-ready',
+  /** All unsaved state is flushed; the window may close now. */
+  ReadyToClose = 'ready-to-close',
+}
+
 export type ImportStrategy = 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia';
 
 export interface ImportWarning {

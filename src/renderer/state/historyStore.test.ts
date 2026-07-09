@@ -1,5 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useHistoryStore } from './historyStore';
+import { RequestMethod } from 'shim/objects/request-method';
 
 const getHistoryMock = vi.fn();
 const clearHistoryMock = vi.fn().mockResolvedValue(undefined);
@@ -57,7 +58,7 @@ describe('historyStore', () => {
           {
             id: '1',
             timestamp: 12345,
-            request: { url: 'http://example.com', method: 'GET', headers: [] },
+            request: { url: 'http://example.com', method: RequestMethod.GET, headers: [] },
             response: { status: 200, duration: 100, size: 50 },
           },
         ],
