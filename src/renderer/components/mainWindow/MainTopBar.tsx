@@ -15,6 +15,7 @@ import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { evaluateAssertions } from '@/services/assertions/assertion-service';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -23,7 +24,7 @@ export function MainTopBar() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { updateRequest, discardChanges } = useCollectionActions();
-  const { addResponse } = useResponseActions();
+  const { addResponse, setAssertionResults } = useResponseActions();
   const request = useCollectionStore(selectRequest)!;
   const { url, method } = request;
 
@@ -38,13 +39,14 @@ export function MainTopBar() {
 
         const response = await httpService.sendRequest(request);
         addResponse(request.id, response);
+        setAssertionResults(request.id, await evaluateAssertions(request.assertions, response));
       } catch (error) {
         showError(error);
       } finally {
         setIsLoading(false);
       }
     }),
-    [request, addResponse]
+    [request, addResponse, setAssertionResults]
   );
 
   const saveRequest = useCallback(

@@ -1,4 +1,5 @@
 import { ClientCertificate, Collection } from 'shim/objects/collection';
+import { Assertion } from 'shim/objects/assertion';
 import { Folder } from 'shim/objects/folder';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
@@ -129,6 +130,11 @@ export interface CollectionStateActions {
   addFormDataField(): void;
   updateFormDataField(index: number, updatedField: Partial<FormDataField>): void;
   deleteFormDataField(index: number): void;
+
+  addAssertion(): void;
+  updateAssertion(index: number, updatedAssertion: Partial<Assertion>): void;
+  deleteAssertion(index: number): void;
+  setAssertionActive(index: number, active?: boolean): void;
 
   /**
    * Set the draft flag on the currently selected request

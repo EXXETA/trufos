@@ -8,6 +8,7 @@ import {
   TrufosObjectType,
   AuthorizationInformation,
   AuthorizationInformationNoInherit,
+  Assertion,
 } from 'shim/objects';
 import { ClientCertificate } from 'shim/objects/collection';
 import { SemVer } from 'main/util/semver';
@@ -30,6 +31,7 @@ export const RequestInfoFile = InfoFileBase.extend({
   headers: TrufosHeader.array(),
   body: RequestBody,
   auth: AuthorizationInformation.optional(),
+  assertions: Assertion.array().optional(),
 });
 export type RequestInfoFile = z.infer<typeof RequestInfoFile>;
 
@@ -56,7 +58,9 @@ export type InfoFile = z.infer<typeof InfoFile>;
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
+  async migrate(old: OldInfoFile, _type: TrufosObjectType, _filePath: string): Promise<InfoFile> {
+    void _type;
+    void _filePath;
     return Object.assign(old, { version: VERSION.toString() });
   }
 }

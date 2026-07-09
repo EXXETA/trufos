@@ -21,8 +21,11 @@ import { immer } from 'zustand/middleware/immer';
 import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
 import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
+import { Assertion, AssertionOperator, AssertionType } from 'shim/objects/assertion';
+import { buildAssertionName } from '@/services/assertions/assertion-name';
 
 const eventService = RendererEventService.instance;
+const EMPTY_ASSERTIONS: Assertion[] = [];
 
 interface CollectionState {
   /** The currently selected collection */
@@ -376,6 +379,47 @@ export const createCollectionStore = (collection: Collection) => {
           request.draft = true;
         }),
 
+      addAssertion: () =>
+        set((state) => {
+          const request = selectRequest(state)!;
+          request.assertions ??= [];
+          const assertion = {
+            id: crypto.randomUUID(),
+            isActive: true,
+            type: AssertionType.STATUS_CODE,
+            operator: AssertionOperator.EQUALS,
+            expected: '200',
+          };
+          request.assertions.push({
+            ...assertion,
+            name: buildAssertionName(assertion),
+            nameManuallyEdited: false,
+          });
+          markDraft(state);
+        }),
+
+      updateAssertion: (index, updatedAssertion) =>
+        set((state) => {
+          const assertions = ensureAssertions(state);
+          if (assertions[index] == null) return;
+          assertions[index] = { ...assertions[index], ...updatedAssertion };
+          markDraft(state);
+        }),
+
+      deleteAssertion: (index) =>
+        set((state) => {
+          ensureAssertions(state).splice(index, 1);
+          markDraft(state);
+        }),
+
+      setAssertionActive: (index, active) =>
+        set((state) => {
+          const assertion = ensureAssertions(state)[index];
+          if (assertion == null) return;
+          assertion.isActive = active ?? !assertion.isActive;
+          markDraft(state);
+        }),
+
       setDraftFlag: () => set(markDraft),
 
       addNewFolder: async (title?, parentId?) => {
@@ -608,6 +652,16 @@ const markDraft = (state: CollectionState) => {
 
 export const selectHeaders = (state: CollectionState) => selectRequest(state)!.headers;
 export const selectQueryParams = (state: CollectionState) => selectRequest(state)!.url.query;
+export const selectAssertions = (state: CollectionState) => {
+  const request = selectRequest(state)!;
+  return request.assertions ?? EMPTY_ASSERTIONS;
+};
+
+const ensureAssertions = (state: CollectionState) => {
+  const request = selectRequest(state)!;
+  request.assertions ??= [];
+  return request.assertions;
+};
 
 const selectQueryParam = (state: CollectionState, index: number) =>
   selectQueryParams(state)?.[index];

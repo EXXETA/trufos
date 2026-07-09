@@ -1,18 +1,20 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMemo, useState } from 'react';
-import { selectRequest, useCollectionStore } from '@/state/collectionStore';
+import { selectAssertions, selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab';
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';
 import { ParamsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ParamsTab';
 import { AuthorizationTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/AuthorizationTab/AuthorizationTab';
 import { ScriptTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { AssertionsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/AssertionsTab';
 
 interface InputTabsProps {
   className: string;
 }
 
-type InputTabValue = 'body' | 'queryParams' | 'headers' | 'authorization' | 'scripts';
+type InputTabValue =
+  'body' | 'queryParams' | 'headers' | 'authorization' | 'scripts' | 'assertions';
 
 export function InputTabs(props: Readonly<InputTabsProps>) {
   const { className } = props;
@@ -21,6 +23,7 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
 
   const headers = useCollectionStore((state) => selectRequest(state)!.headers);
   const queryParams = useCollectionStore((state) => selectRequest(state)!.url.query);
+  const assertions = useCollectionStore(selectAssertions);
 
   const activeHeaderCount = useMemo(
     () => headers.filter((header) => header.isActive).length,
@@ -30,6 +33,11 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
   const activeParamsCount = useMemo(
     () => queryParams.filter((param) => param.isActive).length,
     [queryParams]
+  );
+
+  const activeAssertionCount = useMemo(
+    () => assertions.filter((assertion) => assertion.isActive).length,
+    [assertions]
   );
 
   useHotkeys([
@@ -53,6 +61,10 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
       keys: 'mod+5',
       handler: () => setSelectedTab('scripts'),
     },
+    {
+      keys: 'mod+8',
+      handler: () => setSelectedTab('assertions'),
+    },
   ]);
 
   return (
@@ -73,6 +85,9 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
         </TabsTrigger>
         <TabsTrigger value="authorization">Auth</TabsTrigger>
         <TabsTrigger value="scripts">Scripts</TabsTrigger>
+        <TabsTrigger value="assertions">
+          {activeAssertionCount === 0 ? 'Assertions' : `Assertions (${activeAssertionCount})`}
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="body">
@@ -93,6 +108,10 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
 
       <TabsContent value="scripts">
         <ScriptTab />
+      </TabsContent>
+
+      <TabsContent value="assertions">
+        <AssertionsTab />
       </TabsContent>
     </Tabs>
   );
