@@ -29,6 +29,11 @@ export interface ImportResult {
 
 export type ExportStrategy = 'Zip';
 
+export interface ExportOptions {
+  /** When set, the archive is encrypted with AES-256 using this password. */
+  password?: string;
+}
+
 export interface IEventService {
   /**
    * (Re)load the last opened collection.
@@ -199,8 +204,14 @@ export interface IEventService {
    * @param dirPath The directory path of the collection to export.
    * @param targetPath The file path to write the export to.
    * @param strategy The export strategy / target format (e.g. Zip).
+   * @param options Optional export settings. Providing a `password` encrypts the archive.
    */
-  exportCollection(dirPath: string, targetPath: string, strategy: ExportStrategy): Promise<void>;
+  exportCollection(
+    dirPath: string,
+    targetPath: string,
+    strategy: ExportStrategy,
+    options?: ExportOptions
+  ): Promise<void>;
 
   /**
    * Rename the given collection, folder, or request to the new title.

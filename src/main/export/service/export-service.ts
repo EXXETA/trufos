@@ -1,5 +1,5 @@
 import { InternalError, InternalErrorType } from 'main/error/internal-error';
-import type { ExportStrategy } from 'shim/event-service';
+import type { ExportOptions, ExportStrategy } from 'shim/event-service';
 import { ZipExporter } from './zip-exporter';
 
 export interface CollectionExporter {
@@ -7,8 +7,9 @@ export interface CollectionExporter {
    * Exports the collection at the given directory to the given target path.
    * @param dirPath the collection directory to read from
    * @param targetPath the file or directory to write the export to
+   * @param options optional export settings (e.g. a password to encrypt the archive)
    */
-  exportCollection(dirPath: string, targetPath: string): Promise<void>;
+  exportCollection(dirPath: string, targetPath: string, options?: ExportOptions): Promise<void>;
 }
 
 export class ExportService {
@@ -29,8 +30,14 @@ export class ExportService {
    * @param dirPath the collection directory to export
    * @param targetPath the file or directory to write the export to
    * @param strategy the export strategy to use (e.g. Zip)
+   * @param options optional export settings (e.g. a password to encrypt the archive)
    */
-  public async exportCollection(dirPath: string, targetPath: string, strategy: ExportStrategy) {
+  public async exportCollection(
+    dirPath: string,
+    targetPath: string,
+    strategy: ExportStrategy,
+    options?: ExportOptions
+  ) {
     const exporter = this.exporters.get(strategy);
     if (exporter === undefined) {
       throw new InternalError(
@@ -39,8 +46,12 @@ export class ExportService {
       );
     }
 
-    logger.info(`Exporting collection from "${dirPath}" to "${targetPath}" using "${strategy}"`);
-    await exporter.exportCollection(dirPath, targetPath);
+    const encrypted = options?.password != null && options.password.length > 0;
+    logger.info(
+      `Exporting collection from "${dirPath}" to "${targetPath}" using "${strategy}"` +
+        (encrypted ? ' (encrypted)' : '')
+    );
+    await exporter.exportCollection(dirPath, targetPath, options);
     logger.info(`Successfully exported collection to "${targetPath}"`);
   }
 }

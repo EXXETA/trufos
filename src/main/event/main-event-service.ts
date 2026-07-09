@@ -12,6 +12,7 @@ import type {
   IEventService,
   ImportStrategy,
   ExportStrategy,
+  ExportOptions,
   AppSettings,
 } from 'shim';
 import type { ClientCertificate } from 'shim/objects/collection';
@@ -232,8 +233,13 @@ export class MainEventService implements IEventService {
     return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
   }
 
-  async exportCollection(dirPath: string, targetPath: string, strategy: ExportStrategy) {
-    await exportService.exportCollection(dirPath, targetPath, strategy);
+  async exportCollection(
+    dirPath: string,
+    targetPath: string,
+    strategy: ExportStrategy,
+    options?: ExportOptions
+  ) {
+    await exportService.exportCollection(dirPath, targetPath, strategy, options);
   }
 
   async moveItem(

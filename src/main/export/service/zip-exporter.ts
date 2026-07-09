@@ -1,13 +1,19 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { once } from 'node:events';
-import { Zip, ZipDeflate } from 'fflate';
+import { Readable, Writable } from 'node:stream';
+import { configure, ZipWriter } from '@zip.js/zip.js';
+import type { ExportOptions } from 'shim/event-service';
 import { GIT_IGNORE_FILE_NAME } from 'main/persistence/service/info-files/latest';
 import { Gitignore } from '../gitignore';
 import type { CollectionExporter } from './export-service';
 
-const EMPTY = new Uint8Array(0);
+// The Electron main process is a plain Node.js environment without DOM Web Workers, so keep zip.js
+// compression in-process to avoid it trying to spawn workers.
+configure({ useWebWorkers: false });
+
+/** AES key length for encrypted archives: 3 == AES-256 (WinZip-AES). */
+const AES_256 = 3;
 
 /** The git metadata directory, which `git archive` never includes. */
 const GIT_DIR_NAME = '.git';
@@ -16,51 +22,30 @@ const GIT_DIR_NAME = '.git';
  * Exports a Trufos collection directory as a `.zip` archive. Like `git archive`, the collection's
  * `.gitignore` decides which paths are excluded (secrets and drafts are ignored there), and the
  * `.git` directory is always omitted. The archive is streamed to disk so it is never fully buffered
- * in memory.
+ * in memory. When a password is provided, the archive is encrypted with AES-256.
  */
 export class ZipExporter implements CollectionExporter {
-  public async exportCollection(dirPath: string, targetPath: string): Promise<void> {
+  public async exportCollection(
+    dirPath: string,
+    targetPath: string,
+    options?: ExportOptions
+  ): Promise<void> {
     const gitignore = await this.loadGitignore(dirPath);
     const files = await this.collectFiles(dirPath, gitignore);
-    const out = createWriteStream(targetPath);
 
-    await new Promise<void>((resolve, reject) => {
-      let failed = false;
-      const fail = (error: Error) => {
-        if (failed) return;
-        failed = true;
-        out.destroy();
-        reject(error);
-      };
-
-      out.on('error', fail);
-
-      const zip = new Zip((err, chunk, final) => {
-        if (err) return fail(err);
-        out.write(chunk);
-        if (final) out.end(resolve);
-      });
-
-      // Stream every file into the archive sequentially to bound memory usage.
-      void (async () => {
-        try {
-          for (const relativePath of files) {
-            const entry = new ZipDeflate(relativePath);
-            zip.add(entry);
-
-            const readStream = createReadStream(path.join(dirPath, relativePath));
-            for await (const chunk of readStream) {
-              entry.push(chunk as Uint8Array);
-              if (out.writableNeedDrain) await once(out, 'drain');
-            }
-            entry.push(EMPTY, true);
-          }
-          zip.end();
-        } catch (error) {
-          fail(error as Error);
-        }
-      })();
+    const password = options?.password;
+    const zipWriter = new ZipWriter(Writable.toWeb(createWriteStream(targetPath)), {
+      ...(password ? { password, encryptionStrength: AES_256 } : {}),
     });
+
+    // Stream every file into the archive sequentially to bound memory usage.
+    for (const relativePath of files) {
+      const readable = Readable.toWeb(
+        createReadStream(path.join(dirPath, relativePath))
+      ) as ReadableStream<Uint8Array>;
+      await zipWriter.add(relativePath, readable);
+    }
+    await zipWriter.close();
   }
 
   /** Loads the collection's `.gitignore`, falling back to an empty matcher when absent. */

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
 import { unzipSync } from 'fflate';
+import { TextWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 import { ZipExporter } from './zip-exporter';
 
 /**
@@ -28,6 +29,13 @@ async function exportAndUnzip(collectionDir: string): Promise<Record<string, Uin
   await new ZipExporter().exportCollection(collectionDir, targetPath);
   const buffer = await fs.readFile(targetPath);
   return unzipSync(new Uint8Array(buffer));
+}
+
+/** Exports the given collection with a password and returns the raw encrypted archive bytes. */
+async function exportEncrypted(collectionDir: string, password: string): Promise<Uint8Array> {
+  const targetPath = path.join(await fs.mkdtemp(path.join(tmpdir(), 'export-out-')), 'export.zip');
+  await new ZipExporter().exportCollection(collectionDir, targetPath, { password });
+  return new Uint8Array(await fs.readFile(targetPath));
 }
 
 describe('ZipExporter', () => {
@@ -76,5 +84,48 @@ describe('ZipExporter', () => {
 
     expect(names).not.toContain('debug.log');
     expect(names.some((name) => name.endsWith('.log'))).toBe(false);
+  });
+
+  it('encrypts the archive with AES-256 when a password is provided', async () => {
+    const collectionDir = await createCollection({
+      'collection.json': '{"id":"c1","title":"Test"}',
+      'requests/req-a/request-body.txt': 'hello world',
+    });
+
+    const buffer = await exportEncrypted(collectionDir, 'hunter2');
+
+    const reader = new ZipReader(new Uint8ArrayReader(buffer));
+    try {
+      const entries = await reader.getEntries();
+      const body = entries.find((e) => e.filename === 'requests/req-a/request-body.txt');
+      expect(body).toBeDefined();
+      expect(body?.encrypted).toBe(true);
+      expect(body?.zipCrypto).toBe(false); // AES, not legacy ZipCrypto
+      if (body == null || body.directory) throw new Error('unexpected directory entry');
+      const text = await body.getData(new TextWriter(), { password: 'hunter2' });
+      expect(text).toBe('hello world');
+    } finally {
+      await reader.close();
+    }
+  });
+
+  it('cannot decrypt the archive with a wrong password', async () => {
+    const collectionDir = await createCollection({
+      'collection.json': '{"id":"c1","title":"Test"}',
+    });
+
+    const buffer = await exportEncrypted(collectionDir, 'correct-password');
+
+    const reader = new ZipReader(new Uint8ArrayReader(buffer));
+    try {
+      const entries = await reader.getEntries();
+      const entry = entries.find((e) => e.filename === 'collection.json');
+      if (entry == null || entry.directory) throw new Error('unexpected directory entry');
+      await expect(
+        entry.getData(new TextWriter(), { password: 'wrong-password' })
+      ).rejects.toThrow();
+    } finally {
+      await reader.close();
+    }
   });
 });
