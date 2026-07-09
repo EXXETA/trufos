@@ -157,6 +157,19 @@ describe('buildCurlCommand', () => {
     expect(command).not.toContain("with-value '!!'");
   });
 
+  it('percent-encodes reserved characters in query keys', () => {
+    const request = makeRequest({
+      url: {
+        base: 'https://example.com/api',
+        query: [{ key: "some key '!!'", value: 'value', isActive: true }],
+      },
+    });
+
+    const command = buildCurlCommand(request);
+    expect(command).toContain("'https://example.com/api?some%20key%20%27%21%21%27=value'");
+    expect(command).not.toContain("some key '!!'");
+  });
+
   it('keeps template variables in query values unresolved and unencoded', () => {
     const request = makeRequest({
       url: {
