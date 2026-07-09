@@ -39,7 +39,6 @@ describe('evaluateAssertions', () => {
     const assertions: Assertion[] = [
       {
         id: 'status',
-        name: 'Status is 201',
         isActive: true,
         type: AssertionType.STATUS_CODE,
         operator: AssertionOperator.EQUALS,
@@ -47,7 +46,6 @@ describe('evaluateAssertions', () => {
       },
       {
         id: 'time',
-        name: 'Fast enough',
         isActive: true,
         type: AssertionType.RESPONSE_TIME,
         operator: AssertionOperator.BELOW,
@@ -56,10 +54,10 @@ describe('evaluateAssertions', () => {
     ];
 
     await expect(evaluateAssertions(assertions, response)).resolves.toEqual([
-      { assertionId: 'status', name: 'Status is 201', passed: true, message: 'Passed' },
+      { assertionId: 'status', name: 'Status code equals 201', passed: true, message: 'Passed' },
       {
         assertionId: 'time',
-        name: 'Fast enough',
+        name: 'Response time below 100 ms',
         passed: false,
         message: 'Expected below 100ms, got 120ms',
       },
@@ -70,7 +68,6 @@ describe('evaluateAssertions', () => {
     const assertions: Assertion[] = [
       {
         id: 'header',
-        name: 'Content type',
         isActive: true,
         type: AssertionType.HEADER,
         operator: AssertionOperator.CONTAINS,
@@ -80,7 +77,12 @@ describe('evaluateAssertions', () => {
     ];
 
     await expect(evaluateAssertions(assertions, response)).resolves.toEqual([
-      { assertionId: 'header', name: 'Content type', passed: true, message: 'Passed' },
+      {
+        assertionId: 'header',
+        name: 'Header Content-Type contains json',
+        passed: true,
+        message: 'Passed',
+      },
     ]);
   });
 
@@ -89,7 +91,6 @@ describe('evaluateAssertions', () => {
     const assertions: Assertion[] = [
       {
         id: 'json',
-        name: 'JSON id',
         isActive: true,
         type: AssertionType.JSON_PATH,
         operator: AssertionOperator.EQUALS,
@@ -99,7 +100,12 @@ describe('evaluateAssertions', () => {
     ];
 
     await expect(evaluateAssertions(assertions, response)).resolves.toEqual([
-      { assertionId: 'json', name: 'JSON id', passed: true, message: 'Passed' },
+      {
+        assertionId: 'json',
+        name: 'JSON path $.data.id equals 42',
+        passed: true,
+        message: 'Passed',
+      },
     ]);
   });
 
@@ -108,7 +114,6 @@ describe('evaluateAssertions', () => {
     const assertions: Assertion[] = [
       {
         id: 'json',
-        name: 'JSON id',
         isActive: true,
         type: AssertionType.JSON_PATH,
         operator: AssertionOperator.EXISTS,
@@ -119,7 +124,7 @@ describe('evaluateAssertions', () => {
     await expect(evaluateAssertions(assertions, response)).resolves.toEqual([
       {
         assertionId: 'json',
-        name: 'JSON id',
+        name: 'JSON path $.data.id exists',
         passed: false,
         message: 'Response body is not valid JSON',
       },
@@ -131,7 +136,6 @@ describe('evaluateAssertions', () => {
     const assertions: Assertion[] = [
       {
         id: 'json',
-        name: 'JSON id',
         isActive: true,
         type: AssertionType.JSON_PATH,
         operator: AssertionOperator.EXISTS,
@@ -142,7 +146,7 @@ describe('evaluateAssertions', () => {
     await expect(evaluateAssertions(assertions, response)).resolves.toEqual([
       {
         assertionId: 'json',
-        name: 'JSON id',
+        name: 'JSON path $.data.id exists',
         passed: false,
         message: 'Response body is not valid JSON',
       },

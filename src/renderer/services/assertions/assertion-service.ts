@@ -1,4 +1,5 @@
 import { IpcPushStream } from '@/lib/ipc-stream';
+import { buildAssertionName } from '@/services/assertions/assertion-name';
 import {
   Assertion,
   AssertionOperator,
@@ -42,7 +43,7 @@ function evaluateAssertion(
   } catch (error) {
     return {
       assertionId: assertion.id,
-      name: assertion.name,
+      name: buildAssertionName(assertion),
       passed: false,
       message: error instanceof Error ? error.message : 'Assertion failed',
     };
@@ -215,7 +216,7 @@ function formatJsonValue(value: unknown): string {
 function buildResult(assertion: Assertion, passed: boolean, message: string): AssertionResult {
   return {
     assertionId: assertion.id,
-    name: assertion.name,
+    name: buildAssertionName(assertion),
     passed,
     message: passed ? 'Passed' : message,
   };

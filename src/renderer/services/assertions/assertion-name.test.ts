@@ -1,19 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { Assertion, AssertionOperator, AssertionType } from 'shim/objects/assertion';
-import { buildAssertionName, withUpdatedAssertionName } from './assertion-name';
+import { AssertionOperator, AssertionType } from 'shim/objects/assertion';
+import { buildAssertionName } from './assertion-name';
 
-const assertion: Assertion = {
-  id: 'assertion-id',
-  name: 'Status code equals 200',
-  isActive: true,
-  type: AssertionType.STATUS_CODE,
-  operator: AssertionOperator.EQUALS,
-  expected: '200',
-};
-
-describe('assertion names', () => {
+describe('buildAssertionName', () => {
   it('builds names from assertion values', () => {
-    expect(buildAssertionName(assertion)).toBe('Status code equals 200');
+    expect(
+      buildAssertionName({
+        type: AssertionType.STATUS_CODE,
+        operator: AssertionOperator.EQUALS,
+        expected: '200',
+      })
+    ).toBe('Status code equals 200');
+    expect(
+      buildAssertionName({
+        type: AssertionType.STATUS_CODE,
+        operator: AssertionOperator.IN_RANGE,
+        expected: '200-299',
+      })
+    ).toBe('Status code is in 200-299');
+    expect(
+      buildAssertionName({
+        type: AssertionType.RESPONSE_TIME,
+        operator: AssertionOperator.BELOW,
+        expected: '500',
+      })
+    ).toBe('Response time below 500 ms');
     expect(
       buildAssertionName({
         type: AssertionType.HEADER,
@@ -21,25 +32,13 @@ describe('assertion names', () => {
         target: 'content-type',
       })
     ).toBe('Header content-type exists');
-  });
-
-  it('updates generated names when assertion fields change', () => {
-    expect(withUpdatedAssertionName(assertion, { expected: '201' })).toEqual({
-      expected: '201',
-      name: 'Status code equals 201',
-    });
-  });
-
-  it('keeps manual names when assertion fields change', () => {
     expect(
-      withUpdatedAssertionName(
-        {
-          ...assertion,
-          name: 'My check',
-          nameManuallyEdited: true,
-        },
-        { expected: '201' }
-      )
-    ).toEqual({ expected: '201' });
+      buildAssertionName({
+        type: AssertionType.JSON_PATH,
+        operator: AssertionOperator.EQUALS,
+        target: '$.data.id',
+        expected: '42',
+      })
+    ).toBe('JSON path $.data.id equals 42');
   });
 });

@@ -58,7 +58,6 @@ vi.mock('@/services/assertions/assertion-service', () => ({
     assertions:
       | Array<{
           id: string;
-          name: string;
           isActive: boolean;
           expected?: string;
         }>
@@ -72,7 +71,7 @@ vi.mock('@/services/assertions/assertion-service', () => ({
           const passed = String(response.metaInfo.status) === assertion.expected;
           return {
             assertionId: assertion.id,
-            name: assertion.name,
+            name: `Status code equals ${assertion.expected}`,
             passed,
             message: passed
               ? 'Passed'
@@ -356,7 +355,6 @@ describe('CollectionRunner execution', () => {
     request.assertions = [
       {
         id: 'assertion-1',
-        name: 'Status code equals 200',
         isActive: true,
         type: AssertionType.STATUS_CODE,
         operator: AssertionOperator.EQUALS,
@@ -457,7 +455,6 @@ describe('CollectionRunner execution', () => {
     request.assertions = [
       {
         id: 'assertion-1',
-        name: 'Status code equals 201',
         isActive: true,
         type: AssertionType.STATUS_CODE,
         operator: AssertionOperator.EQUALS,
@@ -480,7 +477,6 @@ describe('CollectionRunner execution', () => {
     request.assertions = [
       {
         id: 'assertion-1',
-        name: 'Status code equals 201',
         isActive: true,
         type: AssertionType.STATUS_CODE,
         operator: AssertionOperator.EQUALS,
@@ -611,7 +607,6 @@ describe('CollectionRunner result details', () => {
     request.assertions = [
       {
         id: 'assertion-1',
-        name: 'Status code equals 201',
         isActive: true,
         type: AssertionType.STATUS_CODE,
         operator: AssertionOperator.EQUALS,

@@ -18,8 +18,6 @@ export enum AssertionOperator {
 
 export const Assertion = z.object({
   id: z.string(),
-  name: z.string(),
-  nameManuallyEdited: z.boolean().optional(),
   isActive: z.boolean(),
   type: z.enum(AssertionType),
   operator: z.enum(AssertionOperator),

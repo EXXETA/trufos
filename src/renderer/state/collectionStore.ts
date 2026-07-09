@@ -22,7 +22,6 @@ import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
 import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 import { Assertion, AssertionOperator, AssertionType } from 'shim/objects/assertion';
-import { buildAssertionName } from '@/services/assertions/assertion-name';
 
 const eventService = RendererEventService.instance;
 const EMPTY_ASSERTIONS: Assertion[] = [];
@@ -383,17 +382,12 @@ export const createCollectionStore = (collection: Collection) => {
         set((state) => {
           const request = selectRequest(state)!;
           request.assertions ??= [];
-          const assertion = {
+          request.assertions.push({
             id: crypto.randomUUID(),
             isActive: true,
             type: AssertionType.STATUS_CODE,
             operator: AssertionOperator.EQUALS,
             expected: '200',
-          };
-          request.assertions.push({
-            ...assertion,
-            name: buildAssertionName(assertion),
-            nameManuallyEdited: false,
           });
           markDraft(state);
         }),

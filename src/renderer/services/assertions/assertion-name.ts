@@ -1,5 +1,6 @@
 import { Assertion, AssertionOperator, AssertionType } from 'shim/objects/assertion';
 
+/** Builds a human-readable label for an assertion from its type, operator, target and expected value. */
 export function buildAssertionName(
   assertion: Pick<Assertion, 'type' | 'operator'> & Partial<Assertion>
 ): string {
@@ -15,22 +16,6 @@ export function buildAssertionName(
     case AssertionType.JSON_PATH:
       return buildTargetName('JSON path', assertion);
   }
-}
-
-export function shouldUpdateAssertionName(assertion: Assertion): boolean {
-  return assertion.nameManuallyEdited !== true && assertion.name === buildAssertionName(assertion);
-}
-
-export function withUpdatedAssertionName(
-  assertion: Assertion,
-  updatedAssertion: Partial<Assertion>
-): Partial<Assertion> {
-  const nextAssertion = { ...assertion, ...updatedAssertion };
-  if (!shouldUpdateAssertionName(assertion)) return updatedAssertion;
-  return {
-    ...updatedAssertion,
-    name: buildAssertionName(nextAssertion),
-  };
 }
 
 function buildTargetName(

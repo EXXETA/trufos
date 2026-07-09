@@ -22,7 +22,6 @@ import {
   useCollectionActions,
   useCollectionStore,
 } from '@/state/collectionStore';
-import { withUpdatedAssertionName } from '@/services/assertions/assertion-name';
 import { Assertion, AssertionOperator, AssertionType } from 'shim/objects/assertion';
 
 const typeLabels: Record<AssertionType, string> = {
@@ -89,11 +88,10 @@ export const AssertionsTab = (): React.ReactNode => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-12" />
-              <TableHead className="w-1/5">Name</TableHead>
               <TableHead className="w-36">Type</TableHead>
               <TableHead className="w-36">Check</TableHead>
-              <TableHead className="w-1/5">Target</TableHead>
-              <TableHead className="w-1/5">Expected</TableHead>
+              <TableHead className="w-1/3">Target</TableHead>
+              <TableHead className="w-1/3">Expected</TableHead>
               <TableHead className="w-16">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -131,12 +129,8 @@ function AssertionRow({
   onUpdate,
   onActiveChange,
 }: Readonly<AssertionRowProps>): React.ReactNode {
-  const updateGeneratedFields = (updatedAssertion: Partial<Assertion>): void => {
-    onUpdate(index, withUpdatedAssertionName(assertion, updatedAssertion));
-  };
-
   const handleTypeChange = (type: AssertionType): void => {
-    updateGeneratedFields({
+    onUpdate(index, {
       type,
       operator: defaultOperatorByType[type],
       target: getDefaultTarget(type, assertion.target),
@@ -150,16 +144,6 @@ function AssertionRow({
         <ActiveCheckbox
           checked={assertion.isActive}
           onChange={(active) => onActiveChange(index, active)}
-        />
-      </TableCell>
-
-      <TableCell>
-        <input
-          className="w-full bg-transparent outline-hidden"
-          value={assertion.name}
-          onChange={(event) =>
-            onUpdate(index, { name: event.target.value, nameManuallyEdited: true })
-          }
         />
       </TableCell>
 
@@ -184,7 +168,7 @@ function AssertionRow({
       <TableCell>
         <Select
           value={assertion.operator}
-          onValueChange={(value) => updateGeneratedFields({ operator: value as AssertionOperator })}
+          onValueChange={(value) => onUpdate(index, { operator: value as AssertionOperator })}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -205,7 +189,7 @@ function AssertionRow({
           disabled={!usesTarget(assertion.type)}
           placeholder={getTargetPlaceholder(assertion.type)}
           value={assertion.target ?? ''}
-          onChange={(event) => updateGeneratedFields({ target: event.target.value })}
+          onChange={(event) => onUpdate(index, { target: event.target.value })}
         />
       </TableCell>
 
@@ -215,7 +199,7 @@ function AssertionRow({
           disabled={!usesExpected(assertion.operator)}
           placeholder={getExpectedPlaceholder(assertion)}
           value={assertion.expected ?? ''}
-          onChange={(event) => updateGeneratedFields({ expected: event.target.value })}
+          onChange={(event) => onUpdate(index, { expected: event.target.value })}
         />
       </TableCell>
 
