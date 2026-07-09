@@ -184,23 +184,25 @@ function AssertionRow({
       </TableCell>
 
       <TableCell>
-        <input
-          className="w-full bg-transparent outline-hidden disabled:opacity-40"
-          disabled={!usesTarget(assertion.type)}
-          placeholder={getTargetPlaceholder(assertion.type)}
-          value={assertion.target ?? ''}
-          onChange={(event) => onUpdate(index, { target: event.target.value })}
-        />
+        {usesTarget(assertion.type) && (
+          <input
+            className="w-full bg-transparent outline-hidden"
+            placeholder={getTargetPlaceholder(assertion.type)}
+            value={assertion.target ?? ''}
+            onChange={(event) => onUpdate(index, { target: event.target.value })}
+          />
+        )}
       </TableCell>
 
       <TableCell>
-        <input
-          className="w-full bg-transparent outline-hidden disabled:opacity-40"
-          disabled={!usesExpected(assertion.operator)}
-          placeholder={getExpectedPlaceholder(assertion)}
-          value={assertion.expected ?? ''}
-          onChange={(event) => onUpdate(index, { expected: event.target.value })}
-        />
+        {usesExpected(assertion.operator) && (
+          <input
+            className="w-full bg-transparent outline-hidden"
+            placeholder={getExpectedPlaceholder(assertion)}
+            value={assertion.expected ?? ''}
+            onChange={(event) => onUpdate(index, { expected: event.target.value })}
+          />
+        )}
       </TableCell>
 
       <TableCell className="text-right">
