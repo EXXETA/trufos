@@ -1,20 +1,22 @@
 import { useEffect, useRef, useState, FC, PropsWithChildren } from 'react';
 import { Loader2 } from 'lucide-react';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import {
-  createCollectionStore,
-  CollectionStoreProvider as StoreProvider,
-} from '@/state/collectionStore';
+import { createAppStore, CollectionStoreProvider as StoreProvider } from '@/state/collectionStore';
 import { saveModelContent } from '@/lib/monaco/models';
 import { editor } from 'monaco-editor';
 import { showError } from '@/error/errorHandler';
-import { useVariableStore } from '@/state/variableStore';
-import { useEnvironmentStore } from '@/state/environmentStore';
+import { EnvironmentMap } from 'shim/objects/environment';
+import { VariableMap } from 'shim/objects/variables';
+import { z } from 'zod';
 
 const rendererEventService = RendererEventService.instance;
+const CollectionVariablesUpdated = z.object({
+  variables: VariableMap,
+  environments: EnvironmentMap,
+});
 
 export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => {
-  const storeRef = useRef<ReturnType<typeof createCollectionStore> | null>(null);
+  const storeRef = useRef<ReturnType<typeof createAppStore> | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -23,17 +25,19 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
         const collection = await rendererEventService.loadCollection();
 
         // Create store with loaded collection
-        storeRef.current = createCollectionStore(collection);
+        storeRef.current = createAppStore(collection);
 
-        // Sync variables changed by scripts back to the frontend stores
-        // @ts-expect-error listener receives ipcEvent + payload but on() only types ...unknown[]
-        rendererEventService.on(
-          'collection-variables-updated',
-          (_ipcEvent, { variables, environments }) => {
-            useVariableStore.getState().initialize(variables);
-            useEnvironmentStore.getState().initialize(environments);
+        // Sync variables changed by scripts back to the root store.
+        rendererEventService.on('collection-variables-updated', (...args: unknown[]) => {
+          const update = CollectionVariablesUpdated.safeParse(args[1]);
+          if (!update.success) {
+            console.error('Received invalid collection variables update:', update.error);
+            return;
           }
-        );
+          storeRef.current
+            ?.getState()
+            .syncCollectionVariables(update.data.variables, update.data.environments);
+        });
 
         // Set up before-close handler: flush all active editor models to disk
         rendererEventService.on('before-close', async () => {

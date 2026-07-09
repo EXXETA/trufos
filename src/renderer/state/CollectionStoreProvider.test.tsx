@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act, waitFor } from '@testing-library/react';
 import { CollectionStoreProvider } from './CollectionStoreProvider';
-import { useVariableStore } from '@/state/variableStore';
-import { useEnvironmentStore } from '@/state/environmentStore';
+import { AppStoreState, useAppStore } from './collectionStore';
 
 const listeners: Record<string, (...args: unknown[]) => void> = {};
 
@@ -46,16 +45,22 @@ vi.mock('@/state/helper/collectionUtil', () => ({
   isRequestInAParentFolder: vi.fn(() => false),
 }));
 
+let appState: AppStoreState | undefined;
+
+const StoreProbe = () => {
+  appState = useAppStore((state) => state);
+  return null;
+};
+
 beforeEach(() => {
-  useVariableStore.getState().initialize({});
-  useEnvironmentStore.getState().initialize({});
+  appState = undefined;
 });
 
 describe('CollectionStoreProvider', () => {
-  it('updates variableStore and environmentStore when collection-variables-updated is received', async () => {
+  it('updates root store variables and environments when collection-variables-updated is received', async () => {
     render(
       <CollectionStoreProvider>
-        <div />
+        <StoreProbe />
       </CollectionStoreProvider>
     );
 
@@ -71,20 +76,20 @@ describe('CollectionStoreProvider', () => {
       );
     });
 
-    expect(useVariableStore.getState().variables).toEqual(testVariables);
-    expect(useEnvironmentStore.getState().environments).toEqual(testEnvironments);
+    expect(appState?.variables).toEqual(testVariables);
+    expect(appState?.environments).toEqual(testEnvironments);
   });
 
   it('does not update stores when event is not fired', async () => {
     render(
       <CollectionStoreProvider>
-        <div />
+        <StoreProbe />
       </CollectionStoreProvider>
     );
 
     await waitFor(() => expect(listeners['collection-variables-updated']).toBeDefined());
 
-    expect(useVariableStore.getState().variables).toEqual({});
-    expect(useEnvironmentStore.getState().environments).toEqual({});
+    expect(appState?.variables).toEqual({});
+    expect(appState?.environments).toEqual({});
   });
 });

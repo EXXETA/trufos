@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createCollectionStore } from './collectionStore';
+import { createAppStore, selectPersistableAppState } from './collectionStore';
 import { ClientCertificate, Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
@@ -18,16 +18,11 @@ vi.mock('@/services/event/renderer-event-service', () => ({
     instance: {
       rename: vi.fn(),
       setClientCertificate: vi.fn(),
+      setCollectionVariables: vi.fn(),
+      setEnvironmentVariables: vi.fn(),
+      selectEnvironment: vi.fn().mockResolvedValue(undefined),
     },
   },
-}));
-
-vi.mock('@/state/variableStore', () => ({
-  useVariableStore: { getState: () => ({ initialize: vi.fn() }) },
-}));
-
-vi.mock('@/state/environmentStore', () => ({
-  useEnvironmentStore: { getState: () => ({ initialize: vi.fn() }) },
 }));
 
 const makeRequest = (id: string, parentId: string): TrufosRequest =>
@@ -51,8 +46,8 @@ const makeCollection = (id: string, children: TrufosRequest[] = []): Collection 
     title: 'Test',
     dirPath: '/test',
     children,
-    variables: [],
-    environments: [],
+    variables: {},
+    environments: {},
   }) as unknown as Collection;
 
 const REQ_ID = 'req-1';
@@ -61,7 +56,7 @@ const COL_ID = 'col-1';
 const buildStore = () => {
   const request = makeRequest(REQ_ID, COL_ID);
   const collection = makeCollection(COL_ID, [request]);
-  const store = createCollectionStore(collection);
+  const store = createAppStore(collection);
   store.getState().setSelectedRequest(REQ_ID);
   return store;
 };
@@ -233,7 +228,7 @@ describe('setClientCertificate', () => {
   };
 
   it('sets the client certificate on the collection', () => {
-    const store = createCollectionStore(makeCollection(COL_ID));
+    const store = createAppStore(makeCollection(COL_ID));
 
     store.getState().setClientCertificate(CERT);
 
@@ -241,7 +236,7 @@ describe('setClientCertificate', () => {
   });
 
   it('clears the client certificate when called with null', () => {
-    const store = createCollectionStore(makeCollection(COL_ID));
+    const store = createAppStore(makeCollection(COL_ID));
     store.getState().setClientCertificate(CERT);
 
     store.getState().setClientCertificate(null);
@@ -250,12 +245,58 @@ describe('setClientCertificate', () => {
   });
 
   it('replaces an existing certificate with a new one', () => {
-    const store = createCollectionStore(makeCollection(COL_ID));
+    const store = createAppStore(makeCollection(COL_ID));
     store.getState().setClientCertificate(CERT);
 
     const newCert: ClientCertificate = { certPath: '/new/cert.pem', keyPath: '/new/key.pem' };
     store.getState().setClientCertificate(newCert);
 
     expect(store.getState().collection?.clientCertificate).toEqual(newCert);
+  });
+});
+
+describe('saveCollectionSettings', () => {
+  it('updates all collection settings through one root-store action', async () => {
+    const store = createAppStore(makeCollection(COL_ID));
+    const certificate: ClientCertificate = {
+      certPath: '/path/to/cert.pem',
+      keyPath: '/path/to/key.pem',
+    };
+    const variables = { apiKey: { value: 'test-123' } };
+    const environments = { dev: { variables: { host: { value: 'localhost' } } } };
+
+    await store.getState().saveCollectionSettings({
+      title: 'Renamed collection',
+      variables,
+      environments,
+      selectedEnvironment: 'dev',
+      clientCertificate: certificate,
+    });
+
+    const state = store.getState();
+    expect(state.variables).toEqual(variables);
+    expect(state.environments).toEqual(environments);
+    expect(state.selectedEnvironment).toBe('dev');
+    expect(state.collection?.clientCertificate).toEqual(certificate);
+    expect(state.collection?.title).toBe('Renamed collection');
+  });
+});
+
+describe('selectPersistableAppState', () => {
+  it('includes durable collection data and excludes transient root-store state', () => {
+    const store = createAppStore(makeCollection(COL_ID));
+    store.getState().initializeVariables({ apiKey: { value: 'test-123' } });
+    store.getState().initializeEnvironments({ dev: { variables: {} } });
+    store.getState().openCollectionRunner();
+
+    const persisted = selectPersistableAppState(store.getState());
+
+    expect(persisted.collection?.variables).toEqual({ apiKey: { value: 'test-123' } });
+    expect(persisted.collection?.environments).toEqual({ dev: { variables: {} } });
+    expect(persisted.selectedEnvironment).toBe('dev');
+    expect(persisted.appSettings).toEqual({ theme: 'system' });
+    expect(persisted).not.toHaveProperty('responseInfoMap');
+    expect(persisted).not.toHaveProperty('isCollectionRunnerOpen');
+    expect(persisted).not.toHaveProperty('requests');
   });
 });

@@ -1,13 +1,5 @@
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import { useActions } from '@/state/helper/util';
-
-interface ViewState {
-  /** Whether the collection runner modal is open */
-  isCollectionRunnerOpen: boolean;
-  /** Whether the collection settings modal is open */
-  isCollectionSettingsOpen: boolean;
-}
+import { type ViewState, useAppStore } from '@/state/collectionStore';
 
 interface ViewActions {
   openCollectionRunner(): void;
@@ -16,36 +8,19 @@ interface ViewActions {
   closeCollectionSettings(): void;
 }
 
-export const useViewStore = create<ViewState & ViewActions>()(
-  immer((set) => ({
-    isCollectionRunnerOpen: false,
-    isCollectionSettingsOpen: false,
+type ViewStoreState = ViewState & ViewActions;
 
-    openCollectionRunner() {
-      set((state) => {
-        state.isCollectionRunnerOpen = true;
-      });
-    },
-
-    closeCollectionRunner() {
-      set((state) => {
-        state.isCollectionRunnerOpen = false;
-      });
-    },
-
-    openCollectionSettings() {
-      set((state) => {
-        state.isCollectionSettingsOpen = true;
-      });
-    },
-
-    closeCollectionSettings() {
-      set((state) => {
-        state.isCollectionSettingsOpen = false;
-      });
-    },
-  }))
-);
+export const useViewStore = <T>(selector: (state: ViewStoreState) => T): T =>
+  useAppStore((state) =>
+    selector({
+      isCollectionRunnerOpen: state.isCollectionRunnerOpen,
+      isCollectionSettingsOpen: state.isCollectionSettingsOpen,
+      openCollectionRunner: state.openCollectionRunner,
+      closeCollectionRunner: state.closeCollectionRunner,
+      openCollectionSettings: state.openCollectionSettings,
+      closeCollectionSettings: state.closeCollectionSettings,
+    })
+  );
 
 export const selectIsCollectionRunnerOpen = (state: ViewState) => state.isCollectionRunnerOpen;
 export const selectIsCollectionSettingsOpen = (state: ViewState) => state.isCollectionSettingsOpen;

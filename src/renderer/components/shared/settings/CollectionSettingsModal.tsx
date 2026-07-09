@@ -15,15 +15,14 @@ import { CertificateEditor } from '@/components/shared/settings/TlsTab/Certifica
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
-import { selectVariables, useVariableActions, useVariableStore } from '@/state/variableStore';
+import { selectVariables, useVariableStore } from '@/state/variableStore';
 import {
   selectEnvironments,
   selectSelectedEnvironment,
-  useEnvironmentActions,
   useEnvironmentStore,
 } from '@/state/environmentStore';
 import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useAppStore, useCollectionStore } from '@/state/collectionStore';
 import { deepEqual } from '@/util/object-util';
 import { ClientCertificate } from 'shim/objects/collection';
 import { VariableObjectWithKey } from 'shim/objects/variables';
@@ -35,10 +34,8 @@ export interface CollectionSettingsModalProps {
 }
 
 /**
- * A single working copy of the editable collection state. The underlying data lives across three
- * stores (collection / variables / environments), but the modal edits one composed draft and commits
- * it back on save. Variables are kept in array form so in-progress/empty/duplicate keys are preserved
- * while editing; they are converted to a map only at commit time.
+ * A single working copy of editable collection state. Variables stay in array form so
+ * in-progress/empty/duplicate keys survive editing; they are converted to a map only on save.
  */
 type CollectionDraft = {
   title: string;
@@ -49,9 +46,7 @@ type CollectionDraft = {
 };
 
 export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsModalProps) => {
-  const { setVariables } = useVariableActions();
-  const { setEnvironments, selectEnvironment } = useEnvironmentActions();
-  const { setClientCertificate, renameCollection } = useCollectionActions();
+  const saveCollectionSettings = useAppStore((state) => state.saveCollectionSettings);
 
   const variables = useVariableStore(selectVariables);
   const environments = useEnvironmentStore(selectEnvironments);
@@ -94,17 +89,13 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
   }, [isOpen]);
 
   const save = async () => {
-    // overwrite the generic slices wholesale through their existing store setters.
-    await setVariables(variableArrayToMap(draft.variables));
-    await setEnvironments(draft.environments);
-    await selectEnvironment(draft.selectedEnvironment);
-    await setClientCertificate(draft.clientCertificate);
-
-    // rename must run last
-    const newTitle = draft.title.trim();
-    if (newTitle.length > 0 && newTitle !== collectionTitle) {
-      await renameCollection(newTitle);
-    }
+    await saveCollectionSettings({
+      title: draft.title,
+      variables: variableArrayToMap(draft.variables),
+      environments: draft.environments,
+      selectedEnvironment: draft.selectedEnvironment,
+      clientCertificate: draft.clientCertificate,
+    });
 
     onClose();
   };
