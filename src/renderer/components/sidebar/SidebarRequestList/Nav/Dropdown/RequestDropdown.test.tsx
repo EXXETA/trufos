@@ -9,6 +9,7 @@ const openMock = vi.fn();
 const toastSuccessMock = vi.fn();
 const showErrorMock = vi.fn();
 const writeTextMock = vi.fn();
+const setVariablesInStringMock = vi.fn();
 
 vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: (...args: unknown[]) => openMock(...args) },
@@ -20,6 +21,14 @@ vi.mock('@/components/ui/sonner', () => ({
 
 vi.mock('@/error/errorHandler', () => ({
   showError: (...args: unknown[]) => showErrorMock(...args),
+}));
+
+vi.mock('@/services/event/renderer-event-service', () => ({
+  RendererEventService: {
+    instance: {
+      setVariablesInString: (value: string) => setVariablesInStringMock(value),
+    },
+  },
 }));
 
 vi.mock('@/state/collectionStore', () => ({
@@ -59,6 +68,7 @@ async function clickCopyAsCurl(request: TrufosRequest) {
 beforeEach(() => {
   vi.clearAllMocks();
   writeTextMock.mockResolvedValue(undefined);
+  setVariablesInStringMock.mockImplementation((value: string) => Promise.resolve(value));
 });
 
 describe('RequestDropdown copy as cURL', () => {
@@ -86,6 +96,28 @@ describe('RequestDropdown copy as cURL', () => {
     expect(command).toContain('curl -X POST');
     expect(command).not.toContain('--data-raw');
     expect(toastSuccessMock).toHaveBeenCalled();
+  });
+
+  it('resolves template variables before copying the command', async () => {
+    setVariablesInStringMock.mockImplementation((value: string) =>
+      Promise.resolve(value.replaceAll('{{pokemon_name}}', 'pikachu'))
+    );
+
+    await clickCopyAsCurl(
+      makeRequest({
+        method: RequestMethod.GET,
+        url: {
+          base: 'https://pokeapi.co/api/v2/pokemon/{{pokemon_name}}',
+          query: [{ key: 'limit', value: '10', isActive: true }],
+        },
+        body: { type: RequestBodyType.FILE },
+      })
+    );
+
+    await waitFor(() => expect(writeTextMock).toHaveBeenCalledTimes(1));
+    expect(writeTextMock.mock.calls[0][0]).toContain(
+      "curl -X GET 'https://pokeapi.co/api/v2/pokemon/pikachu?limit=10'"
+    );
   });
 
   it('shows an error when writing to the clipboard fails', async () => {

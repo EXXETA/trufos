@@ -10,10 +10,13 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { cn } from '@/lib/utils';
 import { MoreIcon } from '@/components/icons';
-import { buildCurlCommand } from '@/util/curl-util';
+import { buildCurlCommand, resolveCurlCommandVariables } from '@/util/curl-util';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { toast } from '@/components/ui/sonner';
 import { showError } from '@/error/errorHandler';
+import { RendererEventService } from '@/services/event/renderer-event-service';
+
+const eventService = RendererEventService.instance;
 
 export interface RequestDropdownProps {
   request: TrufosRequest;
@@ -36,7 +39,12 @@ export const RequestDropdown = ({ request, onRename }: RequestDropdownProps) => 
             .catch(() => undefined);
         }
       }
-      await navigator.clipboard.writeText(buildCurlCommand(request, textBody));
+      const resolved = await resolveCurlCommandVariables(
+        request,
+        textBody,
+        eventService.setVariablesInString
+      );
+      await navigator.clipboard.writeText(buildCurlCommand(resolved.request, resolved.textBody));
       toast.success('cURL command copied to clipboard');
     } catch (error) {
       showError('Failed to copy cURL command', error);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCurlCommand } from './curl-util';
+import { buildCurlCommand, resolveCurlCommandVariables } from './curl-util';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { AuthorizationType } from 'shim/objects/auth';
@@ -179,6 +179,39 @@ describe('buildCurlCommand', () => {
     });
 
     expect(buildCurlCommand(request)).toContain('token={{authToken}}');
+  });
+
+  it('resolves template variables before building a command', async () => {
+    const request = makeRequest({
+      method: RequestMethod.POST,
+      url: {
+        base: 'https://pokeapi.co/api/v2/pokemon/{{pokemon_name}}',
+        query: [{ key: 'limit', value: '{{limit}}', isActive: true }],
+      },
+      headers: [{ key: 'X-Pokemon', value: '{{pokemon_name}}', isActive: true }],
+      auth: { type: AuthorizationType.BEARER, token: '{{token}}' },
+      body: { type: RequestBodyType.TEXT, mimeType: 'application/json' },
+    });
+    const variables = new Map([
+      ['pokemon_name', 'pikachu'],
+      ['limit', '10'],
+      ['token', 'secret-token'],
+    ]);
+
+    const resolved = await resolveCurlCommandVariables(
+      request,
+      '{"name":"{{pokemon_name}}"}',
+      (value) =>
+        Promise.resolve(
+          value.replace(/\{\{([^}]+)}}/g, (_match, key: string) => variables.get(key) ?? '')
+        )
+    );
+
+    const command = buildCurlCommand(resolved.request, resolved.textBody);
+    expect(command).toContain("'https://pokeapi.co/api/v2/pokemon/pikachu?limit=10'");
+    expect(command).toContain("-H 'X-Pokemon: pikachu'");
+    expect(command).toContain("-H 'Authorization: Bearer secret-token'");
+    expect(command).toContain(`--data-raw '{"name":"pikachu"}'`);
   });
 
   it('adds a resolved Authorization header for bearer auth', () => {
