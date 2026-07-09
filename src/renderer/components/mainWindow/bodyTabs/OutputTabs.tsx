@@ -110,11 +110,11 @@ export function OutputTabs({ className }: OutputTabsProps) {
               {(assertionResults ?? []).map((result) => (
                 <TableRow key={result.assertionId}>
                   <TableCell>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
                       {result.passed ? (
-                        <CheckCircle2 className="text-accent-primary h-4 w-4" />
+                        <CheckCircle2 className="text-state-success h-4 w-4 shrink-0" />
                       ) : (
-                        <XCircle className="text-destructive h-4 w-4" />
+                        <XCircle className="text-danger h-4 w-4 shrink-0" />
                       )}
                       {result.passed ? 'Pass' : 'Fail'}
                     </div>

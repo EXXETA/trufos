@@ -77,7 +77,7 @@ function evaluateResponseTimeAssertion(
   return buildResult(
     assertion,
     duration < expected,
-    `Expected below ${expected}ms, got ${duration}ms`
+    `Expected below ${expected}ms, got ${Math.round(duration)}ms`
   );
 }
 

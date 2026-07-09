@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { AddIcon, DeleteIcon } from '@/components/icons';
 import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
+import { Divider } from '@/components/shared/Divider';
 import {
   Select,
   SelectContent,
@@ -70,12 +71,17 @@ export const AssertionsTab = (): React.ReactNode => {
   return (
     <div className="relative h-full p-4">
       <div className="absolute top-4 right-4 left-4 z-10">
-        <Button className="h-fit gap-1" size="sm" variant="ghost" onClick={addAssertion}>
+        <Button
+          className="h-fit gap-1 hover:bg-transparent"
+          size="sm"
+          variant="ghost"
+          onClick={addAssertion}
+        >
           <AddIcon />
           Add Assertion
         </Button>
 
-        <div className="bg-divider mt-2 h-px" />
+        <Divider className="mt-2" />
       </div>
 
       <div className="absolute top-[68px] right-4 bottom-4 left-4 overflow-auto">

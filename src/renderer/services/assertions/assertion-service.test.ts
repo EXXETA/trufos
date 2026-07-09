@@ -8,7 +8,7 @@ const open = vi.fn(() => ({ readAll }));
 
 vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: {
-    open: (...args: unknown[]) => open(...args),
+    open: () => open(),
   },
 }));
 
