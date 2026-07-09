@@ -21,6 +21,15 @@ interface MockCollectionState {
   sortMode: SortMode;
 }
 
+interface MockAppState extends MockCollectionState {
+  isCollectionRunnerOpen: boolean;
+  isCollectionSettingsOpen: boolean;
+  openCollectionRunner(): void;
+  closeCollectionRunner(): void;
+  openCollectionSettings(): void;
+  closeCollectionSettings(): void;
+}
+
 vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: <T,>(selector: (state: MockCollectionState) => T) =>
     selector({
@@ -32,6 +41,17 @@ vi.mock('@/state/collectionStore', () => ({
     addNewRequest: vi.fn(),
     addNewFolder: vi.fn(),
   }),
+  useAppStore: <T,>(selector: (state: MockAppState) => T) =>
+    selector({
+      collection: { id: 'col-1', title: 'Test Collection', type: 'collection', children: [] },
+      sortMode: currentSortMode,
+      isCollectionRunnerOpen: false,
+      isCollectionSettingsOpen: false,
+      openCollectionRunner: vi.fn(),
+      closeCollectionRunner: vi.fn(),
+      openCollectionSettings: vi.fn(),
+      closeCollectionSettings: vi.fn(),
+    }),
 }));
 
 vi.mock('@/components/sidebar/CollectionDropdown', () => ({

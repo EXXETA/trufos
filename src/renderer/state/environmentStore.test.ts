@@ -1,8 +1,13 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { useEnvironmentStore } from './environmentStore';
+import { createAppStore } from './collectionStore';
+import { Collection } from 'shim/objects/collection';
 
 const selectEnvironmentMock = vi.fn().mockResolvedValue(undefined);
 const setEnvironmentVariablesMock = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('@/lib/ipc-stream', () => ({
+  IpcPushStream: { open: vi.fn() },
+}));
 
 vi.mock('@/services/event/renderer-event-service', () => ({
   RendererEventService: {
@@ -14,64 +19,73 @@ vi.mock('@/services/event/renderer-event-service', () => ({
 }));
 
 describe('environmentStore', () => {
+  let store: ReturnType<typeof createAppStore>;
+
   beforeEach(() => {
     selectEnvironmentMock.mockClear();
     setEnvironmentVariablesMock.mockClear();
-    useEnvironmentStore.setState({ environments: {}, selectedEnvironment: undefined });
+    store = createAppStore({
+      id: 'col-1',
+      parentId: null,
+      type: 'collection',
+      title: 'Test',
+      dirPath: '/test',
+      children: [],
+      variables: {},
+      environments: {},
+      lastModified: 0,
+      isDefault: false,
+    } as Collection);
   });
 
   describe('initialize', () => {
     it('auto-selects the first environment and propagates it to the main process', () => {
-      useEnvironmentStore
-        .getState()
-        .initialize({ dev: { variables: {} }, prod: { variables: {} } });
+      store.getState().initializeEnvironments({ dev: { variables: {} }, prod: { variables: {} } });
 
-      expect(useEnvironmentStore.getState().selectedEnvironment).toBe('dev');
+      expect(store.getState().selectedEnvironment).toBe('dev');
       expect(selectEnvironmentMock).toHaveBeenCalledWith('dev');
     });
 
     it('keeps an existing selection and does not send redundant IPC calls', () => {
-      useEnvironmentStore.setState({ selectedEnvironment: 'prod' });
+      store.setState({ selectedEnvironment: 'prod' });
 
-      useEnvironmentStore
-        .getState()
-        .initialize({ dev: { variables: {} }, prod: { variables: {} } });
+      store.getState().initializeEnvironments({ dev: { variables: {} }, prod: { variables: {} } });
 
-      expect(useEnvironmentStore.getState().selectedEnvironment).toBe('prod');
+      expect(store.getState().selectedEnvironment).toBe('prod');
       expect(selectEnvironmentMock).not.toHaveBeenCalled();
     });
 
     it('resets an existing selection that is missing in the new environments', () => {
-      useEnvironmentStore.setState({ selectedEnvironment: 'prod' });
+      store.setState({ selectedEnvironment: 'prod' });
 
-      useEnvironmentStore.getState().initialize({ dev: { variables: {} } });
+      store.getState().initializeEnvironments({ dev: { variables: {} } });
 
-      expect(useEnvironmentStore.getState().selectedEnvironment).toBe('dev');
+      expect(store.getState().selectedEnvironment).toBe('dev');
       expect(selectEnvironmentMock).toHaveBeenCalledWith('dev');
     });
 
     it('does not select anything when there are no environments', () => {
-      useEnvironmentStore.getState().initialize({});
+      store.getState().initializeEnvironments({});
 
-      expect(useEnvironmentStore.getState().selectedEnvironment).toBeUndefined();
+      expect(store.getState().selectedEnvironment).toBeUndefined();
       expect(selectEnvironmentMock).not.toHaveBeenCalled();
     });
   });
 
   describe('selectEnvironment', () => {
     it('updates the state and notifies the main process', async () => {
-      await useEnvironmentStore.getState().selectEnvironment('prod');
+      await store.getState().selectEnvironment('prod');
 
-      expect(useEnvironmentStore.getState().selectedEnvironment).toBe('prod');
+      expect(store.getState().selectedEnvironment).toBe('prod');
       expect(selectEnvironmentMock).toHaveBeenCalledWith('prod');
     });
 
     it('clears the selection when called without a key', async () => {
-      useEnvironmentStore.setState({ selectedEnvironment: 'dev' });
+      store.setState({ selectedEnvironment: 'dev' });
 
-      await useEnvironmentStore.getState().selectEnvironment(undefined);
+      await store.getState().selectEnvironment(undefined);
 
-      expect(useEnvironmentStore.getState().selectedEnvironment).toBeUndefined();
+      expect(store.getState().selectedEnvironment).toBeUndefined();
       expect(selectEnvironmentMock).toHaveBeenCalledWith(undefined);
     });
   });

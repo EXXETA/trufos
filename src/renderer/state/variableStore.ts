@@ -1,36 +1,17 @@
 import { VariableStateActions } from '@/state/interface/VariableStateAction';
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-import { VariableMap } from 'shim/objects/variables';
-import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/helper/util';
+import { type VariableState, useAppStore } from '@/state/collectionStore';
 
-const eventService = RendererEventService.instance;
+type VariableStoreState = VariableState & VariableStateActions;
 
-interface VariableState {
-  /** The variables of the current collection */
-  variables: VariableMap;
-}
-
-export const useVariableStore = create<VariableState & VariableStateActions>()(
-  immer((set, get) => ({
-    variables: {},
-
-    initialize(variables: VariableMap) {
-      set((state) => {
-        state.variables = variables;
-      });
-    },
-
-    setVariables: async (variables) => {
-      console.debug('Saving collection variables');
-      await eventService.setCollectionVariables(variables);
-      set((state) => {
-        state.variables = variables;
-      });
-    },
-  }))
-);
+export const useVariableStore = <T>(selector: (state: VariableStoreState) => T): T =>
+  useAppStore((state) =>
+    selector({
+      variables: state.variables,
+      initialize: state.initializeVariables,
+      setVariables: state.setVariables,
+    })
+  );
 
 export const selectVariables = (state: VariableState) => state.variables;
-export const useVariableActions = () => useVariableStore(useActions());
+export const useVariableActions = (): VariableStateActions => useVariableStore(useActions());
