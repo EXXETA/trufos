@@ -27,6 +27,8 @@ export interface ImportResult {
   warnings: ImportWarning[];
 }
 
+export type ExportStrategy = 'Zip';
+
 export interface IEventService {
   /**
    * (Re)load the last opened collection.
@@ -171,6 +173,11 @@ export interface IEventService {
   showOpenDialog(options: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue>;
 
   /**
+   * Open a save dialog and return the selected file path.
+   */
+  showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>;
+
+  /**
    * Import a collection from a source file into a target directory using the given strategy.
    * The target directory must exist. A new directory will be created inside it using the
    * collection name (or the name the user provides) similar to createCollection semantics.
@@ -185,6 +192,15 @@ export interface IEventService {
     strategy: ImportStrategy,
     title?: string
   ): Promise<ImportResult>;
+
+  /**
+   * Export the collection at the given directory to the given target file.
+   * Secrets, drafts, request history, and `.gitignore`d files are excluded from the archive.
+   * @param dirPath The directory path of the collection to export.
+   * @param targetPath The file path to write the export to.
+   * @param strategy The export strategy / target format (e.g. Zip).
+   */
+  exportCollection(dirPath: string, targetPath: string, strategy: ExportStrategy): Promise<void>;
 
   /**
    * Rename the given collection, folder, or request to the new title.

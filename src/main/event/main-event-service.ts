@@ -11,12 +11,14 @@ import type {
   ScriptType,
   IEventService,
   ImportStrategy,
+  ExportStrategy,
   AppSettings,
 } from 'shim';
 import type { ClientCertificate } from 'shim/objects/collection';
 import { SettingsService } from '../persistence/service/settings-service';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { ImportService } from 'main/import/service/import-service';
+import { ExportService } from 'main/export/service/export-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { getSuggestedFilename } from 'main/network/response-filename';
@@ -28,6 +30,7 @@ import './stream-events';
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
 const importService = ImportService.instance;
+const exportService = ExportService.instance;
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -210,6 +213,10 @@ export class MainEventService implements IEventService {
     return await dialog.showOpenDialog(options);
   }
 
+  async showSaveDialog(options: Electron.SaveDialogOptions) {
+    return await dialog.showSaveDialog(options);
+  }
+
   async importCollection(
     srcFilePath: string,
     targetDirPath: string,
@@ -217,6 +224,10 @@ export class MainEventService implements IEventService {
     title?: string
   ) {
     return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
+  }
+
+  async exportCollection(dirPath: string, targetPath: string, strategy: ExportStrategy) {
+    await exportService.exportCollection(dirPath, targetPath, strategy);
   }
 
   async moveItem(

@@ -66,8 +66,10 @@ export class RendererEventService implements IEventService {
   createCollection = createEventMethod('createCollection');
   closeCollection = createEventMethod('closeCollection');
   showOpenDialog = createEventMethod('showOpenDialog');
+  showSaveDialog = createEventMethod('showSaveDialog');
   listCollections = createEventMethod('listCollections');
   importCollection = createEventMethod('importCollection');
+  exportCollection = createEventMethod('exportCollection');
   rename = createEventMethod('rename');
   moveItem = createEventMethod('moveItem');
   // @ts-expect-error - typing does not work for genric methods
