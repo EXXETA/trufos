@@ -24,7 +24,7 @@ export const RequestDropdown = ({ request, onRename }: RequestDropdownProps) => 
   const { copyRequest, deleteRequest } = useCollectionActions();
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
 
-  const copyAsCurl = async () => {
+  const copyAsCurl = async (): Promise<void> => {
     try {
       let textBody: string | undefined;
       if (request.body?.type === RequestBodyType.TEXT) {

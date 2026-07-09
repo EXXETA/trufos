@@ -16,7 +16,10 @@ function shellQuote(value: string): string {
  * to restore after encoding, since `encodeURIComponent` escapes them too.
  */
 function encodeUrlComponent(value: string): string {
-  return encodeURIComponent(value).replaceAll('%7B', '{').replaceAll('%7D', '}');
+  return encodeURIComponent(value)
+    .replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)
+    .replaceAll('%7B', '{')
+    .replaceAll('%7D', '}');
 }
 
 /**
@@ -46,8 +49,9 @@ function buildCurlUrl({ base, query }: TrufosURL): string {
 function buildAuthHeader(auth: TrufosRequest['auth']): string | undefined {
   switch (auth?.type) {
     case AuthorizationType.BEARER:
-      return `Bearer ${auth.token}`;
+      return auth.token ? `Bearer ${auth.token}` : undefined;
     case AuthorizationType.BASIC:
+      if (auth.username == null || auth.password == null) return undefined;
       return `Basic ${btoa(`${auth.username}:${auth.password}`)}`;
     default:
       return undefined;

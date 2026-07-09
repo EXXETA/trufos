@@ -151,7 +151,9 @@ describe('buildCurlCommand', () => {
     });
 
     const command = buildCurlCommand(request);
-    expect(command).toContain('some-query=with-value%20');
+    expect(command).toContain(
+      "'https://echo.free.beeceptor.com?some-query=with-value%20%27%21%21%27'"
+    );
     expect(command).not.toContain("with-value '!!'");
   });
 
@@ -172,6 +174,14 @@ describe('buildCurlCommand', () => {
     });
 
     expect(buildCurlCommand(request)).toContain("-H 'Authorization: Bearer {{token}}'");
+  });
+
+  it('skips empty bearer auth tokens', () => {
+    const request = makeRequest({
+      auth: { type: AuthorizationType.BEARER, token: '' },
+    });
+
+    expect(buildCurlCommand(request)).not.toContain('Authorization');
   });
 
   it('adds a resolved Authorization header for basic auth', () => {
