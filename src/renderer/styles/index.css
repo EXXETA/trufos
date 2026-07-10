@@ -94,7 +94,7 @@
     --separator: #263e4c;
 
     /* Sidebar (slightly lifted from background-tertiary) */
-    --sidebar-background: #f8f9fb;
+    --sidebar-background: #f2f3f5;
     --sidebar-foreground: hsl(222 34% 25%);
     --sidebar-primary: hsl(222 47% 16%);
     --sidebar-primary-foreground: hsl(0 0% 98%);
@@ -187,7 +187,7 @@
 
     --scrollbar-thumb-hover: rgba(0, 0, 0, 0.5);
 
-    --sidebar-background: hsl(240 5.9% 10%);
+    --sidebar-background: #1f1f1f;
     --sidebar-foreground: hsl(240 4.8% 95.9%);
     --sidebar-primary: hsl(224.3 76.3% 48%);
     --sidebar-primary-foreground: hsl(0 0% 100%);
