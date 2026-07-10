@@ -6,7 +6,6 @@ import {
   setRequestTextBody,
   setScriptContent,
 } from '@/state/helper/collectionUtil';
-import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { createModelsForRequest, disposeModelsForRequest } from '@/lib/monaco/models';
 import { isCollection, isRequest, TrufosObject, AuthorizationInformation } from 'shim/objects';
