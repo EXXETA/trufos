@@ -6,6 +6,7 @@ type HotkeyConfig = {
   enabled?: boolean;
   skipFormElements?: boolean;
   preventDefault?: boolean;
+  stopPropagation?: boolean;
 };
 
 type UseHotkeysOptions = {
@@ -13,6 +14,7 @@ type UseHotkeysOptions = {
   capture?: boolean;
   skipFormElements?: boolean;
   preventDefault?: boolean;
+  stopPropagation?: boolean;
 };
 
 const isFormElement = (target: EventTarget | null) => {
@@ -54,6 +56,7 @@ export const useHotkeys = (
     capture = true,
     skipFormElements = true,
     preventDefault = true,
+    stopPropagation = true,
   }: UseHotkeysOptions = {}
 ) => {
   const hotkeysRef = useRef(hotkeys);
@@ -83,9 +86,14 @@ export const useHotkeys = (
       if (!matchedHotkey) return;
 
       const shouldPreventDefault = matchedHotkey.preventDefault ?? preventDefault;
+      const shouldStopPropagation = matchedHotkey.stopPropagation ?? stopPropagation;
 
       if (shouldPreventDefault) {
         event.preventDefault();
+      }
+
+      if (shouldStopPropagation) {
+        event.stopImmediatePropagation();
       }
 
       matchedHotkey.handler(event);
