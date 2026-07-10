@@ -57,7 +57,7 @@ export function RequestWindow() {
   }
 
   return (
-    <div className="grid h-full grid-rows-[auto_1fr] p-6">
+    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)] p-6">
       <MainTopBar />
       <MainBody />
     </div>

@@ -50,7 +50,7 @@ export const App = () => {
     <CollectionStoreProvider>
       <ThemeProvider>
         <TooltipProvider delayDuration={750}>
-          <SidebarProvider className="grid">
+          <SidebarProvider className="grid h-svh overflow-hidden">
             {/* The runner replaces the whole layout as an alternative full-width view;
                 its own request checklist makes the sidebar redundant. */}
             {isCollectionRunnerOpen ? (
