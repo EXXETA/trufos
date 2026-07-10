@@ -3,10 +3,24 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect } from 'vitest';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
+import { Assertion } from 'shim/objects/assertion';
 import { InputTabs } from './InputTabs';
 
 let mockHeaders: TrufosHeader[] = [];
-let mockQueryParams: TrufosQueryParam[] = [];
+const mockQueryParams: TrufosQueryParam[] = [];
+const mockAssertions: Assertion[] = [];
+
+interface MockRequest {
+  id: string;
+  headers: TrufosHeader[];
+  url: { query: TrufosQueryParam[] };
+  assertions: Assertion[];
+}
+
+interface MockCollectionState {
+  selectedRequestId: string;
+  requests: Map<string, MockRequest>;
+}
 
 // Mock child components to avoid their store dependencies
 vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab', () => ({
@@ -32,15 +46,29 @@ vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab', () => ({
   ScriptTab: () => <div>ScriptTab Content</div>,
 }));
 
+vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/AssertionsTab', () => ({
+  AssertionsTab: () => <div>AssertionsTab Content</div>,
+}));
+
 vi.mock('@/state/collectionStore', () => ({
-  useCollectionStore: (selector: any) =>
+  useCollectionStore: <T,>(selector: (state: MockCollectionState) => T): T =>
     selector({
       selectedRequestId: 'req-1',
       requests: new Map([
-        ['req-1', { id: 'req-1', headers: mockHeaders, url: { query: mockQueryParams } }],
+        [
+          'req-1',
+          {
+            id: 'req-1',
+            headers: mockHeaders,
+            url: { query: mockQueryParams },
+            assertions: mockAssertions,
+          },
+        ],
       ]),
     }),
-  selectRequest: (state: any) => state.requests.get(state.selectedRequestId),
+  selectRequest: (state: MockCollectionState) => state.requests.get(state.selectedRequestId),
+  selectAssertions: (state: MockCollectionState) =>
+    state.requests.get(state.selectedRequestId)!.assertions,
 }));
 
 describe('InputTabs', () => {
@@ -56,6 +84,7 @@ describe('InputTabs', () => {
     expect(getByText('Parameters')).toBeTruthy();
     expect(getByText('Headers')).toBeTruthy();
     expect(getByText('Auth')).toBeTruthy();
+    expect(getByText('Assertions')).toBeTruthy();
   });
 
   it('should show Body tab content by default', () => {

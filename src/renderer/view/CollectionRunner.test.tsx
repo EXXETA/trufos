@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { CollectionRunner } from './CollectionRunner';
+import { AssertionOperator, AssertionType } from 'shim/objects/assertion';
 import { RequestMethod } from 'shim/objects/request-method';
 import type { Folder } from 'shim/objects/folder';
 import { RequestBodyType, type TrufosRequest } from 'shim/objects/request';
@@ -11,6 +12,7 @@ const sendRequestMock =
   vi.fn<(request: TrufosRequest, abortKey?: string) => Promise<TrufosResponse>>();
 const abortRequestMock = vi.fn().mockResolvedValue(undefined);
 const addResponseMock = vi.fn();
+const setAssertionResultsMock = vi.fn();
 const showErrorMock = vi.fn();
 
 vi.mock('@/services/http/http-service', () => ({
@@ -24,7 +26,10 @@ vi.mock('@/services/http/http-service', () => ({
 }));
 
 vi.mock('@/state/responseStore', () => ({
-  useResponseActions: () => ({ addResponse: addResponseMock }),
+  useResponseActions: () => ({
+    addResponse: addResponseMock,
+    setAssertionResults: setAssertionResultsMock,
+  }),
 }));
 
 vi.mock('@/lib/monaco/models', () => ({
@@ -46,6 +51,34 @@ vi.mock('@/components/ui/resizable', () => ({
   ResizablePanelGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ResizablePanel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ResizableHandle: () => null,
+}));
+
+vi.mock('@/services/assertions/assertion-service', () => ({
+  evaluateAssertions: (
+    assertions:
+      | Array<{
+          id: string;
+          isActive: boolean;
+          expected?: string;
+        }>
+      | undefined,
+    response: TrufosResponse
+  ) =>
+    Promise.resolve(
+      (assertions ?? [])
+        .filter((assertion) => assertion.isActive)
+        .map((assertion) => {
+          const passed = String(response.metaInfo.status) === assertion.expected;
+          return {
+            assertionId: assertion.id,
+            name: `Status code equals ${assertion.expected}`,
+            passed,
+            message: passed
+              ? 'Passed'
+              : `Expected ${assertion.expected}, got ${response.metaInfo.status}`,
+          };
+        })
+    ),
 }));
 
 vi.mock('@/error/errorHandler', () => ({
@@ -151,6 +184,7 @@ beforeEach(() => {
   sendRequestMock.mockReset();
   abortRequestMock.mockClear();
   addResponseMock.mockClear();
+  setAssertionResultsMock.mockClear();
   showErrorMock.mockClear();
   selectEnvironmentMock.mockClear();
   mockEnvironmentState = {
@@ -315,6 +349,35 @@ describe('CollectionRunner execution', () => {
     ]);
   });
 
+  it('stores assertion results in the response store', async () => {
+    const user = userEvent.setup();
+    const request = makeRequest('req-1', 'Login', RequestMethod.POST);
+    request.assertions = [
+      {
+        id: 'assertion-1',
+        isActive: true,
+        type: AssertionType.STATUS_CODE,
+        operator: AssertionOperator.EQUALS,
+        expected: '200',
+      },
+    ];
+    setupCollection([request]);
+    sendRequestMock.mockResolvedValue(makeResponse(200));
+    renderRunner();
+
+    await user.click(screen.getByRole('button', { name: /run 1 request$/i }));
+
+    await waitFor(() => expect(setAssertionResultsMock).toHaveBeenCalledTimes(1));
+    expect(setAssertionResultsMock).toHaveBeenCalledWith('req-1', [
+      {
+        assertionId: 'assertion-1',
+        name: 'Status code equals 200',
+        passed: true,
+        message: 'Passed',
+      },
+    ]);
+  });
+
   it('marks non-successful status codes as failed and shows the summary', async () => {
     const user = userEvent.setup();
     sendRequestMock
@@ -384,6 +447,52 @@ describe('CollectionRunner execution', () => {
 
     await waitFor(() => expect(sendRequestMock).toHaveBeenCalledTimes(4));
     await waitFor(() => expect(screen.getAllByText('Failed')).toHaveLength(4));
+  });
+
+  it('marks a successful response as failed when an assertion fails', async () => {
+    const user = userEvent.setup();
+    const request = makeRequest('req-1', 'Login', RequestMethod.POST);
+    request.assertions = [
+      {
+        id: 'assertion-1',
+        isActive: true,
+        type: AssertionType.STATUS_CODE,
+        operator: AssertionOperator.EQUALS,
+        expected: '201',
+      },
+    ];
+    setupCollection([request]);
+    sendRequestMock.mockResolvedValue(makeResponse(200));
+    renderRunner();
+
+    await user.click(screen.getByRole('button', { name: /run 1 request$/i }));
+
+    await waitFor(() => expect(screen.getAllByText('Failed')).toHaveLength(1));
+    expect(screen.queryAllByText('Passed')).toHaveLength(0);
+  });
+
+  it('ignores assertions when include assertions is disabled', async () => {
+    const user = userEvent.setup();
+    const request = makeRequest('req-1', 'Login', RequestMethod.POST);
+    request.assertions = [
+      {
+        id: 'assertion-1',
+        isActive: true,
+        type: AssertionType.STATUS_CODE,
+        operator: AssertionOperator.EQUALS,
+        expected: '201',
+      },
+    ];
+    setupCollection([request]);
+    sendRequestMock.mockResolvedValue(makeResponse(200));
+    renderRunner();
+
+    await user.click(screen.getByText('Include assertions'));
+    await user.click(screen.getByRole('button', { name: /run 1 request$/i }));
+
+    await waitFor(() => expect(screen.getAllByText('Passed')).toHaveLength(1));
+    expect(screen.queryAllByText('Failed')).toHaveLength(0);
+    expect(setAssertionResultsMock).toHaveBeenCalledWith('req-1', []);
   });
 
   it('shows the running state and disables controls during a run', async () => {
@@ -490,6 +599,35 @@ describe('CollectionRunner result details', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Headers' }));
     expect(screen.getByText(/content-type/)).toBeDefined();
+  });
+
+  it('shows assertion details when a row is expanded', async () => {
+    const user = userEvent.setup();
+    const request = makeRequest('req-1', 'Login', RequestMethod.POST);
+    request.assertions = [
+      {
+        id: 'assertion-1',
+        isActive: true,
+        type: AssertionType.STATUS_CODE,
+        operator: AssertionOperator.EQUALS,
+        expected: '201',
+      },
+    ];
+    setupCollection([request]);
+    sendRequestMock.mockResolvedValue(makeResponse(200));
+    renderRunner();
+
+    await user.click(screen.getByRole('button', { name: /run 1 request$/i }));
+    await waitFor(() => expect(screen.getAllByText('Failed')).toHaveLength(1));
+
+    const row = screen
+      .getAllByRole('button')
+      .find((button) => button.textContent?.includes('Login'))!;
+    await user.click(row);
+    await user.click(screen.getByRole('tab', { name: 'Assertions' }));
+
+    expect(screen.getByText('Status code equals 201')).toBeDefined();
+    expect(screen.getByText('Expected 201, got 200')).toBeDefined();
   });
 
   it('shows the total duration in the summary after a run', async () => {

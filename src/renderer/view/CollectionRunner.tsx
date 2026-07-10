@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useResponseData } from '@/components/mainWindow/bodyTabs/OutputTabs/PrettyRenderer';
 import { FolderIcon, SmallArrow } from '@/components/icons';
+import { evaluateAssertions } from '@/services/assertions/assertion-service';
 import { HttpService } from '@/services/http/http-service';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
@@ -29,6 +30,7 @@ import {
 } from '@/state/environmentStore';
 import { useResponseActions } from '@/state/responseStore';
 import { showError } from '@/error/errorHandler';
+import type { AssertionResult } from 'shim/objects/assertion';
 import type { Folder } from 'shim/objects/folder';
 import type { TrufosRequest } from 'shim/objects/request';
 import type { TrufosResponse } from 'shim/objects/response';
@@ -64,7 +66,7 @@ type RunnerItem =
 
 type RunnerResult =
   | { state: 'running' }
-  | { state: 'passed' | 'failed'; response: TrufosResponse }
+  | { state: 'passed' | 'failed'; response: TrufosResponse; assertionResults: AssertionResult[] }
   | { state: 'error'; error: string; duration: number };
 
 function isFailure(result?: RunnerResult) {
@@ -142,7 +144,13 @@ function ResponseBodyPreview({ response }: { response: TrufosResponse }) {
   return <pre className="text-xs break-words whitespace-pre-wrap">{body}</pre>;
 }
 
-function ResponseDetail({ response }: { response: TrufosResponse }) {
+function ResponseDetail({
+  assertionResults,
+  response,
+}: {
+  assertionResults: AssertionResult[];
+  response: TrufosResponse;
+}) {
   // Overrides the shadcn defaults to match the compact tab style from the runner design.
   const tabTriggerClassName = cn(
     'h-auto rounded-md px-3 py-1 text-xs font-semibold',
@@ -172,6 +180,9 @@ function ResponseDetail({ response }: { response: TrufosResponse }) {
           <TabsTrigger className={tabTriggerClassName} value="headers">
             Headers
           </TabsTrigger>
+          <TabsTrigger className={tabTriggerClassName} value="assertions">
+            Assertions
+          </TabsTrigger>
         </TabsList>
         <TabsContent className={tabContentClassName} value="body">
           <ResponseBodyPreview response={response} />
@@ -180,6 +191,31 @@ function ResponseDetail({ response }: { response: TrufosResponse }) {
           <pre className="text-xs break-words whitespace-pre-wrap">
             {formatHeaders(response.headers)}
           </pre>
+        </TabsContent>
+        <TabsContent className={tabContentClassName} value="assertions">
+          {assertionResults.length === 0 ? (
+            <p className="text-text-secondary text-xs">No assertions configured.</p>
+          ) : (
+            <div className="space-y-2">
+              {assertionResults.map((result) => (
+                <div
+                  key={result.assertionId}
+                  className="grid grid-cols-[70px_minmax(140px,1fr)_2fr] gap-3 text-xs"
+                >
+                  <span
+                    className={cn(
+                      'font-bold',
+                      result.passed ? 'text-state-success' : 'text-danger'
+                    )}
+                  >
+                    {result.passed ? 'Pass' : 'Fail'}
+                  </span>
+                  <span className="text-text-primary truncate">{result.name}</span>
+                  <span className="text-text-secondary break-words">{result.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
@@ -225,7 +261,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   const collection = useCollectionStore((state) => state.collection);
   const requests = useCollectionStore((state) => state.requests);
   const folders = useCollectionStore((state) => state.folders);
-  const { addResponse } = useResponseActions();
+  const { addResponse, setAssertionResults } = useResponseActions();
   const environments = useEnvironmentStore(selectEnvironments);
   const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
   const { selectEnvironment } = useEnvironmentActions();
@@ -234,6 +270,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     () => new Set(requests.keys())
   );
   const [stopOnFirstFailure, setStopOnFirstFailure] = useState(false);
+  const [includeAssertions, setIncludeAssertions] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<Record<string, RunnerResult>>({});
   const [runOrder, setRunOrder] = useState<string[]>([]);
@@ -426,8 +463,19 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
             return;
           }
           addResponse(request.id, response);
-          const state = isSuccessfulStatus(response.metaInfo.status) ? 'passed' : 'failed';
-          setResults((current) => ({ ...current, [request.id]: { state, response } }));
+          const assertionResults = includeAssertions
+            ? await evaluateAssertions(request.assertions, response)
+            : [];
+          setAssertionResults(request.id, assertionResults);
+          const hasAssertionFailure = assertionResults.some((result) => !result.passed);
+          const state =
+            isSuccessfulStatus(response.metaInfo.status) && !hasAssertionFailure
+              ? 'passed'
+              : 'failed';
+          setResults((current) => ({
+            ...current,
+            [request.id]: { state, response, assertionResults },
+          }));
 
           if (stopOnFirstFailure && state === 'failed') break;
         } catch (error) {
@@ -634,6 +682,15 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
               Stop on first failure
             </label>
 
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <Checkbox
+                checked={includeAssertions}
+                disabled={isRunning}
+                onCheckedChange={(value) => setIncludeAssertions(value === true)}
+              />
+              Include assertions
+            </label>
+
             {isRunning ? (
               <Button className="text-danger w-full gap-2" onClick={stopRun} variant="secondary">
                 <Square className="h-3.5 w-3.5" />
@@ -763,7 +820,10 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
                       ) : result.state === 'running' ? (
                         <p className="text-text-secondary text-sm">Request is running.</p>
                       ) : (
-                        <ResponseDetail response={result.response} />
+                        <ResponseDetail
+                          assertionResults={result.assertionResults}
+                          response={result.response}
+                        />
                       )}
                     </CollapsibleContent>
                   </Collapsible>

@@ -2,6 +2,7 @@ export * from './request';
 export * from './folder';
 export * from './collection';
 export * from './auth';
+export * from './assertion';
 export * from './url';
 export * from './variables';
 export * from './environment';

@@ -2,6 +2,7 @@ import { AuthorizationInformation } from './auth';
 import { RequestMethod } from './request-method';
 import { TrufosURL } from './url';
 import { TrufosHeader } from './headers';
+import { Assertion } from './assertion';
 import z from 'zod';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
@@ -62,5 +63,6 @@ export const TrufosRequest = z.object({
   body: RequestBody,
   draft: z.boolean().optional(),
   auth: AuthorizationInformation.optional(),
+  assertions: z.array(Assertion).optional(),
 });
 export type TrufosRequest = z.infer<typeof TrufosRequest>;
