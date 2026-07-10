@@ -47,9 +47,12 @@ export class ExportService {
     }
 
     const encrypted = options?.password != null && options.password.length > 0;
+    const suffix = [encrypted && 'encrypted', options?.includeSecrets && 'with secrets']
+      .filter(Boolean)
+      .join(', ');
     logger.info(
       `Exporting collection from "${dirPath}" to "${targetPath}" using "${strategy}"` +
-        (encrypted ? ' (encrypted)' : '')
+        (suffix ? ` (${suffix})` : '')
     );
     await exporter.exportCollection(dirPath, targetPath, options);
     logger.info(`Successfully exported collection to "${targetPath}"`);

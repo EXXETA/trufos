@@ -32,6 +32,11 @@ export type ExportStrategy = 'Zip';
 export interface ExportOptions {
   /** When set, the archive is encrypted with AES-256 using this password. */
   password?: string;
+  /**
+   * When true, each object's secrets (secret variables and auth) are decrypted from their
+   * `.secrets.bin` file and written into the archive as plaintext JSON. Independent of `password`.
+   */
+  includeSecrets?: boolean;
 }
 
 export interface IEventService {

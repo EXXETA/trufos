@@ -2,8 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
-import { unzipSync } from 'fflate';
 import { TextWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
+import type { ExportOptions } from 'shim/event-service';
 import { ZipExporter } from './zip-exporter';
 
 /**
@@ -21,21 +21,37 @@ async function createCollection(files: Record<string, string>): Promise<string> 
   return collectionDir;
 }
 
-/**
- * Exports the given collection directory to a temporary zip and returns its unzipped entry names.
- */
-async function exportAndUnzip(collectionDir: string): Promise<Record<string, Uint8Array>> {
+/** Exports the given collection to a temporary zip and returns the raw archive bytes. */
+async function exportToZip(collectionDir: string, options?: ExportOptions): Promise<Uint8Array> {
   const targetPath = path.join(await fs.mkdtemp(path.join(tmpdir(), 'export-out-')), 'export.zip');
-  await new ZipExporter().exportCollection(collectionDir, targetPath);
-  const buffer = await fs.readFile(targetPath);
-  return unzipSync(new Uint8Array(buffer));
+  await new ZipExporter().exportCollection(collectionDir, targetPath, options);
+  return new Uint8Array(await fs.readFile(targetPath));
 }
 
-/** Exports the given collection with a password and returns the raw encrypted archive bytes. */
-async function exportEncrypted(collectionDir: string, password: string): Promise<Uint8Array> {
-  const targetPath = path.join(await fs.mkdtemp(path.join(tmpdir(), 'export-out-')), 'export.zip');
-  await new ZipExporter().exportCollection(collectionDir, targetPath, { password });
-  return new Uint8Array(await fs.readFile(targetPath));
+/** Reads every file entry of an (optionally password-protected) archive as text via zip.js. */
+async function readEntries(buffer: Uint8Array, password?: string): Promise<Record<string, string>> {
+  const reader = new ZipReader(new Uint8ArrayReader(buffer));
+  try {
+    const result: Record<string, string> = {};
+    for (const entry of await reader.getEntries()) {
+      if (entry.directory) continue;
+      result[entry.filename] = await entry.getData(
+        new TextWriter(),
+        password == null ? undefined : { password }
+      );
+    }
+    return result;
+  } finally {
+    await reader.close();
+  }
+}
+
+/** Exports without a password and returns the archive entries as a filename -> text map. */
+async function exportAndUnzip(
+  collectionDir: string,
+  options?: ExportOptions
+): Promise<Record<string, string>> {
+  return readEntries(await exportToZip(collectionDir, options));
 }
 
 describe('ZipExporter', () => {
@@ -58,9 +74,7 @@ describe('ZipExporter', () => {
     expect(names).toContain('order.json');
     expect(names).toContain('requests/req-a/request.json');
     expect(names).toContain('.gitignore');
-    expect(new TextDecoder().decode(entries['requests/req-a/request-body.txt'])).toBe(
-      'hello world'
-    );
+    expect(entries['requests/req-a/request-body.txt']).toBe('hello world');
 
     expect(names).not.toContain('.secrets.bin');
     expect(names.some((name) => name.startsWith('.draft/'))).toBe(false);
@@ -92,7 +106,7 @@ describe('ZipExporter', () => {
       'requests/req-a/request-body.txt': 'hello world',
     });
 
-    const buffer = await exportEncrypted(collectionDir, 'hunter2');
+    const buffer = await exportToZip(collectionDir, { password: 'hunter2' });
 
     const reader = new ZipReader(new Uint8ArrayReader(buffer));
     try {
@@ -109,12 +123,58 @@ describe('ZipExporter', () => {
     }
   });
 
+  it('includes secrets as decrypted plaintext JSON when includeSecrets is set', async () => {
+    // The mocked safeStorage is a UTF-8 identity, so the on-disk .secrets.bin content equals its
+    // decrypted plaintext.
+    const secrets = JSON.stringify({ variables: { API_KEY: { value: 'sk-123', secret: true } } });
+    const collectionDir = await createCollection({
+      'collection.json': '{"id":"c1","title":"Test"}',
+      '.secrets.bin': secrets,
+      '.draft/request.json': '{"draft":true}',
+      '.gitignore': '.draft\n.secrets.bin',
+    });
+
+    const entries = await exportAndUnzip(collectionDir, { includeSecrets: true });
+    const names = Object.keys(entries);
+
+    // Only the secrets file is un-ignored; other .gitignore rules still apply.
+    expect(names).toContain('.secrets.bin');
+    expect(names.some((name) => name.startsWith('.draft/'))).toBe(false);
+    expect(entries['.secrets.bin']).toBe(secrets);
+  });
+
+  it('excludes secrets by default (includeSecrets not set)', async () => {
+    const collectionDir = await createCollection({
+      'collection.json': '{"id":"c1","title":"Test"}',
+      '.secrets.bin': '{"variables":{}}',
+      '.gitignore': '.draft\n.secrets.bin',
+    });
+
+    const entries = await exportAndUnzip(collectionDir);
+    expect(Object.keys(entries)).not.toContain('.secrets.bin');
+  });
+
+  it('combines includeSecrets with an AES-256 password independently', async () => {
+    const secrets = JSON.stringify({ variables: { TOKEN: { value: 'top-secret', secret: true } } });
+    const collectionDir = await createCollection({
+      'collection.json': '{"id":"c1","title":"Test"}',
+      '.secrets.bin': secrets,
+      '.gitignore': '.secrets.bin',
+    });
+
+    const buffer = await exportToZip(collectionDir, { includeSecrets: true, password: 'pw' });
+
+    // The archive is encrypted (needs the password) yet carries the decrypted secrets plaintext.
+    const entries = await readEntries(buffer, 'pw');
+    expect(entries['.secrets.bin']).toBe(secrets);
+  });
+
   it('cannot decrypt the archive with a wrong password', async () => {
     const collectionDir = await createCollection({
       'collection.json': '{"id":"c1","title":"Test"}',
     });
 
-    const buffer = await exportEncrypted(collectionDir, 'correct-password');
+    const buffer = await exportToZip(collectionDir, { password: 'correct-password' });
 
     const reader = new ZipReader(new Uint8ArrayReader(buffer));
     try {

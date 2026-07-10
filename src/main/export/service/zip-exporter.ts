@@ -2,9 +2,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { Readable, Writable } from 'node:stream';
-import { configure, ZipWriter } from '@zip.js/zip.js';
+import { configure, TextReader, ZipWriter } from '@zip.js/zip.js';
 import type { ExportOptions } from 'shim/event-service';
 import { GIT_IGNORE_FILE_NAME } from 'main/persistence/service/info-files/latest';
+import { SECRETS_FILE_NAME } from 'main/persistence/constants';
+import { SecretService } from 'main/persistence/service/secret-service';
 import { Gitignore } from '../gitignore';
 import type { CollectionExporter } from './export-service';
 
@@ -23,27 +25,37 @@ const GIT_DIR_NAME = '.git';
  * `.gitignore` decides which paths are excluded (secrets and drafts are ignored there), and the
  * `.git` directory is always omitted. The archive is streamed to disk so it is never fully buffered
  * in memory. When a password is provided, the archive is encrypted with AES-256.
+ *
+ * Secrets (`.secrets.bin` files) are excluded by default. When `includeSecrets` is set, each is
+ * decrypted from its machine-bound `safeStorage` form and written into the archive as plaintext
+ * JSON so it is portable to other machines. This is independent of the password option.
  */
 export class ZipExporter implements CollectionExporter {
   public async exportCollection(
     dirPath: string,
     targetPath: string,
-    options?: ExportOptions
+    { includeSecrets = false, password }: ExportOptions = {}
   ): Promise<void> {
     const gitignore = await this.loadGitignore(dirPath);
-    const files = await this.collectFiles(dirPath, gitignore);
+    const files = await this.collectFiles(dirPath, gitignore, includeSecrets);
 
-    const password = options?.password;
     const zipWriter = new ZipWriter(Writable.toWeb(createWriteStream(targetPath)), {
       ...(password ? { password, encryptionStrength: AES_256 } : {}),
     });
 
     // Stream every file into the archive sequentially to bound memory usage.
     for (const relativePath of files) {
-      const readable = Readable.toWeb(
-        createReadStream(path.join(dirPath, relativePath))
-      ) as ReadableStream<Uint8Array>;
-      await zipWriter.add(relativePath, readable);
+      const absolutePath = path.join(dirPath, relativePath);
+      if (includeSecrets && path.basename(relativePath) === SECRETS_FILE_NAME) {
+        // Decrypt the machine-bound secrets and store them as portable plaintext JSON.
+        const plaintext = SecretService.instance.decrypt(await fs.readFile(absolutePath));
+        await zipWriter.add(relativePath, new TextReader(plaintext));
+      } else {
+        const readable = Readable.toWeb(
+          createReadStream(absolutePath)
+        ) as ReadableStream<Uint8Array>;
+        await zipWriter.add(relativePath, readable);
+      }
     }
     await zipWriter.close();
   }
@@ -59,9 +71,14 @@ export class ZipExporter implements CollectionExporter {
 
   /**
    * Recursively collects the POSIX-style relative paths of all files under `dirPath`, pruning the
-   * `.git` directory and anything ignored by the collection's `.gitignore`.
+   * `.git` directory and anything ignored by the collection's `.gitignore`. When `includeSecrets`
+   * is set, `.secrets.bin` files are kept even though they are `.gitignore`d.
    */
-  private async collectFiles(dirPath: string, gitignore: Gitignore): Promise<string[]> {
+  private async collectFiles(
+    dirPath: string,
+    gitignore: Gitignore,
+    includeSecrets: boolean
+  ): Promise<string[]> {
     const files: string[] = [];
 
     const walk = async (currentDir: string, relativeDir: string) => {
@@ -69,7 +86,8 @@ export class ZipExporter implements CollectionExporter {
       for (const entry of entries) {
         if (entry.name === GIT_DIR_NAME) continue;
         const relativePath = relativeDir === '' ? entry.name : `${relativeDir}/${entry.name}`;
-        if (gitignore.ignores(relativePath)) continue;
+        const keep = includeSecrets && entry.name === SECRETS_FILE_NAME;
+        if (gitignore.ignores(relativePath) && !keep) continue;
         if (entry.isDirectory()) {
           await walk(path.join(currentDir, entry.name), relativePath);
         } else if (entry.isFile()) {

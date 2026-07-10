@@ -197,7 +197,7 @@ describe('MainEventService', () => {
 
       const webContentsSend = vi.fn();
       const eventService = new MainEventService();
-      eventService.webContents = { send: webContentsSend } as never;
+      eventService.window = { webContents: { send: webContentsSend } } as never;
 
       await eventService.sendRequest(makeRequest());
 
@@ -240,7 +240,7 @@ describe('MainEventService', () => {
 
       const webContentsSend = vi.fn();
       const eventService = new MainEventService();
-      eventService.webContents = { send: webContentsSend } as never;
+      eventService.window = { webContents: { send: webContentsSend } } as never;
 
       const { ScriptingService } = await import('../scripting/scripting-service.js');
       ScriptingService.instance.emit('variables-changed');
