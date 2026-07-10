@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/appStore';
 import { FileBody, RequestBodyType } from 'shim/objects/request';
 import FilePicker from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';

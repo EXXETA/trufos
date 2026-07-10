@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createAppStore, selectPersistableAppState } from './collectionStore';
+import { createAppStore, selectPersistableAppState } from './appStore';
 import { ClientCertificate, Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';

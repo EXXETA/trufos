@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
 import { selectResponse, useResponseStore } from '@/state/responseStore';
-import { selectRequest, useCollectionStore } from '@/state/collectionStore';
+import { selectRequest, useCollectionStore } from '@/state/appStore';
 import { BodyTab } from './OutputTabs/BodyTab';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 

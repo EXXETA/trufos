@@ -15,7 +15,7 @@ import {
   selectQueryParams,
   useCollectionActions,
   useCollectionStore,
-} from '@/state/collectionStore';
+} from '@/state/appStore';
 
 export const ParamsTab = () => {
   const {

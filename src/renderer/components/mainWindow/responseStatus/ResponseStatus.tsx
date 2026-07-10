@@ -5,7 +5,7 @@ import {
   getSizeText,
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
 import { selectResponse, useResponseStore } from '@/state/responseStore';
-import { useCollectionStore } from '@/state/collectionStore';
+import { useCollectionStore } from '@/state/appStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function ResponseStatus() {

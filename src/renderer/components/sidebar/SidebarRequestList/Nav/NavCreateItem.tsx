@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useCollectionActions } from '@/state/collectionStore';
+import { useCollectionActions } from '@/state/appStore';
 import { cn } from '@/lib/utils';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
 import { InlineRename } from '@/components/shared/InlineRename';

@@ -10,7 +10,7 @@ import {
   useSensor,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/appStore';
 import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
 import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';

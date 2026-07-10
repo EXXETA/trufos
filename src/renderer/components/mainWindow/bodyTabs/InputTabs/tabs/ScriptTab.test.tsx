@@ -6,7 +6,7 @@ import { ScriptType } from 'shim/scripting';
 const setCurrentScriptTypeMock = vi.fn();
 let mockScriptType = ScriptType.PRE_REQUEST;
 
-vi.mock('@/state/collectionStore', () => ({
+vi.mock('@/state/appStore', () => ({
   useCollectionActions: () => ({
     setCurrentScriptType: setCurrentScriptTypeMock,
     setDraftFlag: vi.fn(),

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Divider } from '@/components/shared/Divider';
 import { isFormattableLanguage, mimeTypeToLanguage } from '@/lib/monaco/language';
 import { useResponseStore, selectResponse } from '@/state/responseStore';
-import { useCollectionStore, selectRequest } from '@/state/collectionStore';
+import { useCollectionStore, selectRequest } from '@/state/appStore';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { getMimeType, RESPONSE_BODY_SIZE_LIMIT } from './PrettyRenderer';
 import { ImagePrettyRenderer } from './ImagePrettyRenderer';

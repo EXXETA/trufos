@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { createAppStore } from './collectionStore';
+import { createAppStore } from './appStore';
 import { Collection } from 'shim/objects/collection';
 
 const selectEnvironmentMock = vi.fn().mockResolvedValue(undefined);

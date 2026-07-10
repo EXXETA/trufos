@@ -9,7 +9,7 @@ import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { getResponseModel } from '@/lib/monaco/models';
 import { mimeTypeToLanguage } from '@/lib/monaco/language';
-import { useCollectionStore } from '@/state/collectionStore';
+import { useCollectionStore } from '@/state/appStore';
 import { editor } from 'monaco-editor';
 
 export const DefaultRenderer: ResponseRenderer = ({ response, maxBytes }) => {

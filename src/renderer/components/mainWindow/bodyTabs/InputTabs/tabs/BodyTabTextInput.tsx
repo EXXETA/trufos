@@ -1,7 +1,7 @@
 import { REQUEST_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { Language } from '@/lib/monaco/language';
 import { cn } from '@/lib/utils';
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/appStore';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { useEffect } from 'react';
 import { getBodyModel } from '@/lib/monaco/models';

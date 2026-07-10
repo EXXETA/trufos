@@ -22,7 +22,7 @@ import {
   useEnvironmentStore,
 } from '@/state/environmentStore';
 import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
-import { useAppStore, useCollectionStore } from '@/state/collectionStore';
+import { useAppStore, useCollectionStore } from '@/state/appStore';
 import { deepEqual } from '@/util/object-util';
 import { ClientCertificate } from 'shim/objects/collection';
 import { VariableObjectWithKey } from 'shim/objects/variables';

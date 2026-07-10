@@ -1,7 +1,7 @@
 import { Folder } from 'shim/objects/folder';
 import { SidebarGroup, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { FolderDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/FolderDropdown';
-import { selectFolder, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { selectFolder, useCollectionActions, useCollectionStore } from '@/state/appStore';
 import { cn } from '@/lib/utils';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';

@@ -1,5 +1,5 @@
 import { useActions } from '@/state/helper/util';
-import { type ViewState, useAppStore } from '@/state/collectionStore';
+import { type ViewState, useAppStore } from '@/state/appStore';
 
 interface ViewActions {
   openCollectionRunner(): void;

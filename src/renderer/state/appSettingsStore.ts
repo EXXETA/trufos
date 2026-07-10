@@ -1,6 +1,6 @@
 import { AppSettings } from 'shim/app-settings';
 import { useActions } from '@/state/helper/util';
-import { useAppStore } from '@/state/collectionStore';
+import { useAppStore } from '@/state/appStore';
 
 interface AppSettingsActions {
   initialize(settings: AppSettings | undefined): void;

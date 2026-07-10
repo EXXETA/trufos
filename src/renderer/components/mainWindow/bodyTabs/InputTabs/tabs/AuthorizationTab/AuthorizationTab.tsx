@@ -1,4 +1,4 @@
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/appStore';
 import {
   AuthorizationInformation,
   AuthorizationType,

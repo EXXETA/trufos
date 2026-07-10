@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AddIcon } from '@/components/icons';
-import { useCollectionActions } from '@/state/collectionStore';
+import { useCollectionActions } from '@/state/appStore';
 
 export const SidebarSearch = () => {
   const { addNewRequest } = useCollectionActions();

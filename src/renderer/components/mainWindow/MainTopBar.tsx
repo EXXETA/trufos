@@ -6,7 +6,7 @@ import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
 import { UrlInput } from './mainTopBar/UrlInput';
 import { SendButton } from './mainTopBar/SendButton';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/appStore';
 import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2, SaveIcon, EraserIcon } from 'lucide-react';
 import { showError } from '@/error/errorHandler';

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, FC, PropsWithChildren } from 'react';
 import { Loader2 } from 'lucide-react';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { createAppStore, CollectionStoreProvider as StoreProvider } from '@/state/collectionStore';
+import { createAppStore, CollectionStoreProvider as StoreProvider } from '@/state/appStore';
 import { saveModelContent } from '@/lib/monaco/models';
 import { editor } from 'monaco-editor';
 import { showError } from '@/error/errorHandler';

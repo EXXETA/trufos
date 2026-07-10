@@ -30,7 +30,7 @@ vi.mock('./ImagePrettyRenderer', () => ({
 
 const REQUEST_ID = 'test-request-id';
 
-vi.mock('@/state/collectionStore', () => ({
+vi.mock('@/state/appStore', () => ({
   useCollectionStore: (selector: (state: unknown) => unknown) =>
     selector({ selectedRequestId: REQUEST_ID }),
   selectRequest: () => ({ id: REQUEST_ID }),

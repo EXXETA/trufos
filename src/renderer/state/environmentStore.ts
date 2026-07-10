@@ -1,6 +1,6 @@
 import { EnvironmentMap } from 'shim/objects/environment';
 import { useActions } from '@/state/helper/util';
-import { type EnvironmentState, useAppStore } from '@/state/collectionStore';
+import { type EnvironmentState, useAppStore } from '@/state/appStore';
 
 interface EnvironmentActions {
   initialize(environments: EnvironmentMap): void;

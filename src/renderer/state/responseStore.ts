@@ -1,7 +1,7 @@
 import { useActions } from '@/state/helper/util';
 import { editor } from 'monaco-editor';
 import { TrufosResponse } from 'shim/objects/response';
-import { type ResponseState, useAppStore } from '@/state/collectionStore';
+import { type ResponseState, useAppStore } from '@/state/appStore';
 
 interface ResponseActions {
   addResponse: (requestId: string, response: TrufosResponse) => void;

@@ -3,7 +3,7 @@ import { AddIcon, DeleteIcon, SwapIcon } from '@/components/icons';
 import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
 import { Divider } from '@/components/shared/Divider';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/appStore';
 import { useCallback, useMemo } from 'react';
 import { HeaderRow } from './HeaderRow';
 

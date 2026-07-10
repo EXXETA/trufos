@@ -10,7 +10,7 @@ import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/componen
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { useAppStore } from '@/state/collectionStore';
+import { useAppStore } from '@/state/appStore';
 import {
   selectIsCollectionRunnerOpen,
   selectIsCollectionSettingsOpen,

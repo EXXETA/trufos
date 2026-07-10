@@ -1,6 +1,6 @@
 import { VariableStateActions } from '@/state/interface/VariableStateAction';
 import { useActions } from '@/state/helper/util';
-import { type VariableState, useAppStore } from '@/state/collectionStore';
+import { type VariableState, useAppStore } from '@/state/appStore';
 
 type VariableStoreState = VariableState & VariableStateActions;
 

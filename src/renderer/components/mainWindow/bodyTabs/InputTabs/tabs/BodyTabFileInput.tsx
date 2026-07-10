@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/appStore';
 import { useCallback, useMemo } from 'react';
 import FilePicker from '@/components/ui/file-picker';
 import { FileBody, RequestBodyType } from 'shim/objects/request';

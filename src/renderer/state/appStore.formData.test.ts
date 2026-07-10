@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createAppStore } from './collectionStore';
+import { createAppStore } from './appStore';
 import { Collection } from 'shim/objects/collection';
 import { FormDataBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
