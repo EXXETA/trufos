@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { useCollectionActions, useCollectionStore } from '@/state/appStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useViewActions } from '@/state/viewStore';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { CollectionBase } from 'shim/objects/collection';

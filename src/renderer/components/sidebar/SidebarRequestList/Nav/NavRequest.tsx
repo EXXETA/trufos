@@ -1,7 +1,7 @@
 import { TrufosRequest } from 'shim/objects/request';
 import { SidebarMenuItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { RequestView } from '@/components/sidebar/SidebarRequestList/Nav/RequestView';
-import { useCollectionStore } from '@/state/appStore';
+import { useCollectionStore } from '@/state/collectionStore';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 

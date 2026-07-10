@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { handleMouseEvent } from '@/util/callback-util';
-import { useCollectionActions, useCollectionStore } from '@/state/appStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { TrufosRequest } from 'shim/objects/request';
 import { cn } from '@/lib/utils';
 import { MoreIcon } from '@/components/icons';

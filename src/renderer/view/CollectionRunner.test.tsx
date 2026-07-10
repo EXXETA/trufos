@@ -76,7 +76,7 @@ interface MockState {
 
 let mockState: MockState;
 
-vi.mock('@/state/appStore', () => ({
+vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: <T,>(selector: (state: MockState) => T) => selector(mockState),
 }));
 

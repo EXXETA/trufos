@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { useCollectionActions } from '@/state/appStore';
+import { useCollectionActions } from '@/state/collectionStore';
 import { Plus } from 'lucide-react';
 import {
   Dialog,

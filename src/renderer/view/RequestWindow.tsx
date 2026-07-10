@@ -1,6 +1,6 @@
 import { MainTopBar } from '@/components/mainWindow/MainTopBar';
 import { MainBody } from '@/components/mainWindow/MainBody';
-import { useCollectionActions, useCollectionStore } from '@/state/appStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { EmptyWildWest } from '@/assets/EmptyWildWest';
 import { MouseEvent, useCallback, useEffect, useRef } from 'react';
 import { registerGetRequest } from '@/lib/monaco/models';

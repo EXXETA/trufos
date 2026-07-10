@@ -32,7 +32,7 @@ vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab', () => ({
   ScriptTab: () => <div>ScriptTab Content</div>,
 }));
 
-vi.mock('@/state/appStore', () => ({
+vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: (selector: any) =>
     selector({
       selectedRequestId: 'req-1',

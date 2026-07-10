@@ -30,7 +30,7 @@ interface MockAppState extends MockCollectionState {
   closeCollectionSettings(): void;
 }
 
-vi.mock('@/state/appStore', () => ({
+vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: <T,>(selector: (state: MockCollectionState) => T) =>
     selector({
       collection: { id: 'col-1', title: 'Test Collection', type: 'collection', children: [] },
@@ -41,6 +41,9 @@ vi.mock('@/state/appStore', () => ({
     addNewRequest: vi.fn(),
     addNewFolder: vi.fn(),
   }),
+}));
+
+vi.mock('@/state/appStore', () => ({
   useAppStore: <T,>(selector: (state: MockAppState) => T) =>
     selector({
       collection: { id: 'col-1', title: 'Test Collection', type: 'collection', children: [] },

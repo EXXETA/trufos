@@ -1,6 +1,6 @@
 import React from 'react';
 import { CiMenuKebab } from 'react-icons/ci';
-import { useCollectionActions } from '@/state/appStore';
+import { useCollectionActions } from '@/state/collectionStore';
 import { handleMouseEvent } from '@/util/callback-util';
 import {
   DropdownMenu,

@@ -7,7 +7,7 @@ import {
 import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { handleMouseEvent } from '@/util/callback-util';
 import { Folder } from 'shim/objects/folder';
-import { useCollectionActions } from '@/state/appStore';
+import { useCollectionActions } from '@/state/collectionStore';
 
 import { MoreIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';

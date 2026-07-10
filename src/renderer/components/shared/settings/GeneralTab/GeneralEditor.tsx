@@ -1,6 +1,6 @@
 import { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import { CollectionBase } from 'shim/objects/collection';
-import { useCollectionActions, useCollectionStore } from '@/state/appStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';

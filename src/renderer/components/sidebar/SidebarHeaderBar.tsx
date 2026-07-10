@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/components/icons';
 import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown } from 'lucide-react';
 
-import { useCollectionActions, useCollectionStore } from '@/state/appStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useViewActions } from '@/state/viewStore';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';

@@ -9,7 +9,7 @@ const updateHeaderMock = vi.fn();
 
 let mockHeaders: TrufosHeader[] = [];
 
-vi.mock('@/state/appStore', () => ({
+vi.mock('@/state/collectionStore', () => ({
   useCollectionActions: () => ({
     addHeader: addHeaderMock,
     deleteHeader: deleteHeaderMock,

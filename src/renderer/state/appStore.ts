@@ -828,13 +828,6 @@ export const useAppStore = <T>(selector: (state: AppStoreState) => T): T => {
   return useStore(store, selector);
 };
 
-// Feature-specific hook retained for collection consumers. It reads from the single app store.
-export const useCollectionStore = <T>(
-  selector: (state: CollectionState & CollectionStateActions) => T
-): T => useAppStore((state) => selector(state));
-
-export const useCollectionActions = (): CollectionStateActions => useCollectionStore(useActions());
-
 // Export context for the provider to access the raw store
 export { AppStoreContext };
 

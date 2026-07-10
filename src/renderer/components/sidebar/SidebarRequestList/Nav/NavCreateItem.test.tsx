@@ -6,7 +6,7 @@ import { NavCreateItem } from './NavCreateItem';
 const addNewFolderMock = vi.fn();
 const addNewRequestMock = vi.fn();
 
-vi.mock('@/state/appStore', () => ({
+vi.mock('@/state/collectionStore', () => ({
   useCollectionActions: () => ({
     addNewFolder: addNewFolderMock,
     addNewRequest: addNewRequestMock,

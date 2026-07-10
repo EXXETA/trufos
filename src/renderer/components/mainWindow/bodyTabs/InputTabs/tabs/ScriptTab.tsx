@@ -2,7 +2,7 @@ import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { SCRIPT_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { ScriptType } from 'shim/scripting';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
-import { useCollectionActions, useCollectionStore } from '@/state/appStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { Divider } from '@/components/shared/Divider';
 import { getScriptModel } from '@/lib/monaco/models';
 import { useEffect } from 'react';

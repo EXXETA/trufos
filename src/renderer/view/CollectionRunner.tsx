@@ -20,7 +20,7 @@ import { httpMethodColor } from '@/services/StyleHelper';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
 import { saveModelContent } from '@/lib/monaco/models';
 import { cn } from '@/lib/utils';
-import { useCollectionStore } from '@/state/appStore';
+import { useCollectionStore } from '@/state/collectionStore';
 import {
   selectEnvironments,
   selectSelectedEnvironment,

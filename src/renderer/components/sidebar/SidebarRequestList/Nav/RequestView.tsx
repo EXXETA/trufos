@@ -1,6 +1,6 @@
 import { httpMethodColor } from '@/services/StyleHelper';
 import { TrufosRequest } from 'shim/objects/request';
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/appStore';
+import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { handleMouseEvent } from '@/util/callback-util';
 import { cn } from '@/lib/utils';
 import { RequestDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/RequestDropdown';
