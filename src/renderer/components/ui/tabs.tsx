@@ -35,7 +35,7 @@ const TabsTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       'cursor-pointer',
-      'inline-flex h-[36px] items-center justify-center rounded-[24px] whitespace-nowrap',
+      'inline-flex h-9 items-center justify-center rounded-3xl whitespace-nowrap',
       'px-5 py-1.5',
       'ring-offset-background text-text-secondary text-sm font-medium transition-all focus-visible:outline-hidden',
       'focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2',
@@ -57,7 +57,7 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      `tabs-scrollbar bg-card ring-offset-background focus-visible:ring-ring mt-2 flex-1 overflow-y-auto rounded-[24px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden`,
+      `tabs-scrollbar bg-background-secondary ring-offset-background focus-visible:ring-ring mt-2 flex-1 overflow-y-auto rounded-3xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden`,
       className
     )}
     {...props}
