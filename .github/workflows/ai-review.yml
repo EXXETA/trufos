@@ -2,7 +2,7 @@ name: AI Code Review
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, synchronize]
+    types: [opened, reopened, synchronize]
   issue_comment:
     types: [created]
 
@@ -15,9 +15,9 @@ jobs:
   ai-review:
     name: AI Code Review
     runs-on: ubuntu-latest
-    # Skip drafts and dependabot PRs
+    # Skip dependabot PRs (drafts are reviewed like any other PR)
     if: |
-      (github.event_name == 'pull_request' && github.event.pull_request.draft == false && github.actor != 'dependabot[bot]') ||
+      (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '/review'))
     steps:
       - name: Run PR-Agent
@@ -57,8 +57,10 @@ jobs:
 
           # Automatically review every new / updated PR
           github_action_config.auto_review: "true"
-          # Extend default PR actions to include synchronize (new commits)
-          github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "synchronize"]'
+          # Extend default PR actions to include synchronize (new commits);
+          # ready_for_review is intentionally absent — drafts are already
+          # reviewed on open and on every push.
+          github_action_config.pr_actions: '["opened", "reopened", "synchronize"]'
           # Automatically generate a PR description when none is provided
           github_action_config.auto_describe: "true"
           # Walk the diff and post concrete code suggestions (does not auto-approve/merge)
