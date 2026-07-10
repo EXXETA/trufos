@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act, waitFor } from '@testing-library/react';
-import { CollectionStoreProvider } from './CollectionStoreProvider';
+import { AppStoreProvider } from './AppStoreProvider';
 import { AppStoreState, useAppStore } from './appStore';
 
 const listeners: Record<string, (...args: unknown[]) => void> = {};
@@ -56,12 +56,12 @@ beforeEach(() => {
   appState = undefined;
 });
 
-describe('CollectionStoreProvider', () => {
+describe('AppStoreProvider', () => {
   it('updates root store variables and environments when collection-variables-updated is received', async () => {
     render(
-      <CollectionStoreProvider>
+      <AppStoreProvider>
         <StoreProbe />
-      </CollectionStoreProvider>
+      </AppStoreProvider>
     );
 
     await waitFor(() => expect(listeners['collection-variables-updated']).toBeDefined());
@@ -82,9 +82,9 @@ describe('CollectionStoreProvider', () => {
 
   it('does not update stores when event is not fired', async () => {
     render(
-      <CollectionStoreProvider>
+      <AppStoreProvider>
         <StoreProbe />
-      </CollectionStoreProvider>
+      </AppStoreProvider>
     );
 
     await waitFor(() => expect(listeners['collection-variables-updated']).toBeDefined());

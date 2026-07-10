@@ -132,9 +132,9 @@ export type AppStoreState = CollectionState &
 
 type AppStore = StoreApi<AppStoreState>;
 
-const CollectionStoreContext = createContext<AppStore | null>(null);
+const AppStoreContext = createContext<AppStore | null>(null);
 
-export const CollectionStoreProvider = CollectionStoreContext.Provider;
+export const AppStoreProvider = AppStoreContext.Provider;
 
 /**
  * Builds maps of requests and folders from a collection's children tree.
@@ -821,9 +821,9 @@ export const createAppStore = (collection: Collection): AppStore => {
 };
 
 export const useAppStore = <T>(selector: (state: AppStoreState) => T): T => {
-  const store = useContext(CollectionStoreContext);
+  const store = useContext(AppStoreContext);
   if (!store) {
-    throw new Error('useAppStore must be used within CollectionStoreProvider');
+    throw new Error('useAppStore must be used within AppStoreProvider');
   }
   return useStore(store, selector);
 };
@@ -836,7 +836,7 @@ export const useCollectionStore = <T>(
 export const useCollectionActions = (): CollectionStateActions => useCollectionStore(useActions());
 
 // Export context for the provider to access the raw store
-export { CollectionStoreContext };
+export { AppStoreContext };
 
 export interface PersistableAppState {
   collection?: Collection;

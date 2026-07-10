@@ -11,11 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-import {
-  selectQueryParams,
-  useCollectionActions,
-  useCollectionStore,
-} from '@/state/appStore';
+import { selectQueryParams, useCollectionActions, useCollectionStore } from '@/state/appStore';
 
 export const ParamsTab = () => {
   const {

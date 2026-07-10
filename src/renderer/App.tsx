@@ -8,7 +8,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
+import { AppStoreProvider } from '@/state/AppStoreProvider';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useAppStore } from '@/state/appStore';
 import {
@@ -84,7 +84,7 @@ const AppContent = () => {
 };
 
 export const App = () => (
-  <CollectionStoreProvider>
+  <AppStoreProvider>
     <AppContent />
-  </CollectionStoreProvider>
+  </AppStoreProvider>
 );

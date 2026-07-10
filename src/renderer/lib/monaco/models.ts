@@ -25,7 +25,7 @@ let getRequest: ((id: string) => TrufosRequest | undefined) | null = null;
 /**
  * Register the function used by onWillDisposeModel to look up a TrufosRequest
  * by its ID. Should be called once during app initialisation (e.g. from
- * CollectionStoreProvider or RequestWindow).
+ * AppStoreProvider or RequestWindow).
  */
 export function registerGetRequest(fn: (id: string) => TrufosRequest | undefined) {
   getRequest = fn;
@@ -108,7 +108,7 @@ export function disposeModelsForRequest(requestId: string): void {
   registry.delete(requestId);
 }
 
-// ── Save helper used by MainTopBar and CollectionStoreProvider ───────────────
+// ── Save helper used by MainTopBar and AppStoreProvider ──────────────────────
 
 const eventService = RendererEventService.instance;
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, FC, PropsWithChildren } from 'react';
 import { Loader2 } from 'lucide-react';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { createAppStore, CollectionStoreProvider as StoreProvider } from '@/state/appStore';
+import { createAppStore, AppStoreProvider as StoreProvider } from '@/state/appStore';
 import { saveModelContent } from '@/lib/monaco/models';
 import { editor } from 'monaco-editor';
 import { showError } from '@/error/errorHandler';
@@ -15,7 +15,7 @@ const CollectionVariablesUpdated = z.object({
   environments: EnvironmentMap,
 });
 
-export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => {
+export const AppStoreProvider: FC<PropsWithChildren> = ({ children }) => {
   const storeRef = useRef<ReturnType<typeof createAppStore> | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -53,7 +53,7 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
 
         setReady(true);
       } catch (error) {
-        showError("Couldn't load collection store", error);
+        showError("Couldn't load app store", error);
       }
     };
 
