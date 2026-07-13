@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
 import { ArrowRight, Folder, Globe, Plus, Save, SwitchCamera } from 'lucide-react';
 import { editor } from 'monaco-editor';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   Command,
   CommandEmpty,
@@ -103,7 +104,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   // Tab/Shift+Tab and Left/Right arrow key cycling
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: KeyboardEvent<HTMLDivElement>) => {
       const currentIndex = TABS.indexOf(activeTab);
 
       if (e.key === 'ArrowRight' || (e.key === 'Tab' && !e.shiftKey)) {
@@ -119,7 +120,9 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="top-70 translate-y-0 overflow-hidden p-0 shadow-lg sm:max-w-150">
+      <DialogPortal>
+        <DialogOverlay className="flex items-center justify-center">
+          <DialogPrimitive.Content className="bg-background w-full max-w-[600px] overflow-hidden rounded-lg shadow-lg outline-none">
         <Command shouldFilter={true} onKeyDown={handleKeyDown}>
           <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
           <Tabs
@@ -234,7 +237,9 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
             </TabsContent>
           </Tabs>
         </Command>
-      </DialogContent>
+          </DialogPrimitive.Content>
+        </DialogOverlay>
+      </DialogPortal>
     </Dialog>
   );
 };
