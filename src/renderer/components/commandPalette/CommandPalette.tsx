@@ -149,7 +149,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogPortal>
         <DialogOverlay className="flex items-center justify-center">
-          <DialogPrimitive.Content className="bg-background w-full max-w-150 overflow-hidden rounded-lg p-4 shadow-lg outline-none">
+          <DialogPrimitive.Content className="bg-background w-full max-w-150 overflow-hidden rounded-lg p-2 shadow-lg outline-none">
             <Command shouldFilter={true} onKeyDown={handleKeyDown}>
               <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
 
@@ -168,7 +168,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
                 <Divider />
 
-                <TabsContent value="requests" className="bg-transparent">
+                <TabsContent value="requests" className="mt-0 rounded-none bg-transparent">
                   <CommandList>
                     <CommandEmpty>No requests found.</CommandEmpty>
                     {requestGroups.map((group, i) => (
