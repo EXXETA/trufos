@@ -29,8 +29,12 @@ export const App = () => {
   const isCollectionRunnerOpen = useViewStore(selectIsCollectionRunnerOpen);
   const isCollectionSettingsOpen = useViewStore(selectIsCollectionSettingsOpen);
   const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
-  const { closeCollectionRunner, closeCollectionSettings, openCommandPalette, closeCommandPalette } =
-    useViewActions();
+  const {
+    closeCollectionRunner,
+    closeCollectionSettings,
+    openCommandPalette,
+    closeCommandPalette,
+  } = useViewActions();
 
   useHotkeys([{ keys: 'mod+k', handler: openCommandPalette }]);
 

@@ -144,7 +144,9 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                     value={request.title ?? request.url.base}
                     onSelect={() => selectAndClose(request.id)}
                   >
-                    <span className={`shrink-0 text-xs font-normal ${httpMethodColor(request.method)}`}>
+                    <span
+                      className={`shrink-0 text-xs font-normal ${httpMethodColor(request.method)}`}
+                    >
                       {request.method}
                     </span>
                     <span className="truncate">{request.title ?? request.url.base}</span>
