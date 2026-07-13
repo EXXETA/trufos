@@ -17,6 +17,7 @@ import {
   useViewActions,
   useViewStore,
 } from '@/state/viewStore';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { showError } from '@/error/errorHandler';
 
 const MIN_SIDEBAR_PIXELS = 300;
@@ -25,7 +26,9 @@ const MIN_REQUEST_WINDOW_PIXELS = 500;
 export const App = () => {
   const isCollectionRunnerOpen = useViewStore(selectIsCollectionRunnerOpen);
   const isCollectionSettingsOpen = useViewStore(selectIsCollectionSettingsOpen);
-  const { closeCollectionRunner, closeCollectionSettings } = useViewActions();
+  const { closeCollectionRunner, closeCollectionSettings, openCommandPalette } = useViewActions();
+
+  useHotkeys([{ keys: 'mod+k', handler: openCommandPalette }]);
 
   useEffect(() => {
     // Entry points of the native application menu (Collection > ...).
@@ -70,6 +73,7 @@ export const App = () => {
               isOpen={isCollectionSettingsOpen}
               onClose={closeCollectionSettings}
             />
+            {/* CommandPalette mounted here in Part 2 */}
           </SidebarProvider>
         </TooltipProvider>
       </ThemeProvider>

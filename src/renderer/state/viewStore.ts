@@ -7,6 +7,8 @@ interface ViewState {
   isCollectionRunnerOpen: boolean;
   /** Whether the collection settings modal is open */
   isCollectionSettingsOpen: boolean;
+  /** Whether the command palette is open */
+  isCommandPaletteOpen: boolean;
 }
 
 interface ViewActions {
@@ -14,12 +16,15 @@ interface ViewActions {
   closeCollectionRunner(): void;
   openCollectionSettings(): void;
   closeCollectionSettings(): void;
+  openCommandPalette(): void;
+  closeCommandPalette(): void;
 }
 
 export const useViewStore = create<ViewState & ViewActions>()(
   immer((set) => ({
     isCollectionRunnerOpen: false,
     isCollectionSettingsOpen: false,
+    isCommandPaletteOpen: false,
 
     openCollectionRunner() {
       set((state) => {
@@ -44,9 +49,22 @@ export const useViewStore = create<ViewState & ViewActions>()(
         state.isCollectionSettingsOpen = false;
       });
     },
+
+    openCommandPalette() {
+      set((state) => {
+        state.isCommandPaletteOpen = true;
+      });
+    },
+
+    closeCommandPalette() {
+      set((state) => {
+        state.isCommandPaletteOpen = false;
+      });
+    },
   }))
 );
 
 export const selectIsCollectionRunnerOpen = (state: ViewState) => state.isCollectionRunnerOpen;
 export const selectIsCollectionSettingsOpen = (state: ViewState) => state.isCollectionSettingsOpen;
+export const selectIsCommandPaletteOpen = (state: ViewState) => state.isCommandPaletteOpen;
 export const useViewActions = (): ViewActions => useViewStore(useActions());
