@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
-import { ArrowRight, Folder, Globe, Plus, Save, SwitchCamera } from 'lucide-react';
+import { ArrowRight, Folder as FolderIcon, Globe, Plus, Save, SwitchCamera } from 'lucide-react';
+import { Folder } from 'shim/objects/folder';
+import { TrufosRequest } from 'shim/objects/request';
 import { editor } from 'monaco-editor';
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -30,6 +32,30 @@ import { httpMethodColor } from '@/services/StyleHelper';
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
+interface RequestGroup {
+  label: string | null;
+  requests: TrufosRequest[];
+}
+
+/** Walk collection children depth-first, flattening nested folders into a single group per folder. */
+const buildRequestGroups = (
+  children: (Folder | TrufosRequest)[],
+  label: string | null = null
+): RequestGroup[] => {
+  const group: RequestGroup = { label, requests: [] };
+  const subGroups: RequestGroup[] = [];
+
+  for (const child of children) {
+    if (child.type === 'request') {
+      group.requests.push(child);
+    } else {
+      subGroups.push(...buildRequestGroups(child.children, child.title));
+    }
+  }
+
+  return group.requests.length > 0 ? [group, ...subGroups] : subGroups;
+};
+
 const TABS = ['requests', 'collections', 'folders', 'actions'] as const;
 type Tab = (typeof TABS)[number];
 
@@ -43,9 +69,9 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const [search, setSearch] = useState('');
   const tabsRef = useRef<HTMLDivElement>(null);
 
-  const requests = useCollectionStore((s) => s.requests);
   const folders = useCollectionStore((s) => s.folders);
   const collection = useCollectionStore((s) => s.collection);
+  const requestGroups = collection ? buildRequestGroups(collection.children) : [];
   const currentRequest = useCollectionStore(selectRequest);
   const { setSelectedRequest, addNewRequest, updateRequest } = useCollectionActions();
 
@@ -117,126 +143,138 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     },
     [activeTab]
   );
-
+  console.log();
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogPortal>
         <DialogOverlay className="flex items-center justify-center">
           <DialogPrimitive.Content className="bg-background w-full max-w-[600px] overflow-hidden rounded-lg shadow-lg outline-none">
-        <Command shouldFilter={true} onKeyDown={handleKeyDown}>
-          <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
-          <Tabs
-            ref={tabsRef}
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as Tab)}
-            className="flex flex-col"
-          >
-            <TabsList className="border-b px-2">
-              <TabsTrigger value="requests">Requests</TabsTrigger>
-              <TabsTrigger value="collections">Collections</TabsTrigger>
-              <TabsTrigger value="folders">Folders</TabsTrigger>
-              <TabsTrigger value="actions">Actions</TabsTrigger>
-            </TabsList>
+            <Command shouldFilter={true} onKeyDown={handleKeyDown}>
+              <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
+              <Tabs
+                ref={tabsRef}
+                value={activeTab}
+                onValueChange={(v) => setActiveTab(v as Tab)}
+                className="flex flex-col"
+              >
+                <TabsList className="border-b px-2">
+                  <TabsTrigger value="requests">Requests</TabsTrigger>
+                  <TabsTrigger value="collections">Collections</TabsTrigger>
+                  <TabsTrigger value="folders">Folders</TabsTrigger>
+                  <TabsTrigger value="actions">Actions</TabsTrigger>
+                </TabsList>
 
-            <TabsContent value="requests">
-              <CommandList>
-                <CommandEmpty>No requests found.</CommandEmpty>
-                {Array.from(requests.values()).map((request) => (
-                  <CommandItem
-                    key={request.id}
-                    value={request.title ?? request.url.base}
-                    onSelect={() => selectAndClose(request.id)}
-                  >
-                    <span
-                      className={`shrink-0 text-xs font-normal ${httpMethodColor(request.method)}`}
-                    >
-                      {request.method}
-                    </span>
-                    <span className="truncate">{request.title ?? request.url.base}</span>
-                  </CommandItem>
-                ))}
-              </CommandList>
-            </TabsContent>
-
-            <TabsContent value="collections">
-              <CommandList>
-                <CommandEmpty>No collections found.</CommandEmpty>
-                {collection != null && (
-                  <CommandItem key={collection.id} value={collection.title}>
-                    <Globe className="shrink-0" />
-                    <span className="truncate">{collection.title}</span>
-                  </CommandItem>
-                )}
-              </CommandList>
-            </TabsContent>
-
-            <TabsContent value="folders">
-              <CommandList>
-                <CommandEmpty>No folders found.</CommandEmpty>
-                {Array.from(folders.values()).map((folder) => (
-                  <CommandItem key={folder.id} value={folder.title}>
-                    <Folder className="shrink-0" />
-                    <span className="truncate">{folder.title}</span>
-                  </CommandItem>
-                ))}
-              </CommandList>
-            </TabsContent>
-
-            <TabsContent value="actions">
-              <CommandList>
-                <CommandEmpty>No actions available.</CommandEmpty>
-                <CommandGroup heading="Request">
-                  <CommandItem
-                    value="send request"
-                    disabled={currentRequest == null}
-                    onSelect={handleSend}
-                  >
-                    <ArrowRight className="shrink-0" />
-                    <span>Send request</span>
-                    <span className="text-muted-foreground ml-auto text-xs">⌘↵</span>
-                  </CommandItem>
-                  <CommandItem
-                    value="save request"
-                    disabled={currentRequest == null}
-                    onSelect={handleSave}
-                  >
-                    <Save className="shrink-0" />
-                    <span>Save request</span>
-                    <span className="text-muted-foreground ml-auto text-xs">⌘S</span>
-                  </CommandItem>
-                  <CommandItem
-                    value="new request"
-                    onSelect={() => runAndClose(() => addNewRequest())}
-                  >
-                    <Plus className="shrink-0" />
-                    <span>New request</span>
-                    <span className="text-muted-foreground ml-auto text-xs">⌘N</span>
-                  </CommandItem>
-                </CommandGroup>
-                {Object.keys(environments).length > 0 && (
-                  <>
-                    <CommandSeparator />
-                    <CommandGroup heading="Switch environment">
-                      {Object.keys(environments).map((key) => (
-                        <CommandItem
-                          key={key}
-                          value={`switch environment ${key}`}
-                          onSelect={() => runAndClose(() => selectEnvironment(key))}
+                <TabsContent value="requests">
+                  <CommandList>
+                    <CommandEmpty>No requests found.</CommandEmpty>
+                    {requestGroups.map((group, i) => (
+                      <>
+                        {i > 0 && <CommandSeparator key={`sep-${i}`} />}
+                        <CommandGroup
+                          key={group.label ?? '__root__'}
+                          heading={group.label ?? `${collection?.title} root`}
                         >
-                          <SwitchCamera className="shrink-0" />
-                          <span>{key}</span>
-                          {selectedEnvironment === key && (
-                            <span className="text-muted-foreground ml-auto text-xs">active</span>
-                          )}
-                        </CommandItem>
-                      ))}
+                          {group.requests.map((request) => (
+                            <CommandItem
+                              key={request.id}
+                              value={request.title ?? request.url.base}
+                              onSelect={() => selectAndClose(request.id)}
+                            >
+                              <span
+                                className={`shrink-0 text-xs font-normal ${httpMethodColor(request.method)}`}
+                              >
+                                {request.method}
+                              </span>
+                              <span className="truncate">{request.title ?? request.url.base}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </>
+                    ))}
+                  </CommandList>
+                </TabsContent>
+
+                <TabsContent value="collections">
+                  <CommandList>
+                    <CommandEmpty>No collections found.</CommandEmpty>
+                    {collection != null && (
+                      <CommandItem key={collection.id} value={collection.title}>
+                        <Globe className="shrink-0" />
+                        <span className="truncate">{collection.title}</span>
+                      </CommandItem>
+                    )}
+                  </CommandList>
+                </TabsContent>
+
+                <TabsContent value="folders">
+                  <CommandList>
+                    <CommandEmpty>No folders found.</CommandEmpty>
+                    {Array.from(folders.values()).map((folder) => (
+                      <CommandItem key={folder.id} value={folder.title}>
+                        <FolderIcon className="shrink-0" />
+                        <span className="truncate">{folder.title}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandList>
+                </TabsContent>
+
+                <TabsContent value="actions">
+                  <CommandList>
+                    <CommandEmpty>No actions available.</CommandEmpty>
+                    <CommandGroup heading="Request">
+                      <CommandItem
+                        value="send request"
+                        disabled={currentRequest == null}
+                        onSelect={handleSend}
+                      >
+                        <ArrowRight className="shrink-0" />
+                        <span>Send request</span>
+                        <span className="text-muted-foreground ml-auto text-xs">⌘↵</span>
+                      </CommandItem>
+                      <CommandItem
+                        value="save request"
+                        disabled={currentRequest == null}
+                        onSelect={handleSave}
+                      >
+                        <Save className="shrink-0" />
+                        <span>Save request</span>
+                        <span className="text-muted-foreground ml-auto text-xs">⌘S</span>
+                      </CommandItem>
+                      <CommandItem
+                        value="new request"
+                        onSelect={() => runAndClose(() => addNewRequest())}
+                      >
+                        <Plus className="shrink-0" />
+                        <span>New request</span>
+                        <span className="text-muted-foreground ml-auto text-xs">⌘N</span>
+                      </CommandItem>
                     </CommandGroup>
-                  </>
-                )}
-              </CommandList>
-            </TabsContent>
-          </Tabs>
-        </Command>
+                    {Object.keys(environments).length > 0 && (
+                      <>
+                        <CommandSeparator />
+                        <CommandGroup heading="Switch environment">
+                          {Object.keys(environments).map((key) => (
+                            <CommandItem
+                              key={key}
+                              value={`switch environment ${key}`}
+                              onSelect={() => runAndClose(() => selectEnvironment(key))}
+                            >
+                              <SwitchCamera className="shrink-0" />
+                              <span>{key}</span>
+                              {selectedEnvironment === key && (
+                                <span className="text-muted-foreground ml-auto text-xs">
+                                  active
+                                </span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+                  </CommandList>
+                </TabsContent>
+              </Tabs>
+            </Command>
           </DialogPrimitive.Content>
         </DialogOverlay>
       </DialogPortal>
