@@ -28,6 +28,7 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import { saveModelContent } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
 import { httpMethodColor } from '@/services/StyleHelper';
+import { Divider } from '@/components/shared/Divider';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -148,23 +149,26 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogPortal>
         <DialogOverlay className="flex items-center justify-center">
-          <DialogPrimitive.Content className="bg-background w-full max-w-[600px] overflow-hidden rounded-lg shadow-lg outline-none">
+          <DialogPrimitive.Content className="bg-background w-full max-w-150 overflow-hidden rounded-lg p-4 shadow-lg outline-none">
             <Command shouldFilter={true} onKeyDown={handleKeyDown}>
               <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
+
               <Tabs
                 ref={tabsRef}
                 value={activeTab}
                 onValueChange={(v) => setActiveTab(v as Tab)}
-                className="flex flex-col"
+                className="flex flex-col gap-2"
               >
-                <TabsList className="border-b px-2">
+                <TabsList className="mt-2 px-2">
                   <TabsTrigger value="requests">Requests</TabsTrigger>
                   <TabsTrigger value="collections">Collections</TabsTrigger>
                   <TabsTrigger value="folders">Folders</TabsTrigger>
                   <TabsTrigger value="actions">Actions</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="requests">
+                <Divider />
+
+                <TabsContent value="requests" className="bg-transparent">
                   <CommandList>
                     <CommandEmpty>No requests found.</CommandEmpty>
                     {requestGroups.map((group, i) => (
