@@ -14,9 +14,11 @@ import { useAppSettingsStore } from '@/state/appSettingsStore';
 import {
   selectIsCollectionRunnerOpen,
   selectIsCollectionSettingsOpen,
+  selectIsCommandPaletteOpen,
   useViewActions,
   useViewStore,
 } from '@/state/viewStore';
+import { CommandPalette } from '@/components/commandPalette/CommandPalette';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { showError } from '@/error/errorHandler';
 
@@ -26,7 +28,9 @@ const MIN_REQUEST_WINDOW_PIXELS = 500;
 export const App = () => {
   const isCollectionRunnerOpen = useViewStore(selectIsCollectionRunnerOpen);
   const isCollectionSettingsOpen = useViewStore(selectIsCollectionSettingsOpen);
-  const { closeCollectionRunner, closeCollectionSettings, openCommandPalette } = useViewActions();
+  const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
+  const { closeCollectionRunner, closeCollectionSettings, openCommandPalette, closeCommandPalette } =
+    useViewActions();
 
   useHotkeys([{ keys: 'mod+k', handler: openCommandPalette }]);
 
@@ -73,7 +77,7 @@ export const App = () => {
               isOpen={isCollectionSettingsOpen}
               onClose={closeCollectionSettings}
             />
-            {/* CommandPalette mounted here in Part 2 */}
+            <CommandPalette open={isCommandPaletteOpen} onClose={closeCommandPalette} />
           </SidebarProvider>
         </TooltipProvider>
       </ThemeProvider>
