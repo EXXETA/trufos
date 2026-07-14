@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell } from 'electron';
+import { MainProcessEvent } from 'shim/event-service';
 
 const REPOSITORY_URL = 'https://github.com/EXXETA/trufos';
 const DOCUMENTATION_URL = `${REPOSITORY_URL}#readme`;
@@ -58,14 +59,19 @@ export class MenuBuilder {
       {
         label: 'Run Collection',
         accelerator: 'CmdOrCtrl+Shift+R',
-        click: () => this.mainWindow.webContents.send('show-collection-runner'),
+        click: () => this.mainWindow.webContents.send(MainProcessEvent.ShowCollectionRunner),
+      },
+      {
+        label: 'History',
+        accelerator: 'CmdOrCtrl+Shift+H',
+        click: () => this.mainWindow.webContents.send(MainProcessEvent.ShowHistory),
       },
       { type: 'separator' },
       {
         // CmdOrCtrl+, stays reserved for the general app settings.
         label: 'Settings…',
         accelerator: 'CmdOrCtrl+Shift+,',
-        click: () => this.mainWindow.webContents.send('show-collection-settings'),
+        click: () => this.mainWindow.webContents.send(MainProcessEvent.ShowCollectionSettings),
       },
     ];
   }

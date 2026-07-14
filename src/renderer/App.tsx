@@ -10,6 +10,7 @@ import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/componen
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { useAppSettingsStore } from '@/state/appSettingsStore';
 import {
   selectIsCollectionRunnerOpen,
@@ -30,8 +31,13 @@ export const App = () => {
   useEffect(() => {
     // Entry points of the native application menu (Collection > ...).
     RendererEventService.instance
-      .on('show-collection-runner', () => useViewStore.getState().openCollectionRunner())
-      .on('show-collection-settings', () => useViewStore.getState().openCollectionSettings());
+      .on(MainProcessEvent.ShowCollectionRunner, () =>
+        useViewStore.getState().openCollectionRunner()
+      )
+      .on(MainProcessEvent.ShowCollectionSettings, () =>
+        useViewStore.getState().openCollectionSettings()
+      )
+      .on(MainProcessEvent.ShowHistory, () => useViewStore.getState().setSidebarTab('history'));
 
     RendererEventService.instance
       .getAppSettings()
@@ -42,7 +48,7 @@ export const App = () => {
         if (settings) {
           useAppSettingsStore.getState().initialize(settings);
         }
-        window.electron.ipcRenderer.send('renderer-ready');
+        window.electron.ipcRenderer.send(RendererEvent.RendererReady);
       });
   }, []);
 

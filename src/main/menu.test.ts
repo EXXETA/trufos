@@ -141,6 +141,21 @@ describe('MenuBuilder', () => {
     }
   );
 
+  it.each(['darwin', 'win32'] as const)(
+    'shows the History item with shortcut in the Collection menu on %s',
+    (platform) => {
+      const template = buildTemplate(platform);
+      const collectionMenu = template.find((item) => item.label?.includes('Collection'))!;
+      const items = collectionMenu.submenu as MenuItemConstructorOptions[];
+      const historyItem = items.find((item) => item.label === 'History')!;
+
+      expect(historyItem.accelerator).toBe('CmdOrCtrl+Shift+H');
+
+      (historyItem.click as () => void)();
+      expect(sendMock).toHaveBeenCalledWith('show-history');
+    }
+  );
+
   it('opens the Trufos documentation and issue tracker from the Help menu', () => {
     const template = buildTemplate('darwin');
     const help = template.find((item) => item.role === 'help')!;

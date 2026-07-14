@@ -6,6 +6,7 @@ import type {
   TrufosObject,
   Folder,
   TrufosRequest,
+  TrufosResponse,
   VariableMap,
   EnvironmentMap,
   ScriptType,
@@ -13,6 +14,7 @@ import type {
   ImportStrategy,
   AppSettings,
 } from 'shim';
+import { MainProcessEvent } from 'shim/event-service';
 import type { ClientCertificate } from 'shim/objects/collection';
 import { SettingsService } from '../persistence/service/settings-service';
 import { PersistenceService } from '../persistence/service/persistence-service';
@@ -21,6 +23,8 @@ import { ScriptingService } from 'main/scripting/scripting-service';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
+import { HistoryService } from 'main/history/history-service';
+import type { HistoryEntry } from 'shim/objects/history';
 
 // register stream events
 import './stream-events';
@@ -89,7 +93,10 @@ export class MainEventService implements IEventService {
       void persistenceService
         .saveCollection(environmentService.currentCollection)
         .then(() =>
-          this.webContents?.send('collection-variables-updated', { variables, environments })
+          this.webContents?.send(MainProcessEvent.CollectionVariablesUpdated, {
+            variables,
+            environments,
+          })
         )
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });
@@ -110,17 +117,38 @@ export class MainEventService implements IEventService {
   }
 
   async sendRequest(request: TrufosRequest, abortKey?: string) {
-    if (abortKey == null) {
-      return await HttpService.instance.fetchAsync(request);
-    }
-
-    const abortController = new AbortController();
-    this.abortControllers.set(abortKey, abortController);
-
+    let response: TrufosResponse;
+    const startedAt = Date.now();
     try {
-      return await HttpService.instance.fetchAsync(request, abortController.signal);
-    } finally {
-      this.abortControllers.delete(abortKey);
+      if (abortKey == null) {
+        response = await HttpService.instance.fetchAsync(request);
+      } else {
+        const abortController = new AbortController();
+        this.abortControllers.set(abortKey, abortController);
+
+        try {
+          response = await HttpService.instance.fetchAsync(request, abortController.signal);
+        } finally {
+          this.abortControllers.delete(abortKey);
+        }
+      }
+
+      // Record successful history entry in the background
+      void HistoryService.instance.recordEntry(request, response).catch((err) => {
+        logger.error('Failed to log request history:', err);
+      });
+
+      return response;
+    } catch (error) {
+      // Record failed history entry in the background
+      const duration = Date.now() - startedAt;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      void HistoryService.instance
+        .recordEntry(request, { error: errorMessage, duration })
+        .catch((err) => {
+          logger.error('Failed to log failed request history:', err);
+        });
+      throw error;
     }
   }
 
@@ -266,6 +294,14 @@ export class MainEventService implements IEventService {
 
   async saveAppSettings(settings: AppSettings): Promise<void> {
     await SettingsService.instance.updateSettings({ preferences: settings });
+  }
+
+  async getHistory(limit?: number): Promise<HistoryEntry[]> {
+    return await HistoryService.instance.loadEntries(limit);
+  }
+
+  async clearHistory(): Promise<void> {
+    await HistoryService.instance.clearHistory();
   }
 
   updateApp() {

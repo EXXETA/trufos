@@ -1,6 +1,7 @@
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { DisplayableError } from '@/error/DisplayableError';
 import { TrufosRequest } from 'shim/objects/request';
+import { useHistoryStore } from '@/state/historyStore';
 
 const eventService = RendererEventService.instance;
 
@@ -32,6 +33,9 @@ export class HttpService {
         }
       }
       throw new DisplayableError(description, 'Could not send Request', error);
+    } finally {
+      // The main process records a history entry for both outcomes.
+      void useHistoryStore.getState().loadHistory();
     }
   }
 

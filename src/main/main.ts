@@ -10,6 +10,8 @@ import { SettingsService } from './persistence/service/settings-service';
 import { once } from 'node:events';
 import process from 'node:process';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { HistoryService } from 'main/history/history-service';
+import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -41,6 +43,9 @@ const createWindow = async () => {
     await environmentService.init();
     mainEventService.updateApp(); // check for updates in the background
 
+    // History is ephemeral per session, so schema changes never need migrations.
+    void HistoryService.instance.clearOnStartup(settingsService.settings.collections);
+
     // create the browser window
     const mainWindow = new BrowserWindow({
       ...settingsService.settings.windowState,
@@ -59,7 +64,7 @@ const createWindow = async () => {
     new MenuBuilder(mainWindow).buildMenu();
 
     // show once the renderer has loaded and applied the saved theme
-    once(ipcMain, 'renderer-ready').then(() => mainWindow.show());
+    once(ipcMain, RendererEvent.RendererReady).then(() => mainWindow.show());
 
     // open links in default browser
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -73,7 +78,7 @@ const createWindow = async () => {
       if (!isClosing) {
         isClosing = true;
         event.preventDefault();
-        setImmediate(() => mainWindow.webContents.send('before-close'));
+        setImmediate(() => mainWindow.webContents.send(MainProcessEvent.BeforeClose));
 
         async function saveWindowState() {
           try {
@@ -87,7 +92,7 @@ const createWindow = async () => {
 
         // save settings and wait for renderer to be ready to close in parallel
         await Promise.race([
-          Promise.allSettled([saveWindowState(), once(ipcMain, 'ready-to-close')]),
+          Promise.allSettled([saveWindowState(), once(ipcMain, RendererEvent.ReadyToClose)]),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Timeout during close')), 30000)
           ),
