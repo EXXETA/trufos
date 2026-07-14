@@ -92,12 +92,10 @@ export class PersistenceService {
 
     const removeFromOldParent = async () => {
       oldParent.children = oldParent.children.filter((c) => c.id !== child.id);
-      const order = await this.loadOrderFile(oldParentDirPath);
-      const index = order.indexOf(child.id);
-      if (index !== -1) {
-        order.splice(index, 1);
-        await this.saveOrderFile(oldParentDirPath, order);
-      }
+      await this.saveOrderFile(
+        oldParentDirPath,
+        oldParent.children.map((c) => c.id)
+      );
     };
 
     const addToNewParent = async () => {
@@ -105,10 +103,11 @@ export class PersistenceService {
         newParent.children.push(child);
       } else {
         newParent.children.splice(position, 0, child);
-        const order = await this.loadOrderFile(newParentDirPath);
-        order.splice(position, 0, child.id);
-        await this.saveOrderFile(newParentDirPath, order);
       }
+      await this.saveOrderFile(
+        newParentDirPath,
+        newParent.children.map((c) => c.id)
+      );
     };
 
     // do in parallel as all are independent operations on the FS
@@ -136,7 +135,7 @@ export class PersistenceService {
   ): Promise<T> {
     logger.info(`Reordering child ${childId} in parent ${parent.id} to position ${newIndex}`);
     const parentDirPath = this.getOrCreateDirPath(parent);
-    const order = await this.loadOrderFile(parentDirPath);
+    const order = parent.children.map((c) => c.id);
     const oldIndex = order.indexOf(childId);
     if (oldIndex !== -1) order.splice(oldIndex, 1);
     order.splice(newIndex, 0, childId);
