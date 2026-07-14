@@ -13,7 +13,7 @@ import { generateDefaultCollection } from './default-collection';
 import { sanitizeTitle } from 'shim/fs';
 import { CollectionInfoFile, RequestInfoFile, GIT_IGNORE_FILE_NAME } from './info-files/latest';
 import { PersistenceService } from './persistence-service';
-import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
+import { DRAFT_DIR_NAME, ORDER_FILE_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
 
 const persistenceService = PersistenceService.instance;
 
@@ -1080,5 +1080,76 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(folder.children.map((c) => c.title)).toEqual(['Request1', 'Request3', 'Request2']);
+  });
+
+  it('reorderItem() should persist reordering to a non-zero position in a 3+ item list (#957)', async () => {
+    // Arrange - mixed folders and requests, no order.json exists yet
+    const folder1 = getExampleFolder(collection.id);
+    folder1.title = 'Folder1';
+    const folder2 = getExampleFolder(collection.id);
+    folder2.title = 'Folder2';
+    const request1 = getExampleRequest(collection.id);
+    request1.title = 'Req1';
+    const request2 = getExampleRequest(collection.id);
+    request2.title = 'Req2';
+    collection.children.push(folder1, folder2, request1, request2);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act - move Folder1 to a middle position (index 2)
+    await persistenceService.reorderItem(collection, folder1.id, 2);
+
+    // Assert - in-memory order updated
+    expect(collection.children.map((c) => c.title)).toEqual(['Folder2', 'Req1', 'Folder1', 'Req2']);
+
+    // Verify the manual order round-trips across a reload
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+    expect(loaded.children.map((c) => c.title)).toEqual(['Folder2', 'Req1', 'Folder1', 'Req2']);
+  });
+
+  it('reorderItem() should write a complete order.json containing every sibling (#957)', async () => {
+    // Arrange - three items, no order.json exists yet
+    const request1 = getExampleRequest(collection.id);
+    request1.title = 'Req1';
+    const request2 = getExampleRequest(collection.id);
+    request2.title = 'Req2';
+    const request3 = getExampleRequest(collection.id);
+    request3.title = 'Req3';
+    collection.children.push(request1, request2, request3);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act - move Req3 to the middle
+    await persistenceService.reorderItem(collection, request3.id, 1);
+
+    // Assert - order.json lists all three siblings in the new order
+    const order = JSON.parse(
+      await readFile(path.join(collection.dirPath, ORDER_FILE_NAME), 'utf-8')
+    );
+    expect(order).toEqual([request1.id, request3.id, request2.id]);
+  });
+
+  it('moveChild() to a middle position keeps both parents complete after reload (#957)', async () => {
+    // Arrange
+    const folder = getExampleFolder(collection.id);
+    folder.title = 'Folder';
+    const request1 = getExampleRequest(folder.id);
+    request1.title = 'Req1';
+    const request2 = getExampleRequest(folder.id);
+    request2.title = 'Req2';
+    folder.children.push(request1, request2);
+    const request3 = getExampleRequest(collection.id);
+    request3.title = 'Req3';
+    const request4 = getExampleRequest(collection.id);
+    request4.title = 'Req4';
+    collection.children.push(folder, request3, request4);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act - move Req3 from the collection into the folder between Req1 and Req2
+    await persistenceService.moveChild(request3, collection, folder, 1);
+
+    // Verify both parents keep their full, correct order across a reload
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+    expect(loaded.children.map((c) => c.title)).toEqual(['Folder', 'Req4']);
+    const loadedFolder = loaded.children.find((c) => c.title === 'Folder') as Folder;
+    expect(loadedFolder.children.map((c) => c.title)).toEqual(['Req1', 'Req3', 'Req2']);
   });
 });
