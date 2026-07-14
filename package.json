@@ -108,7 +108,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-icons": "^5.7.0",
-    "react-resizable-panels": "^4.12.1",
+    "react-resizable-panels": "^4.12.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
