@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
 import { ArrowRight, Folder as FolderIcon, Globe, Plus, Save, SwitchCamera } from 'lucide-react';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
@@ -144,7 +144,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     },
     [activeTab]
   );
-  console.log();
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogPortal>
@@ -172,12 +171,9 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                   <CommandList>
                     <CommandEmpty>No requests found.</CommandEmpty>
                     {requestGroups.map((group, i) => (
-                      <>
+                      <Fragment key={group.label ?? '__root__'}>
                         {i > 0 && <CommandSeparator key={`sep-${i}`} />}
-                        <CommandGroup
-                          key={group.label ?? '__root__'}
-                          heading={group.label ?? `${collection?.title} root`}
-                        >
+                        <CommandGroup heading={group.label ?? `${collection?.title} root`}>
                           {group.requests.map((request) => (
                             <CommandItem
                               key={request.id}
@@ -193,7 +189,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                             </CommandItem>
                           ))}
                         </CommandGroup>
-                      </>
+                      </Fragment>
                     ))}
                   </CommandList>
                 </TabsContent>
