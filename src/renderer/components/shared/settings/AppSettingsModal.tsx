@@ -1,11 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { FiSettings } from 'react-icons/fi';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TrufosTheme, type ThemePreference } from 'shim/app-settings';
 import {
   selectThemePreference,
@@ -20,16 +13,17 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'system', label: 'System' },
 ];
 
-export const AppSettingsModal = () => {
+export interface AppSettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const AppSettingsModal = ({ isOpen, onClose }: AppSettingsModalProps) => {
   const theme = useAppSettingsStore(selectThemePreference);
   const { updateSettings } = useAppSettingsActions();
 
   return (
-    <Dialog>
-      <DialogTrigger>
-        <FiSettings className="ml-2 text-xl" />
-      </DialogTrigger>
-
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="font-bold">Settings</DialogTitle>

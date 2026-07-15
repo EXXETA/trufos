@@ -4,6 +4,7 @@ import { Menubar } from '@/view/Menubar';
 import { RequestWindow } from '@/view/RequestWindow';
 import { CollectionRunner } from '@/view/CollectionRunner';
 import { CollectionSettingsModal } from '@/components/shared/settings/CollectionSettingsModal';
+import { AppSettingsModal } from '@/components/shared/settings/AppSettingsModal';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
@@ -15,6 +16,7 @@ import {
   selectIsCollectionRunnerOpen,
   selectIsCollectionSettingsOpen,
   selectIsCommandPaletteOpen,
+  selectIsAppSettingsOpen,
   useViewActions,
   useViewStore,
 } from '@/state/viewStore';
@@ -29,11 +31,13 @@ export const App = () => {
   const isCollectionRunnerOpen = useViewStore(selectIsCollectionRunnerOpen);
   const isCollectionSettingsOpen = useViewStore(selectIsCollectionSettingsOpen);
   const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
+  const isAppSettingsOpen = useViewStore(selectIsAppSettingsOpen);
   const {
     closeCollectionRunner,
     closeCollectionSettings,
     openCommandPalette,
     closeCommandPalette,
+    closeAppSettings,
   } = useViewActions();
 
   useHotkeys([{ keys: 'mod+k', handler: openCommandPalette }]);
@@ -82,6 +86,7 @@ export const App = () => {
               onClose={closeCollectionSettings}
             />
             <CommandPalette open={isCommandPaletteOpen} onClose={closeCommandPalette} />
+            <AppSettingsModal isOpen={isAppSettingsOpen} onClose={closeAppSettings} />
           </SidebarProvider>
         </TooltipProvider>
       </ThemeProvider>
