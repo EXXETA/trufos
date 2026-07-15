@@ -7,6 +7,7 @@ import {
   Save,
   SettingsIcon,
   SwitchCameraIcon,
+  type LucideIcon,
 } from 'lucide-react';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
@@ -45,6 +46,19 @@ const eventService = RendererEventService.instance;
 interface RequestGroup {
   label: string | null;
   requests: TrufosRequest[];
+}
+
+type ActionSection = 'Request' | 'Collection' | 'Trufos';
+const ACTION_SECTIONS: ActionSection[] = ['Request', 'Collection', 'Trufos'];
+
+interface ActionItem {
+  value: string;
+  section: ActionSection;
+  icon: LucideIcon;
+  label: string;
+  shortcut?: string;
+  disabled?: boolean;
+  onSelect: () => void;
 }
 
 /** Walk collection children depth-first, flattening nested folders into a single group per folder. */
@@ -140,6 +154,84 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     onClose();
   }, [currentRequest, updateRequest, onClose]);
 
+  const renderRequestItem = (request: TrufosRequest) => (
+    <CommandItem
+      key={request.id}
+      value={request.title ?? request.url.base}
+      onSelect={() => selectAndClose(request.id)}
+    >
+      <span className={`shrink-0 text-xs font-normal ${httpMethodColor(request.method)}`}>
+        {request.method}
+      </span>
+      <span className="truncate">{request.title ?? request.url.base}</span>
+    </CommandItem>
+  );
+
+  const actionItems: ActionItem[] = [
+    {
+      value: 'send request',
+      section: 'Request',
+      icon: ArrowRight,
+      label: 'Send request',
+      shortcut: '⌘↵',
+      disabled: currentRequest == null,
+      onSelect: handleSend,
+    },
+    {
+      value: 'save request',
+      section: 'Request',
+      icon: Save,
+      label: 'Save request',
+      shortcut: '⌘S',
+      disabled: currentRequest == null,
+      onSelect: handleSave,
+    },
+    {
+      value: 'new request',
+      section: 'Request',
+      icon: Plus,
+      label: 'New request',
+      shortcut: '⌘N',
+      onSelect: () => runAndClose(() => addNewRequest()),
+    },
+    {
+      value: 'discard changes',
+      section: 'Request',
+      icon: EraserIcon,
+      label: 'Discard changes',
+      disabled: !currentRequest?.draft,
+      onSelect: () => runAndClose(discardChanges),
+    },
+    {
+      value: 'new folder',
+      section: 'Collection',
+      icon: FolderPlusIcon,
+      label: 'New folder',
+      onSelect: () => runAndClose(() => addNewFolder()),
+    },
+    {
+      value: 'switch environment',
+      section: 'Collection',
+      icon: SwitchCameraIcon,
+      label: 'Switch environment',
+      onSelect: () => setActiveTab('environments'),
+    },
+    {
+      value: 'collection settings',
+      section: 'Collection',
+      icon: SettingsIcon,
+      label: 'Collection settings',
+      onSelect: () => runAndClose(openCollectionSettings),
+    },
+    {
+      value: 'settings',
+      section: 'Trufos',
+      icon: SettingsIcon,
+      label: 'Settings',
+      onSelect: () => runAndClose(openAppSettings),
+    },
+  ];
+
   // Tab/Shift+Tab and Left/Right arrow key cycling
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
@@ -184,20 +276,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                       <Fragment key={group.label ?? '__root__'}>
                         {i > 0 && <CommandSeparator key={`sep-${i}`} />}
                         <CommandGroup heading={group.label ?? `${collection?.title} root`}>
-                          {group.requests.map((request) => (
-                            <CommandItem
-                              key={request.id}
-                              value={request.title ?? request.url.base}
-                              onSelect={() => selectAndClose(request.id)}
-                            >
-                              <span
-                                className={`shrink-0 text-xs font-normal ${httpMethodColor(request.method)}`}
-                              >
-                                {request.method}
-                              </span>
-                              <span className="truncate">{request.title ?? request.url.base}</span>
-                            </CommandItem>
-                          ))}
+                          {group.requests.map(renderRequestItem)}
                         </CommandGroup>
                       </Fragment>
                     ))}
@@ -225,77 +304,31 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                 <TabsContent value="actions">
                   <CommandList>
                     <CommandEmpty>No actions available.</CommandEmpty>
-                    <CommandGroup heading="Request">
-                      <CommandItem
-                        value="send request"
-                        disabled={currentRequest == null}
-                        onSelect={handleSend}
-                      >
-                        <ArrowRight className="shrink-0" />
-                        <span>Send request</span>
-                        <span className="text-muted-foreground ml-auto text-xs">⌘↵</span>
-                      </CommandItem>
-                      <CommandItem
-                        value="save request"
-                        disabled={currentRequest == null}
-                        onSelect={handleSave}
-                      >
-                        <Save className="shrink-0" />
-                        <span>Save request</span>
-                        <span className="text-muted-foreground ml-auto text-xs">⌘S</span>
-                      </CommandItem>
-                      <CommandItem
-                        value="new request"
-                        onSelect={() => runAndClose(() => addNewRequest())}
-                      >
-                        <Plus className="shrink-0" />
-                        <span>New request</span>
-                        <span className="text-muted-foreground ml-auto text-xs">⌘N</span>
-                      </CommandItem>
-                      <CommandItem
-                        value="discard changes"
-                        disabled={!currentRequest?.draft}
-                        onSelect={() => runAndClose(discardChanges)}
-                      >
-                        <EraserIcon className="shrink-0" />
-                        <span>Discard changes</span>
-                      </CommandItem>
-                    </CommandGroup>
-
-                    <CommandSeparator />
-
-                    <CommandGroup heading="Collection">
-                      <CommandItem
-                        value="new folder"
-                        onSelect={() => runAndClose(() => addNewFolder())}
-                      >
-                        <FolderPlusIcon className="shrink-0" />
-                        <span>New folder</span>
-                      </CommandItem>
-                      <CommandItem
-                        value="switch environment"
-                        onSelect={() => setActiveTab('environments')}
-                      >
-                        <SwitchCameraIcon className="shrink-0" />
-                        <span>Switch environment</span>
-                      </CommandItem>
-                      <CommandItem
-                        value="collection settings"
-                        onSelect={() => runAndClose(openCollectionSettings)}
-                      >
-                        <SettingsIcon className="shrink-0" />
-                        <span>Collection settings</span>
-                      </CommandItem>
-                    </CommandGroup>
-
-                    <CommandSeparator />
-
-                    <CommandGroup heading="Trufos">
-                      <CommandItem value="settings" onSelect={() => runAndClose(openAppSettings)}>
-                        <SettingsIcon className="shrink-0" />
-                        <span>Settings</span>
-                      </CommandItem>
-                    </CommandGroup>
+                    {ACTION_SECTIONS.map((section, i) => (
+                      <Fragment key={section}>
+                        {i > 0 && <CommandSeparator />}
+                        <CommandGroup heading={section}>
+                          {actionItems
+                            .filter((item) => item.section === section)
+                            .map((item) => (
+                              <CommandItem
+                                key={item.value}
+                                value={item.value}
+                                disabled={item.disabled}
+                                onSelect={item.onSelect}
+                              >
+                                <item.icon className="shrink-0" />
+                                <span>{item.label}</span>
+                                {item.shortcut && (
+                                  <span className="text-muted-foreground ml-auto text-xs">
+                                    {item.shortcut}
+                                  </span>
+                                )}
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </Fragment>
+                    ))}
                   </CommandList>
                 </TabsContent>
               </Tabs>
