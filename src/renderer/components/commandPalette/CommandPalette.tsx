@@ -91,7 +91,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   const { addResponse } = useResponseActions();
 
-  const { openCollectionSettings } = useViewActions();
+  const { openCollectionSettings, openAppSettings } = useViewActions();
 
   // Reset state when opened
   useEffect(() => {
@@ -285,6 +285,15 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                       >
                         <SettingsIcon className="shrink-0" />
                         <span>Collection settings</span>
+                      </CommandItem>
+                    </CommandGroup>
+
+                    <CommandSeparator />
+
+                    <CommandGroup heading="Trufos">
+                      <CommandItem value="settings" onSelect={() => runAndClose(openAppSettings)}>
+                        <SettingsIcon className="shrink-0" />
+                        <span>Settings</span>
                       </CommandItem>
                     </CommandGroup>
                   </CommandList>
