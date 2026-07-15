@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
-import { ArrowRight, Plus, Save, SwitchCamera } from 'lucide-react';
+import { ArrowRight, Plus, Save } from 'lucide-react';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { editor } from 'monaco-editor';
@@ -159,6 +159,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
               >
                 <TabsList className="mt-2 px-2">
                   <TabsTrigger value="requests">Requests</TabsTrigger>
+                  <TabsTrigger value="environments">Environments</TabsTrigger>
                   <TabsTrigger value="actions">Actions</TabsTrigger>
                 </TabsList>
 
@@ -187,6 +188,24 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                           ))}
                         </CommandGroup>
                       </Fragment>
+                    ))}
+                  </CommandList>
+                </TabsContent>
+
+                <TabsContent value="environments">
+                  <CommandList>
+                    <CommandEmpty>No environments found.</CommandEmpty>
+                    {Object.keys(environments).map((key) => (
+                      <CommandItem
+                        key={key}
+                        value={key}
+                        onSelect={() => runAndClose(() => selectEnvironment(key))}
+                      >
+                        <span className="truncate">{key}</span>
+                        {selectedEnvironment === key && (
+                          <span className="text-muted-foreground ml-auto text-xs">active</span>
+                        )}
+                      </CommandItem>
                     ))}
                   </CommandList>
                 </TabsContent>
@@ -222,28 +241,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                         <span className="text-muted-foreground ml-auto text-xs">⌘N</span>
                       </CommandItem>
                     </CommandGroup>
-                    {Object.keys(environments).length > 0 && (
-                      <>
-                        <CommandSeparator />
-                        <CommandGroup heading="Switch environment">
-                          {Object.keys(environments).map((key) => (
-                            <CommandItem
-                              key={key}
-                              value={`switch environment ${key}`}
-                              onSelect={() => runAndClose(() => selectEnvironment(key))}
-                            >
-                              <SwitchCamera className="shrink-0" />
-                              <span>{key}</span>
-                              {selectedEnvironment === key && (
-                                <span className="text-muted-foreground ml-auto text-xs">
-                                  active
-                                </span>
-                              )}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </>
-                    )}
                   </CommandList>
                 </TabsContent>
               </Tabs>
