@@ -80,7 +80,7 @@ const buildRequestGroups = (
   return group.requests.length > 0 ? [group, ...subGroups] : subGroups;
 };
 
-const TABS = ['requests', 'environments', 'actions'] as const;
+const TABS = ['all', 'requests', 'environments', 'actions'] as const;
 type Tab = (typeof TABS)[number];
 
 interface CommandPaletteProps {
@@ -89,12 +89,13 @@ interface CommandPaletteProps {
 }
 
 export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
-  const [activeTab, setActiveTab] = useState<Tab>('requests');
+  const [activeTab, setActiveTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const collection = useCollectionStore((s) => s.collection);
   const requestGroups = collection ? buildRequestGroups(collection.children) : [];
+  const allRequests = requestGroups.flatMap((group) => group.requests);
   const currentRequest = useCollectionStore(selectRequest);
   const { setSelectedRequest, addNewRequest, updateRequest, discardChanges, addNewFolder } =
     useCollectionActions();
@@ -110,7 +111,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   // Reset state when opened
   useEffect(() => {
     if (open) {
-      setActiveTab('requests');
+      setActiveTab('all');
       setSearch('');
     }
   }, [open]);
@@ -262,12 +263,67 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                 className="flex flex-col gap-2"
               >
                 <TabsList className="mt-2 px-2">
+                  <TabsTrigger value="all">All</TabsTrigger>
                   <TabsTrigger value="requests">Requests</TabsTrigger>
                   <TabsTrigger value="environments">Environments</TabsTrigger>
                   <TabsTrigger value="actions">Actions</TabsTrigger>
                 </TabsList>
 
                 <Divider />
+
+                <TabsContent value="all" className="mt-0 rounded-none bg-transparent">
+                  <CommandList>
+                    <CommandEmpty>No results found.</CommandEmpty>
+                    {search.trim() === '' ? (
+                      <CommandGroup heading="Recent">
+                        {[...allRequests]
+                          .sort((a, b) => b.lastModified - a.lastModified)
+                          .slice(0, 5)
+                          .map(renderRequestItem)}
+                      </CommandGroup>
+                    ) : (
+                      <>
+                        <CommandGroup heading="Requests">
+                          {allRequests.map(renderRequestItem)}
+                        </CommandGroup>
+                        <CommandGroup heading="Environments">
+                          {Object.keys(environments).map((key) => (
+                            <CommandItem
+                              key={key}
+                              value={key}
+                              onSelect={() => runAndClose(() => selectEnvironment(key))}
+                            >
+                              <span className="truncate">{key}</span>
+                              {selectedEnvironment === key && (
+                                <span className="text-muted-foreground ml-auto text-xs">
+                                  active
+                                </span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                        <CommandGroup heading="Actions">
+                          {actionItems.map((item) => (
+                            <CommandItem
+                              key={item.value}
+                              value={item.value}
+                              disabled={item.disabled}
+                              onSelect={item.onSelect}
+                            >
+                              <item.icon className="shrink-0" />
+                              <span>{item.label}</span>
+                              {item.shortcut && (
+                                <span className="text-muted-foreground ml-auto text-xs">
+                                  {item.shortcut}
+                                </span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+                  </CommandList>
+                </TabsContent>
 
                 <TabsContent value="requests" className="mt-0 rounded-none bg-transparent">
                   <CommandList>
