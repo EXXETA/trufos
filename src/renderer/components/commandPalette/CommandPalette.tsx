@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
-import { ArrowRight, Folder as FolderIcon, Globe, Plus, Save, SwitchCamera } from 'lucide-react';
+import { ArrowRight, Plus, Save, SwitchCamera } from 'lucide-react';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { editor } from 'monaco-editor';
@@ -57,7 +57,7 @@ const buildRequestGroups = (
   return group.requests.length > 0 ? [group, ...subGroups] : subGroups;
 };
 
-const TABS = ['requests', 'collections', 'folders', 'actions'] as const;
+const TABS = ['requests', 'environments', 'actions'] as const;
 type Tab = (typeof TABS)[number];
 
 interface CommandPaletteProps {
@@ -70,7 +70,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const [search, setSearch] = useState('');
   const tabsRef = useRef<HTMLDivElement>(null);
 
-  const folders = useCollectionStore((s) => s.folders);
   const collection = useCollectionStore((s) => s.collection);
   const requestGroups = collection ? buildRequestGroups(collection.children) : [];
   const currentRequest = useCollectionStore(selectRequest);
@@ -160,8 +159,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
               >
                 <TabsList className="mt-2 px-2">
                   <TabsTrigger value="requests">Requests</TabsTrigger>
-                  <TabsTrigger value="collections">Collections</TabsTrigger>
-                  <TabsTrigger value="folders">Folders</TabsTrigger>
                   <TabsTrigger value="actions">Actions</TabsTrigger>
                 </TabsList>
 
@@ -190,30 +187,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                           ))}
                         </CommandGroup>
                       </Fragment>
-                    ))}
-                  </CommandList>
-                </TabsContent>
-
-                <TabsContent value="collections">
-                  <CommandList>
-                    <CommandEmpty>No collections found.</CommandEmpty>
-                    {collection != null && (
-                      <CommandItem key={collection.id} value={collection.title}>
-                        <Globe className="shrink-0" />
-                        <span className="truncate">{collection.title}</span>
-                      </CommandItem>
-                    )}
-                  </CommandList>
-                </TabsContent>
-
-                <TabsContent value="folders">
-                  <CommandList>
-                    <CommandEmpty>No folders found.</CommandEmpty>
-                    {Array.from(folders.values()).map((folder) => (
-                      <CommandItem key={folder.id} value={folder.title}>
-                        <FolderIcon className="shrink-0" />
-                        <span className="truncate">{folder.title}</span>
-                      </CommandItem>
                     ))}
                   </CommandList>
                 </TabsContent>
