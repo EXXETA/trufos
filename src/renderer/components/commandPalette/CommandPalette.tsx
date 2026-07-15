@@ -1,5 +1,13 @@
 import { Fragment, useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
-import { ArrowRight, Plus, Save } from 'lucide-react';
+import {
+  ArrowRight,
+  EraserIcon,
+  FolderPlusIcon,
+  Plus,
+  Save,
+  SettingsIcon,
+  SwitchCameraIcon,
+} from 'lucide-react';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { editor } from 'monaco-editor';
@@ -23,6 +31,7 @@ import {
   useEnvironmentStore,
 } from '@/state/environmentStore';
 import { useResponseActions } from '@/state/responseStore';
+import { useViewActions } from '@/state/viewStore';
 import { HttpService } from '@/services/http/http-service';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { saveModelContent } from '@/lib/monaco/models';
@@ -73,13 +82,16 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const collection = useCollectionStore((s) => s.collection);
   const requestGroups = collection ? buildRequestGroups(collection.children) : [];
   const currentRequest = useCollectionStore(selectRequest);
-  const { setSelectedRequest, addNewRequest, updateRequest } = useCollectionActions();
+  const { setSelectedRequest, addNewRequest, updateRequest, discardChanges, addNewFolder } =
+    useCollectionActions();
 
   const environments = useEnvironmentStore(selectEnvironments);
   const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
   const { selectEnvironment } = useEnvironmentActions();
 
   const { addResponse } = useResponseActions();
+
+  const { openCollectionSettings } = useViewActions();
 
   // Reset state when opened
   useEffect(() => {
@@ -239,6 +251,40 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                         <Plus className="shrink-0" />
                         <span>New request</span>
                         <span className="text-muted-foreground ml-auto text-xs">⌘N</span>
+                      </CommandItem>
+                      <CommandItem
+                        value="discard changes"
+                        disabled={!currentRequest?.draft}
+                        onSelect={() => runAndClose(discardChanges)}
+                      >
+                        <EraserIcon className="shrink-0" />
+                        <span>Discard changes</span>
+                      </CommandItem>
+                    </CommandGroup>
+
+                    <CommandSeparator />
+
+                    <CommandGroup heading="Collection">
+                      <CommandItem
+                        value="new folder"
+                        onSelect={() => runAndClose(() => addNewFolder())}
+                      >
+                        <FolderPlusIcon className="shrink-0" />
+                        <span>New folder</span>
+                      </CommandItem>
+                      <CommandItem
+                        value="switch environment"
+                        onSelect={() => setActiveTab('environments')}
+                      >
+                        <SwitchCameraIcon className="shrink-0" />
+                        <span>Switch environment</span>
+                      </CommandItem>
+                      <CommandItem
+                        value="collection settings"
+                        onSelect={() => runAndClose(openCollectionSettings)}
+                      >
+                        <SettingsIcon className="shrink-0" />
+                        <span>Collection settings</span>
                       </CommandItem>
                     </CommandGroup>
                   </CommandList>
