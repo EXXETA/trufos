@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TextWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 import type { ExportOptions } from 'shim/event-service';
+import { SecretService } from 'main/persistence/service/secret-service';
 import { ZipExporter } from './zip-exporter';
 
 /**
@@ -55,6 +56,10 @@ async function exportAndUnzip(
 }
 
 describe('ZipExporter', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('includes collection files, excludes .gitignore matches, and always drops .git', async () => {
     const collectionDir = await createCollection({
       'collection.json': '{"id":"c1","title":"Test"}',
@@ -167,6 +172,30 @@ describe('ZipExporter', () => {
     // The archive is encrypted (needs the password) yet carries the decrypted secrets plaintext.
     const entries = await readEntries(buffer, 'pw');
     expect(entries['.secrets.bin']).toBe(secrets);
+  });
+
+  it('deletes the partial archive and rethrows when streaming fails mid-export', async () => {
+    const collectionDir = await createCollection({
+      'collection.json': '{"id":"c1","title":"Test"}',
+      '.secrets.bin': '{"variables":{}}',
+      '.gitignore': '.secrets.bin',
+    });
+    const targetPath = path.join(
+      await fs.mkdtemp(path.join(tmpdir(), 'export-out-')),
+      'export.zip'
+    );
+
+    // Force a failure while streaming an entry, after the target file has already been created.
+    vi.spyOn(SecretService.instance, 'decrypt').mockImplementation(() => {
+      throw new Error('decrypt failed');
+    });
+
+    await expect(
+      new ZipExporter().exportCollection(collectionDir, targetPath, { includeSecrets: true })
+    ).rejects.toThrow('decrypt failed');
+
+    // No leaked, half-written archive is left behind.
+    await expect(fs.access(targetPath)).rejects.toThrow();
   });
 
   it('cannot decrypt the archive with a wrong password', async () => {

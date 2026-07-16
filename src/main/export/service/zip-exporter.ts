@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { once } from 'node:events';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { Readable, Writable } from 'node:stream';
 import { configure, TextReader, ZipWriter } from '@zip.js/zip.js';
@@ -39,25 +40,37 @@ export class ZipExporter implements CollectionExporter {
     const gitignore = await this.loadGitignore(dirPath);
     const files = await this.collectFiles(dirPath, gitignore, includeSecrets);
 
-    const zipWriter = new ZipWriter(Writable.toWeb(createWriteStream(targetPath)), {
+    const writeStream = createWriteStream(targetPath);
+    const zipWriter = new ZipWriter(Writable.toWeb(writeStream), {
       ...(password ? { password, encryptionStrength: AES_256 } : {}),
     });
 
-    // Stream every file into the archive sequentially to bound memory usage.
-    for (const relativePath of files) {
-      const absolutePath = path.join(dirPath, relativePath);
-      if (includeSecrets && path.basename(relativePath) === SECRETS_FILE_NAME) {
-        // Decrypt the machine-bound secrets and store them as portable plaintext JSON.
-        const plaintext = SecretService.instance.decrypt(await fs.readFile(absolutePath));
-        await zipWriter.add(relativePath, new TextReader(plaintext));
-      } else {
-        const readable = Readable.toWeb(
-          createReadStream(absolutePath)
-        ) as ReadableStream<Uint8Array>;
-        await zipWriter.add(relativePath, readable);
+    try {
+      // Stream every file into the archive sequentially to bound memory usage.
+      for (const relativePath of files) {
+        const absolutePath = path.join(dirPath, relativePath);
+        if (includeSecrets && path.basename(relativePath) === SECRETS_FILE_NAME) {
+          // Decrypt the machine-bound secrets and store them as portable plaintext JSON.
+          const plaintext = SecretService.instance.decrypt(await fs.readFile(absolutePath));
+          await zipWriter.add(relativePath, new TextReader(plaintext));
+        } else {
+          const readable = Readable.toWeb(
+            createReadStream(absolutePath)
+          ) as ReadableStream<Uint8Array>;
+          await zipWriter.add(relativePath, readable);
+        }
       }
+      await zipWriter.close();
+    } catch (error) {
+      if (!writeStream.destroyed) {
+        writeStream.destroy();
+        await once(writeStream, 'close').catch(() => {});
+      }
+      await fs.rm(targetPath, { force: true }).catch((cleanupError) => {
+        logger.warn(`Failed to delete partial export at "${targetPath}": ${cleanupError}`);
+      });
+      throw error;
     }
-    await zipWriter.close();
   }
 
   /** Loads the collection's `.gitignore`, falling back to an empty matcher when absent. */
