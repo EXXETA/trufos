@@ -1,28 +1,63 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
+import { Readable } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TextWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 import type { ExportOptions } from 'shim/event-service';
-import { SecretService } from 'main/persistence/service/secret-service';
+import { Collection } from 'shim/objects/collection';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { RequestMethod } from 'shim/objects/request-method';
+import { ScriptType } from 'shim/scripting';
+import { USER_DATA_DIR } from 'main/util/fs-util';
+import { PersistenceService } from 'main/persistence/service/persistence-service';
+import { CollectionSnapshot, RequestSnapshot } from 'main/persistence/service/snapshot';
 import { ZipExporter } from './zip-exporter';
 
-/**
- * Creates a temporary collection directory with the given files.
- * @param files A map of relative file paths to their content.
- * @returns Path to the temporary collection directory.
- */
-async function createCollection(files: Record<string, string>): Promise<string> {
-  const collectionDir = await fs.mkdtemp(path.join(tmpdir(), 'export-test-'));
-  for (const [filePath, content] of Object.entries(files)) {
-    const fullPath = path.join(collectionDir, filePath);
-    await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    await fs.writeFile(fullPath, content);
-  }
-  return collectionDir;
+const persistenceService = PersistenceService.instance;
+
+function getExampleCollection(): Collection {
+  return {
+    id: randomUUID(),
+    type: 'collection',
+    lastModified: Date.now(),
+    title: 'my collection',
+    isDefault: false,
+    children: [],
+    variables: {},
+    environments: {},
+    dirPath: path.join(USER_DATA_DIR, 'collections', randomUUID()),
+  };
 }
 
-/** Exports the given collection to a temporary zip and returns the raw archive bytes. */
+function getExampleRequest(parentId: string, title = 'request'): TrufosRequest {
+  return {
+    id: randomUUID(),
+    url: { base: 'https://example.com', query: [] },
+    headers: [],
+    type: 'request',
+    lastModified: Date.now(),
+    title,
+    draft: false,
+    parentId,
+    method: RequestMethod.GET,
+    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+  };
+}
+
+/** Creates and persists a simple collection with one request (with body) via the persistence layer. */
+async function createPersistedCollection() {
+  const collection = getExampleCollection();
+  const request = getExampleRequest(collection.id, 'my request');
+  collection.children.push(request);
+  await fs.mkdir(collection.dirPath, { recursive: true });
+  await persistenceService.saveCollection(collection, true);
+  await persistenceService.saveRequest(request, 'hello world');
+  return { collection, request };
+}
+
+/** Exports the given collection directory to a temporary zip and returns the raw archive bytes. */
 async function exportToZip(collectionDir: string, options?: ExportOptions): Promise<Uint8Array> {
   const targetPath = path.join(await fs.mkdtemp(path.join(tmpdir(), 'export-out-')), 'export.zip');
   await new ZipExporter().exportCollection(collectionDir, targetPath, options);
@@ -47,76 +82,62 @@ async function readEntries(buffer: Uint8Array, password?: string): Promise<Recor
   }
 }
 
-/** Exports without a password and returns the archive entries as a filename -> text map. */
-async function exportAndUnzip(
-  collectionDir: string,
-  options?: ExportOptions
-): Promise<Record<string, string>> {
-  return readEntries(await exportToZip(collectionDir, options));
-}
-
 describe('ZipExporter', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('includes collection files, excludes .gitignore matches, and always drops .git', async () => {
-    const collectionDir = await createCollection({
-      'collection.json': '{"id":"c1","title":"Test"}',
-      'order.json': '["r1"]',
-      'requests/req-a/request.json': '{"id":"r1","title":"Req A"}',
-      'requests/req-a/request-body.txt': 'hello world',
-      '.secrets.bin': 'ENCRYPTED',
-      '.draft/request.json': '{"draft":true}',
-      '.git/config': '[core]',
-      '.gitignore': '.draft\n.secrets.bin',
-    });
+  it('archives the serialized collection layout without drafts or secrets by default', async () => {
+    const { collection, request } = await createPersistedCollection();
+    collection.variables = { secretVar: { value: 's3cr3t', secret: true } };
+    await persistenceService.saveCollection(collection);
+    // add a draft overlay that must not end up in the archive
+    await persistenceService.saveRequest({ ...request, draft: true, title: 'draft' }, 'draft body');
 
-    const entries = await exportAndUnzip(collectionDir);
+    const entries = await readEntries(await exportToZip(collection.dirPath));
     const names = Object.keys(entries);
 
     expect(names).toContain('collection.json');
     expect(names).toContain('order.json');
-    expect(names).toContain('requests/req-a/request.json');
     expect(names).toContain('.gitignore');
-    expect(entries['requests/req-a/request-body.txt']).toBe('hello world');
+    expect(entries['my-request/request-body.txt']).toBe('hello world');
+    expect(JSON.parse(entries['order.json'])).toEqual([request.id]);
 
-    expect(names).not.toContain('.secrets.bin');
-    expect(names.some((name) => name.startsWith('.draft/'))).toBe(false);
-    expect(names.some((name) => name.startsWith('.git/'))).toBe(false);
+    expect(names.some((name) => name.includes('.draft'))).toBe(false);
+    expect(names.some((name) => name.endsWith('.secrets.bin'))).toBe(false);
+    expect(JSON.parse(entries['collection.json']).variables).toEqual({});
   });
 
-  it('honors glob patterns from the .gitignore at any depth', async () => {
-    const collectionDir = await createCollection({
-      'collection.json': '{"id":"c1","title":"Test"}',
-      'debug.log': 'noise',
-      'requests/req-a/trace.log': 'noise',
-      'requests/req-a/request.json': '{}',
-      '.gitignore': '*.log\n',
-    });
+  it('includes scripts in the archive', async () => {
+    const { collection, request } = await createPersistedCollection();
+    await persistenceService.saveScript(request, ScriptType.POST_RESPONSE, 'trufos.log()');
 
-    const entries = await exportAndUnzip(collectionDir);
-    const names = Object.keys(entries);
+    const entries = await readEntries(await exportToZip(collection.dirPath));
+    expect(entries['my-request/post-response-script.js']).toBe('trufos.log()');
+  });
 
-    expect(names).toContain('collection.json');
-    expect(names).toContain('requests/req-a/request.json');
+  it('includes secrets as plaintext JSON when includeSecrets is set', async () => {
+    const { collection } = await createPersistedCollection();
+    collection.variables = { secretVar: { value: 's3cr3t', secret: true } };
+    await persistenceService.saveCollection(collection);
 
-    expect(names).not.toContain('debug.log');
-    expect(names.some((name) => name.endsWith('.log'))).toBe(false);
+    const entries = await readEntries(
+      await exportToZip(collection.dirPath, { includeSecrets: true })
+    );
+
+    expect(JSON.parse(entries['.secrets.bin']).variables.secretVar.value).toBe('s3cr3t');
+    expect(JSON.parse(entries['collection.json']).variables).toEqual({});
   });
 
   it('encrypts the archive with AES-256 when a password is provided', async () => {
-    const collectionDir = await createCollection({
-      'collection.json': '{"id":"c1","title":"Test"}',
-      'requests/req-a/request-body.txt': 'hello world',
-    });
+    const { collection } = await createPersistedCollection();
 
-    const buffer = await exportToZip(collectionDir, { password: 'hunter2' });
+    const buffer = await exportToZip(collection.dirPath, { password: 'hunter2' });
 
     const reader = new ZipReader(new Uint8ArrayReader(buffer));
     try {
       const entries = await reader.getEntries();
-      const body = entries.find((e) => e.filename === 'requests/req-a/request-body.txt');
+      const body = entries.find((e) => e.filename === 'my-request/request-body.txt');
       expect(body).toBeDefined();
       expect(body?.encrypted).toBe(true);
       expect(body?.zipCrypto).toBe(false); // AES, not legacy ZipCrypto
@@ -128,82 +149,10 @@ describe('ZipExporter', () => {
     }
   });
 
-  it('includes secrets as decrypted plaintext JSON when includeSecrets is set', async () => {
-    // The mocked safeStorage is a UTF-8 identity, so the on-disk .secrets.bin content equals its
-    // decrypted plaintext.
-    const secrets = JSON.stringify({ variables: { API_KEY: { value: 'sk-123', secret: true } } });
-    const collectionDir = await createCollection({
-      'collection.json': '{"id":"c1","title":"Test"}',
-      '.secrets.bin': secrets,
-      '.draft/request.json': '{"draft":true}',
-      '.gitignore': '.draft\n.secrets.bin',
-    });
-
-    const entries = await exportAndUnzip(collectionDir, { includeSecrets: true });
-    const names = Object.keys(entries);
-
-    // Only the secrets file is un-ignored; other .gitignore rules still apply.
-    expect(names).toContain('.secrets.bin');
-    expect(names.some((name) => name.startsWith('.draft/'))).toBe(false);
-    expect(entries['.secrets.bin']).toBe(secrets);
-  });
-
-  it('excludes secrets by default (includeSecrets not set)', async () => {
-    const collectionDir = await createCollection({
-      'collection.json': '{"id":"c1","title":"Test"}',
-      '.secrets.bin': '{"variables":{}}',
-      '.gitignore': '.draft\n.secrets.bin',
-    });
-
-    const entries = await exportAndUnzip(collectionDir);
-    expect(Object.keys(entries)).not.toContain('.secrets.bin');
-  });
-
-  it('combines includeSecrets with an AES-256 password independently', async () => {
-    const secrets = JSON.stringify({ variables: { TOKEN: { value: 'top-secret', secret: true } } });
-    const collectionDir = await createCollection({
-      'collection.json': '{"id":"c1","title":"Test"}',
-      '.secrets.bin': secrets,
-      '.gitignore': '.secrets.bin',
-    });
-
-    const buffer = await exportToZip(collectionDir, { includeSecrets: true, password: 'pw' });
-
-    // The archive is encrypted (needs the password) yet carries the decrypted secrets plaintext.
-    const entries = await readEntries(buffer, 'pw');
-    expect(entries['.secrets.bin']).toBe(secrets);
-  });
-
-  it('deletes the partial archive and rethrows when streaming fails mid-export', async () => {
-    const collectionDir = await createCollection({
-      'collection.json': '{"id":"c1","title":"Test"}',
-      '.secrets.bin': '{"variables":{}}',
-      '.gitignore': '.secrets.bin',
-    });
-    const targetPath = path.join(
-      await fs.mkdtemp(path.join(tmpdir(), 'export-out-')),
-      'export.zip'
-    );
-
-    // Force a failure while streaming an entry, after the target file has already been created.
-    vi.spyOn(SecretService.instance, 'decrypt').mockImplementation(() => {
-      throw new Error('decrypt failed');
-    });
-
-    await expect(
-      new ZipExporter().exportCollection(collectionDir, targetPath, { includeSecrets: true })
-    ).rejects.toThrow('decrypt failed');
-
-    // No leaked, half-written archive is left behind.
-    await expect(fs.access(targetPath)).rejects.toThrow();
-  });
-
   it('cannot decrypt the archive with a wrong password', async () => {
-    const collectionDir = await createCollection({
-      'collection.json': '{"id":"c1","title":"Test"}',
-    });
+    const { collection } = await createPersistedCollection();
 
-    const buffer = await exportToZip(collectionDir, { password: 'correct-password' });
+    const buffer = await exportToZip(collection.dirPath, { password: 'correct-password' });
 
     const reader = new ZipReader(new Uint8ArrayReader(buffer));
     try {
@@ -216,5 +165,33 @@ describe('ZipExporter', () => {
     } finally {
       await reader.close();
     }
+  });
+
+  it('deletes the partial archive and rethrows when streaming fails mid-export', async () => {
+    const { collection } = await createPersistedCollection();
+    const targetPath = path.join(
+      await fs.mkdtemp(path.join(tmpdir(), 'export-out-')),
+      'export.zip'
+    );
+
+    // Force a failure while reading an entry's content, after the target file has been created.
+    const failingSnapshot: CollectionSnapshot = {
+      ...collection,
+      children: [
+        {
+          ...getExampleRequest(collection.id, 'boom'),
+          getBodyContent: async (): Promise<Readable> => {
+            throw new Error('boom');
+          },
+          getScriptContent: async () => undefined,
+        } as RequestSnapshot,
+      ],
+    };
+    vi.spyOn(persistenceService, 'walkCollection').mockResolvedValue(failingSnapshot);
+
+    await expect(
+      new ZipExporter().exportCollection(collection.dirPath, targetPath)
+    ).rejects.toThrow('boom');
+    await expect(fs.access(targetPath)).rejects.toThrow();
   });
 });
