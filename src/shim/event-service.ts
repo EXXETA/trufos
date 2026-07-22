@@ -27,6 +27,18 @@ export interface ImportResult {
   warnings: ImportWarning[];
 }
 
+export type ExportStrategy = 'Zip';
+
+export interface ExportOptions {
+  /** When set, the archive is encrypted with AES-256 using this password. */
+  password?: string;
+  /**
+   * When true, each object's secrets (secret variables and auth) are decrypted from their
+   * `.secrets.bin` file and written into the archive as plaintext JSON. Independent of `password`.
+   */
+  includeSecrets?: boolean;
+}
+
 export interface IEventService {
   /**
    * (Re)load the last opened collection.
@@ -171,6 +183,11 @@ export interface IEventService {
   showOpenDialog(options: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue>;
 
   /**
+   * Open a save dialog and return the selected file path.
+   */
+  showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>;
+
+  /**
    * Import a collection from a source file into a target directory using the given strategy.
    * The target directory must exist. A new directory will be created inside it using the
    * collection name (or the name the user provides) similar to createCollection semantics.
@@ -185,6 +202,21 @@ export interface IEventService {
     strategy: ImportStrategy,
     title?: string
   ): Promise<ImportResult>;
+
+  /**
+   * Export the collection at the given directory to the given target file.
+   * Secrets, drafts, request history, and `.gitignore`d files are excluded from the archive.
+   * @param dirPath The directory path of the collection to export.
+   * @param targetPath The file path to write the export to.
+   * @param strategy The export strategy / target format (e.g. Zip).
+   * @param options Optional export settings. Providing a `password` encrypts the archive.
+   */
+  exportCollection(
+    dirPath: string,
+    targetPath: string,
+    strategy: ExportStrategy,
+    options?: ExportOptions
+  ): Promise<void>;
 
   /**
    * Rename the given collection, folder, or request to the new title.

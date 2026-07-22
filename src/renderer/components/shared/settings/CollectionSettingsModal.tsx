@@ -12,6 +12,7 @@ import {
 } from '@/components/shared/settings/VariableTab/VariableEditor';
 import { EnvironmentEditor } from '@/components/shared/settings/EnvironmentTab/EnvironmentEditor';
 import { CertificateEditor } from '@/components/shared/settings/TlsTab/CertificateEditor';
+import { ExportEditor } from '@/components/shared/settings/ExportTab/ExportEditor';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
@@ -136,6 +137,9 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
                 <TabsTrigger value="tls" className="font-light!">
                   mTLS
                 </TabsTrigger>
+                <TabsTrigger value="export" className="font-light!">
+                  Export
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -172,6 +176,10 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
                 certificate={draft.clientCertificate}
                 onCertificateChange={(clientCertificate) => update({ clientCertificate })}
               />
+            </TabsContent>
+
+            <TabsContent value="export" className="m-0 min-h-0 flex-1 overflow-y-auto p-0">
+              <ExportEditor />
             </TabsContent>
           </Tabs>
 

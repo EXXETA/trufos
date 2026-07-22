@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -33,11 +34,20 @@ import { SettingsService } from './settings-service';
 import { sanitizeTitle } from 'shim/fs';
 import {
   DRAFT_DIR_NAME,
+  getInfoFileName,
+  getScriptFileName,
   ORDER_FILE_NAME,
   OrderFile,
   SECRETS_FILE_NAME,
 } from 'main/persistence/constants';
 import { ScriptType } from 'shim';
+import {
+  CollectionSnapshot,
+  FolderSnapshot,
+  regenerateIds,
+  RequestSnapshot,
+  SnapshotChild,
+} from './snapshot';
 
 const secretService = SecretService.instance;
 
@@ -531,6 +541,88 @@ export class PersistenceService {
     return fromCollectionInfoFile(info, lastModified, dirPath, children);
   }
 
+  /**
+   * Creates a fully-hydrated, saved-only snapshot of the collection at the given directory.
+   * Unlike {@link loadCollection}, drafts are excluded (the last saved state of each request is
+   * used and never-saved draft-only requests are skipped), request bodies and scripts are exposed
+   * through lazy streams, and the walk is fully detached from the persistence state (it does not
+   * register anything in the ID-to-path mapping).
+   *
+   * @param dirPath the directory path where the collection is located
+   * @param options.freshIds when true, all nodes get fresh IDs (see {@link regenerateIds}).
+   *   Intended for cloning; exports preserve the original IDs.
+   * @returns the collection snapshot
+   */
+  public async walkCollection(
+    dirPath: string,
+    options: { freshIds?: boolean } = {}
+  ): Promise<CollectionSnapshot> {
+    dirPath = this.normalizeDirPath(dirPath);
+    logger.info('Walking collection at', dirPath);
+    const type = 'collection' as const;
+    const info = await this.readInfoFile(dirPath, type);
+    const lastModified = await this.getInfoFileModifactionTime(dirPath, type);
+    const children = await this.walkChildren(info.id, dirPath);
+
+    const snapshot = fromCollectionInfoFile(
+      info,
+      lastModified,
+      dirPath,
+      children
+    ) as CollectionSnapshot;
+    if (options.freshIds) regenerateIds(snapshot);
+    return snapshot;
+  }
+
+  private async walkChildren(parentId: string, parentDirPath: string): Promise<SnapshotChild[]> {
+    const children: SnapshotChild[] = [];
+
+    for (const node of await fs.readdir(parentDirPath, { withFileTypes: true })) {
+      if (!node.isDirectory() || node.name === DRAFT_DIR_NAME) continue;
+      const childDirPath = path.join(parentDirPath, node.name);
+
+      if (await exists(path.join(childDirPath, getInfoFileName('folder')))) {
+        const info = await this.readInfoFile(childDirPath, 'folder');
+        const lastModified = await this.getInfoFileModifactionTime(childDirPath, 'folder');
+        const folderChildren = await this.walkChildren(info.id, childDirPath);
+        children.push(
+          fromFolderInfoFile(info, lastModified, parentId, folderChildren) as FolderSnapshot
+        );
+      } else if (await exists(path.join(childDirPath, getInfoFileName('request')))) {
+        // NOTE: draft-only (never saved) requests have no main request.json and are skipped here.
+        const info = await this.readInfoFile(childDirPath, 'request');
+        const lastModified = await this.getInfoFileModifactionTime(childDirPath, 'request');
+        const request = fromRequestInfoFile(info, lastModified, parentId, false);
+        children.push(this.createRequestSnapshot(request, childDirPath));
+      }
+    }
+
+    return this.sortChildrenArray(children, await this.loadOrderFile(parentDirPath));
+  }
+
+  /**
+   * Attaches the lazy content accessors to a loaded request. The closures capture the request's
+   * directory directly, keeping the snapshot independent of the ID-to-path mapping.
+   */
+  private createRequestSnapshot(request: TrufosRequest, dirPath: string): RequestSnapshot {
+    return Object.assign(request, {
+      async getBodyContent() {
+        const filePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
+        if (await exists(filePath)) return createReadStream(filePath);
+        if (request.body.type === RequestBodyType.TEXT && request.body.text != null) {
+          // inline body of an imported, never manually saved collection (as bytes, like a file stream)
+          return Readable.from(Buffer.from(request.body.text));
+        }
+        return undefined;
+      },
+      async getScriptContent(type: ScriptType) {
+        const filePath = path.join(dirPath, getScriptFileName(type));
+        if (await exists(filePath)) return createReadStream(filePath);
+        return undefined;
+      },
+    });
+  }
+
   private async loadRequest(
     parentId: string,
     dirPath: string,
@@ -589,10 +681,7 @@ export class PersistenceService {
     return this.sortChildrenArray(children, await this.loadOrderFile(parentDirPath));
   }
 
-  private sortChildrenArray(
-    children: (Folder | TrufosRequest)[],
-    order: string[]
-  ): (Folder | TrufosRequest)[] {
+  private sortChildrenArray<T extends { id: string }>(children: T[], order: string[]): T[] {
     const orderLookup = new Map(order.map((id, index) => [id, index]));
     return children.sort(
       (a, b) =>
@@ -722,22 +811,13 @@ export class PersistenceService {
    * @returns the info file name
    */
   getInfoFileName(type: TrufosObject['type']) {
-    return `${type}.json`;
+    return getInfoFileName(type);
   }
 
   private getScriptFilePath(request: TrufosRequest, type: ScriptType) {
     let dirPath = this.getOrCreateDirPath(request);
     if (request.draft) dirPath = this.getDraftDirPath(dirPath);
-    return path.join(dirPath, this.getScriptFileName(type));
-  }
-
-  /**
-   * Gets the script file name for a given script type.
-   * @param type the type of the script
-   * @returns the script file name with file extension `.js`
-   */
-  private getScriptFileName(type: ScriptType) {
-    return `${type}-script.js`;
+    return path.join(dirPath, getScriptFileName(type));
   }
 
   private isDirPathTaken(targetDirPath: string) {

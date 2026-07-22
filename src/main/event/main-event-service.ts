@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, WebContents } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
 import type {
@@ -11,12 +11,15 @@ import type {
   ScriptType,
   IEventService,
   ImportStrategy,
+  ExportStrategy,
+  ExportOptions,
   AppSettings,
 } from 'shim';
 import type { ClientCertificate } from 'shim/objects/collection';
 import { SettingsService } from '../persistence/service/settings-service';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { ImportService } from 'main/import/service/import-service';
+import { ExportService } from 'main/export/service/export-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { getSuggestedFilename } from 'main/network/response-filename';
@@ -28,6 +31,7 @@ import './stream-events';
 const persistenceService = PersistenceService.instance;
 const environmentService = EnvironmentService.instance;
 const importService = ImportService.instance;
+const exportService = ExportService.instance;
 
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
@@ -77,7 +81,13 @@ function toError(error: unknown) {
  */
 export class MainEventService implements IEventService {
   public static readonly instance = new MainEventService();
-  public webContents: WebContents | null = null;
+
+  /**
+   * The {@link BrowserWindow} that owns the renderer this service communicates with. Used to push
+   * notifications to the renderer and as the parent for dialogs so they appear as modal sheets
+   * attached to the window.
+   */
+  public window: BrowserWindow | null = null;
   private readonly abortControllers = new Map<string, AbortController>();
 
   private constructor() {
@@ -89,7 +99,7 @@ export class MainEventService implements IEventService {
       void persistenceService
         .saveCollection(environmentService.currentCollection)
         .then(() =>
-          this.webContents?.send('collection-variables-updated', { variables, environments })
+          this.window?.webContents.send('collection-variables-updated', { variables, environments })
         )
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });
@@ -207,7 +217,11 @@ export class MainEventService implements IEventService {
   }
 
   async showOpenDialog(options: Electron.OpenDialogOptions) {
-    return await dialog.showOpenDialog(options);
+    return await dialog.showOpenDialog(this.window!, options);
+  }
+
+  async showSaveDialog(options: Electron.SaveDialogOptions) {
+    return await dialog.showSaveDialog(this.window!, options);
   }
 
   async importCollection(
@@ -217,6 +231,15 @@ export class MainEventService implements IEventService {
     title?: string
   ) {
     return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
+  }
+
+  async exportCollection(
+    dirPath: string,
+    targetPath: string,
+    strategy: ExportStrategy,
+    options?: ExportOptions
+  ) {
+    await exportService.exportCollection(dirPath, targetPath, strategy, options);
   }
 
   async moveItem(
@@ -248,10 +271,9 @@ export class MainEventService implements IEventService {
     }
 
     const defaultPath = getSuggestedFilename(entry.headers);
-    const { canceled, filePath: chosenPath } = await dialog.showSaveDialog(
-      BrowserWindow.fromWebContents(this.webContents!)!,
-      { defaultPath }
-    );
+    const { canceled, filePath: chosenPath } = await dialog.showSaveDialog(this.window!, {
+      defaultPath,
+    });
 
     if (canceled || !chosenPath) {
       return null;
