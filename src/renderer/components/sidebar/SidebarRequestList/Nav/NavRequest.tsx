@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { TrufosRequest } from 'shim/objects/request';
 import { SidebarMenuItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { RequestView } from '@/components/sidebar/SidebarRequestList/Nav/RequestView';
@@ -18,6 +19,20 @@ export const NavRequest = ({ requestId, depth = 0 }: NavRequestProps) => {
     id: requestId,
   });
 
+  // dnd-kit's setNodeRef is a callback ref with no readable `.current`, so a
+  // separate ref is needed to scroll the row into view once it's revealed.
+  const rowRef = useRef<HTMLDivElement>(null);
+  const setRefs = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    rowRef.current = node;
+  };
+
+  useEffect(() => {
+    if (isHighlighted) {
+      rowRef.current?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [isHighlighted]);
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -26,7 +41,7 @@ export const NavRequest = ({ requestId, depth = 0 }: NavRequestProps) => {
 
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
       style={style}
       {...attributes}
       {...listeners}
