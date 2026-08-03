@@ -1,4 +1,5 @@
 import { MainProcessError } from '@/error/MainProcessError';
+import { DisplayableError } from 'shim/error/DisplayableError';
 import { IEventService } from 'shim/event-service';
 
 /**
@@ -13,7 +14,9 @@ function createEventMethod<T extends keyof IEventService>(methodName: T) {
     ReturnType<IEventService[T]> extends Promise<infer R> ? R : ReturnType<IEventService[T]>
   > {
     const result = await window.electron.ipcRenderer.invoke(methodName, ...args);
-    if (result instanceof Error) {
+    if (DisplayableError.isSerialized(result)) {
+      throw DisplayableError.deserialize(result);
+    } else if (result instanceof Error) {
       throw new MainProcessError(result.message);
     } else {
       return result;

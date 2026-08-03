@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EnvironmentService } from './environment-service';
+import { UnmatchedVariableError } from 'template-replace-stream';
 import { Collection, CollectionBase } from 'shim/objects/collection';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
@@ -272,5 +273,28 @@ describe('EnvironmentService', () => {
 
     // Assert
     expect(result).toBe(expected);
+  });
+
+  describe('setVariablesInString() undefined variable handling', () => {
+    it('should not throw for undefined variables by default', async () => {
+      await expect(environmentService.setVariablesInString('a/{{ missing }}/b')).resolves.toContain(
+        'missing'
+      );
+    });
+
+    it('should throw an UnmatchedVariableError naming the variable when enabled', async () => {
+      await expect(
+        environmentService.setVariablesInString('a/{{ missing }}/b', true)
+      ).rejects.toBeInstanceOf(UnmatchedVariableError);
+      await expect(
+        environmentService.setVariablesInString('a/{{ missing }}/b', true)
+      ).rejects.toHaveProperty('variableName', 'missing');
+    });
+
+    it('should not throw when enabled and all variables are defined', async () => {
+      await expect(
+        environmentService.setVariablesInString(`{{ ${variableKey} }}`, true)
+      ).resolves.toBe(variableValue);
+    });
   });
 });

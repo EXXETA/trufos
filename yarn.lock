@@ -10446,10 +10446,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"template-replace-stream@npm:^2.2.0":
-  version: 2.2.0
-  resolution: "template-replace-stream@npm:2.2.0"
-  checksum: 10c0/5730183ef26309cff080f1a50ca390e21ff00288cbaa897b89df4e9eef792aa2be6a95a71a162f00cbc23098e187cf4277de035e6111e4618c0a6fd0c03d726e
+"template-replace-stream@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "template-replace-stream@npm:3.0.1"
+  checksum: 10c0/55c66966822fbff6b7bac02cca938a8d3aefee68de670bab57bd4d9e1f49ffda89bcf80a3aa9343a1162c5612179c8a1386df0da3bc194308cda175b3926572e
   languageName: node
   linkType: hard
 
@@ -10766,7 +10766,7 @@ __metadata:
     tailwind-merge: "npm:^3.6.0"
     tailwindcss: "npm:^4.3.2"
     tailwindcss-animate: "npm:^1.0.7"
-    template-replace-stream: "npm:^2.2.0"
+    template-replace-stream: "npm:^3.0.1"
     tmp: "npm:^0.2.7"
     ts-loader: "npm:^9.6.2"
     ts-node: "npm:^10.9.2"

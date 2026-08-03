@@ -24,6 +24,7 @@ import { ScriptingService } from 'main/scripting/scripting-service';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
+import { DisplayableError } from 'shim/error/DisplayableError';
 
 // register stream events
 import './stream-events';
@@ -46,6 +47,9 @@ function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
       return (await fn(...args)) as R;
     } catch (error) {
       logger.error(error);
+      if (error instanceof DisplayableError) {
+        return error.serialize();
+      }
       return toError(error);
     }
   };

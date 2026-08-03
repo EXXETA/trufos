@@ -8,6 +8,7 @@ import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
+import { UnmatchedVariableError } from 'template-replace-stream';
 import { TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { TrufosHeader } from 'shim/objects/headers';
@@ -18,6 +19,8 @@ import { ResponseBodyService } from 'main/network/service/response-body-service'
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { ScriptType } from 'shim/scripting';
 import { text, buffer } from 'node:stream/consumers';
+import { DisplayableError } from 'shim/error/DisplayableError';
+import { mapRequestError } from 'main/network/service/request-error';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -56,15 +59,38 @@ export class HttpService {
   }
 
   /**
-   * Fetch a resource asynchronously. The response body is written to a temporary file.
+   * Fetch a resource asynchronously. The response body is written to a temporary file. Any failure
+   * is mapped to a user-friendly {@link DisplayableError}.
    * @param request request object
    * @returns response object
    */
   public async fetchAsync(request: TrufosRequest, signal?: AbortSignal) {
+    try {
+      return await this.doFetchAsync(request, signal);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (error instanceof DisplayableError) throw error;
+      throw mapRequestError(error);
+    }
+  }
+
+  private async doFetchAsync(request: TrufosRequest, signal?: AbortSignal) {
     logger.info('Sending request:', request);
 
     // resolve variables (except in body, which is resolved stream-based during send)
-    const url = await environmentService.setVariablesInString(buildUrl(request.url));
+    let url: string;
+    try {
+      url = await environmentService.setVariablesInString(buildUrl(request.url), true);
+    } catch (error) {
+      if (error instanceof UnmatchedVariableError) {
+        throw new DisplayableError(
+          `The variable "${error.variableName}" used in the URL is not defined.`,
+          'Undefined Variable',
+          error
+        );
+      }
+      throw error;
+    }
 
     // set authorization header if the request has authentication information
     let authorization: string | undefined;
@@ -77,7 +103,11 @@ export class HttpService {
         });
       } catch (e) {
         logger.error('Failed to generate authentication header:', e);
-        throw new Error('Please check your authentication settings and try again', { cause: e });
+        throw new DisplayableError(
+          'Please check your authentication settings and try again.',
+          'Authentication Failed',
+          e
+        );
       }
     }
 
