@@ -83,6 +83,12 @@ const buildRequestGroups = (
 const TABS = ['all', 'requests', 'environments', 'actions'] as const;
 type Tab = (typeof TABS)[number];
 
+/** 2-column grid ancestor: column 1 (method badge) auto-sizes to the widest method text across every subgridded row. */
+const REQUEST_LIST_GRID = 'grid grid-cols-[auto_1fr]';
+/** Passes the 2 grid tracks down through cmdk's fixed group/heading/items DOM so every request row's columns line up. */
+const REQUEST_GROUP_GRID =
+  'col-span-full grid grid-cols-subgrid **:[[cmdk-group-heading]]:col-span-full **:[[cmdk-group-items]]:col-span-full **:[[cmdk-group-items]]:grid **:[[cmdk-group-items]]:grid-cols-subgrid';
+
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
@@ -160,10 +166,19 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       key={request.id}
       value={request.title ?? request.url.base}
       onSelect={() => selectAndClose(request.id)}
+      className="col-span-full grid grid-cols-subgrid"
     >
-      <span className={`shrink-0 text-xs font-normal ${httpMethodColor(request.method)}`}>
-        {request.method}
-      </span>
+      <div
+        className="flex items-center justify-center rounded px-2 py-0.5"
+        style={{
+          backgroundColor: `color-mix(in srgb, var(--http-${request.method.toLowerCase()}) 20%, transparent)`,
+        }}
+      >
+        <span className={`text-xs font-normal ${httpMethodColor(request.method)}`}>
+          {request.method}
+        </span>
+      </div>
+
       <span className="truncate">{request.title ?? request.url.base}</span>
     </CommandItem>
   );
@@ -275,17 +290,21 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                   <CommandList>
                     <CommandEmpty>No results found.</CommandEmpty>
                     {search.trim() === '' ? (
-                      <CommandGroup heading="Recent">
-                        {[...allRequests]
-                          .sort((a, b) => b.lastModified - a.lastModified)
-                          .slice(0, 5)
-                          .map(renderRequestItem)}
-                      </CommandGroup>
+                      <div className={REQUEST_LIST_GRID}>
+                        <CommandGroup heading="Recent" className={REQUEST_GROUP_GRID}>
+                          {[...allRequests]
+                            .sort((a, b) => b.lastModified - a.lastModified)
+                            .slice(0, 5)
+                            .map(renderRequestItem)}
+                        </CommandGroup>
+                      </div>
                     ) : (
                       <>
-                        <CommandGroup heading="Requests">
-                          {allRequests.map(renderRequestItem)}
-                        </CommandGroup>
+                        <div className={REQUEST_LIST_GRID}>
+                          <CommandGroup heading="Requests" className={REQUEST_GROUP_GRID}>
+                            {allRequests.map(renderRequestItem)}
+                          </CommandGroup>
+                        </div>
                         <CommandGroup heading="Environments">
                           {Object.keys(environments).map((key) => (
                             <CommandItem
@@ -328,14 +347,19 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                 <TabsContent value="requests" className="mt-0 rounded-none bg-transparent">
                   <CommandList>
                     <CommandEmpty>No requests found.</CommandEmpty>
-                    {requestGroups.map((group, i) => (
-                      <Fragment key={group.label ?? '__root__'}>
-                        {i > 0 && <CommandSeparator key={`sep-${i}`} />}
-                        <CommandGroup heading={group.label ?? `${collection?.title} root`}>
-                          {group.requests.map(renderRequestItem)}
-                        </CommandGroup>
-                      </Fragment>
-                    ))}
+                    <div className={REQUEST_LIST_GRID}>
+                      {requestGroups.map((group, i) => (
+                        <Fragment key={group.label ?? '__root__'}>
+                          {i > 0 && <CommandSeparator key={`sep-${i}`} className="col-span-full" />}
+                          <CommandGroup
+                            heading={group.label ?? `${collection?.title} root`}
+                            className={REQUEST_GROUP_GRID}
+                          >
+                            {group.requests.map(renderRequestItem)}
+                          </CommandGroup>
+                        </Fragment>
+                      ))}
+                    </div>
                   </CommandList>
                 </TabsContent>
 
