@@ -363,7 +363,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                   </CommandList>
                 </TabsContent>
 
-                <TabsContent value="environments">
+                <TabsContent value="environments" className="mt-0 rounded-none bg-transparent">
                   <CommandList>
                     <CommandEmpty>No environments found.</CommandEmpty>
                     {Object.keys(environments).map((key) => (
@@ -381,7 +381,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                   </CommandList>
                 </TabsContent>
 
-                <TabsContent value="actions">
+                <TabsContent value="actions" className="mt-0 rounded-none bg-transparent">
                   <CommandList>
                     <CommandEmpty>No actions available.</CommandEmpty>
                     {ACTION_SECTIONS.map((section, i) => (
