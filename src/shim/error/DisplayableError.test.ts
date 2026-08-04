@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { DisplayableError } from './DisplayableError';
 
 describe('DisplayableError', () => {
-  it('uses default title and description constants', () => {
+  it('defaults the title and uses the description as the message', () => {
     const error = new DisplayableError('some description');
     expect(error.description).toBe('some description');
     expect(error.title).toBe(DisplayableError.DEFAULT_TITLE);

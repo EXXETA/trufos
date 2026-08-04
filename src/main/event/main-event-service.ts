@@ -37,7 +37,9 @@ const exportService = ExportService.instance;
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
 /**
- * Wraps an async function with an error handler that catches any errors thrown by the function and returns them as an Error object.
+ * Wraps an async function with an error handler that catches any errors thrown by the function.
+ * A {@link DisplayableError} is returned as a serialized payload (see {@link DisplayableError.serialize})
+ * so its title and description survive IPC; any other error is returned as an Error object.
  *
  * @param fn The function to wrap.
  */

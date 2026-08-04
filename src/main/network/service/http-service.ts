@@ -64,7 +64,7 @@ export class HttpService {
    * @param request request object
    * @returns response object
    */
-  public async fetchAsync(request: TrufosRequest, signal?: AbortSignal) {
+  public async fetchAsync(request: TrufosRequest, signal?: AbortSignal): Promise<TrufosResponse> {
     try {
       return await this.doFetchAsync(request, signal);
     } catch (error) {

@@ -74,7 +74,7 @@ export class EnvironmentService implements Initializable {
    * string references a variable that is not defined, instead of leaving the template in place.
    * @returns The string with the variables replaced.
    */
-  public setVariablesInString(string: string, throwOnUndefinedVariable = false) {
+  public setVariablesInString(string: string, throwOnUndefinedVariable = false): Promise<string> {
     return TemplateReplaceStream.replaceStringAsync(string, this.getVariableValue.bind(this), {
       throwOnUnmatchedTemplate: throwOnUndefinedVariable,
     });
