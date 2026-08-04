@@ -1,4 +1,12 @@
-import { Fragment, useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  KeyboardEvent,
+  ReactElement,
+} from 'react';
 import {
   ArrowRight,
   EraserIcon,
@@ -8,6 +16,11 @@ import {
   SettingsIcon,
   SwitchCameraIcon,
   type LucideIcon,
+  GalleryVerticalEnd,
+  Globe,
+  SquareSlash,
+  Server,
+  Command as CommandShortcut,
 } from 'lucide-react';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
@@ -56,7 +69,8 @@ interface ActionItem {
   section: ActionSection;
   icon: LucideIcon;
   label: string;
-  shortcut?: string;
+  shortcutModifier?: ReactElement | string;
+  shortcutKey?: string;
   disabled?: boolean;
   onSelect: () => void;
 }
@@ -113,6 +127,8 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const { addResponse } = useResponseActions();
 
   const { openCollectionSettings, openAppSettings } = useViewActions();
+
+  const isMac = navigator.platform.startsWith('Mac');
 
   // Reset state when opened
   useEffect(() => {
@@ -189,7 +205,8 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       section: 'Request',
       icon: ArrowRight,
       label: 'Send request',
-      shortcut: '⌘↵',
+      shortcutModifier: isMac ? <CommandShortcut size={12} /> : 'Ctrl',
+      shortcutKey: 'Enter',
       disabled: currentRequest == null,
       onSelect: handleSend,
     },
@@ -198,7 +215,8 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       section: 'Request',
       icon: Save,
       label: 'Save request',
-      shortcut: '⌘S',
+      shortcutModifier: isMac ? <CommandShortcut size={12} /> : 'Ctrl',
+      shortcutKey: 'S',
       disabled: currentRequest == null,
       onSelect: handleSave,
     },
@@ -207,7 +225,8 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       section: 'Request',
       icon: Plus,
       label: 'New request',
-      shortcut: '⌘N',
+      shortcutModifier: isMac ? <CommandShortcut size={12} /> : 'Ctrl',
+      shortcutKey: 'N',
       onSelect: () => runAndClose(() => addNewRequest()),
     },
     {
@@ -278,10 +297,26 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                 className="flex flex-col gap-2"
               >
                 <TabsList className="mt-2 px-2">
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="requests">Requests</TabsTrigger>
-                  <TabsTrigger value="environments">Environments</TabsTrigger>
-                  <TabsTrigger value="actions">Actions</TabsTrigger>
+                  <TabsTrigger className="gap-2 rounded-md px-1.5 py-1" value="all">
+                    <GalleryVerticalEnd size={16} />
+
+                    <span>All</span>
+                  </TabsTrigger>
+                  <TabsTrigger className="gap-2 rounded-md px-1.5 py-1" value="requests">
+                    <Globe size={16} />
+
+                    <span>Requests</span>
+                  </TabsTrigger>
+                  <TabsTrigger className="gap-2 rounded-md px-1.5 py-1" value="environments">
+                    <Server size={16} />
+
+                    <span>Environments</span>
+                  </TabsTrigger>
+                  <TabsTrigger className="gap-2 rounded-md px-1.5 py-1" value="actions">
+                    <SquareSlash size={16} />
+
+                    <span>Actions</span>
+                  </TabsTrigger>
                 </TabsList>
 
                 <Divider />
@@ -331,10 +366,16 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                             >
                               <item.icon className="shrink-0" />
                               <span>{item.label}</span>
-                              {item.shortcut && (
-                                <span className="text-muted-foreground ml-auto text-xs">
-                                  {item.shortcut}
-                                </span>
+                              {item.shortcutModifier && (
+                                <div className="ml-auto flex items-center justify-center gap-1">
+                                  <div className="bg-background-secondary rounded p-1">
+                                    {item.shortcutModifier}
+                                  </div>
+
+                                  <span className="bg-background-secondary rounded p-1">
+                                    {item.shortcutKey}
+                                  </span>
+                                </div>
                               )}
                             </CommandItem>
                           ))}
@@ -399,10 +440,16 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                               >
                                 <item.icon className="shrink-0" />
                                 <span>{item.label}</span>
-                                {item.shortcut && (
-                                  <span className="text-muted-foreground ml-auto text-xs">
-                                    {item.shortcut}
-                                  </span>
+                                {item.shortcutModifier && (
+                                  <div className="ml-auto flex items-center justify-center gap-1">
+                                    <div className="bg-background-secondary rounded p-1">
+                                      {item.shortcutModifier}
+                                    </div>
+
+                                    <span className="bg-background-secondary rounded p-1">
+                                      {item.shortcutKey}
+                                    </span>
+                                  </div>
                                 )}
                               </CommandItem>
                             ))}
