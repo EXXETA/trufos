@@ -70,12 +70,7 @@ describe('CommandPalette nested request title collision (Task 13, cmdk value fix
   // Two requests in different folders share the title "Get" but have different methods —
   // this is the collision that reproduces the cmdk keyboard-selection mismatch.
   const requestUsersGet = makeRequest('req-users-get', 'folder-users', 'Get', RequestMethod.GET);
-  const requestPostsGet = makeRequest(
-    'req-posts-get',
-    'folder-posts',
-    'Get',
-    RequestMethod.DELETE
-  );
+  const requestPostsGet = makeRequest('req-posts-get', 'folder-posts', 'Get', RequestMethod.DELETE);
   const folderUsers = makeFolder('folder-users', 'Users', [requestUsersGet]);
   const folderPosts = makeFolder('folder-posts', 'Posts', [requestPostsGet]);
 
