@@ -14,13 +14,15 @@ import {
   Plus,
   Save,
   SettingsIcon,
-  SwitchCameraIcon,
   type LucideIcon,
   GalleryVerticalEnd,
   Globe,
   SquareSlash,
   Server,
   Command as CommandShortcut,
+  Wrench,
+  SquareMousePointer,
+  HardDrive,
 } from 'lucide-react';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
@@ -177,12 +179,27 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     onClose();
   }, [currentRequest, updateRequest, onClose]);
 
+  const renderEnvironmentItem = (key: string) => (
+    <CommandItem
+      key={key}
+      value={key}
+      onSelect={() => runAndClose(() => selectEnvironment(key))}
+      className="hover:bg-divider"
+    >
+      <HardDrive className="shrink-0" />
+      <span className="truncate">{key}</span>
+      {selectedEnvironment === key && (
+        <span className="text-muted-foreground ml-auto text-xs">active</span>
+      )}
+    </CommandItem>
+  );
+
   const renderRequestItem = (request: TrufosRequest) => (
     <CommandItem
       key={request.id}
       value={request.title ?? request.url.base}
       onSelect={() => selectAndClose(request.id)}
-      className="col-span-full grid grid-cols-subgrid"
+      className="hover:bg-divider col-span-full grid grid-cols-subgrid"
     >
       <div
         className="flex items-center justify-center rounded px-2 py-0.5"
@@ -247,14 +264,14 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     {
       value: 'switch environment',
       section: 'Collection',
-      icon: SwitchCameraIcon,
+      icon: SquareMousePointer,
       label: 'Switch environment',
       onSelect: () => setActiveTab('environments'),
     },
     {
       value: 'collection settings',
       section: 'Collection',
-      icon: SettingsIcon,
+      icon: Wrench,
       label: 'Collection settings',
       onSelect: () => runAndClose(openCollectionSettings),
     },
@@ -341,20 +358,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                           </CommandGroup>
                         </div>
                         <CommandGroup heading="Environments">
-                          {Object.keys(environments).map((key) => (
-                            <CommandItem
-                              key={key}
-                              value={key}
-                              onSelect={() => runAndClose(() => selectEnvironment(key))}
-                            >
-                              <span className="truncate">{key}</span>
-                              {selectedEnvironment === key && (
-                                <span className="text-muted-foreground ml-auto text-xs">
-                                  active
-                                </span>
-                              )}
-                            </CommandItem>
-                          ))}
+                          {Object.keys(environments).map(renderEnvironmentItem)}
                         </CommandGroup>
                         <CommandGroup heading="Actions">
                           {actionItems.map((item) => (
@@ -363,6 +367,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                               value={item.value}
                               disabled={item.disabled}
                               onSelect={item.onSelect}
+                              className="hover:bg-divider"
                             >
                               <item.icon className="shrink-0" />
                               <span>{item.label}</span>
@@ -407,18 +412,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                 <TabsContent value="environments" className="mt-0 rounded-none bg-transparent">
                   <CommandList>
                     <CommandEmpty>No environments found.</CommandEmpty>
-                    {Object.keys(environments).map((key) => (
-                      <CommandItem
-                        key={key}
-                        value={key}
-                        onSelect={() => runAndClose(() => selectEnvironment(key))}
-                      >
-                        <span className="truncate">{key}</span>
-                        {selectedEnvironment === key && (
-                          <span className="text-muted-foreground ml-auto text-xs">active</span>
-                        )}
-                      </CommandItem>
-                    ))}
+                    {Object.keys(environments).map(renderEnvironmentItem)}
                   </CommandList>
                 </TabsContent>
 
@@ -437,6 +431,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                                 value={item.value}
                                 disabled={item.disabled}
                                 onSelect={item.onSelect}
+                                className="hover:bg-divider"
                               >
                                 <item.icon className="shrink-0" />
                                 <span>{item.label}</span>
