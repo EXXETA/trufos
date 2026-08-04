@@ -59,6 +59,7 @@ const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 interface RequestGroup {
+  id: string | null;
   label: string | null;
   requests: TrufosRequest[];
 }
@@ -77,19 +78,32 @@ interface ActionItem {
   onSelect: () => void;
 }
 
-/** Walk collection children depth-first, flattening nested folders into a single group per folder. */
+/**
+ * Walk collection children depth-first, flattening nested folders into a single group per folder.
+ *
+ * Reads folder children from the `folders` Map (always up-to-date after `updateRequest`/
+ * `moveItem`/etc.), not the folder object's own embedded `children` — immer may not propagate
+ * Map mutations back into the tree references (same defect and same fix as
+ * `treeUtilities.ts`'s `flattenTree`).
+ */
 const buildRequestGroups = (
   children: (Folder | TrufosRequest)[],
-  label: string | null = null
+  folders: Map<Folder['id'], Folder>,
+  folder: Folder | null = null
 ): RequestGroup[] => {
-  const group: RequestGroup = { label, requests: [] };
+  const group: RequestGroup = {
+    id: folder?.id ?? null,
+    label: folder?.title ?? null,
+    requests: [],
+  };
   const subGroups: RequestGroup[] = [];
 
   for (const child of children) {
     if (child.type === 'request') {
       group.requests.push(child);
     } else {
-      subGroups.push(...buildRequestGroups(child.children, child.title));
+      const liveFolder = folders.get(child.id) ?? child;
+      subGroups.push(...buildRequestGroups(liveFolder.children, folders, liveFolder));
     }
   }
 
@@ -116,12 +130,15 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const collection = useCollectionStore((s) => s.collection);
-  const requestGroups = collection ? buildRequestGroups(collection.children) : [];
+  const folders = useCollectionStore((s) => s.folders);
+  const requestGroups = collection ? buildRequestGroups(collection.children, folders) : [];
   const allRequests = requestGroups.flatMap((group) => group.requests);
   const currentRequest = useCollectionStore(selectRequest);
   const { setSelectedRequest, addNewRequest, updateRequest, discardChanges, addNewFolder } =
     useCollectionActions();
 
+  console.log('allRequests', allRequests);
+  console.log('collection', collection);
   const environments = useEnvironmentStore(selectEnvironments);
   const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
   const { selectEnvironment } = useEnvironmentActions();
@@ -197,7 +214,8 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const renderRequestItem = (request: TrufosRequest) => (
     <CommandItem
       key={request.id}
-      value={request.title ?? request.url.base}
+      value={request.id}
+      keywords={[request.title ?? request.url.base]}
       onSelect={() => selectAndClose(request.id)}
       className="data-[selected='true']:bg-divider col-span-full grid grid-cols-subgrid"
     >
@@ -395,7 +413,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                     <CommandEmpty>No requests found.</CommandEmpty>
                     <div className={REQUEST_LIST_GRID}>
                       {requestGroups.map((group, i) => (
-                        <Fragment key={group.label ?? '__root__'}>
+                        <Fragment key={group.id ?? '__root__'}>
                           {i > 0 && <CommandSeparator key={`sep-${i}`} className="col-span-full" />}
                           <CommandGroup
                             heading={group.label ?? `${collection?.title} root`}
