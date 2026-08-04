@@ -184,7 +184,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       key={key}
       value={key}
       onSelect={() => runAndClose(() => selectEnvironment(key))}
-      className="hover:bg-divider"
+      className="data-[selected='true']:bg-divider"
     >
       <HardDrive className="shrink-0" />
       <span className="truncate">{key}</span>
@@ -199,7 +199,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       key={request.id}
       value={request.title ?? request.url.base}
       onSelect={() => selectAndClose(request.id)}
-      className="hover:bg-divider col-span-full grid grid-cols-subgrid"
+      className="data-[selected='true']:bg-divider col-span-full grid grid-cols-subgrid"
     >
       <div
         className="flex items-center justify-center rounded px-2 py-0.5"
@@ -367,7 +367,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                               value={item.value}
                               disabled={item.disabled}
                               onSelect={item.onSelect}
-                              className="hover:bg-divider"
+                              className="data-[selected='true']:bg-divider"
                             >
                               <item.icon className="shrink-0" />
                               <span>{item.label}</span>
@@ -431,7 +431,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                                 value={item.value}
                                 disabled={item.disabled}
                                 onSelect={item.onSelect}
-                                className="hover:bg-divider"
+                                className="data-[selected='true']:bg-divider"
                               >
                                 <item.icon className="shrink-0" />
                                 <span>{item.label}</span>
