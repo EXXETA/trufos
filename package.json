@@ -115,7 +115,7 @@
     "tailwindcss-animate": "^1.0.7",
     "template-replace-stream": "^3.0.1",
     "tmp": "^0.2.7",
-    "undici": "^8.7.0",
+    "undici": "^8.9.0",
     "update-electron-app": "^3.3.0",
     "winston": "^3.19.0",
     "xml-formatter": "^3.7.0",
