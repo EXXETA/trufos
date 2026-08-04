@@ -9,7 +9,8 @@ import { IncomingHttpHeaders } from 'undici/types/header';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { AuthorizationType } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { TemplateReplaceStream } from 'template-replace-stream';
+import { DisplayableError } from 'shim/error/DisplayableError';
+import { TemplateReplaceStream, UnmatchedVariableError } from 'template-replace-stream';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
@@ -225,6 +226,33 @@ describe('HttpService', () => {
     // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.origin + lastCall.path).toEqual(expectedFinalUrl);
     expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('fetchAsync() should convert an undefined URL variable into a DisplayableError', async () => {
+    // Arrange
+    const spy = vi
+      .spyOn(environmentService, 'setVariablesInString')
+      .mockRejectedValue(new UnmatchedVariableError('baseUrl'));
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Undefined Variable Request',
+      url: parseUrl('https://{{ baseUrl }}/api'),
+      method: RequestMethod.GET,
+      headers: [],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
+      body: null,
+    };
+
+    // Act & Assert
+    await expect(httpService.fetchAsync(request)).rejects.toMatchObject({
+      name: DisplayableError.name,
+      title: 'Undefined Variable',
+      description: expect.stringContaining('baseUrl'),
+    });
     spy.mockRestore();
   });
 

@@ -1,5 +1,5 @@
 import { toast } from '@/components/ui/sonner';
-import { DisplayableError } from './DisplayableError';
+import { DisplayableError } from 'shim/error/DisplayableError';
 
 export function showError(error: unknown): void;
 export function showError(message: string, error: unknown): void;

@@ -24,6 +24,7 @@ import { ScriptingService } from 'main/scripting/scripting-service';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
+import { DisplayableError } from 'shim/error/DisplayableError';
 
 // register stream events
 import './stream-events';
@@ -36,7 +37,9 @@ const exportService = ExportService.instance;
 declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
 
 /**
- * Wraps an async function with an error handler that catches any errors thrown by the function and returns them as an Error object.
+ * Wraps an async function with an error handler that catches any errors thrown by the function.
+ * A {@link DisplayableError} is returned as a serialized payload (see {@link DisplayableError.serialize})
+ * so its title and description survive IPC; any other error is returned as an Error object.
  *
  * @param fn The function to wrap.
  */
@@ -46,6 +49,9 @@ function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
       return (await fn(...args)) as R;
     } catch (error) {
       logger.error(error);
+      if (error instanceof DisplayableError) {
+        return error.serialize();
+      }
       return toError(error);
     }
   };

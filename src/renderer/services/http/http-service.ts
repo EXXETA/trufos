@@ -1,5 +1,5 @@
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { DisplayableError } from '@/error/DisplayableError';
+import { DisplayableError } from 'shim/error/DisplayableError';
 import { TrufosRequest } from 'shim/objects/request';
 
 const eventService = RendererEventService.instance;
@@ -21,17 +21,14 @@ export class HttpService {
       return response;
     } catch (error) {
       console.error('Error during request:', error);
-      let description = 'An error occurred while sending the request';
       if (error instanceof DisplayableError) {
         throw error;
-      } else if (error instanceof Error) {
-        if (error.message === 'invalid url') {
-          description = 'The URL you entered is invalid.';
-        } else if (error.message.startsWith('getaddrinfo ENOTFOUND')) {
-          description = `The domain "${error.message.substring(22)}" could not be resolved`;
-        }
       }
-      throw new DisplayableError(description, 'Could not send Request', error);
+      throw new DisplayableError(
+        'An unexpected error occurred while sending the request.',
+        'Could not send Request',
+        error
+      );
     }
   }
 
