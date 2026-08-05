@@ -1,5 +1,5 @@
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { useResolvedString } from '@/hooks/useResolvedString';
+import { SingleLineEditor } from '@/lib/monaco/SingleLineEditor';
 import { useStateDerived } from '@/util/react-util';
 import { FC, useCallback } from 'react';
 import { buildUrl, isUrlValid, parseUrl, TrufosURL, urlsEqual } from 'shim/objects/url';
@@ -11,13 +11,14 @@ interface UrlInputProps {
 
 export const UrlInput: FC<UrlInputProps> = ({ url, onChange }) => {
   const [inputValue, setInputValue] = useStateDerived(url, buildUrl);
-  const [isValid, setIsValid] = useStateDerived(url, isUrlValid);
+  const resolvedUrl = useResolvedString(inputValue);
+
+  // while the variables are being resolved, the URL is assumed to be valid to avoid flickering
+  const isValid = resolvedUrl === undefined || isUrlValid(resolvedUrl);
 
   const handleChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = event.target.value;
+    (newValue: string) => {
       setInputValue(newValue);
-      setIsValid(URL.canParse(newValue));
       const newUrl = parseUrl(newValue);
       if (!urlsEqual(url, newUrl)) onChange(newUrl);
     },
@@ -25,13 +26,11 @@ export const UrlInput: FC<UrlInputProps> = ({ url, onChange }) => {
   );
 
   return (
-    <Input
+    <SingleLineEditor
       value={inputValue}
-      type="url"
-      inputMode="url"
-      className={cn('bg-background-secondary relative w-full grow rounded-l-none', {
-        'border-(--error)': !isValid,
-      })}
+      invalid={!isValid}
+      ariaLabel="URL"
+      className="bg-background-secondary relative w-full grow rounded-l-none"
       onChange={handleChange}
     />
   );

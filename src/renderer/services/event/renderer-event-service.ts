@@ -60,6 +60,7 @@ export class RendererEventService implements IEventService {
   deleteObject = createEventMethod('deleteObject');
   getActiveEnvironmentVariables = createEventMethod('getActiveEnvironmentVariables');
   getVariable = createEventMethod('getVariable');
+  resolveVariablesInString = createEventMethod('resolveVariablesInString');
   setCollectionVariables = createEventMethod('setCollectionVariables');
   setEnvironmentVariables = createEventMethod('setEnvironmentVariables');
   saveFolder = createEventMethod('saveFolder');

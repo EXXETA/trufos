@@ -181,6 +181,10 @@ export class MainEventService implements IEventService {
     return environmentService.getVariable(key);
   }
 
+  async resolveVariablesInString(string: string) {
+    return await environmentService.setVariablesInString(string, true).catch(() => null);
+  }
+
   async setCollectionVariables(variables: VariableMap) {
     environmentService.setCollectionVariables(variables);
     await persistenceService.saveCollection(environmentService.currentCollection);

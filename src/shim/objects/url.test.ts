@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildUrl, parseUrl, TrufosURL, urlsEqual } from './url';
+import { buildUrl, isUrlValid, parseUrl, TrufosURL, urlsEqual } from './url';
 
 describe('TrufosUrl', () => {
   it.each<[string, TrufosURL]>([
@@ -149,6 +149,21 @@ describe('TrufosUrl', () => {
   ])('buildUrl() should build correct URL string', (url, expected) => {
     // Act
     const result = buildUrl(url);
+
+    // Assert
+    expect(result).toBe(expected);
+  });
+
+  it.each<[string | null, boolean]>([
+    ['https://api.example.com/users?id=123', true],
+    ['not-a-valid-url', false],
+    // a URL containing variables is only valid once they are resolved
+    ['{{ baseUrl }}/users', false],
+    // null means that the URL references a variable that is not defined
+    [null, false],
+  ])('isUrlValid(%s) should return %s', (resolvedUrl, expected) => {
+    // Act
+    const result = isUrlValid(resolvedUrl);
 
     // Assert
     expect(result).toBe(expected);
