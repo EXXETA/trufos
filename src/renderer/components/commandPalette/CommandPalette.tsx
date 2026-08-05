@@ -54,6 +54,11 @@ import { saveModelContent } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { Divider } from '@/components/shared/Divider';
+import {
+  RequestResultsGrid,
+  RequestCommandGroup,
+  RequestCommandItem,
+} from '@/components/commandPalette/RequestResultsGrid';
 
 const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
@@ -112,12 +117,6 @@ const buildRequestGroups = (
 
 const TABS = ['all', 'requests', 'environments', 'actions'] as const;
 type Tab = (typeof TABS)[number];
-
-/** 2-column grid ancestor: column 1 (method badge) auto-sizes to the widest method text across every subgridded row. */
-const REQUEST_LIST_GRID = 'grid grid-cols-[auto_1fr]';
-/** Passes the 2 grid tracks down through cmdk's fixed group/heading/items DOM so every request row's columns line up. */
-const REQUEST_GROUP_GRID =
-  'col-span-full grid grid-cols-subgrid **:[[cmdk-group-heading]]:col-span-full **:[[cmdk-group-items]]:col-span-full **:[[cmdk-group-items]]:grid **:[[cmdk-group-items]]:grid-cols-subgrid';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -212,12 +211,11 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   );
 
   const renderRequestItem = (request: TrufosRequest) => (
-    <CommandItem
+    <RequestCommandItem
       key={request.id}
       value={request.id}
       keywords={[request.title ?? request.url.base]}
       onSelect={() => selectAndClose(request.id)}
-      className="data-[selected='true']:bg-divider col-span-full grid grid-cols-subgrid"
     >
       <div
         className="flex items-center justify-center rounded px-2 py-0.5"
@@ -231,7 +229,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       </div>
 
       <span className="truncate">{request.title ?? request.url.base}</span>
-    </CommandItem>
+    </RequestCommandItem>
   );
 
   const actionItems: ActionItem[] = [
@@ -360,21 +358,21 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                   <CommandList>
                     <CommandEmpty>No results found.</CommandEmpty>
                     {search.trim() === '' ? (
-                      <div className={REQUEST_LIST_GRID}>
-                        <CommandGroup heading="Recent" className={REQUEST_GROUP_GRID}>
+                      <RequestResultsGrid>
+                        <RequestCommandGroup heading="Recent">
                           {[...allRequests]
                             .sort((a, b) => b.lastModified - a.lastModified)
                             .slice(0, 5)
                             .map(renderRequestItem)}
-                        </CommandGroup>
-                      </div>
+                        </RequestCommandGroup>
+                      </RequestResultsGrid>
                     ) : (
                       <>
-                        <div className={REQUEST_LIST_GRID}>
-                          <CommandGroup heading="Requests" className={REQUEST_GROUP_GRID}>
+                        <RequestResultsGrid>
+                          <RequestCommandGroup heading="Requests">
                             {allRequests.map(renderRequestItem)}
-                          </CommandGroup>
-                        </div>
+                          </RequestCommandGroup>
+                        </RequestResultsGrid>
                         <CommandGroup heading="Environments">
                           {Object.keys(environments).map(renderEnvironmentItem)}
                         </CommandGroup>
@@ -411,19 +409,16 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                 <TabsContent value="requests" className="mt-0 rounded-none bg-transparent">
                   <CommandList>
                     <CommandEmpty>No requests found.</CommandEmpty>
-                    <div className={REQUEST_LIST_GRID}>
+                    <RequestResultsGrid>
                       {requestGroups.map((group, i) => (
                         <Fragment key={group.id ?? '__root__'}>
                           {i > 0 && <CommandSeparator key={`sep-${i}`} className="col-span-full" />}
-                          <CommandGroup
-                            heading={group.label ?? `${collection?.title} root`}
-                            className={REQUEST_GROUP_GRID}
-                          >
+                          <RequestCommandGroup heading={group.label ?? `${collection?.title} root`}>
                             {group.requests.map(renderRequestItem)}
-                          </CommandGroup>
+                          </RequestCommandGroup>
                         </Fragment>
                       ))}
-                    </div>
+                    </RequestResultsGrid>
                   </CommandList>
                 </TabsContent>
 
