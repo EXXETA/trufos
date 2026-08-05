@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod';
 import type { TokenEndpointResponse } from 'openid-client';
 
 export enum AuthorizationType {

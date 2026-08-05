@@ -1,7 +1,7 @@
 import { TrufosRequest } from './request';
 import { Folder } from './folder';
 import { Collection } from './collection';
-import z from 'zod';
+import { z } from 'zod';
 
 export const TrufosObject = z.discriminatedUnion('type', [TrufosRequest, Folder, Collection]);
 export type TrufosObject = z.infer<typeof TrufosObject>;

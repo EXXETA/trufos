@@ -14,13 +14,6 @@ type ToasterToast = ToastProps & {
   action?: ToastActionElement;
 };
 
-const actionTypes = {
-  ADD_TOAST: 'ADD_TOAST',
-  UPDATE_TOAST: 'UPDATE_TOAST',
-  DISMISS_TOAST: 'DISMISS_TOAST',
-  REMOVE_TOAST: 'REMOVE_TOAST',
-} as const;
-
 let count = 0;
 
 function genId() {
@@ -28,7 +21,12 @@ function genId() {
   return count.toString();
 }
 
-type ActionType = typeof actionTypes;
+type ActionType = {
+  ADD_TOAST: 'ADD_TOAST';
+  UPDATE_TOAST: 'UPDATE_TOAST';
+  DISMISS_TOAST: 'DISMISS_TOAST';
+  REMOVE_TOAST: 'REMOVE_TOAST';
+};
 
 type Action =
   | {
@@ -191,10 +189,10 @@ export function useToast() {
  * @returns The wrapped function. It is identical to the input function, but displays a toast on
  * error. Note that this function never throws.
  */
-export function useErrorHandler<F extends (...args: any[]) => any>(fn: F) {
-  return function () {
+export function useErrorHandler<F extends (...args: never[]) => unknown>(fn: F) {
+  return function (...args: Parameters<F>) {
     try {
-      const result = fn(...arguments);
+      const result = fn(...args);
       return result instanceof Promise ? result.catch(getToastForError) : result;
     } catch (error) {
       getToastForError(error);
@@ -209,7 +207,7 @@ export function useErrorHandler<F extends (...args: any[]) => any>(fn: F) {
  * description are taken from the error. Otherwise, a generic error message is displayed.
  * @param error The error to display.
  */
-export function getToastForError(error: any) {
+export function getToastForError(error: unknown) {
   const options: Toast = { variant: 'destructive' };
 
   console.error(error);

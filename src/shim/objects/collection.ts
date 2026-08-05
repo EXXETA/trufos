@@ -3,7 +3,7 @@ import { TrufosRequest } from './request';
 import { VariableMap } from './variables';
 import { EnvironmentMap } from './environment';
 import { AuthorizationInformationNoInherit } from './auth';
-import z from 'zod';
+import { z } from 'zod';
 
 /** File paths for a client certificate used in mutual TLS (mTLS). */
 export const ClientCertificate = z.object({

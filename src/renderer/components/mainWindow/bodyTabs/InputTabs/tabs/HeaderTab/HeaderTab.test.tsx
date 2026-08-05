@@ -1,7 +1,13 @@
-import { render, fireEvent, cleanup } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render, fireEvent } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { TrufosHeader } from 'shim/objects/headers';
 import { HeaderTab } from './HeaderTab';
+
+/** Shape of the collection store state as far as the mocked selectors are concerned. */
+type MockCollectionState = {
+  selectedRequestId: string;
+  requests: Map<string, { id: string; headers: TrufosHeader[] }>;
+};
 
 const addHeaderMock = vi.fn();
 const deleteHeaderMock = vi.fn();
@@ -15,12 +21,12 @@ vi.mock('@/state/collectionStore', () => ({
     deleteHeader: deleteHeaderMock,
     updateHeader: updateHeaderMock,
   }),
-  useCollectionStore: (selector: (state: any) => any) =>
+  useCollectionStore: (selector: (state: MockCollectionState) => unknown) =>
     selector({
       selectedRequestId: 'req-1',
       requests: new Map([['req-1', { id: 'req-1', headers: mockHeaders }]]),
     }),
-  selectRequest: (state: any) => state.requests.get(state.selectedRequestId),
+  selectRequest: (state: MockCollectionState) => state.requests.get(state.selectedRequestId),
 }));
 
 describe('HeaderTab', () => {

@@ -81,7 +81,6 @@ export default abstract class OAuth2AuthStrategy<
       this.authInfo.tokenUrl = metadata.token_endpoint;
     } else {
       this.authInfo.authorizationUrl = metadata.authorization_endpoint ?? '';
-      this.authInfo.callbackUrl = this.authInfo.callbackUrl;
     }
   }
 

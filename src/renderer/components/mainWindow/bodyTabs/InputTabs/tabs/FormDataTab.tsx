@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { FileBody, RequestBodyType } from 'shim/objects/request';
-import FilePicker from '@/components/ui/file-picker';
+import { FilePicker } from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { Paperclip, Type } from 'lucide-react';
 

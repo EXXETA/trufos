@@ -1,5 +1,5 @@
 import { HttpHeaders } from 'shim/headers';
-import z from 'zod';
+import { z } from 'zod';
 
 export const ResponseSize = z.object({
   totalSizeInBytes: z.number(),

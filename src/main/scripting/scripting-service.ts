@@ -10,44 +10,47 @@ const environmentService = EnvironmentService.instance;
 
 const SCRIPT_TIMEOUT_SECONDS = 5;
 
-// Interface-Merging for typed event signatures
-export interface ScriptingService {
-  on(event: 'variables-changed', listener: () => void): this;
-  emit(event: 'variables-changed'): boolean;
-}
+/** Event signatures emitted by the {@link ScriptingService}. */
+type ScriptingServiceEvents = {
+  'variables-changed': [];
+};
 
 /**
  * Service for executing user-provided scripts in an isolated VM context.
  * Scripts run in a Node.js vm context with access to the scripting API.
  */
-export class ScriptingService extends EventEmitter {
+export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
   public static _instance: ScriptingService | null = null;
   private _variablesChanged = false;
 
   private get api() {
-    const self = this;
+    // Arrow functions so the API methods keep this service as their `this`.
     return Object.freeze<GlobalScriptingApi>({
       trufos: {
         version: app.getVersion(),
 
-        getCollectionVariable(name: string) {
+        getCollectionVariable: (name: string) => {
           return ScriptingService.getVariable(environmentService.currentCollection.variables, name);
         },
 
-        setCollectionVariable(name: string, value: string | VariableObject) {
+        setCollectionVariable: (name: string, value: string | VariableObject) => {
           ScriptingService.setVariable(environmentService.currentCollection.variables, name, value);
-          self._variablesChanged = true;
+          this._variablesChanged = true;
         },
 
-        getEnvironmentVariable(name: string, environment?: string) {
+        getEnvironmentVariable: (name: string, environment?: string) => {
           const variables = ScriptingService.getEnvironmentVariables(environment);
           return ScriptingService.getVariable(variables, name);
         },
 
-        setEnvironmentVariable(name: string, value: string | VariableObject, environment?: string) {
+        setEnvironmentVariable: (
+          name: string,
+          value: string | VariableObject,
+          environment?: string
+        ) => {
           const variables = ScriptingService.getEnvironmentVariables(environment);
           ScriptingService.setVariable(variables, name, value);
-          self._variablesChanged = true;
+          this._variablesChanged = true;
         },
       },
     });

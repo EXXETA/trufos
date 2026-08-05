@@ -39,7 +39,7 @@ export class TemplateVariableSemanticTokensProvider
     };
   }
 
-  releaseDocumentSemanticTokens(resultId?: string) {
+  releaseDocumentSemanticTokens(_resultId?: string) {
     // no-op
   }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -55,14 +55,14 @@ export type FormFieldConfig =
 
 export type FormComponentConfiguration = Record<string, FormFieldConfig>;
 
-export interface FormProps<T extends Record<string, any>> {
+export interface FormProps<T extends object> {
   config: FormComponentConfiguration;
   data: T;
   onDataChanged: (delta: Partial<T>) => void;
   className?: string;
 }
 
-export const ModularForm = <T extends Record<string, any>>({
+export const ModularForm = <T extends object>({
   config,
   className,
   data,
@@ -208,7 +208,7 @@ export const ModularForm = <T extends Record<string, any>>({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {Object.entries(config).map(([key, fieldConfig]) => renderField(key, fieldConfig))}
+      {Object.entries(config).map(([key, fieldConfig]) => renderField(key as keyof T, fieldConfig))}
     </div>
   );
 };

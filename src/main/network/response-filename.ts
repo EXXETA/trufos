@@ -1,4 +1,4 @@
-import mime from 'mime-types';
+import { extension } from 'mime-types';
 
 import type { HttpHeaders } from 'shim/headers';
 
@@ -41,7 +41,7 @@ export function getSuggestedFilename(headers: HttpHeaders): string {
 
   const contentType = getHeaderValue(headers, 'content-type');
   if (contentType) {
-    const ext = mime.extension(contentType);
+    const ext = extension(contentType);
     if (ext) return `response.${ext}`;
   }
 

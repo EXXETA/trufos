@@ -1,5 +1,5 @@
-import { AuthorizationType } from 'shim/objects';
 import {
+  AuthorizationType,
   OAuth2ClientAuthenticationMethod,
   OAuth2ClientCrentialsAuthorizationInformation,
   OAuth2Method,

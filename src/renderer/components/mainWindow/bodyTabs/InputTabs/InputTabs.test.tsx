@@ -5,8 +5,17 @@ import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { InputTabs } from './InputTabs';
 
+/** Shape of the collection store state as far as the mocked selectors are concerned. */
+type MockCollectionState = {
+  selectedRequestId: string;
+  requests: Map<
+    string,
+    { id: string; headers: TrufosHeader[]; url: { query: TrufosQueryParam[] } }
+  >;
+};
+
 let mockHeaders: TrufosHeader[] = [];
-let mockQueryParams: TrufosQueryParam[] = [];
+const mockQueryParams: TrufosQueryParam[] = [];
 
 // Mock child components to avoid their store dependencies
 vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab', () => ({
@@ -33,14 +42,14 @@ vi.mock('@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab', () => ({
 }));
 
 vi.mock('@/state/collectionStore', () => ({
-  useCollectionStore: (selector: any) =>
+  useCollectionStore: (selector: (state: MockCollectionState) => unknown) =>
     selector({
       selectedRequestId: 'req-1',
       requests: new Map([
         ['req-1', { id: 'req-1', headers: mockHeaders, url: { query: mockQueryParams } }],
       ]),
     }),
-  selectRequest: (state: any) => state.requests.get(state.selectedRequestId),
+  selectRequest: (state: MockCollectionState) => state.requests.get(state.selectedRequestId),
 }));
 
 describe('InputTabs', () => {

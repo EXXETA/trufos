@@ -2,7 +2,7 @@ import { AuthorizationInformation } from './auth';
 import { RequestMethod } from './request-method';
 import { TrufosURL } from './url';
 import { TrufosHeader } from './headers';
-import z from 'zod';
+import { z } from 'zod';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 

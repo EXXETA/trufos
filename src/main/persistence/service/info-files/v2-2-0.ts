@@ -16,7 +16,7 @@ import {
   FolderInfoFile as OldFolderInfoFile,
   VERSION as OLD_VERSION,
 } from './v2-1-0';
-import z from 'zod';
+import { z } from 'zod';
 
 export const VERSION = new SemVer(2, 2, 0);
 
@@ -86,7 +86,7 @@ export type InfoFile = z.infer<typeof InfoFile>;
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
+  async migrate(old: OldInfoFile, type: TrufosObjectType, _filePath: string): Promise<InfoFile> {
     if (type !== 'collection') {
       // just drop index as frontend doesn't support reordering yet anyway
       delete (old as OldRequestInfoFile | OldFolderInfoFile).index;

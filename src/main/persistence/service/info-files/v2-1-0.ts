@@ -17,7 +17,7 @@ import {
   RequestInfoFile as OldRequestInfoFile,
   VERSION as OLD_VERSION,
 } from './v2-0-0';
-import z from 'zod';
+import { z } from 'zod';
 
 export const VERSION = new SemVer(2, 1, 0);
 
@@ -60,7 +60,7 @@ export type InfoFile = z.infer<typeof InfoFile>;
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
+  async migrate(old: OldInfoFile, type: TrufosObjectType, _filePath: string): Promise<InfoFile> {
     if (type === 'request') {
       const request = old as OldRequestInfoFile;
       return Object.assign(request, {

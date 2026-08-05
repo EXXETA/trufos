@@ -394,8 +394,9 @@ describe('HttpService', () => {
     const httpService = new HttpService(() => Promise.resolve(mockAgent));
 
     const fileContent = 'test file content';
-    const { Readable } = require('node:stream');
-    vi.spyOn(fileSystemService, 'readFile').mockResolvedValue(Readable.from([fileContent]));
+    vi.spyOn(fileSystemService, 'readFile').mockResolvedValue(
+      Readable.from([fileContent]) as fs.ReadStream
+    );
     vi.spyOn(fs, 'statSync').mockReturnValue({ size: fileContent.length } as fs.Stats);
 
     const request: TrufosRequest = {

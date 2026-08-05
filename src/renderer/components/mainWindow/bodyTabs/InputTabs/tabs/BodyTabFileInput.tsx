@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useCallback, useMemo } from 'react';
-import FilePicker from '@/components/ui/file-picker';
-import { FileBody, RequestBodyType } from 'shim/objects/request';
+import { FilePicker } from '@/components/ui/file-picker';
+import { RequestBodyType } from 'shim/objects/request';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 
 interface BodyTabFileInputProps {

@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod';
 import { VariableMap } from './variables';
 
 /** An environment with variables. */

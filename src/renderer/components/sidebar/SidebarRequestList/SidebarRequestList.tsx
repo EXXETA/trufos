@@ -35,7 +35,7 @@ interface SidebarRequestListProps {
   onCreateItem: (item: CreatingItem) => void;
 }
 
-const DragOverlayFolder = ({ folder }: { folder: any }) => {
+const DragOverlayFolder = ({ folder }: { folder: Folder }) => {
   return (
     <div
       className={cn(
@@ -56,7 +56,7 @@ const DragOverlayFolder = ({ folder }: { folder: any }) => {
   );
 };
 
-const DragOverlayRequest = ({ request }: { request: any }) => {
+const DragOverlayRequest = ({ request }: { request: TrufosRequest }) => {
   return (
     <div
       className={cn(
