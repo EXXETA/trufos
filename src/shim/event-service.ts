@@ -120,6 +120,12 @@ export interface IEventService {
   getVariable(key: string): Promise<VariableObject>;
 
   /**
+   * Replace template variables in the given string using the selected environment.
+   * @param value The string to resolve.
+   */
+  setVariablesInString(value: string): Promise<string>;
+
+  /**
    * Replace all existing collection variables with the given ones.
    * @param variables The variables of the Collection to set.
    */

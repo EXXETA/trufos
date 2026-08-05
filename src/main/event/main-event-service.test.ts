@@ -149,6 +149,21 @@ describe('MainEventService', () => {
     });
   });
 
+  describe('setVariablesInString', () => {
+    it('delegates to environment service variable resolution', async () => {
+      const { EnvironmentService } = await import('../environment/service/environment-service.js');
+      const setVariablesInStringSpy = vi
+        .spyOn(EnvironmentService.instance, 'setVariablesInString')
+        .mockResolvedValue('pikachu');
+
+      const eventService = new MainEventService();
+      const result = await eventService.setVariablesInString('{{pokemon_name}}');
+
+      expect(result).toBe('pikachu');
+      expect(setVariablesInStringSpy).toHaveBeenCalledWith('{{pokemon_name}}');
+    });
+  });
+
   describe('sendRequest', () => {
     let EnvironmentService: Awaited<
       // @ts-expect-error ReturnType on module namespace is not callable but works at runtime
