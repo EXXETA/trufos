@@ -1,0 +1,12 @@
+{
+  // Code shared by both processes. Deliberately the strictest of the three projects: no DOM, so
+  // nothing renderer-specific can leak into code the main process also compiles.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    // `electron` provides the ambient `Electron.*` namespace used in event-service.ts, `node` the
+    // ambient `BufferEncoding` used in ipc-stream.ts.
+    "types": ["node", "electron"]
+  },
+  "include": ["**/*"]
+}

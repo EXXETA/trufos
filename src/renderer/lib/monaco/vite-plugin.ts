@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { readdirSync, existsSync, createReadStream, cpSync } from 'node:fs';
-import type { ResolvedConfig } from 'vite';
+import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const VIRTUAL_MONACO_WORKERS = 'virtual:monaco-workers';
@@ -17,8 +17,7 @@ const MONACO_MIME: Record<string, string> = {
   '.woff2': 'font/woff2',
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function monacoAmdPlugin(): any {
+export function monacoAmdPlugin(): Plugin {
   const monacoVsPath = path.resolve(
     __dirname,
     '..',
@@ -67,8 +66,7 @@ export function monacoAmdPlugin(): any {
       if (id === RESOLVED_VIRTUAL_MONACO_WORKERS)
         return `export default ${JSON.stringify(workers)};`;
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    configureServer(server: any) {
+    configureServer(server: ViteDevServer) {
       server.middlewares.use(
         '/vs',
         (req: IncomingMessage, res: ServerResponse, next: () => void) => {

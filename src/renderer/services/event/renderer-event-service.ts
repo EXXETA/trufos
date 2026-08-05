@@ -1,6 +1,6 @@
 import { MainProcessError } from '@/error/MainProcessError';
 import { DisplayableError } from 'shim/error/DisplayableError';
-import { IEventService } from 'shim/event-service';
+import { CollectionVariablesUpdate, IEventService } from 'shim/event-service';
 
 /**
  * Creates a method that sends an IPC event to the main process and returns the result. If the
@@ -32,6 +32,15 @@ export interface RendererEventService {
 
   on(event: 'show-collection-settings', listener: () => void): this;
 
+  /**
+   * The first argument is the Electron IPC event, which this listener does not need; the payload is
+   * the second argument.
+   */
+  on(
+    event: 'collection-variables-updated',
+    listener: (ipcEvent: unknown, payload: CollectionVariablesUpdate) => void
+  ): this;
+
   emit(event: 'ready-to-close'): this;
 }
 
@@ -39,8 +48,14 @@ export interface RendererEventService {
 export class RendererEventService implements IEventService {
   public static readonly instance = new RendererEventService();
 
-  on(event: string, listener: (...args: unknown[]) => void) {
-    window.electron.ipcRenderer.on(event, listener);
+  /**
+   * Implementation signature for the typed `on()` overloads declared above. `never[]` makes every
+   * overload's listener assignable here; the cast at the call bridges those heterogeneous listener
+   * shapes onto Electron's single channel signature.
+   */
+  on(event: string, listener: (...args: never[]) => void) {
+    type IpcListener = Parameters<typeof window.electron.ipcRenderer.on>[1];
+    window.electron.ipcRenderer.on(event, listener as IpcListener);
     return this;
   }
 

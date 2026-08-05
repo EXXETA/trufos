@@ -27,6 +27,15 @@ export interface ImportResult {
   warnings: ImportWarning[];
 }
 
+/**
+ * Payload of the `collection-variables-updated` event that the main process pushes to the renderer
+ * after a script changed collection or environment variables.
+ */
+export interface CollectionVariablesUpdate {
+  variables: VariableMap;
+  environments: EnvironmentMap;
+}
+
 export type ExportStrategy = 'Zip';
 
 export interface ExportOptions {

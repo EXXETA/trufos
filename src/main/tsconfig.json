@@ -1,0 +1,16 @@
+{
+  // Main process (Node.js). No `dom` lib: the main process has no `window`, `document` or
+  // `localStorage`, and having the DOM types around masks real mismatches — e.g. it makes the
+  // global `fetch`/`Response` types disagree with undici's, which previously had to be silenced
+  // with a `@ts-expect-error` in oauth2/strategy.ts.
+  //
+  // Imported `src/shim` files are pulled into the program automatically, so they are checked
+  // against the main process' libs too.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext"]
+  },
+  "include": ["**/*"],
+  // Build tooling, covered by the root tsconfig.json instead.
+  "exclude": ["vite.config.ts"]
+}

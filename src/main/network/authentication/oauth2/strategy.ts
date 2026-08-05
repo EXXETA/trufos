@@ -58,7 +58,6 @@ export default abstract class OAuth2AuthStrategy<
       clientAuth
     );
 
-    // @ts-expect-error type mismatch, but it actually works
     config[customFetch] = this.fetch;
 
     // done
