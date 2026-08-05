@@ -10,10 +10,10 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx .",
+    "lint": "eslint --ext .ts,.tsx,.mts .",
     "typecheck": "tsc -p src/shim && tsc -p src/main && tsc -p src/renderer && tsc -p .",
-    "prettier": "prettier --write '**/*.{ts,tsx}'",
-    "prettier-check": "prettier --check '**/*.{ts,tsx}'",
+    "prettier": "prettier --write '**/*.{ts,tsx,mts}'",
+    "prettier-check": "prettier --check '**/*.{ts,tsx,mts}'",
     "test": "vitest run"
   },
   "devDependencies": {

@@ -9,7 +9,7 @@ description: Testing standards for the Trufos project using Vitest and Testing L
 
 - **Test runner:** Vitest
 - **UI testing:** `@testing-library/react` + `@testing-library/user-event`
-- **DOM environment:** jsdom (configured in `vitest.config.ts`)
+- **DOM environment:** jsdom (configured in `vitest.config.mts`)
 - **Mocking:** Vitest built-in mocks (`vi.mock`, `vi.fn`, `vi.spyOn`); `memfs` for file system operations. Note: the file system is always auto-mocked in main-process tests via `src/main/__mocks__`.
 
 ## Test Structure

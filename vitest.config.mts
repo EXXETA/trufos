@@ -6,7 +6,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**'],
-      exclude: ['**/__mocks__', '**/vite.config.ts', '**/*.d.ts'],
+      exclude: ['**/__mocks__', '**/vite.config.*', '**/*.d.ts'],
     },
   },
 });

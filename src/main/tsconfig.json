@@ -12,5 +12,5 @@
   },
   "include": ["**/*"],
   // Build tooling, covered by the root tsconfig.json instead.
-  "exclude": ["vite.config.ts"]
+  "exclude": ["vite.config.mts"]
 }

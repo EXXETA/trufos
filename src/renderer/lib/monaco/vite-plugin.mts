@@ -19,7 +19,7 @@ const MONACO_MIME: Record<string, string> = {
 
 export function monacoAmdPlugin(): Plugin {
   const monacoVsPath = path.resolve(
-    __dirname,
+    import.meta.dirname,
     '..',
     '..',
     '..',

@@ -2,14 +2,15 @@
   // Build tooling that runs in Node outside the app itself (Forge, Vite and Vitest configs).
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ESNext"]
+    "lib": ["ESNext"],
+    "allowImportingTsExtensions": true
   },
   "include": [
     "forge.config.ts",
     "forge.env.d.ts",
-    "vitest.config.ts",
-    "src/main/vite.config.ts",
-    "src/renderer/vite.config.ts",
-    "src/renderer/lib/monaco/vite-plugin.ts"
+    "vitest.config.mts",
+    "src/main/vite.config.mts",
+    "src/renderer/vite.config.mts",
+    "src/renderer/lib/monaco/vite-plugin.mts"
   ]
 }
