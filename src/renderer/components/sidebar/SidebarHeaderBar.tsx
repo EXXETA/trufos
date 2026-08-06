@@ -63,10 +63,9 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
 
   // Disabled while the Command Palette is open — it owns this same shortcut then; see
   // CommandPalette.tsx's own useHotkeys call.
-  useHotkeys(
-    [{ keys: HOTKEYS.newRequest, handler: () => openModal('request') }],
-    { enabled: !isCommandPaletteOpen }
-  );
+  useHotkeys([{ keys: HOTKEYS.newRequest, handler: () => openModal('request') }], {
+    enabled: !isCommandPaletteOpen,
+  });
 
   return (
     <SidebarHeader className="flex-col gap-6">
