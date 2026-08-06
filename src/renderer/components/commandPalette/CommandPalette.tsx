@@ -136,8 +136,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const { setSelectedRequest, addNewRequest, updateRequest, discardChanges, addNewFolder } =
     useCollectionActions();
 
-  console.log('allRequests', allRequests);
-  console.log('collection', collection);
   const environments = useEnvironmentStore(selectEnvironments);
   const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
   const { selectEnvironment } = useEnvironmentActions();
