@@ -119,14 +119,13 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const requestGroups = collection ? buildRequestGroups(collection.children, folders) : [];
   const allRequests = requestGroups.flatMap((group) => group.requests);
   const currentRequest = useCollectionStore(selectRequest);
-  const { setSelectedRequest, addNewRequest, discardChanges, addNewFolder } =
-    useCollectionActions();
+  const { setSelectedRequest, discardChanges, addNewFolder } = useCollectionActions();
 
   const environments = useEnvironmentStore(selectEnvironments);
   const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
   const { selectEnvironment } = useEnvironmentActions();
 
-  const { openCollectionSettings, openAppSettings } = useViewActions();
+  const { openCollectionSettings, openAppSettings, requestCreateItem } = useViewActions();
 
   // Reset state when opened
   useEffect(() => {
@@ -165,10 +164,10 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     onClose();
   }, [saveRequest, onClose]);
 
-  const handleNewRequest = useCallback(
-    () => runAndClose(() => addNewRequest()),
-    [runAndClose, addNewRequest]
-  );
+  const handleNewRequest = useCallback(() => {
+    if (collection == null) return;
+    runAndClose(() => requestCreateItem({ type: 'request', parentId: collection.id }));
+  }, [collection, runAndClose, requestCreateItem]);
 
   const renderEnvironmentItem = (key: string) => (
     <CommandItem
@@ -209,6 +208,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   const canSendRequest = currentRequest != null;
   const canSaveRequest = !!currentRequest?.draft;
+  const canCreateRequest = collection != null;
 
   const actionItems: ActionItem[] = [
     {
@@ -235,6 +235,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       icon: Plus,
       label: 'New request',
       hotkey: HOTKEYS.newRequest,
+      disabled: !canCreateRequest,
       onSelect: handleNewRequest,
     },
     {
@@ -294,7 +295,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     [
       { keys: HOTKEYS.sendRequest, handler: handleSend, enabled: canSendRequest },
       { keys: HOTKEYS.saveRequest, handler: handleSave, enabled: canSaveRequest },
-      { keys: HOTKEYS.newRequest, handler: handleNewRequest },
+      { keys: HOTKEYS.newRequest, handler: handleNewRequest, enabled: canCreateRequest },
       { keys: HOTKEYS.cyclePaletteTabForward, handler: cycleTabForward },
       { keys: HOTKEYS.cyclePaletteTabForwardTab, handler: cycleTabForward },
       { keys: HOTKEYS.cyclePaletteTabBackward, handler: cycleTabBackward },
@@ -331,7 +332,15 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogPortal>
         <DialogOverlay className="flex items-center justify-center">
-          <DialogPrimitive.Content className="bg-background w-full max-w-150 overflow-hidden rounded-lg p-2 shadow-lg outline-none">
+          <DialogPrimitive.Content
+            className="bg-background w-full max-w-150 overflow-hidden rounded-lg p-2 shadow-lg outline-none"
+            // Radix's default onCloseAutoFocus returns focus to whatever triggered the dialog once
+            // it finishes closing. This dialog is opened via a global shortcut (mod+k), not a
+            // button with a meaningful "return focus here" target, and without overriding this it
+            // can fight with the inline-rename input the sidebar auto-focuses in the same tick the
+            // palette closes (e.g. after "New request").
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
             <Command shouldFilter={true}>
               <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
 

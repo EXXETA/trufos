@@ -7,10 +7,10 @@ import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { Folder } from 'shim/objects/folder';
 
 const setSelectedRequestMock = vi.fn();
-const addNewRequestMock = vi.fn();
 const discardChangesMock = vi.fn();
 const sendRequestMock = vi.fn();
 const saveRequestMock = vi.fn();
+const requestCreateItemMock = vi.fn();
 
 const makeRequest = (id: string, parentId: string, title: string, method: RequestMethod) =>
   ({
@@ -49,7 +49,6 @@ vi.mock('@/state/collectionStore', () => ({
     selector({ collection: mockCollection, folders: mockFolders, selectedRequestId: undefined }),
   useCollectionActions: () => ({
     setSelectedRequest: setSelectedRequestMock,
-    addNewRequest: addNewRequestMock,
     updateRequest: vi.fn(),
     discardChanges: discardChangesMock,
     addNewFolder: vi.fn(),
@@ -70,7 +69,11 @@ vi.mock('@/state/responseStore', () => ({
 }));
 
 vi.mock('@/state/viewStore', () => ({
-  useViewActions: () => ({ openCollectionSettings: vi.fn(), openAppSettings: vi.fn() }),
+  useViewActions: () => ({
+    openCollectionSettings: vi.fn(),
+    openAppSettings: vi.fn(),
+    requestCreateItem: requestCreateItemMock,
+  }),
 }));
 
 // Real @/hooks/hotKeys/useHotkey is used (not mocked) so tests exercise the actual window
@@ -168,11 +171,13 @@ describe('CommandPalette nested folder state staleness (folders Map fix)', () =>
 
 describe('CommandPalette owns Send/Save/New-request hotkeys while open', () => {
   const dispatchKeyDown = (init: KeyboardEventInit) =>
-    window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
+    );
 
   beforeEach(() => {
     setSelectedRequestMock.mockClear();
-    addNewRequestMock.mockClear();
+    requestCreateItemMock.mockClear();
     discardChangesMock.mockClear();
     sendRequestMock.mockClear().mockResolvedValue(undefined);
     saveRequestMock.mockClear().mockResolvedValue(undefined);
@@ -204,7 +209,10 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open', () => {
   });
 
   it('mod+s saves the current request and closes the palette when there is a draft', async () => {
-    mockCurrentRequest = { ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET), draft: true };
+    mockCurrentRequest = {
+      ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET),
+      draft: true,
+    };
     const onClose = vi.fn();
     render(<CommandPalette open={true} onClose={onClose} />);
 
@@ -215,7 +223,10 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open', () => {
   });
 
   it('mod+s does nothing when there is no draft to save', () => {
-    mockCurrentRequest = { ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET), draft: false };
+    mockCurrentRequest = {
+      ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET),
+      draft: false,
+    };
     const onClose = vi.fn();
     render(<CommandPalette open={true} onClose={onClose} />);
 
@@ -225,18 +236,44 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('mod+n creates a new request and closes the palette', () => {
+  it('mod+n requests the sidebar inline-create flow for a request at the collection root and closes the palette', () => {
     const onClose = vi.fn();
     render(<CommandPalette open={true} onClose={onClose} />);
 
     dispatchKeyDown({ key: 'n', metaKey: true });
 
-    expect(addNewRequestMock).toHaveBeenCalled();
+    expect(requestCreateItemMock).toHaveBeenCalledWith({ type: 'request', parentId: 'col-1' });
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('clicking "New request" in the Actions tab requests the sidebar inline-create flow and closes the palette', async () => {
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('tab', { name: /actions/i }));
+    await user.click(screen.getByText('New request'));
+
+    expect(requestCreateItemMock).toHaveBeenCalledWith({ type: 'request', parentId: 'col-1' });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('mod+n does nothing when there is no collection loaded', () => {
+    mockCollection = null;
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    dispatchKeyDown({ key: 'n', metaKey: true });
+
+    expect(requestCreateItemMock).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('does not own its hotkeys while closed, so nothing fires', () => {
-    mockCurrentRequest = { ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET), draft: true };
+    mockCurrentRequest = {
+      ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET),
+      draft: true,
+    };
     const onClose = vi.fn();
     render(<CommandPalette open={false} onClose={onClose} />);
 
@@ -246,7 +283,7 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open', () => {
 
     expect(sendRequestMock).not.toHaveBeenCalled();
     expect(saveRequestMock).not.toHaveBeenCalled();
-    expect(addNewRequestMock).not.toHaveBeenCalled();
+    expect(requestCreateItemMock).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
 });
@@ -258,7 +295,9 @@ describe('CommandPalette tab-strip cycling via keyboard', () => {
   // before the DOM reflects it in a synchronous assertion.
   const dispatchKeyDown = (init: KeyboardEventInit) =>
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
+      );
     });
 
   const activeTabName = () => screen.getByRole('tab', { selected: true }).textContent ?? '';
