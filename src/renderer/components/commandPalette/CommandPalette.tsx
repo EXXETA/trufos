@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
   EraserIcon,
@@ -275,15 +275,30 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     },
   ];
 
-  // Owns Send/Save/New-request while the palette is open, so a keypress performs the same action
-  // and closes the palette exactly like clicking the corresponding Actions-tab item does (I2/I12).
-  // `MainTopBar.tsx`/`SidebarHeaderBar.tsx` disable their own global registrations for these same
-  // shortcuts while the palette is open, so the action never fires twice (I13).
+  const cycleTabForward = useCallback(() => {
+    const currentIndex = TABS.indexOf(activeTab);
+    setActiveTab(TABS[(currentIndex + 1) % TABS.length]);
+  }, [activeTab]);
+
+  const cycleTabBackward = useCallback(() => {
+    const currentIndex = TABS.indexOf(activeTab);
+    setActiveTab(TABS[(currentIndex - 1 + TABS.length) % TABS.length]);
+  }, [activeTab]);
+
+  // Owns every keyboard shortcut scoped to the open palette: Send/Save/New-request (a keypress
+  // performs the same action and closes the palette exactly like clicking the corresponding
+  // Actions-tab item does, I2/I12) and tab-strip cycling via Tab/Shift+Tab/←/→ (I4).
+  // `MainTopBar.tsx`/`SidebarHeaderBar.tsx` disable their own global registrations for the shared
+  // Send/Save/New-request shortcuts while the palette is open, so those never fire twice (I13).
   useHotkeys(
     [
       { keys: HOTKEYS.sendRequest, handler: handleSend, enabled: canSendRequest },
       { keys: HOTKEYS.saveRequest, handler: handleSave, enabled: canSaveRequest },
       { keys: HOTKEYS.newRequest, handler: handleNewRequest },
+      { keys: HOTKEYS.cyclePaletteTabForward, handler: cycleTabForward },
+      { keys: HOTKEYS.cyclePaletteTabForwardTab, handler: cycleTabForward },
+      { keys: HOTKEYS.cyclePaletteTabBackward, handler: cycleTabBackward },
+      { keys: HOTKEYS.cyclePaletteTabBackwardTab, handler: cycleTabBackward },
     ],
     { enabled: open, skipFormElements: false }
   );
@@ -312,27 +327,12 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     );
   };
 
-  // Tab/Shift+Tab and Left/Right arrow key cycling
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLDivElement>) => {
-      const currentIndex = TABS.indexOf(activeTab);
-
-      if (e.key === 'ArrowRight' || (e.key === 'Tab' && !e.shiftKey)) {
-        e.preventDefault();
-        setActiveTab(TABS[(currentIndex + 1) % TABS.length]);
-      } else if (e.key === 'ArrowLeft' || (e.key === 'Tab' && e.shiftKey)) {
-        e.preventDefault();
-        setActiveTab(TABS[(currentIndex - 1 + TABS.length) % TABS.length]);
-      }
-    },
-    [activeTab]
-  );
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogPortal>
         <DialogOverlay className="flex items-center justify-center">
           <DialogPrimitive.Content className="bg-background w-full max-w-150 overflow-hidden rounded-lg p-2 shadow-lg outline-none">
-            <Command shouldFilter={true} onKeyDown={handleKeyDown}>
+            <Command shouldFilter={true}>
               <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
 
               <Tabs

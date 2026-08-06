@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { CommandPalette } from './CommandPalette';
@@ -248,5 +248,73 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19,
     expect(saveRequestMock).not.toHaveBeenCalled();
     expect(addNewRequestMock).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('CommandPalette tab-strip cycling via keyboard (Task 20 migration onto useHotkeys, I4)', () => {
+  // Wrapped in act() (unlike the raw window.dispatchEvent used elsewhere in this file) because
+  // these assertions read the re-rendered DOM (which tab is active), not just whether a mock was
+  // called — a native (non-React-synthetic) event handler's setState needs an explicit act() flush
+  // before the DOM reflects it in a synchronous assertion.
+  const dispatchKeyDown = (init: KeyboardEventInit) =>
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+    });
+
+  const activeTabName = () => screen.getByRole('tab', { selected: true }).textContent ?? '';
+
+  beforeEach(() => {
+    mockCollection = { id: 'col-1', title: 'Test Collection', type: 'collection', children: [] };
+    mockFolders = new Map();
+    mockCurrentRequest = undefined;
+  });
+
+  it('Tab and ArrowRight cycle forward through All -> Requests -> Environments -> Actions and wrap', () => {
+    render(<CommandPalette open={true} onClose={vi.fn()} />);
+
+    expect(activeTabName()).toMatch(/all/i);
+
+    dispatchKeyDown({ key: 'Tab' });
+    expect(activeTabName()).toMatch(/requests/i);
+
+    dispatchKeyDown({ key: 'ArrowRight' });
+    expect(activeTabName()).toMatch(/environments/i);
+
+    dispatchKeyDown({ key: 'Tab' });
+    expect(activeTabName()).toMatch(/actions/i);
+
+    dispatchKeyDown({ key: 'ArrowRight' });
+    expect(activeTabName()).toMatch(/all/i); // wraps back to the first tab
+  });
+
+  it('Shift+Tab and ArrowLeft cycle backward and wrap at the start', () => {
+    render(<CommandPalette open={true} onClose={vi.fn()} />);
+
+    expect(activeTabName()).toMatch(/all/i);
+
+    dispatchKeyDown({ key: 'Tab', shiftKey: true });
+    expect(activeTabName()).toMatch(/actions/i); // wraps back to the last tab
+
+    dispatchKeyDown({ key: 'ArrowLeft' });
+    expect(activeTabName()).toMatch(/environments/i);
+  });
+
+  it('plain Tab does not also trigger the Shift+Tab handler, and vice versa (I14)', () => {
+    render(<CommandPalette open={true} onClose={vi.fn()} />);
+
+    dispatchKeyDown({ key: 'Tab', shiftKey: true });
+    expect(activeTabName()).toMatch(/actions/i); // backward from 'all' wraps to 'actions'
+
+    dispatchKeyDown({ key: 'Tab' });
+    expect(activeTabName()).toMatch(/all/i); // forward from 'actions' wraps to 'all'
+  });
+
+  it('does not cycle tabs while closed', () => {
+    render(<CommandPalette open={false} onClose={vi.fn()} />);
+
+    dispatchKeyDown({ key: 'Tab' });
+    dispatchKeyDown({ key: 'ArrowRight' });
+
+    expect(screen.queryByRole('tab')).toBeNull();
   });
 });

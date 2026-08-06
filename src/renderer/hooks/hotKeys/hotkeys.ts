@@ -21,6 +21,12 @@ export const HOTKEYS = {
   // Sidebar request navigation (SidebarRequestList.tsx)
   selectPreviousRequest: 'mod+pageup',
   selectNextRequest: 'mod+pagedown',
+  // Command palette tab-strip cycling (CommandPalette.tsx) — the only modifier-free entries, since
+  // this is local widget navigation, not a global app command
+  cyclePaletteTabForward: 'arrowright',
+  cyclePaletteTabForwardTab: 'tab',
+  cyclePaletteTabBackward: 'arrowleft',
+  cyclePaletteTabBackwardTab: 'shift+tab',
 } as const;
 
 export type HotkeyName = keyof typeof HOTKEYS;
