@@ -28,6 +28,7 @@ import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 
 import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 interface SidebarRequestListProps {
@@ -179,11 +180,11 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   useHotkeys(
     [
       {
-        keys: 'mod+pageup',
+        keys: HOTKEYS.selectPreviousRequest,
         handler: () => navigateRequest(-1),
       },
       {
-        keys: 'mod+pagedown',
+        keys: HOTKEYS.selectNextRequest,
         handler: () => navigateRequest(1),
       },
     ],

@@ -13,6 +13,7 @@ import { selectResponse, useResponseStore } from '@/state/responseStore';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
 import { BodyTab } from './OutputTabs/BodyTab';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 
 interface OutputTabsProps {
   className: string;
@@ -28,11 +29,11 @@ export function OutputTabs({ className }: OutputTabsProps) {
 
   useHotkeys([
     {
-      keys: 'mod+6',
+      keys: HOTKEYS.selectResponseBodyTab,
       handler: () => setSelectedTab('body'),
     },
     {
-      keys: 'mod+7',
+      keys: HOTKEYS.selectResponseHeadersTab,
       handler: () => setSelectedTab('header'),
     },
   ]);
