@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
-import { editor } from 'monaco-editor';
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
@@ -47,9 +46,6 @@ import {
   useEnvironmentStore,
 } from '@/state/environmentStore';
 import { useViewActions } from '@/state/viewStore';
-import { RendererEventService } from '@/services/event/renderer-event-service';
-import { saveModelContent } from '@/lib/monaco/models';
-import { showError } from '@/error/errorHandler';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { Divider } from '@/components/shared/Divider';
 import {
@@ -57,9 +53,7 @@ import {
   RequestCommandGroup,
   RequestCommandItem,
 } from '@/components/commandPalette/RequestResultsGrid';
-import { useSendRequest } from '@/hooks/request/useRequestActions';
-
-const eventService = RendererEventService.instance;
+import { useSendRequest, useSaveRequest } from '@/hooks/request/useRequestActions';
 
 interface RequestGroup {
   id: string | null;
@@ -131,7 +125,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const requestGroups = collection ? buildRequestGroups(collection.children, folders) : [];
   const allRequests = requestGroups.flatMap((group) => group.requests);
   const currentRequest = useCollectionStore(selectRequest);
-  const { setSelectedRequest, addNewRequest, updateRequest, discardChanges, addNewFolder } =
+  const { setSelectedRequest, addNewRequest, discardChanges, addNewFolder } =
     useCollectionActions();
 
   const environments = useEnvironmentStore(selectEnvironments);
@@ -167,6 +161,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   );
 
   const { sendRequest } = useSendRequest();
+  const { saveRequest } = useSaveRequest();
 
   const handleSend = useCallback(async () => {
     await sendRequest();
@@ -174,15 +169,9 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   }, [sendRequest, onClose]);
 
   const handleSave = useCallback(async () => {
-    if (currentRequest == null) return;
-    try {
-      await Promise.all(editor.getModels().map(saveModelContent));
-      updateRequest(await eventService.saveChanges(currentRequest), true);
-    } catch (error) {
-      showError(error);
-    }
+    await saveRequest();
     onClose();
-  }, [currentRequest, updateRequest, onClose]);
+  }, [saveRequest, onClose]);
 
   const renderEnvironmentItem = (key: string) => (
     <CommandItem
