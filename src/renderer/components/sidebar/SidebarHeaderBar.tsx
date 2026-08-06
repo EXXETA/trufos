@@ -12,6 +12,7 @@ import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/tr
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 
 const SORT_MODE_LABELS: Record<SortMode, string> = {
   [SortMode.DEFAULT]: 'Manual order',
@@ -59,7 +60,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
     setSortMode(SORT_CYCLE[(currentIndex + 1) % SORT_CYCLE.length]);
   };
 
-  useHotkeys([{ keys: 'mod+n', handler: () => openModal('request') }]);
+  useHotkeys([{ keys: HOTKEYS.newRequest, handler: () => openModal('request') }]);
 
   return (
     <SidebarHeader className="flex-col gap-6">

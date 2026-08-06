@@ -7,6 +7,7 @@ import { ArrowRight, Loader2, SaveIcon, EraserIcon } from 'lucide-react';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 import { useSendRequest, useSaveRequest } from '@/hooks/request/useRequestActions';
 
 export function MainTopBar() {
@@ -21,8 +22,8 @@ export function MainTopBar() {
 
   useHotkeys(
     [
-      { keys: 'mod+s', handler: saveRequest },
-      { keys: 'mod+enter', handler: sendRequest },
+      { keys: HOTKEYS.saveRequest, handler: saveRequest },
+      { keys: HOTKEYS.sendRequest, handler: sendRequest },
     ],
     { skipFormElements: false }
   );

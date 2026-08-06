@@ -1,12 +1,4 @@
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  KeyboardEvent,
-  ReactElement,
-} from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
 import {
   ArrowRight,
   EraserIcon,
@@ -19,7 +11,6 @@ import {
   Globe,
   SquareSlash,
   Server,
-  Command as CommandShortcut,
   Wrench,
   SquareMousePointer,
   HardDrive,
@@ -54,6 +45,8 @@ import {
   RequestCommandItem,
 } from '@/components/commandPalette/RequestResultsGrid';
 import { useSendRequest, useSaveRequest } from '@/hooks/request/useRequestActions';
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
+import { formatHotkeyForDisplay } from '@/hooks/hotKeys/hotkeyDisplay';
 
 interface RequestGroup {
   id: string | null;
@@ -69,8 +62,8 @@ interface ActionItem {
   section: ActionSection;
   icon: LucideIcon;
   label: string;
-  shortcutModifier?: ReactElement | string;
-  shortcutKey?: string;
+  /** A `HOTKEYS.*` value; omit when the action has no real bound hotkey (I9/I11). */
+  hotkey?: string;
   disabled?: boolean;
   onSelect: () => void;
 }
@@ -133,8 +126,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const { selectEnvironment } = useEnvironmentActions();
 
   const { openCollectionSettings, openAppSettings } = useViewActions();
-
-  const isMac = navigator.platform.startsWith('Mac');
 
   // Reset state when opened
   useEffect(() => {
@@ -216,8 +207,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       section: 'Request',
       icon: ArrowRight,
       label: 'Send request',
-      shortcutModifier: isMac ? <CommandShortcut size={12} /> : 'Ctrl',
-      shortcutKey: 'Enter',
+      hotkey: HOTKEYS.sendRequest,
       disabled: currentRequest == null,
       onSelect: handleSend,
     },
@@ -226,8 +216,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       section: 'Request',
       icon: Save,
       label: 'Save request',
-      shortcutModifier: isMac ? <CommandShortcut size={12} /> : 'Ctrl',
-      shortcutKey: 'S',
+      hotkey: HOTKEYS.saveRequest,
       disabled: currentRequest == null,
       onSelect: handleSave,
     },
@@ -236,8 +225,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       section: 'Request',
       icon: Plus,
       label: 'New request',
-      shortcutModifier: isMac ? <CommandShortcut size={12} /> : 'Ctrl',
-      shortcutKey: 'N',
+      hotkey: HOTKEYS.newRequest,
       onSelect: () => runAndClose(() => addNewRequest()),
     },
     {
@@ -277,6 +265,30 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       onSelect: () => runAndClose(openAppSettings),
     },
   ];
+
+  const renderActionItem = (item: ActionItem) => {
+    const badge = item.hotkey ? formatHotkeyForDisplay(item.hotkey) : null;
+
+    return (
+      <CommandItem
+        key={item.value}
+        value={item.value}
+        disabled={item.disabled}
+        onSelect={item.onSelect}
+        className="data-[selected='true']:bg-divider"
+      >
+        <item.icon className="shrink-0" />
+        <span>{item.label}</span>
+        {badge && (
+          <div className="ml-auto flex items-center justify-center gap-1">
+            <div className="bg-background-secondary rounded p-1">{badge.modifier}</div>
+
+            <span className="bg-background-secondary rounded p-1">{badge.key}</span>
+          </div>
+        )}
+      </CommandItem>
+    );
+  };
 
   // Tab/Shift+Tab and Left/Right arrow key cycling
   const handleKeyDown = useCallback(
@@ -355,29 +367,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                           {Object.keys(environments).map(renderEnvironmentItem)}
                         </CommandGroup>
                         <CommandGroup heading="Actions">
-                          {actionItems.map((item) => (
-                            <CommandItem
-                              key={item.value}
-                              value={item.value}
-                              disabled={item.disabled}
-                              onSelect={item.onSelect}
-                              className="data-[selected='true']:bg-divider"
-                            >
-                              <item.icon className="shrink-0" />
-                              <span>{item.label}</span>
-                              {item.shortcutModifier && (
-                                <div className="ml-auto flex items-center justify-center gap-1">
-                                  <div className="bg-background-secondary rounded p-1">
-                                    {item.shortcutModifier}
-                                  </div>
-
-                                  <span className="bg-background-secondary rounded p-1">
-                                    {item.shortcutKey}
-                                  </span>
-                                </div>
-                              )}
-                            </CommandItem>
-                          ))}
+                          {actionItems.map(renderActionItem)}
                         </CommandGroup>
                       </>
                     )}
@@ -416,29 +406,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                         <CommandGroup heading={section}>
                           {actionItems
                             .filter((item) => item.section === section)
-                            .map((item) => (
-                              <CommandItem
-                                key={item.value}
-                                value={item.value}
-                                disabled={item.disabled}
-                                onSelect={item.onSelect}
-                                className="data-[selected='true']:bg-divider"
-                              >
-                                <item.icon className="shrink-0" />
-                                <span>{item.label}</span>
-                                {item.shortcutModifier && (
-                                  <div className="ml-auto flex items-center justify-center gap-1">
-                                    <div className="bg-background-secondary rounded p-1">
-                                      {item.shortcutModifier}
-                                    </div>
-
-                                    <span className="bg-background-secondary rounded p-1">
-                                      {item.shortcutKey}
-                                    </span>
-                                  </div>
-                                )}
-                              </CommandItem>
-                            ))}
+                            .map(renderActionItem)}
                         </CommandGroup>
                       </Fragment>
                     ))}

@@ -22,6 +22,7 @@ import {
 } from '@/state/viewStore';
 import { CommandPalette } from '@/components/commandPalette/CommandPalette';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 import { showError } from '@/error/errorHandler';
 
 const MIN_SIDEBAR_PIXELS = 300;
@@ -40,7 +41,7 @@ export const App = () => {
     closeAppSettings,
   } = useViewActions();
 
-  useHotkeys([{ keys: 'mod+k', handler: openCommandPalette }]);
+  useHotkeys([{ keys: HOTKEYS.openCommandPalette, handler: openCommandPalette }]);
 
   useEffect(() => {
     // Entry points of the native application menu (Collection > ...).
