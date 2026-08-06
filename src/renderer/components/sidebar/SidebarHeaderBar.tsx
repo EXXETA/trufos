@@ -61,7 +61,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
     setSortMode(SORT_CYCLE[(currentIndex + 1) % SORT_CYCLE.length]);
   };
 
-  // Disabled while the Command Palette is open — it owns this same shortcut then (I12/I13); see
+  // Disabled while the Command Palette is open — it owns this same shortcut then; see
   // CommandPalette.tsx's own useHotkeys call.
   useHotkeys(
     [{ keys: HOTKEYS.newRequest, handler: () => openModal('request') }],

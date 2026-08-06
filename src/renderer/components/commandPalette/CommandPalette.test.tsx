@@ -37,11 +37,11 @@ const makeFolder = (id: string, title: string, children: TrufosRequest[]) =>
   }) as unknown as Folder;
 
 // Mutable so each describe block can install its own fixture — CommandPalette now reads both
-// `collection` and `folders` from the store (see Task 13's follow-up fix).
+// `collection` and `folders` from the store.
 let mockCollection: unknown;
 let mockFolders: Map<string, Folder>;
-// Mutable so tests can toggle presence/`draft` state for the I3/I12/I13 hotkey-guard assertions
-// (Task 19) — was a hardcoded `() => undefined` before.
+// Mutable so tests can toggle presence/`draft` state for the hotkey-guard assertions below — was
+// a hardcoded `() => undefined` before.
 let mockCurrentRequest: TrufosRequest | undefined;
 
 vi.mock('@/state/collectionStore', () => ({
@@ -80,7 +80,7 @@ vi.mock('@/hooks/request/useRequestActions', () => ({
   useSaveRequest: () => ({ saveRequest: saveRequestMock, isSaving: false }),
 }));
 
-describe('CommandPalette nested request title collision (Task 13, cmdk value fix)', () => {
+describe('CommandPalette nested request title collision (cmdk value fix)', () => {
   // Two requests in different folders share the title "Get" but have different methods —
   // this is the collision that reproduces the cmdk keyboard-selection mismatch.
   const requestUsersGet = makeRequest('req-users-get', 'folder-users', 'Get', RequestMethod.GET);
@@ -133,7 +133,7 @@ describe('CommandPalette nested request title collision (Task 13, cmdk value fix
   });
 });
 
-describe('CommandPalette nested folder state staleness (Task 13, folders Map fix)', () => {
+describe('CommandPalette nested folder state staleness (folders Map fix)', () => {
   // Simulates the exact post-`updateRequest` divergence confirmed via a real Immer test:
   // `collection.children`'s embedded tree still holds the OLD child (immer never touches
   // `state.collection` when a mutation only goes through `state.folders.get(parentId)`), while
@@ -166,7 +166,7 @@ describe('CommandPalette nested folder state staleness (Task 13, folders Map fix
   });
 });
 
-describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19, I12/I13)', () => {
+describe('CommandPalette owns Send/Save/New-request hotkeys while open', () => {
   const dispatchKeyDown = (init: KeyboardEventInit) =>
     window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
 
@@ -181,7 +181,7 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19,
     mockCurrentRequest = undefined;
   });
 
-  it('mod+enter sends the current request and closes the palette (I12)', async () => {
+  it('mod+enter sends the current request and closes the palette', async () => {
     mockCurrentRequest = makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET);
     const onClose = vi.fn();
     render(<CommandPalette open={true} onClose={onClose} />);
@@ -192,7 +192,7 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19,
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
-  it('mod+enter does nothing when there is no current request (I3/I12)', () => {
+  it('mod+enter does nothing when there is no current request', () => {
     mockCurrentRequest = undefined;
     const onClose = vi.fn();
     render(<CommandPalette open={true} onClose={onClose} />);
@@ -203,7 +203,7 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19,
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('mod+s saves the current request and closes the palette when there is a draft (I12)', async () => {
+  it('mod+s saves the current request and closes the palette when there is a draft', async () => {
     mockCurrentRequest = { ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET), draft: true };
     const onClose = vi.fn();
     render(<CommandPalette open={true} onClose={onClose} />);
@@ -214,7 +214,7 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19,
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
-  it('mod+s does nothing when there is no draft to save (I3/I12)', () => {
+  it('mod+s does nothing when there is no draft to save', () => {
     mockCurrentRequest = { ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET), draft: false };
     const onClose = vi.fn();
     render(<CommandPalette open={true} onClose={onClose} />);
@@ -225,7 +225,7 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19,
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('mod+n creates a new request and closes the palette (I12)', () => {
+  it('mod+n creates a new request and closes the palette', () => {
     const onClose = vi.fn();
     render(<CommandPalette open={true} onClose={onClose} />);
 
@@ -235,7 +235,7 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19,
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('does not own its hotkeys while closed, so nothing fires (I13)', () => {
+  it('does not own its hotkeys while closed, so nothing fires', () => {
     mockCurrentRequest = { ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET), draft: true };
     const onClose = vi.fn();
     render(<CommandPalette open={false} onClose={onClose} />);
@@ -251,7 +251,7 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19,
   });
 });
 
-describe('CommandPalette tab-strip cycling via keyboard (Task 20 migration onto useHotkeys, I4)', () => {
+describe('CommandPalette tab-strip cycling via keyboard', () => {
   // Wrapped in act() (unlike the raw window.dispatchEvent used elsewhere in this file) because
   // these assertions read the re-rendered DOM (which tab is active), not just whether a mock was
   // called — a native (non-React-synthetic) event handler's setState needs an explicit act() flush
@@ -299,7 +299,7 @@ describe('CommandPalette tab-strip cycling via keyboard (Task 20 migration onto 
     expect(activeTabName()).toMatch(/environments/i);
   });
 
-  it('plain Tab does not also trigger the Shift+Tab handler, and vice versa (I14)', () => {
+  it('plain Tab does not also trigger the Shift+Tab handler, and vice versa', () => {
     render(<CommandPalette open={true} onClose={vi.fn()} />);
 
     dispatchKeyDown({ key: 'Tab', shiftKey: true });

@@ -23,7 +23,7 @@ export function MainTopBar() {
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
 
   // Disabled while the Command Palette is open — it owns these same shortcuts then, performing
-  // the action and closing itself (I12/I13); see CommandPalette.tsx's own useHotkeys call.
+  // the action and closing itself; see CommandPalette.tsx's own useHotkeys call.
   useHotkeys(
     [
       { keys: HOTKEYS.saveRequest, handler: saveRequest },

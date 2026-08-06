@@ -63,7 +63,7 @@ interface ActionItem {
   section: ActionSection;
   icon: LucideIcon;
   label: string;
-  /** A `HOTKEYS.*` value; omit when the action has no real bound hotkey (I9/I11). */
+  /** A `HOTKEYS.*` value; omit when the action has no real bound hotkey. */
   hotkey?: string;
   disabled?: boolean;
   onSelect: () => void;
@@ -287,9 +287,9 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   // Owns every keyboard shortcut scoped to the open palette: Send/Save/New-request (a keypress
   // performs the same action and closes the palette exactly like clicking the corresponding
-  // Actions-tab item does, I2/I12) and tab-strip cycling via Tab/Shift+Tab/←/→ (I4).
+  // Actions-tab item does) and tab-strip cycling via Tab/Shift+Tab/←/→.
   // `MainTopBar.tsx`/`SidebarHeaderBar.tsx` disable their own global registrations for the shared
-  // Send/Save/New-request shortcuts while the palette is open, so those never fire twice (I13).
+  // Send/Save/New-request shortcuts while the palette is open, so those never fire twice.
   useHotkeys(
     [
       { keys: HOTKEYS.sendRequest, handler: handleSend, enabled: canSendRequest },

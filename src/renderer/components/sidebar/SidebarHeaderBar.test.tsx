@@ -83,7 +83,7 @@ describe('SidebarHeaderBar sort cycle', () => {
   });
 });
 
-describe('SidebarHeaderBar mod+n hotkey ownership while command palette is open (Task 19, I13)', () => {
+describe('SidebarHeaderBar mod+n hotkey ownership while command palette is open', () => {
   // @/state/viewStore is not mocked in this file (real, self-contained store) — same convention
   // used for openCollectionSettings above; toggle it directly for the gating assertions.
   const onCreateItem = vi.fn();
