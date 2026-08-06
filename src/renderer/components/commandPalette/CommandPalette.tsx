@@ -46,9 +46,7 @@ import {
   useEnvironmentActions,
   useEnvironmentStore,
 } from '@/state/environmentStore';
-import { useResponseActions } from '@/state/responseStore';
 import { useViewActions } from '@/state/viewStore';
-import { HttpService } from '@/services/http/http-service';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { saveModelContent } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
@@ -59,8 +57,8 @@ import {
   RequestCommandGroup,
   RequestCommandItem,
 } from '@/components/commandPalette/RequestResultsGrid';
+import { useSendRequest } from '@/hooks/request/useRequestActions';
 
-const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 interface RequestGroup {
@@ -140,8 +138,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
   const { selectEnvironment } = useEnvironmentActions();
 
-  const { addResponse } = useResponseActions();
-
   const { openCollectionSettings, openAppSettings } = useViewActions();
 
   const isMac = navigator.platform.startsWith('Mac');
@@ -170,17 +166,12 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     [onClose]
   );
 
+  const { sendRequest } = useSendRequest();
+
   const handleSend = useCallback(async () => {
-    if (currentRequest == null) return;
-    try {
-      await Promise.all(editor.getModels().map(saveModelContent));
-      const response = await httpService.sendRequest(currentRequest);
-      addResponse(currentRequest.id, response);
-    } catch (error) {
-      showError(error);
-    }
+    await sendRequest();
     onClose();
-  }, [currentRequest, addResponse, onClose]);
+  }, [sendRequest, onClose]);
 
   const handleSave = useCallback(async () => {
     if (currentRequest == null) return;

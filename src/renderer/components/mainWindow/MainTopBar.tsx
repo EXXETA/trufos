@@ -1,51 +1,29 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { RequestMethod } from 'shim/objects/request-method';
 import { useErrorHandler } from '@/components/ui/use-toast';
-import { HttpService } from '@/services/http/http-service';
 import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
 import { UrlInput } from './mainTopBar/UrlInput';
 import { SendButton } from './mainTopBar/SendButton';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2, SaveIcon, EraserIcon } from 'lucide-react';
-import { showError } from '@/error/errorHandler';
 import { editor } from 'monaco-editor';
 import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { useSendRequest } from '@/hooks/request/useRequestActions';
 
-const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 export function MainTopBar() {
-  const [isLoading, setIsLoading] = useState(false);
-
   const { updateRequest, discardChanges } = useCollectionActions();
-  const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest)!;
   const { url, method } = request;
+  const { sendRequest, isSending } = useSendRequest();
 
   const handleUrlChange = (url: TrufosURL) => updateRequest({ url });
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
-
-  const sendRequest = useCallback(
-    useErrorHandler(async () => {
-      try {
-        setIsLoading(true);
-        await Promise.all(editor.getModels().map(saveModelContent));
-
-        const response = await httpService.sendRequest(request);
-        addResponse(request.id, response);
-      } catch (error) {
-        showError(error);
-      } finally {
-        setIsLoading(false);
-      }
-    }),
-    [request, addResponse]
-  );
 
   const saveRequest = useCallback(
     useErrorHandler(async () => {
@@ -82,8 +60,8 @@ export function MainTopBar() {
         <SaveIcon />
       </IconButton>
 
-      <SendButton onClick={sendRequest} disabled={isLoading}>
-        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
+      <SendButton onClick={sendRequest} disabled={isSending}>
+        {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
       </SendButton>
     </div>
   );
