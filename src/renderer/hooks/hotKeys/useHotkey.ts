@@ -46,6 +46,13 @@ const matchesHotkey = (event: KeyboardEvent, hotkey: string) => {
   if (needsShift && !event.shiftKey) return false;
   if (needsAlt && !event.altKey) return false;
 
+  // Reject unrequested modifiers too — presence is checked above, absence here — so e.g. 'tab'
+  // doesn't also match Shift+Tab, and 'mod+s' doesn't also match Cmd/Ctrl+Shift+S.
+  if (!needsMod && !needsCtrl && event.ctrlKey) return false;
+  if (!needsMod && !needsMeta && event.metaKey) return false;
+  if (!needsShift && event.shiftKey) return false;
+  if (!needsAlt && event.altKey) return false;
+
   return normalizeKey(event.key) === key;
 };
 

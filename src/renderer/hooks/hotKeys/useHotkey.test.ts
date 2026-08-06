@@ -84,4 +84,60 @@ describe('useHotkeys', () => {
 
     document.body.removeChild(textarea);
   });
+
+  it('does not match an unrequested modifier: a plain "tab" hotkey does not fire on Shift+Tab', () => {
+    // Arrange
+    const handler = vi.fn();
+    renderHook(() => useHotkeys([{ keys: 'tab', handler }]));
+
+    // Act
+    dispatchKeyDown({ key: 'Tab', shiftKey: true });
+
+    // Assert
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('does not match a missing modifier: a "shift+tab" hotkey does not fire on plain Tab', () => {
+    // Arrange
+    const handler = vi.fn();
+    renderHook(() => useHotkeys([{ keys: 'shift+tab', handler }]));
+
+    // Act
+    dispatchKeyDown({ key: 'Tab' });
+
+    // Assert
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('"tab" and "shift+tab" resolve to different handlers regardless of registration order', () => {
+    // Arrange
+    const forward = vi.fn();
+    const backward = vi.fn();
+    renderHook(() =>
+      useHotkeys([
+        { keys: 'tab', handler: forward },
+        { keys: 'shift+tab', handler: backward },
+      ])
+    );
+
+    // Act
+    dispatchKeyDown({ key: 'Tab' });
+    dispatchKeyDown({ key: 'Tab', shiftKey: true });
+
+    // Assert
+    expect(forward).toHaveBeenCalledTimes(1);
+    expect(backward).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not match an unrequested modifier: "mod+s" does not fire on Cmd/Ctrl+Shift+S', () => {
+    // Arrange
+    const handler = vi.fn();
+    renderHook(() => useHotkeys([{ keys: 'mod+s', handler }]));
+
+    // Act
+    dispatchKeyDown({ key: 's', metaKey: true, shiftKey: true });
+
+    // Assert
+    expect(handler).not.toHaveBeenCalled();
+  });
 });
