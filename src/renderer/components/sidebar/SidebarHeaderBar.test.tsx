@@ -1,9 +1,10 @@
 import { render, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SidebarHeaderBar } from './SidebarHeaderBar';
 import { SortMode, SORT_CYCLE } from './SidebarRequestList/treeUtilities';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useViewStore } from '@/state/viewStore';
 
 const renderWithProvider = (ui: React.ReactElement) =>
   render(<TooltipProvider>{ui}</TooltipProvider>);
@@ -79,5 +80,42 @@ describe('SidebarHeaderBar sort cycle', () => {
     await user.hover(sortButton);
 
     expect((await screen.findAllByText('A → Z')).length).toBeGreaterThan(0);
+  });
+});
+
+describe('SidebarHeaderBar mod+n hotkey ownership while command palette is open (Task 19, I13)', () => {
+  // @/state/viewStore is not mocked in this file (real, self-contained store) — same convention
+  // used for openCollectionSettings above; toggle it directly for the gating assertions.
+  const onCreateItem = vi.fn();
+
+  const dispatchModN = () =>
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'n', metaKey: true, bubbles: true, cancelable: true })
+    );
+
+  beforeEach(() => {
+    onCreateItem.mockClear();
+    useViewStore.getState().closeCommandPalette();
+  });
+
+  afterEach(() => {
+    useViewStore.getState().closeCommandPalette();
+  });
+
+  it('does not open the new-request modal via mod+n while the command palette is open', () => {
+    useViewStore.getState().openCommandPalette();
+    renderWithProvider(<SidebarHeaderBar onCreateItem={onCreateItem} />);
+
+    dispatchModN();
+
+    expect(onCreateItem).not.toHaveBeenCalled();
+  });
+
+  it('still opens the new-request modal via mod+n when the command palette is closed', () => {
+    renderWithProvider(<SidebarHeaderBar onCreateItem={onCreateItem} />);
+
+    dispatchModN();
+
+    expect(onCreateItem).toHaveBeenCalledWith({ type: 'request', parentId: 'col-1' });
   });
 });

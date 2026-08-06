@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { CommandPalette } from './CommandPalette';
@@ -7,6 +7,10 @@ import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { Folder } from 'shim/objects/folder';
 
 const setSelectedRequestMock = vi.fn();
+const addNewRequestMock = vi.fn();
+const discardChangesMock = vi.fn();
+const sendRequestMock = vi.fn();
+const saveRequestMock = vi.fn();
 
 const makeRequest = (id: string, parentId: string, title: string, method: RequestMethod) =>
   ({
@@ -36,18 +40,21 @@ const makeFolder = (id: string, title: string, children: TrufosRequest[]) =>
 // `collection` and `folders` from the store (see Task 13's follow-up fix).
 let mockCollection: unknown;
 let mockFolders: Map<string, Folder>;
+// Mutable so tests can toggle presence/`draft` state for the I3/I12/I13 hotkey-guard assertions
+// (Task 19) — was a hardcoded `() => undefined` before.
+let mockCurrentRequest: TrufosRequest | undefined;
 
 vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: <T,>(selector: (state: unknown) => T) =>
     selector({ collection: mockCollection, folders: mockFolders, selectedRequestId: undefined }),
   useCollectionActions: () => ({
     setSelectedRequest: setSelectedRequestMock,
-    addNewRequest: vi.fn(),
+    addNewRequest: addNewRequestMock,
     updateRequest: vi.fn(),
-    discardChanges: vi.fn(),
+    discardChanges: discardChangesMock,
     addNewFolder: vi.fn(),
   }),
-  selectRequest: () => undefined,
+  selectRequest: () => mockCurrentRequest,
 }));
 
 vi.mock('@/state/environmentStore', () => ({
@@ -64,6 +71,13 @@ vi.mock('@/state/responseStore', () => ({
 
 vi.mock('@/state/viewStore', () => ({
   useViewActions: () => ({ openCollectionSettings: vi.fn(), openAppSettings: vi.fn() }),
+}));
+
+// Real @/hooks/hotKeys/useHotkey is used (not mocked) so tests exercise the actual window
+// keydown/capture/enabled wiring — only the request-side-effect hooks are stubbed here.
+vi.mock('@/hooks/request/useRequestActions', () => ({
+  useSendRequest: () => ({ sendRequest: sendRequestMock, isSending: false }),
+  useSaveRequest: () => ({ saveRequest: saveRequestMock, isSaving: false }),
 }));
 
 describe('CommandPalette nested request title collision (Task 13, cmdk value fix)', () => {
@@ -149,5 +163,90 @@ describe('CommandPalette nested folder state staleness (Task 13, folders Map fix
 
     expect(screen.getByText('DELETE')).toBeDefined();
     expect(screen.queryByText('GET')).toBeNull();
+  });
+});
+
+describe('CommandPalette owns Send/Save/New-request hotkeys while open (Task 19, I12/I13)', () => {
+  const dispatchKeyDown = (init: KeyboardEventInit) =>
+    window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+
+  beforeEach(() => {
+    setSelectedRequestMock.mockClear();
+    addNewRequestMock.mockClear();
+    discardChangesMock.mockClear();
+    sendRequestMock.mockClear().mockResolvedValue(undefined);
+    saveRequestMock.mockClear().mockResolvedValue(undefined);
+    mockCollection = { id: 'col-1', title: 'Test Collection', type: 'collection', children: [] };
+    mockFolders = new Map();
+    mockCurrentRequest = undefined;
+  });
+
+  it('mod+enter sends the current request and closes the palette (I12)', async () => {
+    mockCurrentRequest = makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET);
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    dispatchKeyDown({ key: 'Enter', metaKey: true });
+
+    await waitFor(() => expect(sendRequestMock).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it('mod+enter does nothing when there is no current request (I3/I12)', () => {
+    mockCurrentRequest = undefined;
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    dispatchKeyDown({ key: 'Enter', metaKey: true });
+
+    expect(sendRequestMock).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('mod+s saves the current request and closes the palette when there is a draft (I12)', async () => {
+    mockCurrentRequest = { ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET), draft: true };
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    dispatchKeyDown({ key: 's', metaKey: true });
+
+    await waitFor(() => expect(saveRequestMock).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it('mod+s does nothing when there is no draft to save (I3/I12)', () => {
+    mockCurrentRequest = { ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET), draft: false };
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    dispatchKeyDown({ key: 's', metaKey: true });
+
+    expect(saveRequestMock).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('mod+n creates a new request and closes the palette (I12)', () => {
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    dispatchKeyDown({ key: 'n', metaKey: true });
+
+    expect(addNewRequestMock).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('does not own its hotkeys while closed, so nothing fires (I13)', () => {
+    mockCurrentRequest = { ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET), draft: true };
+    const onClose = vi.fn();
+    render(<CommandPalette open={false} onClose={onClose} />);
+
+    dispatchKeyDown({ key: 'Enter', metaKey: true });
+    dispatchKeyDown({ key: 's', metaKey: true });
+    dispatchKeyDown({ key: 'n', metaKey: true });
+
+    expect(sendRequestMock).not.toHaveBeenCalled();
+    expect(saveRequestMock).not.toHaveBeenCalled();
+    expect(addNewRequestMock).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

@@ -9,6 +9,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 import { useSendRequest, useSaveRequest } from '@/hooks/request/useRequestActions';
+import { selectIsCommandPaletteOpen, useViewStore } from '@/state/viewStore';
 
 export function MainTopBar() {
   const { updateRequest, discardChanges } = useCollectionActions();
@@ -16,16 +17,19 @@ export function MainTopBar() {
   const { url, method } = request;
   const { sendRequest, isSending } = useSendRequest();
   const { saveRequest } = useSaveRequest();
+  const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
 
   const handleUrlChange = (url: TrufosURL) => updateRequest({ url });
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
 
+  // Disabled while the Command Palette is open — it owns these same shortcuts then, performing
+  // the action and closing itself (I12/I13); see CommandPalette.tsx's own useHotkeys call.
   useHotkeys(
     [
       { keys: HOTKEYS.saveRequest, handler: saveRequest },
       { keys: HOTKEYS.sendRequest, handler: sendRequest },
     ],
-    { skipFormElements: false }
+    { skipFormElements: false, enabled: !isCommandPaletteOpen }
   );
 
   return (

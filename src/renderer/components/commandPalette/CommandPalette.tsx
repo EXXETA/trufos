@@ -45,6 +45,7 @@ import {
   RequestCommandItem,
 } from '@/components/commandPalette/RequestResultsGrid';
 import { useSendRequest, useSaveRequest } from '@/hooks/request/useRequestActions';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 import { formatHotkeyForDisplay } from '@/hooks/hotKeys/hotkeyDisplay';
 
@@ -164,6 +165,11 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     onClose();
   }, [saveRequest, onClose]);
 
+  const handleNewRequest = useCallback(
+    () => runAndClose(() => addNewRequest()),
+    [runAndClose, addNewRequest]
+  );
+
   const renderEnvironmentItem = (key: string) => (
     <CommandItem
       key={key}
@@ -201,6 +207,9 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     </RequestCommandItem>
   );
 
+  const canSendRequest = currentRequest != null;
+  const canSaveRequest = !!currentRequest?.draft;
+
   const actionItems: ActionItem[] = [
     {
       value: 'send request',
@@ -208,7 +217,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       icon: ArrowRight,
       label: 'Send request',
       hotkey: HOTKEYS.sendRequest,
-      disabled: currentRequest == null,
+      disabled: !canSendRequest,
       onSelect: handleSend,
     },
     {
@@ -217,7 +226,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       icon: Save,
       label: 'Save request',
       hotkey: HOTKEYS.saveRequest,
-      disabled: currentRequest == null,
+      disabled: !canSaveRequest,
       onSelect: handleSave,
     },
     {
@@ -226,14 +235,14 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       icon: Plus,
       label: 'New request',
       hotkey: HOTKEYS.newRequest,
-      onSelect: () => runAndClose(() => addNewRequest()),
+      onSelect: handleNewRequest,
     },
     {
       value: 'discard changes',
       section: 'Request',
       icon: EraserIcon,
       label: 'Discard changes',
-      disabled: !currentRequest?.draft,
+      disabled: !canSaveRequest,
       onSelect: () => runAndClose(discardChanges),
     },
     {
@@ -265,6 +274,19 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       onSelect: () => runAndClose(openAppSettings),
     },
   ];
+
+  // Owns Send/Save/New-request while the palette is open, so a keypress performs the same action
+  // and closes the palette exactly like clicking the corresponding Actions-tab item does (I2/I12).
+  // `MainTopBar.tsx`/`SidebarHeaderBar.tsx` disable their own global registrations for these same
+  // shortcuts while the palette is open, so the action never fires twice (I13).
+  useHotkeys(
+    [
+      { keys: HOTKEYS.sendRequest, handler: handleSend, enabled: canSendRequest },
+      { keys: HOTKEYS.saveRequest, handler: handleSave, enabled: canSaveRequest },
+      { keys: HOTKEYS.newRequest, handler: handleNewRequest },
+    ],
+    { enabled: open, skipFormElements: false }
+  );
 
   const renderActionItem = (item: ActionItem) => {
     const badge = item.hotkey ? formatHotkeyForDisplay(item.hotkey) : null;
