@@ -269,6 +269,47 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('closes immediately on mod+enter without waiting for sendRequest to resolve', () => {
+    mockCurrentRequest = makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET);
+    let resolveSend: () => void = () => {};
+    sendRequestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        })
+    );
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    dispatchKeyDown({ key: 'Enter', metaKey: true });
+
+    expect(sendRequestMock).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled(); // already closed, the send promise below is still pending
+    resolveSend();
+  });
+
+  it('closes immediately on mod+s without waiting for saveRequest to resolve', () => {
+    mockCurrentRequest = {
+      ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET),
+      draft: true,
+    };
+    let resolveSave: () => void = () => {};
+    saveRequestMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        })
+    );
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    dispatchKeyDown({ key: 's', metaKey: true });
+
+    expect(saveRequestMock).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled(); // already closed, the save promise below is still pending
+    resolveSave();
+  });
+
   it('does not own its hotkeys while closed, so nothing fires', () => {
     mockCurrentRequest = {
       ...makeRequest('req-1', 'col-1', 'Req', RequestMethod.GET),

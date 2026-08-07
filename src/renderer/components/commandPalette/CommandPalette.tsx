@@ -154,13 +154,13 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const { sendRequest } = useSendRequest();
   const { saveRequest } = useSaveRequest();
 
-  const handleSend = useCallback(async () => {
-    await sendRequest();
+  const handleSend = useCallback(() => {
+    void sendRequest();
     onClose();
   }, [sendRequest, onClose]);
 
-  const handleSave = useCallback(async () => {
-    await saveRequest();
+  const handleSave = useCallback(() => {
+    void saveRequest();
     onClose();
   }, [saveRequest, onClose]);
 
