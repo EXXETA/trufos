@@ -119,7 +119,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const requestGroups = collection ? buildRequestGroups(collection.children, folders) : [];
   const allRequests = requestGroups.flatMap((group) => group.requests);
   const currentRequest = useCollectionStore(selectRequest);
-  const { setSelectedRequest, discardChanges, addNewFolder } = useCollectionActions();
+  const { setSelectedRequest, discardChanges } = useCollectionActions();
 
   const environments = useEnvironmentStore(selectEnvironments);
   const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
@@ -167,6 +167,11 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const handleNewRequest = useCallback(() => {
     if (collection == null) return;
     runAndClose(() => requestCreateItem({ type: 'request', parentId: collection.id }));
+  }, [collection, runAndClose, requestCreateItem]);
+
+  const handleNewFolder = useCallback(() => {
+    if (collection == null) return;
+    runAndClose(() => requestCreateItem({ type: 'folder', parentId: collection.id }));
   }, [collection, runAndClose, requestCreateItem]);
 
   const renderEnvironmentItem = (key: string) => (
@@ -251,7 +256,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       section: 'Collection',
       icon: FolderPlusIcon,
       label: 'New folder',
-      onSelect: () => runAndClose(() => addNewFolder()),
+      onSelect: handleNewFolder,
     },
     {
       value: 'switch environment',
