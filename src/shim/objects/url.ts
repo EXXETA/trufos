@@ -63,10 +63,13 @@ export function urlsEqual(url1: TrufosURL, url2: TrufosURL) {
 }
 
 /**
- * Check if a URL is valid.
- * @param url The URL to check.
+ * Check if a URL is valid. Template variables must already be resolved, because a URL like
+ * `{{ baseUrl }}/users` is only valid if the variables in it resolve to a valid URL.
+ *
+ * @param resolvedUrl The URL to check, with all template variables resolved. Pass null if the URL
+ * references a variable that is not defined.
  * @returns True if the URL is valid, false otherwise.
  */
-export function isUrlValid(url: TrufosURL) {
-  return URL.canParse(url.base);
+export function isUrlValid(resolvedUrl: string | null) {
+  return resolvedUrl != null && URL.canParse(resolvedUrl);
 }

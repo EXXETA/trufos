@@ -120,6 +120,13 @@ export interface IEventService {
   getVariable(key: string): Promise<VariableObject>;
 
   /**
+   * Replaces all `{{ someVariable }}` templates in the given string with their current values.
+   * @param string The string to resolve the variables in.
+   * @returns The resolved string, or null if it references a variable that is not defined.
+   */
+  resolveVariablesInString(string: string): Promise<string | null>;
+
+  /**
    * Replace all existing collection variables with the given ones.
    * @param variables The variables of the Collection to set.
    */

@@ -253,4 +253,32 @@ describe('MainEventService', () => {
       });
     });
   });
+
+  describe('resolveVariablesInString', () => {
+    const mockCollectionVariables = async (variables: Collection['variables']) => {
+      const { EnvironmentService } = await import('../environment/service/environment-service.js');
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue({
+        variables,
+        environments: {},
+      } as Collection);
+    };
+
+    it('should return the string with all variables replaced', async () => {
+      await mockCollectionVariables({ baseUrl: { value: 'https://example.com' } });
+      const eventService = new MainEventService();
+
+      await expect(eventService.resolveVariablesInString('{{ baseUrl }}/users')).resolves.toBe(
+        'https://example.com/users'
+      );
+    });
+
+    it('should return null when a variable is not defined', async () => {
+      await mockCollectionVariables({});
+      const eventService = new MainEventService();
+
+      await expect(
+        eventService.resolveVariablesInString('{{ missing }}/users')
+      ).resolves.toBeNull();
+    });
+  });
 });
