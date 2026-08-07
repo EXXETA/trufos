@@ -2,7 +2,6 @@ import React, { useCallback, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { dir } from 'console';
 import { FolderSearchIcon } from '../icons';
 
 export interface DroppedEntryInfo {
@@ -48,14 +47,6 @@ interface FsDirectoryEntryLite extends FsEntryBaseLite {
   };
 }
 type FsEntryLite = FsFileEntryLite | FsDirectoryEntryLite;
-// We don't extend DataTransferItem strictly to avoid structural conflicts; we assert cast when needed.
-interface DataTransferItemWithEntry /* not extending */ {
-  kind: string;
-  type: string;
-  getAsFile(): File | null;
-  webkitGetAsEntry(): FsEntryLite | null;
-}
-
 const eventService = RendererEventService.instance;
 
 export const FileDropZone: React.FC<FileDropZoneProps> = ({

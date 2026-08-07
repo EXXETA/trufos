@@ -1,4 +1,4 @@
-import tmp from 'tmp';
+import { fileSync } from 'tmp';
 import { app } from 'electron';
 import fs from 'node:fs';
 
@@ -21,7 +21,7 @@ export class FileSystemService {
    * @returns the temporary file object containing the file descriptor and the file name
    */
   public temporaryFile() {
-    return tmp.fileSync({ dir: FileSystemService._tempDir });
+    return fileSync({ dir: FileSystemService._tempDir });
   }
 
   /**

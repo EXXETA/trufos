@@ -1,0 +1,11 @@
+{
+  // Renderer process (React). The only project that gets the DOM libs.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "dom", "dom.iterable"],
+    "jsx": "react-jsx"
+  },
+  "include": ["**/*"],
+  // Build tooling, covered by the root tsconfig.json instead.
+  "exclude": ["vite.config.mts", "lib/monaco/vite-plugin.mts"]
+}

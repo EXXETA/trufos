@@ -13,7 +13,7 @@ import { ClientCertificate } from 'shim/objects/collection';
 import { SemVer } from 'main/util/semver';
 import { AbstractInfoFileMigrator } from './migrator';
 import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v2-3-0';
-import z from 'zod';
+import { z } from 'zod';
 
 export const VERSION = new SemVer(2, 4, 0);
 
@@ -56,7 +56,7 @@ export type InfoFile = z.infer<typeof InfoFile>;
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
+  async migrate(old: OldInfoFile, _type: TrufosObjectType, _filePath: string): Promise<InfoFile> {
     return Object.assign(old, { version: VERSION.toString() });
   }
 }

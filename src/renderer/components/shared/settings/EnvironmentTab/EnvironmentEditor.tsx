@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Check, X, MoreVertical, Copy, Trash2, Edit } from 'lucide-react';
+import { Plus, MoreVertical, Copy, Trash2, Edit } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { EnvironmentMap } from 'shim/objects/environment';
 import { VariableEditor } from '@/components/shared/settings/VariableTab/VariableEditor';

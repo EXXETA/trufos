@@ -11,8 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-// eslint-disable-next-line import-x/no-named-as-default
-import FilePicker from '@/components/ui/file-picker';
+import { FilePicker } from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon } from '@/components/icons';
 

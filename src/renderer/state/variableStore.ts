@@ -13,7 +13,7 @@ interface VariableState {
 }
 
 export const useVariableStore = create<VariableState & VariableStateActions>()(
-  immer((set, get) => ({
+  immer((set) => ({
     variables: {},
 
     initialize(variables: VariableMap) {

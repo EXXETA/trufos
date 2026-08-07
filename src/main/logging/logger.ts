@@ -1,4 +1,4 @@
-import winston, { format, transports } from 'winston';
+import { createLogger, format, transports, type Logger } from 'winston';
 import { Format, TransformableInfo } from 'logform';
 import { app, ipcMain } from 'electron';
 import { LogEntry } from 'shim/logger';
@@ -13,8 +13,7 @@ console.info('Saving logs at', app.getPath('logs'));
 type TransformableInfoExtended = TransformableInfo & LogEntry;
 
 declare global {
-  // eslint-disable-next-line no-var
-  var logger: winston.Logger & {
+  var logger: Logger & {
     secret: {
       info: (message: string, ...meta: unknown[]) => void;
       debug: (message: string, ...meta: unknown[]) => void;
@@ -77,12 +76,12 @@ function print({
 // @ts-expect-error print uses extended TransformableInfo type
 const BASE_FORMAT = format.combine(new SplatFormat(), format.timestamp(), format.printf(print));
 
-global.logger = winston.createLogger({
+const baseLogger = createLogger({
   level: 'warn',
   format: BASE_FORMAT,
   defaultMeta: { process: 'main' },
   transports: [
-    new winston.transports.File({
+    new transports.File({
       dirname: app.getPath('logs'),
       filename: 'trufos.log',
       maxFiles: 10,
@@ -92,15 +91,17 @@ global.logger = winston.createLogger({
       format: format.combine(new SecretFilter(), BASE_FORMAT),
     }),
   ],
-}) as any;
+});
 
 // Add secret logging methods that automatically mark logs as secret
-logger.secret = {
-  info: (message: string, ...meta: unknown[]) => logger.info(message, LOG_SECRET, ...meta),
-  debug: (message: string, ...meta: unknown[]) => logger.debug(message, LOG_SECRET, ...meta),
-  warn: (message: string, ...meta: unknown[]) => logger.warn(message, LOG_SECRET, ...meta),
-  error: (message: string, ...meta: unknown[]) => logger.error(message, LOG_SECRET, ...meta),
-};
+global.logger = Object.assign(baseLogger, {
+  secret: {
+    info: (message: string, ...meta: unknown[]) => baseLogger.info(message, LOG_SECRET, ...meta),
+    debug: (message: string, ...meta: unknown[]) => baseLogger.debug(message, LOG_SECRET, ...meta),
+    warn: (message: string, ...meta: unknown[]) => baseLogger.warn(message, LOG_SECRET, ...meta),
+    error: (message: string, ...meta: unknown[]) => baseLogger.error(message, LOG_SECRET, ...meta),
+  },
+});
 
 if (!app.isPackaged) {
   logger.add(new transports.Console({ level: 'debug' }));

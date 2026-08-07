@@ -1,7 +1,7 @@
 import { homedir, tmpdir } from 'node:os';
 import { vol } from 'memfs';
 import { vi, beforeEach, expect } from 'vitest';
-import { prettifyError, ZodSafeParseResult, ZodType, ZodTypeAny } from 'zod';
+import { prettifyError, ZodTypeAny } from 'zod';
 
 // @ts-expect-error mock global logger with console
 global.logger = console;

@@ -1,20 +1,16 @@
 {
+  // Build tooling that runs in Node outside the app itself (Forge, Vite and Vitest configs).
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2024",
-    "strict": true,
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "jsx": "react-jsx",
-    "lib": ["ESNext", "dom"],
-    "paths": {
-      "@/*": ["./src/renderer/*"],
-      "main/*": ["./src/main/*"],
-      "shim": ["./src/shim/index.ts"],
-      "shim/*": ["./src/shim/*"]
-    }
+    "lib": ["ESNext"],
+    "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*"]
+  "include": [
+    "forge.config.ts",
+    "forge.env.d.ts",
+    "vitest.config.mts",
+    "src/main/vite.config.mts",
+    "src/renderer/vite.config.mts",
+    "src/renderer/lib/monaco/vite-plugin.mts"
+  ]
 }

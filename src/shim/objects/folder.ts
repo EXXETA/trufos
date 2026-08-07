@@ -1,5 +1,5 @@
 import { TrufosRequest } from './request';
-import z from 'zod';
+import { z } from 'zod';
 
 export const Folder = z.object({
   id: z.string(),

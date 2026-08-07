@@ -58,7 +58,6 @@ export default abstract class OAuth2AuthStrategy<
       clientAuth
     );
 
-    // @ts-expect-error type mismatch, but it actually works
     config[customFetch] = this.fetch;
 
     // done
@@ -82,7 +81,6 @@ export default abstract class OAuth2AuthStrategy<
       this.authInfo.tokenUrl = metadata.token_endpoint;
     } else {
       this.authInfo.authorizationUrl = metadata.authorization_endpoint ?? '';
-      this.authInfo.callbackUrl = this.authInfo.callbackUrl;
     }
   }
 

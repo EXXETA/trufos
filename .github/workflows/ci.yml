@@ -32,6 +32,9 @@ jobs:
       - name: Prettier check
         run: yarn run prettier-check
 
+      - name: Type check
+        run: yarn run typecheck
+
       - name: Run tests
         run: yarn test
 

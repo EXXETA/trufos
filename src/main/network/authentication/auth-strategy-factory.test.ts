@@ -12,8 +12,9 @@ import {
   OAuth1Method,
   OAuth1SignatureMethod,
   OAuth2ClientAuthenticationMethod,
+  OAuth2ClientCrentialsAuthorizationInformation,
+  OAuth2Method,
 } from 'shim/objects';
-import { OAuth2ClientCrentialsAuthorizationInformation, OAuth2Method } from 'shim/objects';
 import ClientCredentialsAuthorizationStrategy from './oauth2/client-credentials';
 import ExistingTokenOAuth1Strategy from './oauth1/existing-token';
 import AuthorizationOAuth1Strategy from './oauth1/authorization';

@@ -69,7 +69,7 @@ describe('EventEmitter', () => {
     emitter.on('test', fn2);
 
     // @ts-expect-error invalid argument type
-    emitter.on('other', (n: number) => {});
+    emitter.on('other', (_n: number) => {});
 
     // Assert
     expect(() => emitter.trigger('test')).not.toThrow();

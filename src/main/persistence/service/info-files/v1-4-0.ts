@@ -5,8 +5,11 @@ import { RequestMethod } from 'shim/objects/request-method';
 import { TrufosHeader } from 'shim/objects/headers';
 import { SemVer } from 'main/util/semver';
 import { AbstractInfoFileMigrator } from './migrator';
-import { TrufosObjectType } from 'shim/objects';
-import { AuthorizationInformation, InheritAuthorizationInformation } from 'shim/objects';
+import {
+  TrufosObjectType,
+  AuthorizationInformation,
+  InheritAuthorizationInformation,
+} from 'shim/objects';
 
 import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-3-0';
 
@@ -46,7 +49,7 @@ export type InfoFile = RequestInfoFile | FolderInfoFile | CollectionInfoFile;
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
+  async migrate(old: OldInfoFile, _type: TrufosObjectType, _filePath: string): Promise<InfoFile> {
     return Object.assign(old, { version: VERSION.toString() });
   }
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCollectionStore } from './collectionStore';
 import { Collection } from 'shim/objects/collection';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { FormDataBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 
 vi.mock('@/lib/ipc-stream', () => ({
@@ -71,7 +71,7 @@ describe('FormData store actions', () => {
     it('adds a new text field with empty key, active by default', () => {
       store.getState().addFormDataField();
 
-      const fields = (store.getState().requests.get(REQ_ID)!.body as any).fields;
+      const fields = (store.getState().requests.get(REQ_ID)!.body as FormDataBody).fields;
       expect(fields).toHaveLength(1);
       expect(fields[0].key).toBe('');
       expect(fields[0].isActive).toBe(true);
@@ -89,7 +89,7 @@ describe('FormData store actions', () => {
       store.getState().addFormDataField();
       store.getState().addFormDataField();
 
-      const fields = (store.getState().requests.get(REQ_ID)!.body as any).fields;
+      const fields = (store.getState().requests.get(REQ_ID)!.body as FormDataBody).fields;
       expect(fields).toHaveLength(3);
     });
   });
@@ -102,7 +102,7 @@ describe('FormData store actions', () => {
     it('updates the key of an existing field', () => {
       store.getState().updateFormDataField(0, { key: 'username' });
 
-      const fields = (store.getState().requests.get(REQ_ID)!.body as any).fields;
+      const fields = (store.getState().requests.get(REQ_ID)!.body as FormDataBody).fields;
       expect(fields[0].key).toBe('username');
     });
 
@@ -111,9 +111,9 @@ describe('FormData store actions', () => {
         value: { type: RequestBodyType.FILE, filePath: '/tmp/file.txt', fileName: 'file.txt' },
       });
 
-      const fields = (store.getState().requests.get(REQ_ID)!.body as any).fields;
+      const fields = (store.getState().requests.get(REQ_ID)!.body as FormDataBody).fields;
       expect(fields[0].value.type).toBe(RequestBodyType.FILE);
-      expect(fields[0].value.filePath).toBe('/tmp/file.txt');
+      expect(fields[0].value).toHaveProperty('filePath', '/tmp/file.txt');
     });
 
     it('sets draft when updating a field', () => {
@@ -134,7 +134,7 @@ describe('FormData store actions', () => {
     it('removes the field at the given index', () => {
       store.getState().deleteFormDataField(0);
 
-      const fields = (store.getState().requests.get(REQ_ID)!.body as any).fields;
+      const fields = (store.getState().requests.get(REQ_ID)!.body as FormDataBody).fields;
       expect(fields).toHaveLength(1);
       expect(fields[0].key).toBe('second');
     });
