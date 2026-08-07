@@ -1,70 +1,35 @@
-import { useCallback, useState } from 'react';
 import { RequestMethod } from 'shim/objects/request-method';
-import { useErrorHandler } from '@/components/ui/use-toast';
-import { HttpService } from '@/services/http/http-service';
 import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
 import { UrlInput } from './mainTopBar/UrlInput';
 import { SendButton } from './mainTopBar/SendButton';
-import { RendererEventService } from '@/services/event/renderer-event-service';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { useResponseActions } from '@/state/responseStore';
 import { ArrowRight, Loader2, SaveIcon, EraserIcon } from 'lucide-react';
-import { showError } from '@/error/errorHandler';
-import { editor } from 'monaco-editor';
-import { saveModelContent } from '@/lib/monaco/models';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
-
-const httpService = HttpService.instance;
-const eventService = RendererEventService.instance;
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
+import { useSendRequest, useSaveRequest } from '@/hooks/request/useRequestActions';
+import { selectIsCommandPaletteOpen, useViewStore } from '@/state/viewStore';
 
 export function MainTopBar() {
-  const [isLoading, setIsLoading] = useState(false);
-
   const { updateRequest, discardChanges } = useCollectionActions();
-  const { addResponse } = useResponseActions();
   const request = useCollectionStore(selectRequest)!;
   const { url, method } = request;
+  const { sendRequest, isSending } = useSendRequest();
+  const { saveRequest } = useSaveRequest();
+  const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
 
   const handleUrlChange = (url: TrufosURL) => updateRequest({ url });
   const handleHttpMethodChange = (method: RequestMethod) => updateRequest({ method });
 
-  const sendRequest = useCallback(
-    useErrorHandler(async () => {
-      try {
-        setIsLoading(true);
-        await Promise.all(editor.getModels().map(saveModelContent));
-
-        const response = await httpService.sendRequest(request);
-        addResponse(request.id, response);
-      } catch (error) {
-        showError(error);
-      } finally {
-        setIsLoading(false);
-      }
-    }),
-    [request, addResponse]
-  );
-
-  const saveRequest = useCallback(
-    useErrorHandler(async () => {
-      if (request == null) return;
-
-      console.info('Saving request:', request);
-      await Promise.all(editor.getModels().map(saveModelContent));
-
-      updateRequest(await eventService.saveChanges(request), true);
-    }),
-    [request]
-  );
-
+  // Disabled while the Command Palette is open — it owns these same shortcuts then, performing
+  // the action and closing itself; see CommandPalette.tsx's own useHotkeys call.
   useHotkeys(
     [
-      { keys: 'mod+s', handler: saveRequest },
-      { keys: 'mod+enter', handler: sendRequest },
+      { keys: HOTKEYS.saveRequest, handler: saveRequest },
+      { keys: HOTKEYS.sendRequest, handler: sendRequest },
     ],
-    { skipFormElements: false }
+    { skipFormElements: false, enabled: !isCommandPaletteOpen }
   );
 
   return (
@@ -82,8 +47,8 @@ export function MainTopBar() {
         <SaveIcon />
       </IconButton>
 
-      <SendButton onClick={sendRequest} disabled={isLoading}>
-        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
+      <SendButton onClick={sendRequest} disabled={isSending}>
+        {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
       </SendButton>
     </div>
   );

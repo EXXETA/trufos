@@ -4,6 +4,7 @@ import { Menubar } from '@/view/Menubar';
 import { RequestWindow } from '@/view/RequestWindow';
 import { CollectionRunner } from '@/view/CollectionRunner';
 import { CollectionSettingsModal } from '@/components/shared/settings/CollectionSettingsModal';
+import { AppSettingsModal } from '@/components/shared/settings/AppSettingsModal';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
@@ -14,9 +15,14 @@ import { useAppSettingsStore } from '@/state/appSettingsStore';
 import {
   selectIsCollectionRunnerOpen,
   selectIsCollectionSettingsOpen,
+  selectIsCommandPaletteOpen,
+  selectIsAppSettingsOpen,
   useViewActions,
   useViewStore,
 } from '@/state/viewStore';
+import { CommandPalette } from '@/components/commandPalette/CommandPalette';
+import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 import { showError } from '@/error/errorHandler';
 
 const MIN_SIDEBAR_PIXELS = 300;
@@ -25,7 +31,17 @@ const MIN_REQUEST_WINDOW_PIXELS = 500;
 export const App = () => {
   const isCollectionRunnerOpen = useViewStore(selectIsCollectionRunnerOpen);
   const isCollectionSettingsOpen = useViewStore(selectIsCollectionSettingsOpen);
-  const { closeCollectionRunner, closeCollectionSettings } = useViewActions();
+  const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
+  const isAppSettingsOpen = useViewStore(selectIsAppSettingsOpen);
+  const {
+    closeCollectionRunner,
+    closeCollectionSettings,
+    openCommandPalette,
+    closeCommandPalette,
+    closeAppSettings,
+  } = useViewActions();
+
+  useHotkeys([{ keys: HOTKEYS.openCommandPalette, handler: openCommandPalette }]);
 
   useEffect(() => {
     // Entry points of the native application menu (Collection > ...).
@@ -70,6 +86,8 @@ export const App = () => {
               isOpen={isCollectionSettingsOpen}
               onClose={closeCollectionSettings}
             />
+            <CommandPalette open={isCommandPaletteOpen} onClose={closeCommandPalette} />
+            <AppSettingsModal isOpen={isAppSettingsOpen} onClose={closeAppSettings} />
           </SidebarProvider>
         </TooltipProvider>
       </ThemeProvider>

@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { GithubIcon } from '@/components/icons';
-import { AppSettingsModal } from '@/components/shared/settings/AppSettingsModal';
 import { Divider } from '@/components/shared/Divider';
 import { SidebarFooter } from '@/components/ui/sidebar';
+import { useViewActions } from '@/state/viewStore';
+import { FiSettings } from 'react-icons/fi';
 
 export function FooterBar() {
   const [appVersion, setAppVersion] = useState<string | undefined>(undefined);
+  const { openAppSettings } = useViewActions();
 
   useEffect(() => {
     RendererEventService.instance.getAppVersion().then(setAppVersion);
@@ -19,7 +21,7 @@ export function FooterBar() {
       <div className="flex items-center justify-between">
         {/* Settings and theme toggle on the left */}
         <div className="flex items-center gap-2">
-          <AppSettingsModal />
+          <FiSettings className="ml-2 cursor-pointer text-xl" onClick={openAppSettings} />
           <span className="shrink-0 text-[12px] leading-[1.2] font-medium tracking-normal whitespace-pre text-(--text-secondary) normal-case no-underline">
             Settings
           </span>

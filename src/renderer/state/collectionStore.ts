@@ -213,7 +213,18 @@ export const createCollectionStore = (collection: Collection) => {
           createModelsForRequest(id);
         }
 
-        set({ selectedRequestId: id });
+        set((state) => {
+          if (id != null) {
+            let parentId = state.requests.get(id)!.parentId;
+            while (parentId !== state.collection!.id) {
+              state.openFolders.add(parentId);
+              const folder = state.folders.get(parentId);
+              if (folder == null) break;
+              parentId = folder.parentId;
+            }
+          }
+          state.selectedRequestId = id;
+        });
       },
 
       setCurrentScriptType: (type) => {

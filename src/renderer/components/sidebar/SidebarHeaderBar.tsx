@@ -5,13 +5,14 @@ import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/comp
 import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown } from 'lucide-react';
 
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { useViewActions } from '@/state/viewStore';
+import { selectIsCommandPaletteOpen, useViewActions, useViewStore } from '@/state/viewStore';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
 import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 
 const SORT_MODE_LABELS: Record<SortMode, string> = {
   [SortMode.DEFAULT]: 'Manual order',
@@ -46,6 +47,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
   const sortMode = useCollectionStore((state) => state.sortMode);
   const { setSortMode } = useCollectionActions();
   const { openCollectionSettings } = useViewActions();
+  const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
 
   const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
 
@@ -59,7 +61,11 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
     setSortMode(SORT_CYCLE[(currentIndex + 1) % SORT_CYCLE.length]);
   };
 
-  useHotkeys([{ keys: 'mod+n', handler: () => openModal('request') }]);
+  // Disabled while the Command Palette is open — it owns this same shortcut then; see
+  // CommandPalette.tsx's own useHotkeys call.
+  useHotkeys([{ keys: HOTKEYS.newRequest, handler: () => openModal('request') }], {
+    enabled: !isCommandPaletteOpen,
+  });
 
   return (
     <SidebarHeader className="flex-col gap-6">

@@ -7,6 +7,7 @@ import { ParamsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/Param
 import { AuthorizationTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/AuthorizationTab/AuthorizationTab';
 import { ScriptTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
+import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 
 interface InputTabsProps {
   className: string;
@@ -34,23 +35,23 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
 
   useHotkeys([
     {
-      keys: 'mod+1',
+      keys: HOTKEYS.selectBodyTab,
       handler: () => setSelectedTab('body'),
     },
     {
-      keys: 'mod+2',
+      keys: HOTKEYS.selectQueryParamsTab,
       handler: () => setSelectedTab('queryParams'),
     },
     {
-      keys: 'mod+3',
+      keys: HOTKEYS.selectHeadersTab,
       handler: () => setSelectedTab('headers'),
     },
     {
-      keys: 'mod+4',
+      keys: HOTKEYS.selectAuthorizationTab,
       handler: () => setSelectedTab('authorization'),
     },
     {
-      keys: 'mod+5',
+      keys: HOTKEYS.selectScriptsTab,
       handler: () => setSelectedTab('scripts'),
     },
   ]);
