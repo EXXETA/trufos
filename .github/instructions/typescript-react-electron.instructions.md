@@ -46,6 +46,20 @@ description: TypeScript, React, and Electron coding standards for the Trufos pro
 - Never use `remote` module or `nodeIntegration: true`.
 - Validate all data received via IPC using Zod before processing.
 
+## Internationalisation
+
+- **Never hard-code user-facing text** – that includes JSX text, `placeholder`, `title`, ARIA
+  labels, toast messages, and native menu labels.
+- Add the key to `src/shim/i18n/locales/en.json` **and** every other catalog in that folder.
+- Translate with `useTranslation()` in the renderer, or `t()` from `main/i18n` in the main
+  process. Non-React modules (stores, error handlers) import `i18n` from `@/i18n` directly.
+- `en.json` is the source of truth; `t()`'s key type is derived from it, so an unknown key
+  fails `yarn typecheck`. A missing or blank translation fails `src/shim/i18n/index.test.ts`.
+- Name keys for meaning, grouped by area (`menu.*`, `settings.*`, `sidebar.*`, `errors.*`) –
+  not after the English wording, which changes.
+- Electron menu items with a `role` are localized by the OS – do not override their labels.
+- Tests must assert on translated output, not on English literals.
+
 ## Error Handling
 
 - Use typed error classes (see `src/main/error/` and `src/renderer/error/`).

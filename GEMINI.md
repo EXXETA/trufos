@@ -20,6 +20,9 @@ yarn prettier-check # Check formatting
 - Electron two-process split: `src/main/` (Node), `src/renderer/` (React), `src/shim/`
   (shared). Cross-process communication goes through typed IPC handlers in `src/main/event/`.
 - TypeScript with strict typing — never introduce `any`.
+- Never hard-code user-facing text. Add the key to every catalog in
+  `src/shim/i18n/locales/`, then translate with `useTranslation()` in the renderer or `t()`
+  from `main/i18n` in the main process. See `AGENTS.md` (section "Translations (i18n)").
 - After changes, run `yarn test` and `yarn lint` on the touched files before committing.
 - Follow Conventional Commits and the branch/PR conventions described in `AGENTS.md`.
 - Reference an existing GitHub issue in every branch and PR.
