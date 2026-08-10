@@ -1,17 +1,24 @@
 import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell } from 'electron';
+import { onLocaleChange, t } from 'main/i18n';
 
 const REPOSITORY_URL = 'https://github.com/EXXETA/trufos';
 const DOCUMENTATION_URL = `${REPOSITORY_URL}#readme`;
 const REPORT_ISSUE_URL = `${REPOSITORY_URL}/issues/new/choose`;
 
 export class MenuBuilder {
-  constructor(private readonly mainWindow: BrowserWindow) {}
-
-  buildMenu(): Menu {
+  constructor(private readonly mainWindow: BrowserWindow) {
+    // Wired once per window, not per build: buildMenu() runs again on every locale change, and
+    // re-registering here would stack another "Inspect Element" entry on every switch.
     if (!app.isPackaged) {
       this.setupDevelopmentEnvironment();
     }
 
+    // The menu relabels itself, and lets go of the listener together with its window.
+    const stopRelabelling = onLocaleChange(() => this.buildMenu());
+    mainWindow.on('closed', stopRelabelling);
+  }
+
+  buildMenu(): Menu {
     const template =
       process.platform === 'darwin' ? this.buildDarwinTemplate() : this.buildDefaultTemplate();
 
@@ -26,7 +33,7 @@ export class MenuBuilder {
 
       Menu.buildFromTemplate([
         {
-          label: 'Inspect Element',
+          label: t('menu.inspectElement'),
           click: () => this.mainWindow.webContents.inspectElement(x, y),
         },
       ]).popup({ window: this.mainWindow });
@@ -56,14 +63,14 @@ export class MenuBuilder {
   private buildCollectionSubmenu(): MenuItemConstructorOptions[] {
     return [
       {
-        label: 'Run Collection',
+        label: t('menu.runCollection'),
         accelerator: 'CmdOrCtrl+Shift+R',
         click: () => this.mainWindow.webContents.send('show-collection-runner'),
       },
       { type: 'separator' },
       {
         // CmdOrCtrl+, stays reserved for the general app settings.
-        label: 'Settings…',
+        label: t('menu.collectionSettings'),
         accelerator: 'CmdOrCtrl+Shift+,',
         click: () => this.mainWindow.webContents.send('show-collection-settings'),
       },
@@ -73,11 +80,11 @@ export class MenuBuilder {
   private buildHelpSubmenu(): MenuItemConstructorOptions[] {
     return [
       {
-        label: 'Documentation',
+        label: t('menu.documentation'),
         click: () => shell.openExternal(DOCUMENTATION_URL),
       },
       {
-        label: 'Report an Issue',
+        label: t('menu.reportIssue'),
         click: () => shell.openExternal(REPORT_ISSUE_URL),
       },
     ];
@@ -99,11 +106,11 @@ export class MenuBuilder {
           { role: 'quit' },
         ],
       },
-      { label: 'Edit', submenu: this.buildEditSubmenu() },
-      { label: 'Collection', submenu: this.buildCollectionSubmenu() },
-      { label: 'View', submenu: this.buildViewSubmenu() },
+      { label: t('menu.edit'), submenu: this.buildEditSubmenu() },
+      { label: t('menu.collection'), submenu: this.buildCollectionSubmenu() },
+      { label: t('menu.view'), submenu: this.buildViewSubmenu() },
       {
-        label: 'Window',
+        label: t('menu.window'),
         submenu: [
           { role: 'minimize' },
           { role: 'zoom' },
@@ -119,12 +126,12 @@ export class MenuBuilder {
   private buildDefaultTemplate(): MenuItemConstructorOptions[] {
     return [
       {
-        label: '&File',
+        label: `&${t('menu.file')}`,
         submenu: [{ role: 'close' }, { role: 'quit' }],
       },
-      { label: '&Edit', submenu: this.buildEditSubmenu() },
-      { label: '&Collection', submenu: this.buildCollectionSubmenu() },
-      { label: '&View', submenu: this.buildViewSubmenu() },
+      { label: `&${t('menu.edit')}`, submenu: this.buildEditSubmenu() },
+      { label: `&${t('menu.collection')}`, submenu: this.buildCollectionSubmenu() },
+      { label: `&${t('menu.view')}`, submenu: this.buildViewSubmenu() },
       { role: 'help', submenu: this.buildHelpSubmenu() },
     ];
   }

@@ -63,7 +63,7 @@ and are shared by both processes; `src/shim/i18n/index.ts` builds the i18next in
   completeness gate – there is no build-time extraction step.
 - Group keys by area (`menu.*`, `settings.*`, `sidebar.*`, `errors.*`) and name them for
   meaning, not for the English wording.
-- Language names in the picker are autonyms (`LOCALE_LABELS`) and stay untranslated.
+- Language names in the picker are autonyms (the `label`s in `LOCALES`) and stay untranslated.
 - Menu items with an Electron `role` are localized by the OS – leave them alone.
 
 ## Commit & Branch Guidelines

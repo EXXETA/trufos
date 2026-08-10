@@ -25,6 +25,7 @@ import { ResponseBodyService } from 'main/network/service/response-body-service'
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
 import { DisplayableError } from 'shim/error/DisplayableError';
+import { applyLocale } from 'main/i18n';
 
 // register stream events
 import './stream-events';
@@ -298,6 +299,7 @@ export class MainEventService implements IEventService {
 
   async saveAppSettings(settings: AppSettings): Promise<void> {
     await SettingsService.instance.updateSettings({ preferences: settings });
+    await applyLocale(settings.language);
   }
 
   updateApp() {

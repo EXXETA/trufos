@@ -49,16 +49,12 @@ description: TypeScript, React, and Electron coding standards for the Trufos pro
 ## Internationalisation
 
 - **Never hard-code user-facing text** – that includes JSX text, `placeholder`, `title`, ARIA
-  labels, toast messages, and native menu labels.
-- Add the key to `src/shim/i18n/locales/en.json` **and** every other catalog in that folder.
-- Translate with `useTranslation()` in the renderer, or `t()` from `main/i18n` in the main
-  process. Non-React modules (stores, error handlers) import `i18n` from `@/i18n` directly.
-- `en.json` is the source of truth; `t()`'s key type is derived from it, so an unknown key
-  fails `yarn typecheck`. A missing or blank translation fails `src/shim/i18n/index.test.ts`.
-- Name keys for meaning, grouped by area (`menu.*`, `settings.*`, `sidebar.*`, `errors.*`) –
-  not after the English wording, which changes.
-- Electron menu items with a `role` are localized by the OS – do not override their labels.
+  labels, toast messages, and native menu labels. Translate with `useTranslation()` in the
+  renderer, or `t()` from `main/i18n` in the main process; non-React modules import `t` from
+  `@/i18n` directly.
 - Tests must assert on translated output, not on English literals.
+- The catalogs, key naming and the completeness gate are documented in `AGENTS.md`
+  (section "Translations (i18n)"). Keep the rules there, not here.
 
 ## Error Handling
 

@@ -1,0 +1,51 @@
+{
+  "menu": {
+    "file": "Datei",
+    "edit": "Bearbeiten",
+    "collection": "Collection",
+    "view": "Ansicht",
+    "window": "Fenster",
+    "runCollection": "Collection ausführen",
+    "collectionSettings": "Einstellungen…",
+    "documentation": "Dokumentation",
+    "reportIssue": "Problem melden",
+    "inspectElement": "Element untersuchen"
+  },
+  "errors": {
+    "title": "Fehler",
+    "couldNotStart": "Trufos konnte nicht gestartet werden",
+    "loadAppSettings": "App-Einstellungen konnten nicht geladen werden",
+    "saveAppSettings": "App-Einstellungen konnten nicht gespeichert werden"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "appearance": "Erscheinungsbild",
+    "theme": {
+      "light": "Hell",
+      "dark": "Dunkel",
+      "system": "System"
+    },
+    "language": {
+      "label": "Sprache",
+      "system": "System"
+    }
+  },
+  "sidebar": {
+    "settings": "Einstellungen",
+    "sortCollection": "Collection sortieren",
+    "sort": {
+      "manual": "Manuelle Reihenfolge",
+      "azAsc": "A → Z",
+      "azDesc": "Z → A",
+      "timeDesc": "Zuletzt geändert",
+      "timeAsc": "Am längsten unverändert"
+    },
+    "addRequest": "Neuen Request hinzufügen",
+    "addFolder": "Neuen Ordner hinzufügen",
+    "collectionSettings": "Collection-Einstellungen",
+    "createRequest": "Neuen Request erstellen",
+    "newCollection": "Neue Collection",
+    "importCollection": "Collection importieren",
+    "runCollection": "Collection ausführen"
+  }
+}

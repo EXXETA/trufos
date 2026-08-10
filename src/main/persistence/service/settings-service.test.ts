@@ -95,7 +95,7 @@ describe('SettingsService', async () => {
     expect(fileContent.version).toBe(VERSION.string);
     expect(fileContent.currentCollectionIndex).toBe(1);
     expect(fileContent.collections).toEqual(['path/to/collection1', 'path/to/collection2']);
-    expect(fileContent.preferences).toEqual({ theme: 'system' });
+    expect(fileContent.preferences).toEqual({ theme: 'system', language: 'system' });
   });
 
   it('should migrate settings from 1.1.0 to current version on init', async () => {
@@ -112,14 +112,37 @@ describe('SettingsService', async () => {
     await settingsService.init();
 
     // Assert - preferences added with defaults
-    expect(settingsService.settings.preferences).toEqual({ theme: 'system' });
+    expect(settingsService.settings.preferences).toEqual({ theme: 'system', language: 'system' });
     expect(settingsService.settings.windowState).toEqual({ width: 1280, height: 800 });
 
     // Assert - persisted correctly
     await settingsService.updateSettings({});
     const fileContent = JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
     expect(fileContent.version).toBe(VERSION.string);
-    expect(fileContent.preferences).toEqual({ theme: 'system' });
+    expect(fileContent.preferences).toEqual({ theme: 'system', language: 'system' });
+  });
+
+  it('should default preferences the file predates, keeping the chosen ones', async () => {
+    // Arrange - a settings file written before locale support, by a user with a non-default theme
+    const oldSettings = {
+      version: VERSION.string,
+      currentCollectionIndex: 0,
+      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+      preferences: { theme: 'dark' },
+    };
+    await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(oldSettings));
+
+    // Act
+    await settingsService.init();
+
+    // Assert - the theme survives, the locale falls back to its default
+    expect(settingsService.settings.preferences).toEqual({ theme: 'dark', language: 'system' });
+
+    // Assert - persisted correctly
+    await settingsService.updateSettings({});
+    const fileContent = JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
+    expect(fileContent.version).toBe(VERSION.string);
+    expect(fileContent.preferences).toEqual({ theme: 'dark', language: 'system' });
   });
 
   it('should throw error when migrating from unknown version', async () => {

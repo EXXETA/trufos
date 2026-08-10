@@ -1,0 +1,51 @@
+{
+  "menu": {
+    "file": "File",
+    "edit": "Edit",
+    "collection": "Collection",
+    "view": "View",
+    "window": "Window",
+    "runCollection": "Run Collection",
+    "collectionSettings": "Settings…",
+    "documentation": "Documentation",
+    "reportIssue": "Report an Issue",
+    "inspectElement": "Inspect Element"
+  },
+  "errors": {
+    "title": "Error",
+    "couldNotStart": "Could not start Trufos",
+    "loadAppSettings": "Failed to load app settings",
+    "saveAppSettings": "Failed to save app settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "language": {
+      "label": "Language",
+      "system": "System"
+    }
+  },
+  "sidebar": {
+    "settings": "Settings",
+    "sortCollection": "Sort collection",
+    "sort": {
+      "manual": "Manual order",
+      "azAsc": "A → Z",
+      "azDesc": "Z → A",
+      "timeDesc": "Recently modified",
+      "timeAsc": "Oldest modified"
+    },
+    "addRequest": "Add new request",
+    "addFolder": "Add new folder",
+    "collectionSettings": "Collection settings",
+    "createRequest": "Create New Request",
+    "newCollection": "New Collection",
+    "importCollection": "Import Collection",
+    "runCollection": "Run Collection"
+  }
+}

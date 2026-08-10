@@ -6,8 +6,6 @@ import { SemVer } from 'main/util/semver';
 import { BrowserWindowConstructorOptions } from 'electron';
 import { AppSettings } from 'shim/app-settings';
 
-const DEFAULT_APP_SETTINGS: AppSettings = { theme: 'system' };
-
 export const VERSION = new SemVer(1, 2, 0);
 
 type VersionedObject = { version: string };
@@ -43,13 +41,11 @@ interface SettingsFile_V_1_1_0 {
 
 type SettingsMigrator<I, O> = (old: I) => O;
 
+// Migrators only handle structural changes. `preferences` is parsed against its schema on read
+// instead, so adding a preference field is a schema-only change and needs no migrator here.
 const MIGRATORS = {
   '1.0.0': (old: SettingsFile_V_1_0_0): SettingsFile_V_1_1_0 => ({ ...old, version: '1.1.0' }),
-  '1.1.0': (old: SettingsFile_V_1_1_0): SettingsInfoFile => ({
-    ...old,
-    preferences: DEFAULT_APP_SETTINGS,
-    version: VERSION.string,
-  }),
+  '1.1.0': (old: SettingsFile_V_1_1_0): SettingsInfoFile => ({ ...old, version: VERSION.string }),
 } as const;
 
 /**
@@ -116,7 +112,9 @@ export class SettingsService implements Initializable {
   private async readSettings() {
     const fileContent = await readFile(SettingsService.SETTINGS_FILE, 'utf8');
     try {
-      this._settings = this.migrateSettings(JSON.parse(fileContent));
+      const settings = this.migrateSettings(JSON.parse(fileContent));
+      // Parsed once at the boundary, so preferences the file predates arrive with their defaults.
+      this._settings = { ...settings, preferences: AppSettings.parse(settings.preferences ?? {}) };
     } catch (error) {
       if (!(error instanceof SyntaxError)) {
         throw error;

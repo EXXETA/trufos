@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -14,13 +15,13 @@ import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 
-const SORT_MODE_LABELS: Record<SortMode, string> = {
-  [SortMode.DEFAULT]: 'Manual order',
-  [SortMode.AZ_ASC]: 'A → Z',
-  [SortMode.AZ_DESC]: 'Z → A',
-  [SortMode.TIME_DESC]: 'Recently modified',
-  [SortMode.TIME_ASC]: 'Oldest modified',
-};
+const SORT_MODE_LABEL_KEYS = {
+  [SortMode.DEFAULT]: 'sidebar.sort.manual',
+  [SortMode.AZ_ASC]: 'sidebar.sort.azAsc',
+  [SortMode.AZ_DESC]: 'sidebar.sort.azDesc',
+  [SortMode.TIME_DESC]: 'sidebar.sort.timeDesc',
+  [SortMode.TIME_ASC]: 'sidebar.sort.timeAsc',
+} as const satisfies Record<SortMode, string>;
 
 const SortIcon = ({ mode }: { mode: SortMode }) => {
   switch (mode) {
@@ -42,6 +43,7 @@ interface SidebarHeaderBarProps {
 }
 
 export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
+  const { t } = useTranslation();
   const collection = useCollectionStore((state) => state.collection);
 
   const sortMode = useCollectionStore((state) => state.sortMode);
@@ -82,7 +84,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
               type="button"
               size={'icon'}
               onClick={cycleSortMode}
-              aria-label="Sort collection"
+              aria-label={t('sidebar.sortCollection')}
             >
               <SortIcon mode={sortMode} />
             </Button>
@@ -91,7 +93,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
             side="right"
             className="bg-sidebar-accent text-sidebar-accent-foreground border-0 px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
           >
-            {SORT_MODE_LABELS[sortMode]}
+            {t(SORT_MODE_LABEL_KEYS[sortMode])}
           </TooltipContent>
         </Tooltip>
 
@@ -102,7 +104,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
             type="button"
             size={'icon'}
             onClick={() => openModal('request')}
-            aria-label="Add new request"
+            aria-label={t('sidebar.addRequest')}
           >
             <CreateRequestIcon size={16} color={'secondary'} />
           </Button>
@@ -113,7 +115,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
             size={'icon'}
             type="button"
             onClick={() => openModal('folder')}
-            aria-label="Add new folder"
+            aria-label={t('sidebar.addFolder')}
           >
             <AddFolderIcon size={16} color={'secondary'} />
           </Button>
@@ -124,7 +126,7 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
             size={'icon'}
             type="button"
             onClick={openCollectionSettings}
-            aria-label="Collection settings"
+            aria-label={t('sidebar.collectionSettings')}
           >
             <SettingsIcon size={16} color={'secondary'} />
           </Button>

@@ -103,10 +103,12 @@ and are shared by both processes; `src/shim/i18n/index.ts` builds the i18next in
   That test is the completeness gate – there is no build-time extraction step.
 - Keys are grouped by area (`menu.*`, `settings.*`, `sidebar.*`, `errors.*`) and named for
   meaning, not for the English wording.
-- Language names in the picker are **autonyms** (`LOCALE_LABELS`) and stay untranslated.
+- Language names in the picker are **autonyms** (the `label`s in `LOCALES`) and stay untranslated.
+  Adding a locale is a `TrufosLocale` member, one `LOCALES` entry, and the catalog file.
 - Menu items with an Electron `role` are localized by the OS – leave them alone.
-- Adding a field to `AppSettings` needs a migrator in `settings-service.ts`; migrations must
-  preserve existing user choices rather than resetting them to defaults.
+- Adding a field to `AppSettings` is a schema-only change: give it a `.default()` in
+  `src/shim/app-settings.ts`. `settings-service.ts` parses preferences on read, so existing user
+  choices are preserved without a migrator.
 
 Translating a not-yet-covered area is a normal PR: wrap its strings, add the keys to both
 catalogs, and update any test that asserted on the English literal.

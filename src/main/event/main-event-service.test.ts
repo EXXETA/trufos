@@ -14,6 +14,7 @@ vi.mock('electron', () => ({
   },
   app: {
     getPath: vi.fn().mockReturnValue(''),
+    getLocale: vi.fn().mockReturnValue('en'),
   },
 }));
 

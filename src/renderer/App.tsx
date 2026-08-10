@@ -24,6 +24,7 @@ import { CommandPalette } from '@/components/commandPalette/CommandPalette';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 import { showError } from '@/error/errorHandler';
+import { t } from '@/i18n';
 
 const MIN_SIDEBAR_PIXELS = 300;
 const MIN_REQUEST_WINDOW_PIXELS = 500;
@@ -52,7 +53,7 @@ export const App = () => {
     RendererEventService.instance
       .getAppSettings()
       .catch((err) => {
-        showError('Failed to load app settings', err);
+        showError(t('errors.loadAppSettings'), err);
       })
       .then((settings) => {
         if (settings) {
