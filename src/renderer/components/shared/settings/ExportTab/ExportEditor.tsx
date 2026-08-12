@@ -7,7 +7,7 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCollectionStore } from '@/state/collectionStore';
 import { showError } from '@/error/errorHandler';
 import { toast } from '@/components/ui/sonner';
-import { sanitizeTitle } from 'shim/fs';
+import { sanitizeTitle } from 'shim/string';
 
 const eventService = RendererEventService.instance;
 

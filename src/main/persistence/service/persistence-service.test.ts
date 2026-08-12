@@ -10,7 +10,7 @@ import { RequestMethod } from 'shim/objects/request-method';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateDefaultCollection } from './default-collection';
-import { sanitizeTitle } from 'shim/fs';
+import { sanitizeTitle } from 'shim/string';
 import { CollectionInfoFile, RequestInfoFile, GIT_IGNORE_FILE_NAME } from './info-files/latest';
 import { PersistenceService } from './persistence-service';
 import { DRAFT_DIR_NAME, ORDER_FILE_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
@@ -254,7 +254,7 @@ describe('PersistenceService', () => {
     folderB.title = 'FolderB';
     collection.children.push(folderA, folderB);
     await persistenceService.saveCollection(collection, true);
-    const expectedDirPath = path.join(collection.dirPath, 'folderb-2');
+    const expectedDirPath = path.join(collection.dirPath, `${sanitizeTitle('FolderB')}-2`);
 
     // Act
     await persistenceService.rename(folderA, 'FolderB');
@@ -437,6 +437,29 @@ describe('PersistenceService', () => {
     expect(await exists(expectedFirstDirPath)).toBe(true);
     expect(await exists(expectedSecondDirPath)).toBe(true);
     expect(await exists(expectedThirdDirPath)).toBe(true);
+  });
+
+  it('saveRequest() should shorten directory names of very long titles', async () => {
+    // Arrange: titles as long as e.g. an OpenAPI operation summary containing the whole endpoint
+    // documentation. Both share a prefix, so their shortened directory names collide.
+    const longTitle = `Takes native app file from request and creates new appstore application. ${'x'.repeat(300)}`;
+    const firstRequest = { ...getExampleRequest(collection.id), title: longTitle };
+    const secondRequest = { ...getExampleRequest(collection.id), title: longTitle };
+    await persistenceService.saveCollection(collection, true);
+
+    // Act
+    collection.children.push(firstRequest, secondRequest);
+    await persistenceService.saveRequest(firstRequest);
+    await persistenceService.saveRequest(secondRequest);
+
+    // Assert
+    const dirNames = (await fs.readdir(collection.dirPath, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    expect(dirNames).toHaveLength(2);
+    for (const dirName of dirNames) {
+      expect(Buffer.byteLength(dirName)).toBeLessThanOrEqual(255);
+    }
   });
 
   it('saveFolder() should save the metadata of the folder', async () => {

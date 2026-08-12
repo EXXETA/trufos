@@ -5,6 +5,7 @@ import { Folder as TrufosFolder } from 'shim/objects/folder';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
+import { truncate } from 'shim/string';
 import { TrufosHeader } from 'shim/objects/headers';
 import {
   AuthorizationInformation,
@@ -18,6 +19,9 @@ import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
 const DEFAULT_MIME_TYPE = 'text/plain';
 const JSON_MIME_TYPE = 'application/json';
 const DEFAULT_BASE_URL = 'http://localhost';
+
+/** The maximum length of a request title derived from an OpenAPI operation summary. */
+const MAX_TITLE_LENGTH = 100;
 
 type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;
 type OpenApi3Document = OpenAPIV3.Document | OpenAPIV3_1.Document;
@@ -108,8 +112,7 @@ export class OpenApiImporter implements CollectionImporter {
       parentId,
       type: 'request',
       lastModified: Date.now(),
-      title:
-        operation.summary || operation.operationId || `${method.toUpperCase()} ${pathTemplate}`,
+      title: this.getTitle(operation, pathTemplate),
       url: {
         ...parseUrl(this.joinUrl(baseUrl, pathTemplate)),
         query,
@@ -119,6 +122,39 @@ export class OpenApiImporter implements CollectionImporter {
       body: this.importBody(operation),
       auth: this.importAuth(document, operation),
     };
+  }
+
+  /**
+   * Derives the title of an imported request. The title is also the source of its directory name,
+   * so it must stay short and should identify the operation. The HTTP method is not part of it,
+   * because it is shown separately in the UI.
+   * @param operation the operation to derive the title from
+   * @param pathTemplate the path of the operation, e.g. `/apps/{appId}/versions`
+   * @returns the shortened operation summary, or the operation ID, or the path as last resort
+   */
+  private getTitle(
+    operation: OpenAPIV2.OperationObject | OpenApi3Operation,
+    pathTemplate: string
+  ): string {
+    const summary = this.shortenSummary(operation.summary);
+    if (summary !== '') return summary;
+
+    const operationId = operation.operationId?.trim();
+    if (operationId != null && operationId !== '') return operationId;
+
+    return pathTemplate;
+  }
+
+  /**
+   * Shortens an operation summary to a single line of at most {@link MAX_TITLE_LENGTH} characters.
+   * Summaries are meant to be short descriptions, but specs in the wild put the whole endpoint
+   * documentation in them, which makes for unreadable titles and directory names.
+   * @param summary the summary of the operation, if any
+   * @returns the first sentence of the summary, or an empty string if there is no summary
+   */
+  private shortenSummary(summary?: string) {
+    const firstLine = summary?.split(/\r?\n/, 1)[0]?.trim().replace(/\.$/, '') ?? '';
+    return truncate(firstLine, MAX_TITLE_LENGTH, ' ');
   }
 
   private getOrCreateFolder(

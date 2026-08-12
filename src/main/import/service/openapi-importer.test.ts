@@ -4,6 +4,7 @@ import path from 'node:path';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { AuthorizationType } from 'shim/objects/auth';
+import { sanitizeTitle } from 'shim/string';
 
 vi.unmock('node:fs');
 vi.unmock('node:fs/promises');
@@ -115,7 +116,7 @@ describe('OpenApiImporter', () => {
     });
 
     const health = result.children[1] as TrufosRequest;
-    expect(health.title).toBe('GET /health');
+    expect(health.title).toBe('/health');
     expect(health.url).toEqual({
       base: 'https://api.example.com/v1/health',
       query: [],
@@ -216,5 +217,71 @@ describe('OpenApiImporter', () => {
     const request = result.children[0] as TrufosRequest;
 
     expect(request.url.base).toBe('http://localhost/legacy/status');
+  });
+
+  describe('request titles', () => {
+    async function importOperation(operation: object) {
+      const fs = await import('node:fs/promises');
+      const { OpenApiImporter } = await import('./openapi-importer.js');
+      const srcFilePath = path.join(tmpdir(), 'openapi-titles.json');
+      await fs.writeFile(
+        srcFilePath,
+        JSON.stringify({
+          ...OPEN_API_DOCUMENT,
+          paths: { '/apps/{appId}/versions': { post: { ...operation, responses: {} } } },
+        })
+      );
+
+      const result = await new OpenApiImporter().importCollection(srcFilePath);
+      return result.children[0] as TrufosRequest;
+    }
+
+    it('uses only the first line of a summary that contains the whole documentation', async () => {
+      const request = await importOperation({
+        summary: `Takes native app file from request and creates new appstore application.
+          Optional parameters for the request are:
+          - changelog: to provide a changelog in form of a text file
+          - releaseState: the release state the app should be in after creation`,
+        operationId: 'createApplication',
+      });
+
+      expect(request.title).toBe(
+        'Takes native app file from request and creates new appstore application'
+      );
+      expect(sanitizeTitle(request.title)).toBe(
+        'takes-native-app-file-from-request-and-creates-new-appstore'
+      );
+    });
+
+    it('shortens single line summaries that are too long for a title', async () => {
+      const request = await importOperation({
+        summary:
+          'Creates a new appstore application from the native app file that is sent along with this request and returns its metadata',
+      });
+
+      expect(request.title).toBe(
+        'Creates a new appstore application from the native app file that is sent along with this request'
+      );
+    });
+
+    it('keeps a short summary as it is', async () => {
+      const request = await importOperation({ summary: 'Create application' });
+
+      expect(request.title).toBe('Create application');
+    });
+
+    it('falls back to the operation ID if there is no usable summary', async () => {
+      const request = await importOperation({ summary: '  \n ', operationId: 'createApplication' });
+
+      expect(request.title).toBe('createApplication');
+      expect(sanitizeTitle(request.title)).toBe('create-application');
+    });
+
+    it('falls back to the path template if there is neither summary nor operation ID', async () => {
+      const request = await importOperation({});
+
+      expect(request.title).toBe('/apps/{appId}/versions');
+      expect(sanitizeTitle(request.title)).toBe('apps-app-id-versions');
+    });
   });
 });

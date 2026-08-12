@@ -31,7 +31,7 @@ import {
 import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
 import { SettingsService } from './settings-service';
-import { sanitizeTitle } from 'shim/fs';
+import { sanitizeTitle } from 'shim/string';
 import {
   DRAFT_DIR_NAME,
   getInfoFileName,

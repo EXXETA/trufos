@@ -5,7 +5,7 @@ import { PostmanImporter } from './postman-importer';
 import { OpenApiImporter } from './openapi-importer';
 import { BrunoImporter } from './bruno-importer';
 import type { ImportResult, ImportStrategy, ImportWarning } from 'shim/event-service';
-import { sanitizeTitle } from 'shim/fs';
+import { sanitizeTitle } from 'shim/string';
 import path from 'path';
 
 export interface CollectionImporter {

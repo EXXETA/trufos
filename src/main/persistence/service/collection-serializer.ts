@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { sanitizeTitle } from 'shim/fs';
+import { sanitizeTitle } from 'shim/string';
 import { TrufosObject } from 'shim/objects';
 import { RequestBodyType, TEXT_BODY_FILE_NAME } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
