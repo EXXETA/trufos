@@ -219,6 +219,82 @@ describe('OpenApiImporter', () => {
     expect(request.url.base).toBe('http://localhost/legacy/status');
   });
 
+  describe('path parameters', () => {
+    async function importPaths(paths: object) {
+      const fs = await import('node:fs/promises');
+      const { OpenApiImporter } = await import('./openapi-importer.js');
+      const srcFilePath = path.join(tmpdir(), 'openapi-path-parameters.json');
+      await fs.writeFile(srcFilePath, JSON.stringify({ ...OPEN_API_DOCUMENT, paths }));
+
+      return await new OpenApiImporter().importCollection(srcFilePath);
+    }
+
+    it('converts path parameters into template variables and declares them', async () => {
+      const result = await importPaths({
+        '/apps/{appId}/versions/{version}': {
+          get: {
+            parameters: [
+              {
+                name: 'appId',
+                in: 'path',
+                description: 'The ID of the application',
+                schema: { type: 'string', example: 'my-app' },
+              },
+              { name: 'version', in: 'path', schema: { type: 'integer', default: 1 } },
+            ],
+            responses: { '200': { description: 'ok' } },
+          },
+        },
+      });
+      const request = result.children[0] as TrufosRequest;
+
+      expect(request.url.base).toBe(
+        'https://api.example.com/v1/apps/{{appId}}/versions/{{version}}'
+      );
+      expect(result.variables).toEqual({
+        appId: { value: 'my-app', description: 'The ID of the application' },
+        version: { value: '1', description: undefined },
+      });
+    });
+
+    it('declares path parameters that the operation does not define', async () => {
+      const result = await importPaths({
+        '/apps/{appId}': { get: { responses: { '200': { description: 'ok' } } } },
+      });
+      const request = result.children[0] as TrufosRequest;
+
+      expect(request.url.base).toBe('https://api.example.com/v1/apps/{{appId}}');
+      expect(result.variables).toEqual({ appId: { value: '', description: undefined } });
+    });
+
+    it('keeps parameters that cannot be Trufos variables as they are', async () => {
+      const result = await importPaths({
+        '/apps/{app.id}': { get: { responses: { '200': { description: 'ok' } } } },
+      });
+      const request = result.children[0] as TrufosRequest;
+
+      expect(request.url.base).toBe('https://api.example.com/v1/apps/{app.id}');
+      expect(result.variables).toEqual({});
+    });
+
+    it('declares a path parameter used by multiple operations only once', async () => {
+      const result = await importPaths({
+        '/apps/{appId}': {
+          get: {
+            parameters: [{ name: 'appId', in: 'path', schema: { example: 'first' } }],
+            responses: { '200': { description: 'ok' } },
+          },
+          delete: {
+            parameters: [{ name: 'appId', in: 'path', schema: { example: 'second' } }],
+            responses: { '204': { description: 'deleted' } },
+          },
+        },
+      });
+
+      expect(result.variables).toEqual({ appId: { value: 'first', description: undefined } });
+    });
+  });
+
   describe('request titles', () => {
     async function importOperation(operation: object) {
       const fs = await import('node:fs/promises');

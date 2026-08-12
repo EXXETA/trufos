@@ -5,6 +5,7 @@ import { Folder as TrufosFolder } from 'shim/objects/folder';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
+import { VARIABLE_NAME_REGEX } from 'shim/objects/variables';
 import { truncate } from 'shim/string';
 import { TrufosHeader } from 'shim/objects/headers';
 import {
@@ -22,6 +23,9 @@ const DEFAULT_BASE_URL = 'http://localhost';
 
 /** The maximum length of a request title derived from an OpenAPI operation summary. */
 const MAX_TITLE_LENGTH = 100;
+
+/** Matches a path template parameter, e.g. the `{appId}` in `/apps/{appId}/versions`. */
+const PATH_PARAMETER_REGEX = /\{([^{}/]*)\}/g;
 
 type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;
 type OpenApi3Document = OpenAPIV3.Document | OpenAPIV3_1.Document;
@@ -68,7 +72,7 @@ export class OpenApiImporter implements CollectionImporter {
         if (!this.isOperation(method, operationCandidate)) continue;
 
         const request = this.importOperation(
-          collection.id,
+          collection,
           baseUrl,
           pathTemplate,
           method as Lowercase<RequestMethod>,
@@ -90,7 +94,7 @@ export class OpenApiImporter implements CollectionImporter {
   }
 
   private importOperation(
-    parentId: string,
+    collection: TrufosCollection,
     baseUrl: string,
     pathTemplate: string,
     method: Lowercase<RequestMethod>,
@@ -107,14 +111,16 @@ export class OpenApiImporter implements CollectionImporter {
         isActive: true,
       }));
 
+    this.importPathVariables(collection, pathTemplate, parameters);
+
     return {
       id: randomUUID(),
-      parentId,
+      parentId: collection.id,
       type: 'request',
       lastModified: Date.now(),
       title: this.getTitle(operation, pathTemplate),
       url: {
-        ...parseUrl(this.joinUrl(baseUrl, pathTemplate)),
+        ...parseUrl(this.joinUrl(baseUrl, this.toTemplateVariables(pathTemplate))),
         query,
       },
       headers: this.importHeaders(parameters),
@@ -155,6 +161,47 @@ export class OpenApiImporter implements CollectionImporter {
   private shortenSummary(summary?: string) {
     const firstLine = summary?.split(/\r?\n/, 1)[0]?.trim().replace(/\.$/, '') ?? '';
     return truncate(firstLine, MAX_TITLE_LENGTH, ' ');
+  }
+
+  /**
+   * Converts the OpenAPI path template syntax `{appId}` into the Trufos template variable syntax
+   * `{{appId}}`, so that the parameter is resolved when the request is sent instead of being sent
+   * literally. Parameters whose name cannot be a Trufos variable are left untouched, because
+   * turning them into templates would only produce URLs that never resolve.
+   * @param pathTemplate the path of the operation, e.g. `/apps/{appId}/versions`
+   * @returns the path with all of its parameters in Trufos template variable syntax
+   */
+  private toTemplateVariables(pathTemplate: string) {
+    return pathTemplate.replace(PATH_PARAMETER_REGEX, (parameter, name: string) =>
+      VARIABLE_NAME_REGEX.test(name) ? `{{${name}}}` : parameter
+    );
+  }
+
+  /**
+   * Declares the parameters of a path template as collection variables, so that the templates in
+   * the imported URL resolve to something. The variables are derived from the path template rather
+   * than from the parameter list, because specs in the wild use parameters they never declare.
+   * Already known variables are kept, as the same parameter usually appears in many operations.
+   * @param collection the collection to declare the variables in
+   * @param pathTemplate the path of the operation, e.g. `/apps/{appId}/versions`
+   * @param parameters the parameters of the operation, used as source of values and descriptions
+   */
+  private importPathVariables(
+    collection: TrufosCollection,
+    pathTemplate: string,
+    parameters: Array<OpenAPIV2.ParameterObject | OpenApi3Parameter>
+  ) {
+    for (const [, name] of pathTemplate.matchAll(PATH_PARAMETER_REGEX)) {
+      if (!VARIABLE_NAME_REGEX.test(name) || collection.variables[name] != null) continue;
+
+      const parameter = parameters.find(
+        (parameter) => parameter.in === 'path' && parameter.name === name
+      );
+      collection.variables[name] = {
+        value: (parameter == null ? undefined : this.stringifyParameterValue(parameter)) ?? '',
+        description: parameter?.description,
+      };
+    }
   }
 
   private getOrCreateFolder(
