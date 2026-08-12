@@ -8,6 +8,29 @@ import { useEffect } from 'react';
 vi.mock('monaco-editor', () => ({ KeyCode: { Enter: 3 } }));
 
 const addCommand = vi.fn();
+const dispose = vi.fn();
+const addAction = vi.fn(() => ({ dispose }));
+
+/** Disposes the editor the same way monaco does when the component unmounts. */
+let disposeEditor: () => void;
+const onDidDispose = vi.fn((listener: () => void) => (disposeEditor = listener));
+
+/** Notifies the component of a model change the same way monaco does after a paste. */
+let changeModelContent: () => void;
+const onDidChangeModelContent = vi.fn(
+  (listener: () => void) => (changeModelContent = listener)
+) as unknown as editor.IStandaloneCodeEditor['onDidChangeModelContent'];
+
+const applyEdits = vi.fn();
+
+/** The lines of the model, e.g. ['https://example.com', ''] after pasting a URL with a line break. */
+let lines: string[] = [''];
+const getModel = () =>
+  ({
+    getLineCount: () => lines.length,
+    getLineMaxColumn: (lineNumber: number) => lines[lineNumber - 1].length + 1,
+    applyEdits,
+  }) as unknown as editor.ITextModel;
 
 /** The props that {@link SingleLineEditor} passed to the monaco editor on the last render. */
 let editorProps: EditorProps;
@@ -18,7 +41,13 @@ vi.mock('@/lib/monaco/MonacoEditor', () => ({
     editorProps = props;
     useEffect(() => {
       (props.onMount as OnMount)?.(
-        { addCommand } as unknown as editor.IStandaloneCodeEditor,
+        {
+          addCommand,
+          addAction,
+          onDidDispose,
+          onDidChangeModelContent,
+          getModel,
+        } as unknown as editor.IStandaloneCodeEditor,
         {} as Parameters<OnMount>[1] // the component does not use the monaco namespace
       );
     }, []);
@@ -36,7 +65,10 @@ vi.mock('@/components/shared/settings/monaco-settings', () => ({
 import { SingleLineEditor } from './SingleLineEditor';
 
 describe('SingleLineEditor', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    lines = [''];
+  });
   afterEach(() => cleanup());
 
   it('should show the value in a plaintext editor to highlight template variables', () => {
@@ -60,18 +92,6 @@ describe('SingleLineEditor', () => {
     expect(onChange).toHaveBeenCalledWith('https://example.com');
   });
 
-  it('should strip line breaks from the reported value', () => {
-    // Arrange
-    const onChange = vi.fn();
-    render(<SingleLineEditor value="https://" onChange={onChange} />);
-
-    // Act
-    editorProps.onChange?.('https://example\n.com\r\n', {} as editor.IModelContentChangedEvent);
-
-    // Assert
-    expect(onChange).toHaveBeenCalledWith('https://example.com');
-  });
-
   it('should report an empty value when the editor is cleared', () => {
     // Arrange
     const onChange = vi.fn();
@@ -89,11 +109,62 @@ describe('SingleLineEditor', () => {
     render(<SingleLineEditor value="" onChange={vi.fn()} />);
 
     // Assert
-    expect(addCommand).toHaveBeenCalledWith(
-      KeyCode.Enter,
-      expect.any(Function),
-      '!suggestWidgetVisible'
+    expect(addAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        keybindings: [KeyCode.Enter],
+        keybindingContext: '!suggestWidgetVisible',
+      })
     );
+  });
+
+  it('should register the enter keybinding as an action so that other editors keep line breaks', () => {
+    // Arrange
+    render(<SingleLineEditor value="" onChange={vi.fn()} />);
+
+    // Assert: addCommand would register the keybinding for all editors, addAction only for this one
+    expect(addCommand).not.toHaveBeenCalled();
+    expect(addAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('should unregister the enter keybinding when the editor is disposed', () => {
+    // Arrange
+    render(<SingleLineEditor value="" onChange={vi.fn()} />);
+    expect(dispose).not.toHaveBeenCalled();
+
+    // Act
+    disposeEditor();
+
+    // Assert
+    expect(dispose).toHaveBeenCalled();
+  });
+
+  it('should join multi line text in the editor back into a single line', () => {
+    // Arrange
+    render(<SingleLineEditor value="https://example.com" onChange={vi.fn()} />);
+    lines = ['https://example.com', ''];
+
+    // Act: the user pasted a URL that ends with a line break
+    changeModelContent();
+
+    // Assert
+    expect(applyEdits).toHaveBeenCalledWith([
+      {
+        range: { startLineNumber: 1, startColumn: 20, endLineNumber: 2, endColumn: 1 },
+        text: '',
+      },
+    ]);
+  });
+
+  it('should not edit the editor content when it already is a single line', () => {
+    // Arrange
+    render(<SingleLineEditor value="https://example.com" onChange={vi.fn()} />);
+    lines = ['https://example.com'];
+
+    // Act
+    changeModelContent();
+
+    // Assert
+    expect(applyEdits).not.toHaveBeenCalled();
   });
 
   it('should show the error color when invalid', () => {
