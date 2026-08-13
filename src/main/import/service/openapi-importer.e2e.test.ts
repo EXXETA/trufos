@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { TEXT_BODY_FILE_NAME } from 'shim/objects/request';
 
 const DEEP_PATH = '/api/v2/organizations/{orgId}/projects/{projectId}/deployments/{deploymentId}';
 
@@ -16,6 +17,16 @@ const SPEC = {
           Optional parameters for the request are:
           - changelog: to provide a changelog in form of a text file
           - releaseState: the release state the app should be in after creation (DEVELOPMENT, REVIEW, RELEASE)`,
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { name: { type: 'string' }, size: { type: 'integer' } },
+              },
+            },
+          },
+        },
         responses: {},
       },
       get: { tags: ['Apps'], summary: 'Takes native app file from request', responses: {} },
@@ -45,6 +56,9 @@ describe('OpenAPI import', () => {
     const srcFilePath = path.join(tmpdir(), `openapi-e2e-${process.pid}.json`);
     await realFs.writeFile(srcFilePath, JSON.stringify(SPEC));
     const targetDirPath = path.join(tmpdir(), 'collections');
+    // the target directory already holds a collection, so the import creates its own one inside it
+    const fs = await import('node:fs/promises');
+    await fs.mkdir(path.join(targetDirPath, 'other-collection'), { recursive: true });
 
     try {
       // Act
@@ -71,6 +85,19 @@ describe('OpenAPI import', () => {
       for (const dirName of requestDirNames) {
         expect(Buffer.byteLength(dirName)).toBeLessThanOrEqual(255);
       }
+
+      // the body a request was imported with must end up in its body file, because that is the
+      // only place the editor and the sending of a request read it from
+      const fs = await import('node:fs/promises');
+      const bodyFilePath = path.join(
+        collection.dirPath,
+        'apps',
+        'takes-native-app-file-from-request-and-creates-new-appstore',
+        TEXT_BODY_FILE_NAME
+      );
+      expect(await fs.readFile(bodyFilePath, 'utf-8')).toBe(
+        JSON.stringify({ name: '', size: 0 }, null, 2)
+      );
     } finally {
       await realFs.rm(srcFilePath, { force: true });
     }

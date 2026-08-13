@@ -5,6 +5,7 @@ import { PersistenceService } from 'main/persistence/service/persistence-service
 import { TrufosRequest } from 'shim/objects/request';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { vi, describe, it, expect } from 'vitest';
 
 const POSTMAN_COLLECTION =
@@ -113,6 +114,43 @@ describe('ImportService', () => {
       mimeType: 'text/plain',
       text: 'blahblah',
       type: 'text',
+    });
+  });
+
+  describe('collection directory', () => {
+    async function importInto(targetDirPath: string) {
+      const importService = ImportService.instance;
+      await fs.writeFile(POSTMAN_COLLECTION_FILE_PATH, POSTMAN_COLLECTION);
+      // @ts-expect-error saveCollection mock returns null but type expects void
+      vi.mocked(PersistenceService.instance.saveCollection).mockImplementation(async () => null);
+
+      const result = await importService.importCollection(
+        POSTMAN_COLLECTION_FILE_PATH,
+        targetDirPath,
+        'Postman'
+      );
+      return result.collection.dirPath;
+    }
+
+    it('uses an empty target directory directly', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-empty-'));
+
+      expect(await importInto(targetDirPath)).toBe(targetDirPath);
+    });
+
+    it('uses a target directory that does not exist yet directly', async () => {
+      const targetDirPath = path.join(tmpdir(), `import-missing-${randomUUID()}`);
+
+      expect(await importInto(targetDirPath)).toBe(targetDirPath);
+    });
+
+    it('creates a subdirectory when the target directory is already in use', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-used-'));
+      await fs.writeFile(path.join(targetDirPath, 'some-other-file.txt'), '');
+
+      expect(await importInto(targetDirPath)).toBe(
+        path.join(targetDirPath, 'http-status-messages')
+      );
     });
   });
 

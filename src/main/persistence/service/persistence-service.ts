@@ -210,16 +210,25 @@ export class PersistenceService {
    */
   public async saveRequest(request: TrufosRequest, textBody?: string) {
     const dirPath = this.getOrCreateDirPath(request, true);
+    const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
+
+    // imported requests might carry inline text. Use as text body to save
+    if (
+      textBody == null &&
+      request.body.type === RequestBodyType.TEXT &&
+      request.body.text != null
+    ) {
+      textBody = request.body.text;
+      delete request.body.text;
+    }
     await this.saveInfoFile(request, dirPath);
 
     // save text body if provided
     if (textBody != null) {
-      const body = request.body as TextBody;
-      body.type = RequestBodyType.TEXT; // enforce type
-      delete body.text; // only present once, if imported collection
-      await fs.writeFile(path.join(dirPath, TEXT_BODY_FILE_NAME), textBody);
-    } else if (await exists(path.join(dirPath, TEXT_BODY_FILE_NAME))) {
-      await fs.unlink(path.join(dirPath, TEXT_BODY_FILE_NAME));
+      (request.body as TextBody).type = RequestBodyType.TEXT; // enforce type
+      await fs.writeFile(bodyFilePath, textBody);
+    } else if (await exists(bodyFilePath)) {
+      await fs.unlink(bodyFilePath);
     }
     return request;
   }

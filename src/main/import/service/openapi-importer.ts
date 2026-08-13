@@ -5,11 +5,12 @@ import { Folder as TrufosFolder } from 'shim/objects/folder';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
+import { TrufosQueryParam } from 'shim/objects/query-param';
 import { VARIABLE_NAME_REGEX } from 'shim/objects/variables';
 import { truncate } from 'shim/string';
 import { TrufosHeader } from 'shim/objects/headers';
 import {
-  AuthorizationInformation,
+  AuthorizationInformationNoInherit,
   AuthorizationType,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
@@ -27,6 +28,9 @@ const MAX_TITLE_LENGTH = 100;
 /** Matches a path template parameter, e.g. the `{appId}` in `/apps/{appId}/versions`. */
 const PATH_PARAMETER_REGEX = /\{([^{}/]*)\}/g;
 
+/** The collection variable that holds the server URL all imported requests are sent to. */
+const BASE_URL_VARIABLE = 'baseUrl';
+
 type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;
 type OpenApi3Document = OpenAPIV3.Document | OpenAPIV3_1.Document;
 type OpenApi3Operation = OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject;
@@ -36,6 +40,38 @@ type OpenApi3SecurityScheme = OpenAPIV3.SecuritySchemeObject | OpenAPIV3_1.Secur
 type OAuth2Flow = {
   authorizationUrl?: string;
   tokenUrl?: string;
+};
+
+/**
+ * The parts of a JSON schema that the request body generator understands. The OpenAPI schema types
+ * differ between the specification versions, but all of them are JSON schemas at their core.
+ */
+type ExampleSchema = {
+  $ref?: string;
+  type?: string | string[];
+  example?: unknown;
+  default?: unknown;
+  enum?: unknown[];
+  readOnly?: boolean;
+  properties?: Record<string, ExampleSchema>;
+  items?: ExampleSchema;
+  allOf?: ExampleSchema[];
+  oneOf?: ExampleSchema[];
+  anyOf?: ExampleSchema[];
+};
+
+/** What a single security scheme contributes to a request. */
+type SecuritySchemeImport = {
+  auth?: AuthorizationInformationNoInherit;
+  header?: TrufosHeader;
+  queryParam?: TrufosQueryParam;
+};
+
+/** What a met security requirement contributes to a request. */
+type ImportedSecurity = {
+  auth?: AuthorizationInformationNoInherit;
+  headers: TrufosHeader[];
+  query: TrufosQueryParam[];
 };
 
 const HTTP_METHODS = new Set(Object.values(RequestMethod).map((method) => method.toLowerCase()));
@@ -57,13 +93,22 @@ export class OpenApiImporter implements CollectionImporter {
       environments: {},
     };
 
-    this.importPaths(collection, document);
+    // the document security applies to every operation that does not bring its own, so it becomes
+    // the authorization of the collection and the operations inherit it
+    const documentSecurity = this.importSecurity(document, document.security);
+    collection.auth = documentSecurity?.auth;
+
+    this.importPaths(collection, document, documentSecurity);
     return collection;
   }
 
-  private importPaths(collection: TrufosCollection, document: OpenApiDocument) {
+  private importPaths(
+    collection: TrufosCollection,
+    document: OpenApiDocument,
+    documentSecurity?: ImportedSecurity
+  ) {
     const foldersByTag = new Map<string, TrufosFolder>();
-    const baseUrl = this.getBaseUrl(document);
+    const baseUrl = this.importServers(collection, document);
 
     for (const [pathTemplate, pathItem] of Object.entries(document.paths ?? {})) {
       if (pathItem == null) continue;
@@ -78,7 +123,8 @@ export class OpenApiImporter implements CollectionImporter {
           method as Lowercase<RequestMethod>,
           pathItem,
           operationCandidate,
-          document
+          document,
+          documentSecurity
         );
         const firstTag = operationCandidate.tags?.[0];
         if (firstTag == null || firstTag.trim() === '') {
@@ -100,16 +146,19 @@ export class OpenApiImporter implements CollectionImporter {
     method: Lowercase<RequestMethod>,
     pathItem: OpenAPIV2.PathItemObject | OpenAPIV3.PathItemObject | OpenAPIV3_1.PathItemObject,
     operation: OpenAPIV2.OperationObject | OpenApi3Operation,
-    document: OpenApiDocument
+    document: OpenApiDocument,
+    documentSecurity?: ImportedSecurity
   ): TrufosRequest {
     const parameters = this.getParameters(pathItem, operation);
     const query = parameters
       .filter((parameter) => parameter.in === 'query')
-      .map((parameter) => ({
-        key: parameter.name,
-        value: this.stringifyParameterValue(parameter) ?? '',
-        isActive: true,
-      }));
+      .map((parameter) => this.importQueryParam(parameter));
+
+    // an operation without security of its own inherits the one of the document
+    const inheritsSecurity = operation.security == null;
+    const security = inheritsSecurity
+      ? documentSecurity
+      : this.importSecurity(document, operation.security);
 
     this.importPathVariables(collection, pathTemplate, parameters);
 
@@ -121,12 +170,12 @@ export class OpenApiImporter implements CollectionImporter {
       title: this.getTitle(operation, pathTemplate),
       url: {
         ...parseUrl(this.joinUrl(baseUrl, this.toTemplateVariables(pathTemplate))),
-        query,
+        query: query.concat(security?.query ?? []),
       },
-      headers: this.importHeaders(parameters),
+      headers: this.importHeaders(parameters).concat(security?.headers ?? []),
       method: method.toUpperCase() as RequestMethod,
-      body: this.importBody(operation),
-      auth: this.importAuth(document, operation),
+      body: this.importBody(operation, document),
+      auth: inheritsSecurity ? { type: AuthorizationType.INHERIT } : security?.auth,
     };
   }
 
@@ -225,15 +274,69 @@ export class OpenApiImporter implements CollectionImporter {
     return folder;
   }
 
-  private getBaseUrl(document: OpenApiDocument) {
-    if (this.isOpenApi3(document)) {
-      return this.completeBaseUrl(this.resolveServerUrl(document.servers?.[0]));
+  /**
+   * Imports the servers of the document. Requests are built against a {@link BASE_URL_VARIABLE}
+   * variable instead of the server URL itself, so that the whole collection can be pointed at
+   * another installation by editing one value. Documents that list more than one server get an
+   * environment per server on top, which makes switching between them a single click.
+   * @param collection the collection to declare the variable and the environments in
+   * @param document the document to import the servers of
+   * @returns the base URL to build the request URLs with
+   */
+  private importServers(collection: TrufosCollection, document: OpenApiDocument) {
+    const servers = this.getServers(document);
+    collection.variables[BASE_URL_VARIABLE] = { value: servers[0].url };
+
+    if (servers.length > 1) {
+      for (const server of servers) {
+        const key = this.getUniqueKey(collection.environments, server.key);
+        collection.environments[key] = {
+          variables: { [BASE_URL_VARIABLE]: { value: server.url } },
+        };
+      }
     }
 
+    return `{{${BASE_URL_VARIABLE}}}`;
+  }
+
+  /**
+   * @param document the document to read the servers of
+   * @returns the servers of the document as absolute URLs, at least one
+   */
+  private getServers(document: OpenApiDocument) {
+    const urls = this.isOpenApi3(document)
+      ? (document.servers ?? []).map((server) => ({
+          url: this.completeBaseUrl(this.resolveServerUrl(server)),
+          description: server.description,
+        }))
+      : [{ url: this.getSwaggerBaseUrl(document), description: undefined }];
+
+    const servers = urls.length === 0 ? [{ url: DEFAULT_BASE_URL, description: undefined }] : urls;
+    return servers.map((server) => ({
+      url: server.url,
+      // the scheme carries no meaning for the user, but the host and path tell the servers apart
+      key: server.description?.trim() || server.url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, ''),
+    }));
+  }
+
+  private getSwaggerBaseUrl(document: OpenAPIV2.Document) {
     const scheme = document.schemes?.[0] ?? 'https';
     const host = document.host ?? '';
     const basePath = document.basePath ?? '';
     return this.completeBaseUrl(host === '' ? basePath : `${scheme}://${host}${basePath}`);
+  }
+
+  /**
+   * @param existing the entries that the key must not collide with
+   * @param key the desired key
+   * @returns the key itself, or the key with a counter appended if it is already taken
+   */
+  private getUniqueKey(existing: Record<string, unknown>, key: string) {
+    if (existing[key] === undefined) return key;
+
+    let counter = 2;
+    while (existing[`${key}-${counter}`] !== undefined) counter++;
+    return `${key}-${counter}`;
   }
 
   private getParameters(
@@ -243,6 +346,20 @@ export class OpenApiImporter implements CollectionImporter {
     return [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])].filter(
       (parameter) => parameter != null && 'name' in parameter && 'in' in parameter
     ) as Array<OpenAPIV2.ParameterObject | OpenApi3Parameter>;
+  }
+
+  /**
+   * Imports a query parameter. Optional parameters that the spec gives no value for are imported
+   * as inactive, because sending them empty (`?search=&filter=`) is not what the endpoint expects
+   * and specs commonly declare dozens of optional parameters per operation.
+   * @param parameter the query parameter to import
+   * @returns the query parameter of the request
+   */
+  private importQueryParam(
+    parameter: OpenAPIV2.ParameterObject | OpenApi3Parameter
+  ): TrufosQueryParam {
+    const value = this.stringifyParameterValue(parameter) ?? '';
+    return { key: parameter.name, value, isActive: parameter.required === true || value !== '' };
   }
 
   private importHeaders(
@@ -257,9 +374,12 @@ export class OpenApiImporter implements CollectionImporter {
       }));
   }
 
-  private importBody(operation: OpenAPIV2.OperationObject | OpenApi3Operation): RequestBody {
+  private importBody(
+    operation: OpenAPIV2.OperationObject | OpenApi3Operation,
+    document: OpenApiDocument
+  ): RequestBody {
     if ('requestBody' in operation && operation.requestBody != null) {
-      return this.importOpenApi3Body(operation.requestBody as OpenApi3RequestBody);
+      return this.importOpenApi3Body(operation.requestBody as OpenApi3RequestBody, document);
     }
 
     const bodyParameter = (operation.parameters ?? []).find(
@@ -269,7 +389,9 @@ export class OpenApiImporter implements CollectionImporter {
       return {
         type: RequestBodyType.TEXT,
         mimeType: JSON_MIME_TYPE,
-        text: this.stringifyExample(bodyParameter.example),
+        text: this.stringifyExample(
+          bodyParameter.example ?? this.generateExample(bodyParameter, document)
+        ),
       };
     }
 
@@ -279,7 +401,10 @@ export class OpenApiImporter implements CollectionImporter {
     };
   }
 
-  private importOpenApi3Body(requestBody: OpenApi3RequestBody): RequestBody {
+  private importOpenApi3Body(
+    requestBody: OpenApi3RequestBody,
+    document: OpenApiDocument
+  ): RequestBody {
     const [mimeType, mediaType] = Object.entries(requestBody.content ?? {})[0] ?? [
       DEFAULT_MIME_TYPE,
       undefined,
@@ -288,32 +413,217 @@ export class OpenApiImporter implements CollectionImporter {
     return {
       type: RequestBodyType.TEXT,
       mimeType,
-      text: this.stringifyExample(mediaType?.example),
+      text: this.stringifyExample(mediaType?.example ?? this.generateExample(mediaType, document)),
     };
   }
 
-  private importAuth(
+  /**
+   * Generates an example value for the schema of a media type or body parameter. Most specs
+   * document their bodies with a schema and no example at all, which would leave every imported
+   * request with an empty body, so the schema is turned into a skeleton the user can fill in.
+   * @param container the media type or body parameter holding the schema
+   * @param document the document the schema belongs to, used to look up references
+   * @returns the generated example, or undefined if there is no usable schema
+   */
+  private generateExample(container: { schema?: unknown } | undefined, document: OpenApiDocument) {
+    const schema = container?.schema as ExampleSchema | undefined;
+    return this.generateSchemaExample(schema, new Set(), document);
+  }
+
+  /**
+   * Generates an example value for a single schema.
+   * @param schema the schema to generate a value for
+   * @param ancestors the schemas that the current value is nested in, used to stop recursion
+   * @param document the document the schema belongs to, used to look up references
+   * @returns the generated value, or undefined if the schema describes nothing usable
+   */
+  private generateSchemaExample(
+    schema: ExampleSchema | undefined,
+    ancestors: Set<ExampleSchema>,
+    document: OpenApiDocument
+  ): unknown {
+    // a schema that is part of a reference cycle is left as a reference by the parser
+    const resolved = this.resolveSchemaRef(schema, document);
+    if (resolved == null || ancestors.has(resolved)) return;
+
+    if (resolved.example !== undefined) return resolved.example;
+    if (resolved.default !== undefined) return resolved.default;
+    if (resolved.enum != null && resolved.enum.length > 0) return resolved.enum[0];
+
+    ancestors.add(resolved);
+    try {
+      // any of the alternatives is valid, so the first one is as good a starting point as any
+      const alternative = resolved.oneOf?.[0] ?? resolved.anyOf?.[0];
+      if (alternative != null) return this.generateSchemaExample(alternative, ancestors, document);
+
+      const type = this.getSchemaType(resolved);
+      if (type === 'array') {
+        const item = this.generateSchemaExample(resolved.items, ancestors, document);
+        return item === undefined ? [] : [item];
+      }
+      if (type === 'object' || resolved.properties != null || resolved.allOf != null) {
+        return this.generateObjectExample(resolved, ancestors, document);
+      }
+
+      return this.generatePrimitiveExample(type);
+    } finally {
+      ancestors.delete(resolved);
+    }
+  }
+
+  /**
+   * Generates an example object. Read-only properties are left out, because they are owned by the
+   * server and sending them is pointless at best.
+   * @param schema the object schema to generate a value for
+   * @param ancestors the schemas that the object is nested in, used to stop recursion
+   * @param document the document the schema belongs to, used to look up references
+   * @returns the generated object
+   */
+  private generateObjectExample(
+    schema: ExampleSchema,
+    ancestors: Set<ExampleSchema>,
+    document: OpenApiDocument
+  ) {
+    const example: Record<string, unknown> = {};
+
+    // a value has to satisfy every branch of an allOf, so their properties end up in one object
+    for (const branch of schema.allOf ?? []) {
+      const branchExample = this.generateSchemaExample(branch, ancestors, document);
+      if (this.isPlainObject(branchExample)) Object.assign(example, branchExample);
+    }
+
+    for (const [name, property] of Object.entries(schema.properties ?? {})) {
+      if (property.readOnly) continue;
+      const value = this.generateSchemaExample(property, ancestors, document);
+      if (value !== undefined) example[name] = value;
+    }
+
+    return example;
+  }
+
+  /**
+   * Resolves a schema reference within the document. The parser dereferences the document already,
+   * but it leaves the references of recursive schemas in place, which are the ones that appear here.
+   * @param schema the schema that may be a reference
+   * @param document the document to resolve the reference in
+   * @returns the referenced schema, the given schema if it is none, or undefined if it is unknown
+   */
+  private resolveSchemaRef(schema: ExampleSchema | undefined, document: OpenApiDocument) {
+    if (schema?.$ref == null) return schema;
+    if (!schema.$ref.startsWith('#/')) return;
+
+    let target: unknown = document;
+    for (const segment of schema.$ref.slice(2).split('/')) {
+      if (!this.isPlainObject(target)) return;
+      target = target[segment.replaceAll('~1', '/').replaceAll('~0', '~')];
+    }
+    return this.isPlainObject(target) ? (target as ExampleSchema) : undefined;
+  }
+
+  /**
+   * @param type the type of the schema to generate a value for
+   * @returns an empty value of the given type, or undefined if the schema has no known type
+   */
+  private generatePrimitiveExample(type?: string) {
+    switch (type) {
+      case 'string':
+        return '';
+      case 'number':
+      case 'integer':
+        return 0;
+      case 'boolean':
+        return false;
+      case 'null':
+        return null;
+    }
+  }
+
+  /**
+   * @param schema the schema to read the type of
+   * @returns the type of the schema, ignoring the `null` that OpenAPI 3.1 allows to add to it
+   */
+  private getSchemaType(schema: ExampleSchema) {
+    if (!Array.isArray(schema.type)) return schema.type;
+    return schema.type.find((type) => type !== 'null') ?? 'null';
+  }
+
+  private isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * Imports the security of a document or operation. The requirements are alternatives, of which
+   * only one has to be met, so the first one that Trufos can represent completely is used. Empty
+   * requirements are skipped, because they only state that the authorization is optional, which
+   * makes for a less useful request than actually authorizing it.
+   * @param document the document the security schemes are defined in
+   * @param requirements the security requirements of the document or of one of its operations
+   * @returns what the requirement contributes to a request, or undefined if none is supported
+   */
+  private importSecurity(
     document: OpenApiDocument,
-    operation: OpenAPIV2.OperationObject | OpenApi3Operation
-  ): AuthorizationInformation | undefined {
-    const securityRequirement = operation.security?.[0] ?? document.security?.[0];
-    const schemeName = Object.keys(securityRequirement ?? {})[0];
-    if (schemeName == null) return;
+    requirements?: Array<OpenAPIV2.SecurityRequirementObject | OpenAPIV3.SecurityRequirementObject>
+  ): ImportedSecurity | undefined {
+    for (const requirement of requirements ?? []) {
+      const schemeNames = Object.keys(requirement);
+      if (schemeNames.length === 0) continue;
 
-    const scheme = this.getSecurityScheme(document, schemeName);
-    if (scheme == null) return;
+      // all schemes of a requirement must be met, so it is only usable if all of them are supported
+      const parts: SecuritySchemeImport[] = [];
+      for (const schemeName of schemeNames) {
+        const scheme = this.getSecurityScheme(document, schemeName);
+        const part =
+          scheme == null
+            ? undefined
+            : this.importSecurityScheme(scheme, requirement[schemeName] ?? []);
+        if (part == null) break;
+        parts.push(part);
+      }
+      if (parts.length !== schemeNames.length) continue;
 
-    if (scheme.type === 'http' && scheme.scheme?.toLowerCase() === 'basic') {
-      return { type: AuthorizationType.BASIC, username: '', password: '' };
+      return {
+        auth: parts.find((part) => part.auth != null)?.auth,
+        headers: parts.flatMap((part) => part.header ?? []),
+        query: parts.flatMap((part) => part.queryParam ?? []),
+      };
     }
-    if (scheme.type === 'http' && scheme.scheme?.toLowerCase() === 'bearer') {
-      return { type: AuthorizationType.BEARER, token: '' };
-    }
-    if (scheme.type === 'basic') {
-      return { type: AuthorizationType.BASIC, username: '', password: '' };
-    }
-    if (scheme.type === 'oauth2') {
-      return this.importOAuth2Auth(scheme, securityRequirement?.[schemeName] ?? []);
+  }
+
+  /**
+   * Imports a single security scheme. API keys have no equivalent in Trufos, but they are just a
+   * header or query parameter, so they are imported as one with an empty value for the user to
+   * fill in. API keys in cookies are not supported, as Trufos has no cookie store.
+   * @param scheme the security scheme to import
+   * @param scopes the scopes the requirement asks for, only used by OAuth 2.0
+   * @returns what the scheme contributes to a request, or undefined if Trufos cannot represent it
+   */
+  private importSecurityScheme(
+    scheme: OpenAPIV2.SecuritySchemeObject | OpenApi3SecurityScheme,
+    scopes: string[]
+  ): SecuritySchemeImport | undefined {
+    switch (scheme.type) {
+      case 'basic': // Swagger 2.0 spells out basic authentication as its own type
+        return { auth: { type: AuthorizationType.BASIC, username: '', password: '' } };
+      case 'http':
+        switch (scheme.scheme?.toLowerCase()) {
+          case 'basic':
+            return { auth: { type: AuthorizationType.BASIC, username: '', password: '' } };
+          case 'bearer':
+            return { auth: { type: AuthorizationType.BEARER, token: '' } };
+        }
+        return;
+      case 'oauth2': {
+        const auth = this.importOAuth2Auth(scheme, scopes);
+        return auth == null ? undefined : { auth };
+      }
+      case 'apiKey':
+        switch (scheme.in) {
+          case 'header':
+            return { header: { key: scheme.name, value: '', isActive: true } };
+          case 'query':
+            return { queryParam: { key: scheme.name, value: '', isActive: true } };
+        }
+        return;
     }
   }
 
@@ -328,7 +638,7 @@ export class OpenApiImporter implements CollectionImporter {
   private importOAuth2Auth(
     scheme: OpenAPIV2.SecuritySchemeObject | OpenApi3SecurityScheme,
     scopes: string[]
-  ): AuthorizationInformation | undefined {
+  ): AuthorizationInformationNoInherit | undefined {
     const flow = this.getOAuth2Flow(scheme);
     if (flow == null) return;
 

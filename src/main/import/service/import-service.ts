@@ -6,6 +6,7 @@ import { OpenApiImporter } from './openapi-importer';
 import { BrunoImporter } from './bruno-importer';
 import type { ImportResult, ImportStrategy, ImportWarning } from 'shim/event-service';
 import { sanitizeTitle } from 'shim/string';
+import { exists, isEmpty } from 'main/util/fs-util';
 import path from 'path';
 
 export interface CollectionImporter {
@@ -64,11 +65,24 @@ export class ImportService {
 
     // set directory
     collection.title = title || collection.title;
-    collection.dirPath = path.join(targetDirPath, sanitizeTitle(collection.title));
+    collection.dirPath = (await this.isUsableCollectionDir(targetDirPath))
+      ? targetDirPath
+      : path.join(targetDirPath, sanitizeTitle(collection.title));
 
     // save on file system
     logger.info('Successfully imported collection:', collection);
     await persistenceService.saveCollection(collection, true);
     return { collection, warnings };
+  }
+
+  /**
+   * Checks whether an import may use the given directory as the collection directory itself.
+   * Nesting another directory inside a directory that the user picked for this very import is
+   * only useful when something else already lives there.
+   * @param dirPath the target directory of the import
+   * @returns true if the directory is empty or does not exist yet, false otherwise
+   */
+  private async isUsableCollectionDir(dirPath: string) {
+    return !(await exists(dirPath)) || (await isEmpty(dirPath));
   }
 }

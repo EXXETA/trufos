@@ -263,6 +263,27 @@ describe('PersistenceService', () => {
     expect(await exists(expectedDirPath)).toBe(true);
   });
 
+  it('saveRequest() should prefer the given text body over an inline one', async () => {
+    // Arrange: a collection imported by an older version has its body inline and no body file
+    const request = getExampleRequest(collection.id);
+    request.body = { type: RequestBodyType.TEXT, mimeType: 'application/json', text: 'inline' };
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection);
+
+    // Act: the editor saves the text that the user actually typed
+    await persistenceService.saveRequest(request, 'edited');
+
+    // Assert
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('edited');
+    // saving reads the request, it does not rewrite it
+    expect(request.body).toEqual({
+      type: RequestBodyType.TEXT,
+      mimeType: 'application/json',
+      text: 'inline',
+    });
+  });
+
   it('saveRequest() should save the metadata of the request', async () => {
     // Arrange
     const request = getExampleRequest(collection.id);
@@ -341,6 +362,60 @@ describe('PersistenceService', () => {
     expect(secrets.variables).toEqual(
       Object.fromEntries(Object.entries(variables).filter(([, v]) => v.secret))
     );
+  });
+
+  it('saveCollection(recursive=true) should write the inline body of an imported request to its body file', async () => {
+    // Arrange: importers deliver the body inline, because they never touch the file system
+    const text = '{\n  "name": ""\n}';
+    const request = getExampleRequest(collection.id);
+    request.body = { type: RequestBodyType.TEXT, mimeType: 'application/json', text };
+    collection.children.push(request);
+
+    // Act
+    await persistenceService.saveCollection(collection, true);
+
+    // Assert: the body file is the canonical form, so the info file must not repeat the text
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe(text);
+    // the inline body is consumed, so that it cannot be written back over the file later on
+    expect(request.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
+    const info = JSON.parse(
+      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
+    ) as RequestInfoFile;
+    expect(info.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
+
+    // Assert: the request is readable again, which is what the editor and the sending both use
+    const stream = await persistenceService.loadTextBodyOfRequest(request);
+    expect(stream).toBeDefined();
+    expect(await streamToString(stream!)).toBe(text);
+  });
+
+  it('saveCollection(recursive=true) should keep the inline text of form data fields', async () => {
+    // Arrange: form data has no body file, so its field texts must stay in the info file
+    const request = getExampleRequest(collection.id);
+    request.body = {
+      type: RequestBodyType.FORM_DATA,
+      fields: [
+        {
+          key: 'name',
+          isActive: true,
+          value: { type: RequestBodyType.TEXT, mimeType: 'text/plain', text: 'Milo' },
+        },
+      ],
+    };
+    collection.children.push(request);
+
+    // Act
+    await persistenceService.saveCollection(collection, true);
+
+    // Assert
+    const info = JSON.parse(
+      await readFile(
+        path.join(collection.dirPath, request.title, persistenceService.getInfoFileName('request')),
+        'utf-8'
+      )
+    ) as RequestInfoFile;
+    expect(info.body).toEqual(request.body);
   });
 
   it('saveCollection(recursive=true) should create .gitignore when directory does not exist', async () => {
