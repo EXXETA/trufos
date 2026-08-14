@@ -4,6 +4,8 @@
  * the schema is turned into a skeleton the user can fill in.
  */
 
+import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
+
 /**
  * The parts of a JSON schema that the example generator understands. The OpenAPI schema types
  * differ between the specification versions, but all of them are JSON schemas at their core.
@@ -22,17 +24,19 @@ export type ExampleSchema = {
   anyOf?: ExampleSchema[];
 };
 
+type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;
+
 /**
  * Generates an example value for the given schema, or undefined if there is no usable schema.
  */
-export type ExampleGenerator = (schema: unknown) => unknown;
+export type ExampleGenerator = (schema: ExampleSchema | undefined) => unknown;
 
 /**
  * Creates an example generator bound to one document, which schema references are resolved in.
  * @param document the document the schemas belong to
  * @returns the generator to use for all schemas of the document
  */
-export function createExampleGenerator(document: unknown): ExampleGenerator {
+export function createExampleGenerator(document: OpenApiDocument): ExampleGenerator {
   /**
    * Generates an example value for a single schema.
    * @param schema the schema to generate a value for
@@ -112,7 +116,7 @@ export function createExampleGenerator(document: unknown): ExampleGenerator {
     return isPlainObject(target) ? (target as ExampleSchema) : undefined;
   }
 
-  return (schema) => generate(schema as ExampleSchema | undefined, new Set());
+  return (schema) => generate(schema, new Set());
 }
 
 /**

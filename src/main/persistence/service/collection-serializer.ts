@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import { sanitizeTitle } from 'shim/string';
 import { TrufosObject } from 'shim/objects';
-import { RequestBodyType, TEXT_BODY_FILE_NAME } from 'shim/objects/request';
+import { takeInlineTextBody, TEXT_BODY_FILE_NAME } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
 import {
   getInfoFileName,
@@ -66,9 +66,7 @@ async function* serializeNode(
   ) as TrufosObject;
 
   // When the body is emitted as its own file, strip any inline text (canonical on-disk form).
-  if (bodyContent != null && plain.type === 'request' && plain.body.type === RequestBodyType.TEXT) {
-    delete plain.body.text;
-  }
+  if (bodyContent != null && plain.type === 'request') takeInlineTextBody(plain);
 
   const secrets = extractSecrets(plain);
   yield { path: joinPosix(dirPath, getInfoFileName(node.type)), data: toJson(toInfoFile(plain)) };

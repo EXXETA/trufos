@@ -3,7 +3,6 @@
  * path templates into Trufos template variables.
  */
 
-import { VARIABLE_NAME_REGEX } from 'shim/objects/variables';
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
 
 /** The base URL used when a document does not declare a usable server. */
@@ -68,15 +67,20 @@ export function joinUrl(baseUrl: string, pathTemplate: string) {
 /**
  * Converts the OpenAPI path template syntax `{appId}` into the Trufos template variable syntax
  * `{{appId}}`, so that the parameter is resolved when the request is sent instead of being sent
- * literally. Parameters whose name cannot be a Trufos variable are left untouched, because
+ * literally. Parameters that do not resolve to a variable name are left untouched, because
  * turning them into templates would only produce URLs that never resolve.
  * @param pathTemplate the path of the operation, e.g. `/apps/{appId}/versions`
+ * @param resolveName maps a parameter name to the variable it is imported as, if any
  * @returns the path with all of its parameters in Trufos template variable syntax
  */
-export function toTemplateVariables(pathTemplate: string) {
-  return pathTemplate.replace(PATH_PARAMETER_REGEX, (parameter, name: string) =>
-    VARIABLE_NAME_REGEX.test(name) ? `{{${name}}}` : parameter
-  );
+export function toTemplateVariables(
+  pathTemplate: string,
+  resolveName: (name: string) => string | undefined
+) {
+  return pathTemplate.replace(PATH_PARAMETER_REGEX, (parameter, name: string) => {
+    const variableName = resolveName(name);
+    return variableName == null ? parameter : `{{${variableName}}}`;
+  });
 }
 
 /**

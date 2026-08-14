@@ -559,11 +559,61 @@ describe('OpenApiImporter', () => {
       expect(pathVariables).toEqual({ appId: { value: '', description: undefined } });
     });
 
-    it('keeps parameters that cannot be Trufos variables as they are', async () => {
+    it('sanitizes parameter names that cannot be Trufos variables', async () => {
       const { request, pathVariables } = await importPaths({
-        '/apps/{app.id}': { get: { responses: { '200': { description: 'ok' } } } },
+        '/apps/{app.id}': {
+          get: {
+            parameters: [{ name: 'app.id', in: 'path', schema: { example: 'my-app' } }],
+            responses: { '200': { description: 'ok' } },
+          },
+        },
       });
-      expect(request.url.base).toBe('{{baseUrl}}/apps/{app.id}');
+
+      expect(request.url.base).toBe('{{baseUrl}}/apps/{{app-id}}');
+      expect(pathVariables).toEqual({ 'app-id': { value: 'my-app', description: undefined } });
+    });
+
+    it('keeps distinct parameters distinct when they sanitize to the same name', async () => {
+      const { request, pathVariables } = await importPaths({
+        '/apps/{app-id}/copies/{app.id}': {
+          get: {
+            parameters: [
+              { name: 'app-id', in: 'path', schema: { example: 'first' } },
+              { name: 'app.id', in: 'path', schema: { example: 'second' } },
+            ],
+            responses: { '200': { description: 'ok' } },
+          },
+        },
+      });
+
+      expect(request.url.base).toBe('{{baseUrl}}/apps/{{app-id}}/copies/{{app-id-2}}');
+      expect(pathVariables).toEqual({
+        'app-id': { value: 'first', description: undefined },
+        'app-id-2': { value: 'second', description: undefined },
+      });
+    });
+
+    it('never lets a path parameter annex the baseUrl variable of the server', async () => {
+      const { request, collection } = await importPaths({
+        '/things/{baseUrl}': {
+          get: {
+            parameters: [{ name: 'baseUrl', in: 'path', schema: { example: 'abc' } }],
+            responses: { '200': { description: 'ok' } },
+          },
+        },
+      });
+
+      expect(request.url.base).toBe('{{baseUrl}}/things/{{baseUrl-2}}');
+      expect(collection.variables.baseUrl.value).toBe('https://api.example.com/v1');
+      expect(collection.variables['baseUrl-2']).toEqual({ value: 'abc', description: undefined });
+    });
+
+    it('keeps parameters literal if nothing usable remains after sanitizing', async () => {
+      const { request, pathVariables } = await importPaths({
+        '/apps/{идентификатор}': { get: { responses: { '200': { description: 'ok' } } } },
+      });
+
+      expect(request.url.base).toBe('{{baseUrl}}/apps/{идентификатор}');
       expect(pathVariables).toEqual({});
     });
 

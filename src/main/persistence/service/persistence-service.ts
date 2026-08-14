@@ -9,9 +9,10 @@ import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import {
+  getInlineTextBody,
   RequestBodyType,
+  takeInlineTextBody,
   TEXT_BODY_FILE_NAME,
-  TextBody,
   TrufosRequest,
 } from 'shim/objects/request';
 import { generateDefaultCollection } from './default-collection';
@@ -31,7 +32,7 @@ import {
 import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
 import { SettingsService } from './settings-service';
-import { sanitizeTitle } from 'shim/string';
+import { sanitizeTitle, uniqueName } from 'shim/string';
 import {
   DRAFT_DIR_NAME,
   getInfoFileName,
@@ -206,22 +207,20 @@ export class PersistenceService {
   /**
    * Creates or updates a request and optionally its text body on the file system.
    * @param request the request to be saved
-   * @param textBody OPTIONAL: the text body of the request
+   * @param textBody OPTIONAL: the text body of the request. Only meaningful for text bodies.
    */
   public async saveRequest(request: TrufosRequest, textBody?: string) {
     const dirPath = this.getOrCreateDirPath(request, true);
     const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
 
-    // imported requests might carry inline text. Use as text body to save
-    if (request.body.type === RequestBodyType.TEXT && request.body.text != null) {
-      textBody ??= request.body.text;
-      delete request.body.text;
-    }
+    // consumed before the info file is written, so that no stale copy survives anywhere,
+    // but an explicitly provided body wins over it
+    const inlineTextBody = takeInlineTextBody(request);
+    textBody ??= inlineTextBody;
     await this.saveInfoFile(request, dirPath);
 
     // save text body if provided
     if (textBody != null) {
-      (request.body as TextBody).type = RequestBodyType.TEXT; // enforce type
       await fs.writeFile(bodyFilePath, textBody);
     } else if (await exists(bodyFilePath)) {
       await fs.unlink(bodyFilePath);
@@ -614,10 +613,9 @@ export class PersistenceService {
       async getBodyContent() {
         const filePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
         if (await exists(filePath)) return createReadStream(filePath);
-        if (request.body.type === RequestBodyType.TEXT && request.body.text != null) {
-          // inline body of an imported, never manually saved collection (as bytes, like a file stream)
-          return Readable.from(Buffer.from(request.body.text));
-        }
+        // inline body of a never saved collection (as bytes, like a file stream)
+        const inlineTextBody = getInlineTextBody(request);
+        if (inlineTextBody != null) return Readable.from(Buffer.from(inlineTextBody));
         return undefined;
       },
       async getScriptContent(type: ScriptType) {
@@ -795,13 +793,10 @@ export class PersistenceService {
         throw new Error(`Parent directory path for ${object.parentId} not found`);
       }
 
-      const newDirName = this.getDirName(object);
-      dirPath = path.join(parentDirPath, newDirName);
-
-      // check if the dir path is already taken, in that case we just append a number
-      for (let i = 2; this.isDirPathTaken(dirPath); i++) {
-        dirPath = path.join(parentDirPath, newDirName + '-' + i);
-      }
+      const dirName = uniqueName(this.getDirName(object), (name) =>
+        this.isDirPathTaken(path.join(parentDirPath, name))
+      );
+      dirPath = path.join(parentDirPath, dirName);
       this.idToPathMap.set(object.id, dirPath);
     }
 

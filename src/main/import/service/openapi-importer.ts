@@ -1,7 +1,7 @@
 import { dereference } from '@readme/openapi-parser';
 import { CollectionImporter } from './import-service';
 import { importSecurity, ImportedSecurity } from './openapi-security';
-import { createExampleGenerator, ExampleGenerator } from './schema-example';
+import { createExampleGenerator, ExampleGenerator, ExampleSchema } from './schema-example';
 import {
   completeBaseUrl,
   DEFAULT_BASE_URL,
@@ -28,7 +28,8 @@ import { Folder as TrufosFolder } from 'shim/objects/folder';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
-import { VARIABLE_NAME_REGEX } from 'shim/objects/variables';
+import { sanitizeVariableName } from 'shim/objects/variables';
+import { uniqueName } from 'shim/string';
 import { AuthorizationType } from 'shim';
 import { randomUUID } from 'node:crypto';
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
@@ -46,7 +47,10 @@ type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Doc
 type OpenApi3Document = OpenAPIV3.Document | OpenAPIV3_1.Document;
 type OpenApi3RequestBody = OpenAPIV3.RequestBodyObject | OpenAPIV3_1.RequestBodyObject;
 
-const HTTP_METHODS = new Set(Object.values(RequestMethod).map((method) => method.toLowerCase()));
+/** Maps the lowercase method keys of OpenAPI path items to the request methods of Trufos. */
+const HTTP_METHODS = new Map(
+  Object.values(RequestMethod).map((method) => [method.toLowerCase(), method])
+);
 
 export class OpenApiImporter implements CollectionImporter {
   public async importCollection(srcFilePath: string) {
@@ -67,6 +71,7 @@ export class OpenApiImporter implements CollectionImporter {
 class OpenApiImport {
   private readonly collection: TrufosCollection;
   private readonly foldersByTag = new Map<string, TrufosFolder>();
+  private readonly pathVariableNames = new Map<string, string | undefined>();
   private generateExample!: ExampleGenerator;
   private documentSecurity?: ImportedSecurity;
 
@@ -83,7 +88,7 @@ class OpenApiImport {
     };
   }
 
-  public import() {
+  public import(): TrufosCollection {
     // the document security applies to every operation that does not bring its own, so it becomes
     // the authorization of the collection and the operations inherit it
     this.documentSecurity = importSecurity(this.document, this.document.security);
@@ -95,15 +100,11 @@ class OpenApiImport {
     for (const [pathTemplate, pathItem] of Object.entries(this.document.paths ?? {})) {
       if (pathItem == null) continue;
 
-      for (const [method, operationCandidate] of Object.entries(pathItem)) {
-        if (!isOperation(method, operationCandidate)) continue;
+      for (const [key, operationCandidate] of Object.entries(pathItem)) {
+        const method = HTTP_METHODS.get(key);
+        if (method == null || !isOperation(operationCandidate)) continue;
 
-        const request = this.importOperation(
-          pathTemplate,
-          method as Lowercase<RequestMethod>,
-          pathItem,
-          operationCandidate
-        );
+        const request = this.importOperation(pathTemplate, method, pathItem, operationCandidate);
         const firstTag = operationCandidate.tags?.[0];
         if (firstTag == null || firstTag.trim() === '') {
           this.collection.children.push(request);
@@ -121,7 +122,7 @@ class OpenApiImport {
 
   private importOperation(
     pathTemplate: string,
-    method: Lowercase<RequestMethod>,
+    method: RequestMethod,
     pathItem: PathItem,
     operation: Operation
   ): TrufosRequest {
@@ -145,11 +146,16 @@ class OpenApiImport {
       lastModified: Date.now(),
       title: getTitle(operation, pathTemplate),
       url: {
-        ...parseUrl(joinUrl(BASE_URL_TEMPLATE, toTemplateVariables(pathTemplate))),
+        ...parseUrl(
+          joinUrl(
+            BASE_URL_TEMPLATE,
+            toTemplateVariables(pathTemplate, (name) => this.getPathVariableName(name))
+          )
+        ),
         query: query.concat(security?.query ?? []),
       },
       headers: importHeaders(parameters).concat(security?.headers ?? []),
-      method: method.toUpperCase() as RequestMethod,
+      method,
       body: this.importBody(operation),
       auth: inheritsSecurity ? { type: AuthorizationType.INHERIT } : security?.auth,
     };
@@ -164,17 +170,45 @@ class OpenApiImport {
    * @param parameters the parameters of the operation, used as source of values and descriptions
    */
   private importPathVariables(pathTemplate: string, parameters: Parameter[]) {
-    for (const [, name] of pathTemplate.matchAll(PATH_PARAMETER_REGEX)) {
-      if (!VARIABLE_NAME_REGEX.test(name) || this.collection.variables[name] != null) continue;
+    for (const [, parameterName] of pathTemplate.matchAll(PATH_PARAMETER_REGEX)) {
+      const name = this.getPathVariableName(parameterName);
+      if (name == null || this.collection.variables[name] != null) continue;
 
       const parameter = parameters.find(
-        (parameter) => parameter.in === 'path' && parameter.name === name
+        (parameter) => parameter.in === 'path' && parameter.name === parameterName
       );
       this.collection.variables[name] = {
         value: (parameter == null ? undefined : stringifyParameterValue(parameter)) ?? '',
         description: parameter?.description,
       };
     }
+  }
+
+  /**
+   * Maps a path parameter to the variable it is imported as. Names that Trufos does not allow are
+   * sanitized, e.g. `app.id` becomes `app-id`; distinct parameters that sanitize to the same name
+   * get a counter suffix, so that they never silently share one variable. The mapping is cached,
+   * because URL rewriting and variable declaration must agree on it across all operations.
+   * @param parameterName the name of the path parameter, e.g. `app.id`
+   * @returns the variable name, or undefined if the parameter has to stay literal
+   */
+  private getPathVariableName(parameterName: string): string | undefined {
+    if (this.pathVariableNames.has(parameterName)) {
+      return this.pathVariableNames.get(parameterName);
+    }
+
+    const baseName = sanitizeVariableName(parameterName);
+    if (baseName == null) {
+      logger.warn(`Path parameter {${parameterName}} stays literal in imported URLs`);
+      this.pathVariableNames.set(parameterName, undefined);
+      return undefined;
+    }
+
+    // unique within the whole variable namespace, so that a parameter can never annex a variable
+    // that someone else owns, e.g. the baseUrl variable holding the server URL
+    const name = uniqueName(baseName, (candidate) => this.collection.variables[candidate] != null);
+    this.pathVariableNames.set(parameterName, name);
+    return name;
   }
 
   private getOrCreateFolder(tag: string) {
@@ -212,7 +246,10 @@ class OpenApiImport {
     if (servers.length < 2) return;
 
     for (const server of servers) {
-      const key = getUniqueKey(this.collection.environments, getEnvironmentKey(server));
+      const key = uniqueName(
+        getEnvironmentKey(server),
+        (candidate) => this.collection.environments[candidate] !== undefined
+      );
       this.collection.environments[key] = {
         variables: { [BASE_URL_VARIABLE]: { value: server.url } },
       };
@@ -231,7 +268,9 @@ class OpenApiImport {
       return {
         type: RequestBodyType.TEXT,
         mimeType: JSON_MIME_TYPE,
-        text: stringifyExample(bodyParameter.example ?? this.generateExample(bodyParameter.schema)),
+        text: stringifyExample(
+          bodyParameter.example ?? this.generateExample(bodyParameter.schema as ExampleSchema)
+        ),
       };
     }
 
@@ -250,28 +289,21 @@ class OpenApiImport {
     return {
       type: RequestBodyType.TEXT,
       mimeType,
-      text: stringifyExample(mediaType?.example ?? this.generateExample(mediaType?.schema)),
+      text: stringifyExample(
+        mediaType?.example ?? this.generateExample(mediaType?.schema as ExampleSchema | undefined)
+      ),
     };
   }
-}
-
-/**
- * @param existing the entries that the key must not collide with
- * @param key the desired key
- * @returns the key itself, or the key with a counter appended if it is already taken
- */
-function getUniqueKey(existing: Record<string, unknown>, key: string) {
-  if (existing[key] === undefined) return key;
-
-  let counter = 2;
-  while (existing[`${key}-${counter}`] !== undefined) counter++;
-  return `${key}-${counter}`;
 }
 
 function isOpenApi3(document: OpenApiDocument): document is OpenApi3Document {
   return 'openapi' in document;
 }
 
-function isOperation(method: string, candidate: unknown): candidate is Operation {
-  return HTTP_METHODS.has(method) && candidate != null && typeof candidate === 'object';
+/**
+ * @param candidate the value of an HTTP method key of a path item, an operation object per spec
+ * @returns true if the candidate is an object, guarding against malformed documents
+ */
+function isOperation(candidate: unknown): candidate is Operation {
+  return candidate != null && typeof candidate === 'object';
 }

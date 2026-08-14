@@ -32,6 +32,31 @@ export function sanitizeTitle(title: string): string {
 }
 
 /**
+ * Finds a unique name by appending a counter to the base name until it is not taken anymore,
+ * e.g. `pets`, `pets-2`, `pets-3`. Used for directory names, variable names and environment keys.
+ * @param baseName the desired name
+ * @param isTaken tells whether a candidate name is already taken
+ * @returns the first free name
+ */
+export function uniqueName(baseName: string, isTaken: (name: string) => boolean): string {
+  let name = baseName;
+  for (let counter = 2; isTaken(name); counter++) name = `${baseName}-${counter}`;
+  return name;
+}
+
+/**
+ * Like {@link uniqueName}, but for an asynchronous taken check, e.g. against the file system.
+ */
+export async function uniqueNameAsync(
+  baseName: string,
+  isTaken: (name: string) => Promise<boolean>
+): Promise<string> {
+  let name = baseName;
+  for (let counter = 2; await isTaken(name); counter++) name = `${baseName}-${counter}`;
+  return name;
+}
+
+/**
  * Shortens text to at most `maxLength` characters, preferring to cut at the last boundary within
  * the limit so that words stay intact. If that boundary is in the first half of the allowed length,
  * the text is cut hard instead, because cutting there would discard too much of it.

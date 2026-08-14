@@ -4,6 +4,8 @@ import {
   MAX_TITLE_DIR_NAME_LENGTH,
   sanitizeTitle,
   truncate,
+  uniqueName,
+  uniqueNameAsync,
 } from './string';
 
 describe('sanitizeTitle', () => {
@@ -69,6 +71,21 @@ describe('sanitizeTitle', () => {
     expect(sanitizeTitle('a'.repeat(MAX_TITLE_DIR_NAME_LENGTH - 1) + ' bc')).toBe(
       'a'.repeat(MAX_TITLE_DIR_NAME_LENGTH - 1)
     );
+  });
+});
+
+describe('uniqueName', () => {
+  it('returns the base name if it is free', () => {
+    expect(uniqueName('pets', () => false)).toBe('pets');
+  });
+
+  it('appends a counter until the name is free', () => {
+    const taken = new Set(['pets', 'pets-2']);
+    expect(uniqueName('pets', (name) => taken.has(name))).toBe('pets-3');
+  });
+
+  it('checks asynchronously in its async variant', async () => {
+    await expect(uniqueNameAsync('pets', async (name) => name === 'pets')).resolves.toBe('pets-2');
   });
 });
 

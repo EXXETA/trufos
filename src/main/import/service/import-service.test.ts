@@ -155,6 +155,61 @@ describe('ImportService', () => {
       );
     });
 
+    it('suffixes the subdirectory when its name is already taken', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-collision-'));
+      await fs.mkdir(path.join(targetDirPath, 'http-status-messages'));
+      await fs.writeFile(path.join(targetDirPath, 'http-status-messages', 'collection.json'), '{}');
+
+      expect(await importInto(targetDirPath)).toBe(
+        path.join(targetDirPath, 'http-status-messages-2')
+      );
+    });
+
+    /** Fails the save after writing part of the collection, like a full disk would. */
+    function mockPartiallyFailingSave() {
+      vi.mocked(PersistenceService.instance.saveCollection).mockImplementationOnce(
+        async (collection) => {
+          await fs.mkdir(path.join(collection.dirPath, 'half-imported'), { recursive: true });
+          throw new Error('disk full');
+        }
+      );
+    }
+
+    it('leaves no half-imported directory behind when saving fails', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-fail-'));
+      await fs.writeFile(path.join(targetDirPath, 'some-other-file.txt'), '');
+      await fs.writeFile(POSTMAN_COLLECTION_FILE_PATH, POSTMAN_COLLECTION);
+      mockPartiallyFailingSave();
+
+      await expect(
+        ImportService.instance.importCollection(
+          POSTMAN_COLLECTION_FILE_PATH,
+          targetDirPath,
+          'Postman'
+        )
+      ).rejects.toThrow('disk full');
+
+      // neither the collection directory nor its staging directory survive the failure
+      expect(await fs.readdir(targetDirPath)).toEqual(['some-other-file.txt']);
+    });
+
+    it('leaves a directly used target directory untouched when saving fails', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-fail-direct-'));
+      await fs.writeFile(POSTMAN_COLLECTION_FILE_PATH, POSTMAN_COLLECTION);
+      mockPartiallyFailingSave();
+
+      await expect(
+        ImportService.instance.importCollection(
+          POSTMAN_COLLECTION_FILE_PATH,
+          targetDirPath,
+          'Postman'
+        )
+      ).rejects.toThrow('disk full');
+
+      // the directory the user picked is restored, only the half-imported content is gone
+      expect(await fs.readdir(targetDirPath)).toEqual([]);
+    });
+
     it('never writes into the used target directory itself, even for non-Latin titles', async () => {
       // an all-non-Latin title sanitizes to the fallback name instead of an empty string, which
       // would make the subdirectory path collapse to the target directory holding other data

@@ -50,6 +50,30 @@ export type FormDataBody = z.infer<typeof FormDataBody>;
 export const RequestBody = z.discriminatedUnion('type', [TextBody, FileBody, FormDataBody]);
 export type RequestBody = z.infer<typeof RequestBody>;
 
+/**
+ * Returns the text body that a request carries inline instead of in its body file. Producers that
+ * never touch the file system deliver the body this way: importers, the default collection, and
+ * info files written by older versions. Once saved, the body file is the canonical form.
+ * @param request the request to read the inline body of
+ * @returns the inline text body, or undefined if the request has none
+ */
+export function getInlineTextBody(request: TrufosRequest) {
+  return request.body.type === RequestBodyType.TEXT ? request.body.text : undefined;
+}
+
+/**
+ * Like {@link getInlineTextBody}, but also clears the inline body, because it is a one-shot
+ * transport field: it must not survive the save that consumes it, or it would go stale and
+ * shadow the body file.
+ * @param request the request to take the inline body from
+ * @returns the inline text body, or undefined if the request has none
+ */
+export function takeInlineTextBody(request: TrufosRequest) {
+  const text = getInlineTextBody(request);
+  if (request.body.type === RequestBodyType.TEXT) delete request.body.text;
+  return text;
+}
+
 export const TrufosRequest = z.object({
   id: z.string(),
   parentId: z.string(),
