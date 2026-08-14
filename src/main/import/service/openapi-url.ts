@@ -1,15 +1,11 @@
 /**
- * URL handling for OpenAPI imports: completing partial server URLs, joining paths, and converting
- * path templates into Trufos template variables.
+ * URL handling for OpenAPI imports: completing partial server URLs and joining paths.
  */
 
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
 
 /** The base URL used when a document does not declare a usable server. */
 export const DEFAULT_BASE_URL = 'http://localhost';
-
-/** Matches a path template parameter, e.g. the `{appId}` in `/apps/{appId}/versions`. */
-export const PATH_PARAMETER_REGEX = /\{([^{}/]*)\}/g;
 
 /**
  * @param server the server to resolve
@@ -62,25 +58,6 @@ export function joinUrl(baseUrl: string, pathTemplate: string) {
   if (URL.canParse(pathTemplate)) return pathTemplate;
   const normalizedPath = pathTemplate.startsWith('/') ? pathTemplate : `/${pathTemplate}`;
   return `${removeTrailingSlash(baseUrl)}${normalizedPath}`;
-}
-
-/**
- * Converts the OpenAPI path template syntax `{appId}` into the Trufos template variable syntax
- * `{{appId}}`, so that the parameter is resolved when the request is sent instead of being sent
- * literally. Parameters that do not resolve to a variable name are left untouched, because
- * turning them into templates would only produce URLs that never resolve.
- * @param pathTemplate the path of the operation, e.g. `/apps/{appId}/versions`
- * @param resolveName maps a parameter name to the variable it is imported as, if any
- * @returns the path with all of its parameters in Trufos template variable syntax
- */
-export function toTemplateVariables(
-  pathTemplate: string,
-  resolveName: (name: string) => string | undefined
-) {
-  return pathTemplate.replace(PATH_PARAMETER_REGEX, (parameter, name: string) => {
-    const variableName = resolveName(name);
-    return variableName == null ? parameter : `{{${variableName}}}`;
-  });
 }
 
 /**

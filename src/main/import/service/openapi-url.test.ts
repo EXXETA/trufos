@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completeBaseUrl, getEnvironmentKey, joinUrl, toTemplateVariables } from './openapi-url';
+import { completeBaseUrl, getEnvironmentKey, joinUrl } from './openapi-url';
 
 describe('completeBaseUrl', () => {
   it('falls back to localhost for empty server URLs', () => {
@@ -39,20 +39,6 @@ describe('joinUrl', () => {
     expect(joinUrl('{{baseUrl}}', 'https://other.example.com/pets')).toBe(
       'https://other.example.com/pets'
     );
-  });
-});
-
-describe('toTemplateVariables', () => {
-  it('converts path parameters into the variables the resolver maps them to', () => {
-    expect(
-      toTemplateVariables('/apps/{appId}/versions/{app.version}', (name) =>
-        name === 'app.version' ? 'app-version' : name
-      )
-    ).toBe('/apps/{{appId}}/versions/{{app-version}}');
-  });
-
-  it('keeps parameters that do not resolve to a variable', () => {
-    expect(toTemplateVariables('/apps/{app.id}', () => undefined)).toBe('/apps/{app.id}');
   });
 });
 

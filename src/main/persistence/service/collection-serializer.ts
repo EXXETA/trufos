@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
-import { sanitizeTitle } from 'shim/string';
+import { sanitizeTitle, uniqueName } from 'shim/string';
 import { TrufosObject } from 'shim/objects';
-import { takeInlineTextBody, TEXT_BODY_FILE_NAME } from 'shim/objects/request';
+import { TEXT_BODY_FILE_NAME } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
 import {
   getInfoFileName,
@@ -65,9 +65,6 @@ async function* serializeNode(
       : { ...structuredClone(omit({ ...node }, 'children')), children: [] }
   ) as TrufosObject;
 
-  // When the body is emitted as its own file, strip any inline text (canonical on-disk form).
-  if (bodyContent != null && plain.type === 'request') takeInlineTextBody(plain);
-
   const secrets = extractSecrets(plain);
   yield { path: joinPosix(dirPath, getInfoFileName(node.type)), data: toJson(toInfoFile(plain)) };
   if (options.includeSecrets && Object.keys(secrets).length > 0) {
@@ -112,11 +109,7 @@ async function* serializeChildren(
   // derive directory names from titles, suffixing duplicates just like PersistenceService does
   const usedNames = new Set<string>();
   for (const child of children) {
-    const baseName = sanitizeTitle(child.title);
-    let name = baseName;
-    for (let i = 2; name === '' || usedNames.has(name); i++) {
-      name = `${baseName}-${i}`;
-    }
+    const name = uniqueName(sanitizeTitle(child.title), (candidate) => usedNames.has(candidate));
     usedNames.add(name);
     yield* serializeNode(child, joinPosix(dirPath, name), options);
   }

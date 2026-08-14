@@ -4,7 +4,8 @@
  * the schema is turned into a skeleton the user can fill in.
  */
 
-import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
+import { isObject } from 'main/util/object-util';
+import { OpenApiDocument } from './openapi-values';
 
 /**
  * The parts of a JSON schema that the example generator understands. The OpenAPI schema types
@@ -23,8 +24,6 @@ export type ExampleSchema = {
   oneOf?: ExampleSchema[];
   anyOf?: ExampleSchema[];
 };
-
-type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;
 
 /**
  * Generates an example value for the given schema, or undefined if there is no usable schema.
@@ -86,7 +85,7 @@ export function createExampleGenerator(document: OpenApiDocument): ExampleGenera
     // a value has to satisfy every branch of an allOf, so their properties end up in one object
     for (const branch of schema.allOf ?? []) {
       const branchExample = generate(branch, ancestors);
-      if (isPlainObject(branchExample)) Object.assign(example, branchExample);
+      if (isObject(branchExample)) Object.assign(example, branchExample);
     }
 
     for (const [name, property] of Object.entries(schema.properties ?? {})) {
@@ -110,10 +109,10 @@ export function createExampleGenerator(document: OpenApiDocument): ExampleGenera
 
     let target: unknown = document;
     for (const segment of schema.$ref.slice(2).split('/')) {
-      if (!isPlainObject(target)) return;
+      if (!isObject(target)) return;
       target = target[segment.replaceAll('~1', '/').replaceAll('~0', '~')];
     }
-    return isPlainObject(target) ? (target as ExampleSchema) : undefined;
+    return isObject(target) ? (target as ExampleSchema) : undefined;
   }
 
   return (schema) => generate(schema, new Set());
@@ -144,8 +143,4 @@ function generatePrimitive(type?: string) {
 function getSchemaType(schema: ExampleSchema) {
   if (!Array.isArray(schema.type)) return schema.type;
   return schema.type.find((type) => type !== 'null') ?? 'null';
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

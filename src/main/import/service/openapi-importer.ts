@@ -8,15 +8,15 @@ import {
   getEnvironmentKey,
   getSwaggerBaseUrl,
   joinUrl,
-  PATH_PARAMETER_REGEX,
   resolveServerUrl,
-  toTemplateVariables,
 } from './openapi-url';
 import {
   getParameters,
   getTitle,
   importHeaders,
-  importQueryParam,
+  importQueryParams,
+  isOpenApi3,
+  OpenApiDocument,
   Operation,
   Parameter,
   PathItem,
@@ -43,8 +43,9 @@ const BASE_URL_VARIABLE = 'baseUrl';
 /** The base URL that every imported request is built against: a template, not a URL. */
 const BASE_URL_TEMPLATE = `{{${BASE_URL_VARIABLE}}}`;
 
-type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;
-type OpenApi3Document = OpenAPIV3.Document | OpenAPIV3_1.Document;
+/** Matches a path template parameter, e.g. the `{appId}` in `/apps/{appId}/versions`. */
+const PATH_PARAMETER_REGEX = /\{([^{}/]*)\}/g;
+
 type OpenApi3RequestBody = OpenAPIV3.RequestBodyObject | OpenAPIV3_1.RequestBodyObject;
 
 /** Maps the lowercase method keys of OpenAPI path items to the request methods of Trufos. */
@@ -72,8 +73,8 @@ class OpenApiImport {
   private readonly collection: TrufosCollection;
   private readonly foldersByTag = new Map<string, TrufosFolder>();
   private readonly pathVariableNames = new Map<string, string | undefined>();
-  private generateExample!: ExampleGenerator;
-  private documentSecurity?: ImportedSecurity;
+  private readonly generateExample: ExampleGenerator;
+  private readonly documentSecurity?: ImportedSecurity;
 
   constructor(private readonly document: OpenApiDocument) {
     this.collection = {
@@ -86,15 +87,14 @@ class OpenApiImport {
       variables: {},
       environments: {},
     };
+    this.generateExample = createExampleGenerator(document);
+    this.documentSecurity = importSecurity(document, document.security);
   }
 
   public import(): TrufosCollection {
     // the document security applies to every operation that does not bring its own, so it becomes
     // the authorization of the collection and the operations inherit it
-    this.documentSecurity = importSecurity(this.document, this.document.security);
     this.collection.auth = this.documentSecurity?.auth;
-
-    this.generateExample = createExampleGenerator(this.document);
     this.importServers();
 
     for (const [pathTemplate, pathItem] of Object.entries(this.document.paths ?? {})) {
@@ -127,17 +127,12 @@ class OpenApiImport {
     operation: Operation
   ): TrufosRequest {
     const parameters = getParameters(pathItem, operation);
-    const query = parameters
-      .filter((parameter) => parameter.in === 'query')
-      .map((parameter) => importQueryParam(parameter));
 
     // an operation without security of its own inherits the one of the document
     const inheritsSecurity = operation.security == null;
     const security = inheritsSecurity
       ? this.documentSecurity
       : importSecurity(this.document, operation.security);
-
-    this.importPathVariables(pathTemplate, parameters);
 
     return {
       id: randomUUID(),
@@ -146,13 +141,8 @@ class OpenApiImport {
       lastModified: Date.now(),
       title: getTitle(operation, pathTemplate),
       url: {
-        ...parseUrl(
-          joinUrl(
-            BASE_URL_TEMPLATE,
-            toTemplateVariables(pathTemplate, (name) => this.getPathVariableName(name))
-          )
-        ),
-        query: query.concat(security?.query ?? []),
+        ...parseUrl(joinUrl(BASE_URL_TEMPLATE, this.importPathTemplate(pathTemplate, parameters))),
+        query: importQueryParams(parameters).concat(security?.query ?? []),
       },
       headers: importHeaders(parameters).concat(security?.headers ?? []),
       method,
@@ -162,26 +152,33 @@ class OpenApiImport {
   }
 
   /**
-   * Declares the parameters of a path template as collection variables, so that the templates in
+   * Converts the OpenAPI path template syntax `{appId}` into the Trufos template variable syntax
+   * `{{appId}}` and declares each parameter as a collection variable, so that the templates in
    * the imported URL resolve to something. The variables are derived from the path template rather
    * than from the parameter list, because specs in the wild use parameters they never declare.
    * Already known variables are kept, as the same parameter usually appears in many operations.
+   * Parameters that cannot be a variable stay literal.
    * @param pathTemplate the path of the operation, e.g. `/apps/{appId}/versions`
    * @param parameters the parameters of the operation, used as source of values and descriptions
+   * @returns the path with all of its parameters in Trufos template variable syntax
    */
-  private importPathVariables(pathTemplate: string, parameters: Parameter[]) {
-    for (const [, parameterName] of pathTemplate.matchAll(PATH_PARAMETER_REGEX)) {
+  private importPathTemplate(pathTemplate: string, parameters: Parameter[]): string {
+    return pathTemplate.replace(PATH_PARAMETER_REGEX, (parameter, parameterName: string) => {
       const name = this.getPathVariableName(parameterName);
-      if (name == null || this.collection.variables[name] != null) continue;
+      if (name == null) return parameter;
 
-      const parameter = parameters.find(
-        (parameter) => parameter.in === 'path' && parameter.name === parameterName
-      );
-      this.collection.variables[name] = {
-        value: (parameter == null ? undefined : stringifyParameterValue(parameter)) ?? '',
-        description: parameter?.description,
-      };
-    }
+      if (this.collection.variables[name] == null) {
+        const declared = parameters.find(
+          (candidate) => candidate.in === 'path' && candidate.name === parameterName
+        );
+        this.collection.variables[name] = {
+          value: (declared == null ? undefined : stringifyParameterValue(declared)) ?? '',
+          description: declared?.description,
+        };
+      }
+
+      return `{{${name}}}`;
+    });
   }
 
   /**
@@ -294,10 +291,6 @@ class OpenApiImport {
       ),
     };
   }
-}
-
-function isOpenApi3(document: OpenApiDocument): document is OpenApi3Document {
-  return 'openapi' in document;
 }
 
 /**

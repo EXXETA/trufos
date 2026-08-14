@@ -11,9 +11,9 @@ import {
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
 } from 'shim';
+import { isOpenApi3, OpenApiDocument } from './openapi-values';
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
 
-type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;
 type OpenApi3SecurityScheme = OpenAPIV3.SecuritySchemeObject | OpenAPIV3_1.SecuritySchemeObject;
 type SecurityScheme = OpenAPIV2.SecuritySchemeObject | OpenApi3SecurityScheme;
 type SecurityRequirement =
@@ -55,14 +55,14 @@ export function importSecurity(
     if (schemeNames.length === 0) continue;
 
     // all schemes of a requirement must be met, so it is only usable if all of them are supported
-    const parts: SecuritySchemeImport[] = [];
-    for (const schemeName of schemeNames) {
-      const scheme = getSecurityScheme(document, schemeName);
-      const part =
-        scheme == null ? undefined : importSecurityScheme(scheme, requirement[schemeName] ?? []);
-      if (part == null) break;
-      parts.push(part);
-    }
+    const parts = schemeNames
+      .map((schemeName) => {
+        const scheme = getSecurityScheme(document, schemeName);
+        return scheme == null
+          ? undefined
+          : importSecurityScheme(scheme, requirement[schemeName] ?? []);
+      })
+      .filter((part) => part != null);
     if (parts.length !== schemeNames.length) continue;
 
     return {
@@ -112,7 +112,7 @@ function importSecurityScheme(
 }
 
 function getSecurityScheme(document: OpenApiDocument, schemeName: string) {
-  if ('openapi' in document) {
+  if (isOpenApi3(document)) {
     return document.components?.securitySchemes?.[schemeName] as OpenApi3SecurityScheme;
   }
 

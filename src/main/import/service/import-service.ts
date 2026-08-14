@@ -108,6 +108,6 @@ export class ImportService {
    * @returns true if the directory is empty or does not exist yet, false otherwise
    */
   private async isUsableCollectionDir(dirPath: string) {
-    return !(await exists(dirPath)) || (await isEmpty(dirPath));
+    return await isEmpty(dirPath).catch(() => true);
   }
 }

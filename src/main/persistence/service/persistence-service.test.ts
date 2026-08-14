@@ -161,6 +161,36 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, folder.title, request.title))).toBe(false);
   });
 
+  it('moveChild() should not move onto a sibling directory with the same name', async () => {
+    // Arrange: the folder already holds a request whose directory name the moved request would get
+    const folder = getExampleFolder(collection.id);
+    const request = getExampleRequest(collection.id);
+    const sibling = getExampleRequest(folder.id);
+    collection.children.push(folder, request);
+    folder.children.push(sibling);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act
+    await persistenceService.moveChild(request, collection, folder);
+
+    // Assert: both requests exist side by side, the moved one with a suffixed directory name
+    const folderDirPath = path.join(collection.dirPath, folder.title);
+    expect(await exists(path.join(folderDirPath, sibling.title))).toBe(true);
+    expect(await exists(path.join(folderDirPath, `${request.title}-2`))).toBe(true);
+
+    // Assert: the request stays saveable at its new location
+    await persistenceService.saveRequest(request);
+    expect(
+      await exists(
+        path.join(
+          folderDirPath,
+          `${request.title}-2`,
+          persistenceService.getInfoFileName('request')
+        )
+      )
+    ).toBe(true);
+  });
+
   it('rename() should rename the directory of a folder', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
@@ -276,9 +306,13 @@ describe('PersistenceService', () => {
     // Assert
     const dirPath = path.join(collection.dirPath, request.title);
     expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('edited');
-    // the outdated inline text is consumed even when it loses, so that a later save without a
-    // text body cannot resurrect it over the body file, and the info file does not repeat it
-    expect(request.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
+    // saving reads the request, it does not rewrite it — the caller keeps the object it passed
+    expect(request.body).toEqual({
+      type: RequestBodyType.TEXT,
+      mimeType: 'application/json',
+      text: 'inline',
+    });
+    // the info file never repeats the text: the outdated inline body cannot resurrect from disk
     const info = JSON.parse(
       await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
     ) as RequestInfoFile;
@@ -378,8 +412,6 @@ describe('PersistenceService', () => {
     // Assert: the body file is the canonical form, so the info file must not repeat the text
     const dirPath = path.join(collection.dirPath, request.title);
     expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe(text);
-    // the inline body is consumed, so that it cannot be written back over the file later on
-    expect(request.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
     const info = JSON.parse(
       await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
     ) as RequestInfoFile;

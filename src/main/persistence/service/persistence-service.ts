@@ -11,7 +11,6 @@ import { Folder } from 'shim/objects/folder';
 import {
   getInlineTextBody,
   RequestBodyType,
-  takeInlineTextBody,
   TEXT_BODY_FILE_NAME,
   TrufosRequest,
 } from 'shim/objects/request';
@@ -95,10 +94,14 @@ export class PersistenceService {
     logger.info(
       `Moving child ${child.id} from parent ${oldParent.id} to parent ${newParent.id} at position ${position}`
     );
-    const childDirName = this.getDirName(child);
     const oldChildDirPath = this.getOrCreateDirPath(child);
     const oldParentDirPath = this.getOrCreateDirPath(oldParent);
     const newParentDirPath = this.getOrCreateDirPath(newParent);
+    // keep the directory name the child already has, suffixing it if the new parent holds a
+    // sibling with the same name — renaming onto an existing directory would fail or replace it
+    const childDirName = uniqueName(path.basename(oldChildDirPath), (name) =>
+      this.isDirPathTaken(path.join(newParentDirPath, name))
+    );
     const newChildDirPath = path.join(newParentDirPath, childDirName);
 
     const removeFromOldParent = async () => {
@@ -128,8 +131,14 @@ export class PersistenceService {
       fs.rename(oldChildDirPath, newChildDirPath),
     ]);
 
-    // update path lookup for child and all its descendants
-    this.updatePathMapRecursively(child, newParentDirPath);
+    // update path lookup for child and all its descendants. The child itself is set explicitly,
+    // because its directory name may have been suffixed and no longer matches its old one
+    this.idToPathMap.set(child.id, newChildDirPath);
+    if (isFolder(child)) {
+      for (const grandChild of child.children) {
+        this.updatePathMapRecursively(grandChild, newChildDirPath);
+      }
+    }
   }
 
   /**
@@ -212,18 +221,13 @@ export class PersistenceService {
   public async saveRequest(request: TrufosRequest, textBody?: string) {
     const dirPath = this.getOrCreateDirPath(request, true);
     const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
-
-    // consumed before the info file is written, so that no stale copy survives anywhere,
-    // but an explicitly provided body wins over it
-    const inlineTextBody = takeInlineTextBody(request);
-    textBody ??= inlineTextBody;
     await this.saveInfoFile(request, dirPath);
 
     // save text body if provided
     if (textBody != null) {
       await fs.writeFile(bodyFilePath, textBody);
-    } else if (await exists(bodyFilePath)) {
-      await fs.unlink(bodyFilePath);
+    } else {
+      await fs.rm(bodyFilePath, { force: true });
     }
     return request;
   }
@@ -288,7 +292,8 @@ export class PersistenceService {
         const child = queue.shift();
         if (child == null) continue;
         if (isRequest(child)) {
-          await this.saveRequest(child);
+          // importers deliver the body inline, because they never touch the file system themselves
+          await this.saveRequest(child, getInlineTextBody(child));
         } else if (isFolder(child)) {
           await this.saveFolder(child);
           queue.push(...child.children);

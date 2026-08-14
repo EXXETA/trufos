@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { TEXT_BODY_FILE_NAME } from 'shim/objects/request';
@@ -43,7 +44,6 @@ const SPEC = {
 
 /** Lists the sorted names of all subdirectories of the given directory. */
 async function readDirNames(dirPath: string) {
-  const fs = await import('node:fs/promises');
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
   return entries.flatMap((entry) => (entry.isDirectory() ? entry.name : [])).sort();
 }
@@ -57,7 +57,6 @@ describe('OpenAPI import', () => {
     await realFs.writeFile(srcFilePath, JSON.stringify(SPEC));
     const targetDirPath = path.join(tmpdir(), 'collections');
     // the target directory already holds a collection, so the import creates its own one inside it
-    const fs = await import('node:fs/promises');
     await fs.mkdir(path.join(targetDirPath, 'other-collection'), { recursive: true });
 
     try {
@@ -88,7 +87,6 @@ describe('OpenAPI import', () => {
 
       // the body a request was imported with must end up in its body file, because that is the
       // only place the editor and the sending of a request read it from
-      const fs = await import('node:fs/promises');
       const bodyFilePath = path.join(
         collection.dirPath,
         'apps',

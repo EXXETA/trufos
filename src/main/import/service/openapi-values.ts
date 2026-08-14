@@ -8,6 +8,17 @@ import { TrufosQueryParam } from 'shim/objects/query-param';
 import { truncate } from 'shim/string';
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
 
+export type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;
+export type OpenApi3Document = OpenAPIV3.Document | OpenAPIV3_1.Document;
+
+/**
+ * @param document the document to check
+ * @returns true if the document is an OpenAPI 3.x document, false for Swagger 2.0
+ */
+export function isOpenApi3(document: OpenApiDocument): document is OpenApi3Document {
+  return 'openapi' in document;
+}
+
 export type Operation =
   OpenAPIV2.OperationObject | OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject;
 export type Parameter =
@@ -60,15 +71,19 @@ export function getParameters(pathItem: PathItem, operation: Operation) {
 }
 
 /**
- * Imports a query parameter. Optional parameters that the spec gives no value for are imported
- * as inactive, because sending them empty (`?search=&filter=`) is not what the endpoint expects
- * and specs commonly declare dozens of optional parameters per operation.
- * @param parameter the query parameter to import
- * @returns the query parameter of the request
+ * Imports the query parameters of an operation. Optional parameters that the spec gives no value
+ * for are imported as inactive, because sending them empty (`?search=&filter=`) is not what the
+ * endpoint expects and specs commonly declare dozens of optional parameters per operation.
+ * @param parameters the parameters of the operation
+ * @returns the query parameters of the request
  */
-export function importQueryParam(parameter: Parameter): TrufosQueryParam {
-  const value = stringifyParameterValue(parameter) ?? '';
-  return { key: parameter.name, value, isActive: parameter.required === true || value !== '' };
+export function importQueryParams(parameters: Parameter[]): TrufosQueryParam[] {
+  return parameters
+    .filter((parameter) => parameter.in === 'query')
+    .map((parameter) => {
+      const value = stringifyParameterValue(parameter) ?? '';
+      return { key: parameter.name, value, isActive: parameter.required === true || value !== '' };
+    });
 }
 
 /**
