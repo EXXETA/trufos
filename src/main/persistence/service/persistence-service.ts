@@ -213,12 +213,8 @@ export class PersistenceService {
     const bodyFilePath = path.join(dirPath, TEXT_BODY_FILE_NAME);
 
     // imported requests might carry inline text. Use as text body to save
-    if (
-      textBody == null &&
-      request.body.type === RequestBodyType.TEXT &&
-      request.body.text != null
-    ) {
-      textBody = request.body.text;
+    if (request.body.type === RequestBodyType.TEXT && request.body.text != null) {
+      textBody ??= request.body.text;
       delete request.body.text;
     }
     await this.saveInfoFile(request, dirPath);

@@ -7,19 +7,28 @@
 export const MAX_TITLE_DIR_NAME_LENGTH = 64;
 
 /**
+ * Fallback for titles that have no characters usable in a file name, e.g. titles written entirely
+ * in a non-Latin script. Returning an empty name instead would be a hazard for every caller,
+ * because `path.join(dir, '')` is `dir` — a collection would be written into the directory that
+ * was meant to be its parent.
+ */
+export const FALLBACK_TITLE_DIR_NAME = 'untitled';
+
+/**
  * Sanitize a title by replacing invalid characters and formatting it. The resulting string may be
  * used as file or directory name. Camel case titles are split into words, so that machine-readable
- * titles such as OpenAPI operation IDs become readable names as well.
+ * titles such as OpenAPI operation IDs become readable names as well. Diacritics are stripped
+ * rather than replaced, so that e.g. `prüfen` becomes `prufen` instead of `pr-fen`.
  * @param title the title to sanitize
  * @returns the sanitized, dash separated title, at most {@link MAX_TITLE_DIR_NAME_LENGTH}
- *  characters long. May be empty if the title has no valid characters at all.
+ *  characters long. Never empty: {@link FALLBACK_TITLE_DIR_NAME} is returned if nothing remains.
  */
 export function sanitizeTitle(title: string): string {
-  const name = splitCamelCase(title)
+  const name = stripDiacritics(splitCamelCase(title))
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return truncate(name, MAX_TITLE_DIR_NAME_LENGTH, '-');
+  return truncate(name, MAX_TITLE_DIR_NAME_LENGTH, '-') || FALLBACK_TITLE_DIR_NAME;
 }
 
 /**
@@ -51,4 +60,13 @@ export function truncate(text: string, maxLength: number, boundary: string) {
  */
 function splitCamelCase(value: string) {
   return value.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2');
+}
+
+/**
+ * Removes diacritics while keeping the base letters, e.g. `é` becomes `e` and `ü` becomes `u`.
+ * @param value the value to strip
+ * @returns the value with all diacritics removed
+ */
+function stripDiacritics(value: string) {
+  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '');
 }

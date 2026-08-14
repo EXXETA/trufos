@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_TITLE_DIR_NAME_LENGTH, sanitizeTitle, truncate } from './string';
+import {
+  FALLBACK_TITLE_DIR_NAME,
+  MAX_TITLE_DIR_NAME_LENGTH,
+  sanitizeTitle,
+  truncate,
+} from './string';
 
 describe('sanitizeTitle', () => {
   it('lowercases the title and replaces whitespace with dashes', () => {
@@ -24,8 +29,21 @@ describe('sanitizeTitle', () => {
     );
   });
 
-  it('returns an empty string if nothing is left after sanitizing', () => {
-    expect(sanitizeTitle('%$§!')).toBe('');
+  it('strips diacritics instead of replacing them with dashes', () => {
+    expect(sanitizeTitle('Anwendungen prüfen')).toBe('anwendungen-prufen');
+    expect(sanitizeTitle('Créer une application')).toBe('creer-une-application');
+    expect(sanitizeTitle('Añadir configuración')).toBe('anadir-configuracion');
+  });
+
+  it('falls back to a fixed name if nothing is left after sanitizing', () => {
+    // an empty name would make path.join(dir, name) collapse to the parent directory itself
+    expect(sanitizeTitle('%$§!')).toBe(FALLBACK_TITLE_DIR_NAME);
+    expect(sanitizeTitle('')).toBe(FALLBACK_TITLE_DIR_NAME);
+  });
+
+  it('falls back to a fixed name for titles written entirely in a non-Latin script', () => {
+    expect(sanitizeTitle('Получить приложения')).toBe(FALLBACK_TITLE_DIR_NAME);
+    expect(sanitizeTitle('アプリ一覧')).toBe(FALLBACK_TITLE_DIR_NAME);
   });
 
   it('truncates titles that are too long to be used as directory name', () => {

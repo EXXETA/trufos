@@ -29,7 +29,7 @@ export const ExportEditor = () => {
     if (dirPath == null || isExporting) return;
     try {
       const { canceled, filePath } = await eventService.showSaveDialog({
-        defaultPath: `${sanitizeTitle(title) || 'collection'}.zip`,
+        defaultPath: `${sanitizeTitle(title)}.zip`,
         filters: [{ name: 'Zip Archive', extensions: ['zip'] }],
       });
       if (canceled || filePath == null) return;

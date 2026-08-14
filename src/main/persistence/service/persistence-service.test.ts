@@ -276,12 +276,13 @@ describe('PersistenceService', () => {
     // Assert
     const dirPath = path.join(collection.dirPath, request.title);
     expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('edited');
-    // saving reads the request, it does not rewrite it
-    expect(request.body).toEqual({
-      type: RequestBodyType.TEXT,
-      mimeType: 'application/json',
-      text: 'inline',
-    });
+    // the outdated inline text is consumed even when it loses, so that a later save without a
+    // text body cannot resurrect it over the body file, and the info file does not repeat it
+    expect(request.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
+    const info = JSON.parse(
+      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
+    ) as RequestInfoFile;
+    expect(info.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
   });
 
   it('saveRequest() should save the metadata of the request', async () => {

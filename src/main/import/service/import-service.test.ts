@@ -6,6 +6,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { FALLBACK_TITLE_DIR_NAME } from 'shim/string';
 import { vi, describe, it, expect } from 'vitest';
 
 const POSTMAN_COLLECTION =
@@ -118,7 +119,7 @@ describe('ImportService', () => {
   });
 
   describe('collection directory', () => {
-    async function importInto(targetDirPath: string) {
+    async function importInto(targetDirPath: string, title?: string) {
       const importService = ImportService.instance;
       await fs.writeFile(POSTMAN_COLLECTION_FILE_PATH, POSTMAN_COLLECTION);
       // @ts-expect-error saveCollection mock returns null but type expects void
@@ -127,7 +128,8 @@ describe('ImportService', () => {
       const result = await importService.importCollection(
         POSTMAN_COLLECTION_FILE_PATH,
         targetDirPath,
-        'Postman'
+        'Postman',
+        title
       );
       return result.collection.dirPath;
     }
@@ -150,6 +152,17 @@ describe('ImportService', () => {
 
       expect(await importInto(targetDirPath)).toBe(
         path.join(targetDirPath, 'http-status-messages')
+      );
+    });
+
+    it('never writes into the used target directory itself, even for non-Latin titles', async () => {
+      // an all-non-Latin title sanitizes to the fallback name instead of an empty string, which
+      // would make the subdirectory path collapse to the target directory holding other data
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-cyrillic-'));
+      await fs.writeFile(path.join(targetDirPath, 'some-other-file.txt'), '');
+
+      expect(await importInto(targetDirPath, 'Получить приложения')).toBe(
+        path.join(targetDirPath, FALLBACK_TITLE_DIR_NAME)
       );
     });
   });
