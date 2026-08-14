@@ -95,6 +95,7 @@ export function SingleLineEditor({
     >
       <MonacoEditor
         height={SINGLE_LINE_EDITOR_HEIGHT}
+        className="absolute h-full"
         language={Language.TEXT}
         value={value}
         options={{ ...SINGLE_LINE_EDITOR_OPTIONS, ariaLabel }}

@@ -167,6 +167,15 @@ describe('SingleLineEditor', () => {
     expect(applyEdits).not.toHaveBeenCalled();
   });
 
+  it('should take the editor out of the layout flow so that its parents may shrink', () => {
+    // Arrange
+    render(<SingleLineEditor value="" onChange={vi.fn()} />);
+
+    // Assert: monaco writes an explicit pixel width onto its own DOM. In the layout flow that width
+    // becomes the minimum width of all parents, so they can never shrink again (see #994).
+    expect(editorProps.className).toContain('absolute');
+  });
+
   it('should show the error color when invalid', () => {
     // Arrange
     const { container } = render(<SingleLineEditor value="" invalid onChange={vi.fn()} />);
