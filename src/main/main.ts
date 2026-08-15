@@ -10,6 +10,7 @@ import { SettingsService } from './persistence/service/settings-service';
 import { once } from 'node:events';
 import process from 'node:process';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { applyLocale, t } from 'main/i18n';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -19,7 +20,7 @@ if (quit) {
   app.quit();
 }
 
-function showError(error?: unknown, title = 'Error') {
+function showError(error?: unknown, title = t('errors.title')) {
   console.error(title + ':', error);
   dialog.showErrorBox(title, error instanceof Error ? error.message : String(error));
   app.quit();
@@ -38,6 +39,9 @@ const createWindow = async () => {
     await app.whenReady();
     if (!safeStorage.isEncryptionAvailable()) throw new Error('Safe storage is not available');
     await settingsService.init();
+
+    // before the menu is built, so the very first render of it is already localized.
+    await applyLocale(settingsService.settings.preferences?.language);
     await environmentService.init();
     mainEventService.updateApp(); // check for updates in the background
 
@@ -109,7 +113,7 @@ const createWindow = async () => {
     }
   } catch (e) {
     console.error('Could not start Trufos:', e);
-    showError('Could not start Trufos: ' + (e as Error).message);
+    showError(`${t('errors.couldNotStart')}: ${(e as Error).message}`);
     app.quit();
   }
 };

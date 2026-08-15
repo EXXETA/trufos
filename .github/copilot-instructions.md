@@ -32,6 +32,7 @@ Key renderer directories:
 | Bundler         | Vite                                   |
 | Styling         | Tailwind CSS v4 + shadcn/ui (Radix UI) |
 | State           | Zustand + Immer                        |
+| i18n            | i18next + react-i18next                |
 | Testing         | Vitest + Testing Library               |
 | Linting         | ESLint + Prettier                      |
 | Package manager | Yarn v4 (Berry)                        |
@@ -47,6 +48,23 @@ Key renderer directories:
 - IPC communication must go through typed handlers defined in `src/main/event/` and exposed via preload.
 - Use **Zod** for runtime validation and schema definitions.
 - Use **Winston** for logging in the main process.
+- **Never hard-code user-facing text** – see "Translations" below.
+
+## Translations (i18n)
+
+The app is localized with **i18next**. Catalogs live in `src/shim/i18n/locales/<locale>.json`
+and are shared by both processes; `src/shim/i18n/index.ts` builds the i18next instances.
+
+- Add every new string to `en.json` **and** every other catalog, then use `useTranslation()`
+  in the renderer or `t()` from `main/i18n` in the main process.
+- `en.json` is the source of truth. `t()`'s key type is derived from it, so an unknown key is
+  a `yarn typecheck` error.
+- `src/shim/i18n/index.test.ts` fails on any missing key or blank value. That test is the
+  completeness gate – there is no build-time extraction step.
+- Group keys by area (`menu.*`, `settings.*`, `sidebar.*`, `errors.*`) and name them for
+  meaning, not for the English wording.
+- Language names in the picker are autonyms (the `label`s in `LOCALES`) and stay untranslated.
+- Menu items with an Electron `role` are localized by the OS – leave them alone.
 
 ## Commit & Branch Guidelines
 

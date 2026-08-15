@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { GithubIcon } from '@/components/icons';
@@ -8,6 +9,7 @@ import { useViewActions } from '@/state/viewStore';
 import { FiSettings } from 'react-icons/fi';
 
 export function FooterBar() {
+  const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState<string | undefined>(undefined);
   const { openAppSettings } = useViewActions();
 
@@ -23,7 +25,7 @@ export function FooterBar() {
         <div className="flex items-center gap-2">
           <FiSettings className="ml-2 cursor-pointer text-xl" onClick={openAppSettings} />
           <span className="shrink-0 text-[12px] leading-[1.2] font-medium tracking-normal whitespace-pre text-(--text-secondary) normal-case no-underline">
-            Settings
+            {t('sidebar.settings')}
           </span>
         </div>
 

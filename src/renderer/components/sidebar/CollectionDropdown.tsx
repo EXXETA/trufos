@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,7 @@ import { CollectionCreate } from '@/view/CollectionCreate';
 const eventService = RendererEventService.instance;
 
 export default function CollectionDropdown() {
+  const { t } = useTranslation();
   const { changeCollection } = useCollectionActions();
   const { openCollectionRunner } = useViewActions();
   const collection = useCollectionStore((state) => state.collection);
@@ -56,24 +58,24 @@ export default function CollectionDropdown() {
 
       <DropdownMenuContent
         className={cn(
-          'w-[var(--radix-dropdown-menu-trigger-width)]',
+          'w-(--radix-dropdown-menu-trigger-width)',
           'border-border bg-background-secondary border p-0',
           'max-h-[75vh] overflow-hidden',
-          'text-[var(--text-secondary)]'
+          'text-(--text-secondary)'
         )}
       >
         <div className="bg-background-secondary sticky top-0 z-10">
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => setShowCreate(true)} className={'px-4 py-3'}>
-              <span>New Collection</span>
+              <span>{t('sidebar.newCollection')}</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={() => setShowImport(true)} className={'px-4 py-3'}>
-              <span>Import Collection</span>
+              <span>{t('sidebar.importCollection')}</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={openCollectionRunner} className={'px-4 py-3'}>
-              <span>Run Collection</span>
+              <span>{t('sidebar.runCollection')}</span>
             </DropdownMenuItem>
           </DropdownMenuGroup>
 

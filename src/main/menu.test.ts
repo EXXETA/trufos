@@ -1,9 +1,9 @@
-import { vi, describe, it, beforeEach, expect } from 'vitest';
+import { vi, describe, it, afterEach, beforeEach, expect } from 'vitest';
 import type { BrowserWindow, MenuItemConstructorOptions } from 'electron';
 
 const { appMock, buildFromTemplateMock, setApplicationMenuMock, openExternalMock } = vi.hoisted(
   () => ({
-    appMock: { isPackaged: false, name: 'Trufos' },
+    appMock: { isPackaged: false, name: 'Trufos', getLocale: () => 'en' },
     buildFromTemplateMock: vi.fn((template: MenuItemConstructorOptions[]) => ({
       template,
       popup: vi.fn(),
@@ -25,11 +25,18 @@ vi.mock('electron', () => ({
 }));
 
 import { MenuBuilder } from './menu';
+import { applyLocale } from './i18n';
+import { TrufosLocale } from 'shim/app-settings';
 
 const sendMock = vi.fn();
 
+const closeWindow: (() => void)[] = [];
+
 function createMainWindow() {
   return {
+    on: vi.fn((event: string, listener: () => void) => {
+      if (event === 'closed') closeWindow.push(listener);
+    }),
     webContents: { on: vi.fn(), inspectElement: vi.fn(), send: sendMock },
   } as unknown as BrowserWindow;
 }
@@ -56,6 +63,12 @@ function collectStrings(items: MenuItemConstructorOptions[]): string[] {
 beforeEach(() => {
   vi.clearAllMocks();
   appMock.isPackaged = false;
+});
+
+// A MenuBuilder keeps relabelling its menu until its window closes, so every window a test opens has
+// to be closed again — otherwise one locale change rebuilds every earlier test's menu too.
+afterEach(() => {
+  closeWindow.splice(0).forEach((close) => close());
 });
 
 describe('MenuBuilder', () => {
@@ -165,5 +178,38 @@ describe('MenuBuilder', () => {
     const prodWindow = createMainWindow();
     new MenuBuilder(prodWindow).buildMenu();
     expect(prodWindow.webContents.on).not.toHaveBeenCalled();
+  });
+
+  // buildMenu() runs again on every locale change. Registering the dev context-menu handler per
+  // build would stack a duplicate "Inspect Element" entry each time.
+  it('registers the context-menu handler once no matter how often the menu is rebuilt', () => {
+    const window = createMainWindow();
+    const menuBuilder = new MenuBuilder(window);
+
+    menuBuilder.buildMenu();
+    menuBuilder.buildMenu();
+    menuBuilder.buildMenu();
+
+    expect(window.webContents.on).toHaveBeenCalledTimes(1);
+    expect(setApplicationMenuMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('relabels itself when the locale changes, and stops once its window is closed', async () => {
+    const window = createMainWindow();
+    new MenuBuilder(window).buildMenu();
+
+    await applyLocale(TrufosLocale.German);
+    expect(setApplicationMenuMock).toHaveBeenCalledTimes(2);
+    const relabelled = buildFromTemplateMock.mock.calls.at(-1)![0];
+    expect(collectStrings(relabelled).join(' ')).toContain('Bearbeiten');
+
+    // The listener has to go with the window, or `activate` leaves the closed window's menu builder
+    // rebuilding a menu for dead webContents on every switch.
+    expect(closeWindow).toHaveLength(1);
+    vi.clearAllMocks();
+    closeWindow.splice(0)[0]();
+    await applyLocale(TrufosLocale.English);
+
+    expect(setApplicationMenuMock).not.toHaveBeenCalled();
   });
 });

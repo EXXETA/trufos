@@ -46,6 +46,16 @@ description: TypeScript, React, and Electron coding standards for the Trufos pro
 - Never use `remote` module or `nodeIntegration: true`.
 - Validate all data received via IPC using Zod before processing.
 
+## Internationalisation
+
+- **Never hard-code user-facing text** – that includes JSX text, `placeholder`, `title`, ARIA
+  labels, toast messages, and native menu labels. Translate with `useTranslation()` in the
+  renderer, or `t()` from `main/i18n` in the main process; non-React modules import `t` from
+  `@/i18n` directly.
+- Tests must assert on translated output, not on English literals.
+- The catalogs, key naming and the completeness gate are documented in `AGENTS.md`
+  (section "Translations (i18n)"). Keep the rules there, not here.
+
 ## Error Handling
 
 - Use typed error classes (see `src/main/error/` and `src/renderer/error/`).

@@ -38,6 +38,7 @@ Key renderer directories:
 | Styling         | Tailwind CSS v4 + shadcn/ui (Radix) |
 | State           | Zustand + Immer                     |
 | Validation      | Zod                                 |
+| i18n            | i18next + react-i18next             |
 | Logging (main)  | Winston                             |
 | Testing         | Vitest + Testing Library            |
 | Linting         | ESLint + Prettier                   |
@@ -88,6 +89,29 @@ Key renderer directories:
 - Prefer stable, typed data models plus **Zod** parsing over ad hoc string serialization
   when data crosses a boundary (IPC, persistence). Parse into a typed structure once at the
   boundary and work with that structure afterwards.
+
+### Translations (i18n)
+
+The app is localized with **i18next**. Catalogs live in `src/shim/i18n/locales/<locale>.json`
+and are shared by both processes; `src/shim/i18n/index.ts` builds the i18next instances.
+
+- **Never hard-code user-facing text.** Add a key to `en.json` *and* every other catalog, then
+  use `useTranslation()` in the renderer or `t()` from `main/i18n` in the main process.
+- `en.json` is the source of truth. A module augmentation derives `t()`'s key type from it, so
+  an unknown or removed key is a `yarn typecheck` error.
+- `src/shim/i18n/index.test.ts` fails if any catalog is missing a key or has a blank value.
+  That test is the completeness gate – there is no build-time extraction step.
+- Keys are grouped by area (`menu.*`, `settings.*`, `sidebar.*`, `errors.*`) and named for
+  meaning, not for the English wording.
+- Language names in the picker are **autonyms** (the `label`s in `LOCALES`) and stay untranslated.
+  Adding a locale is a `TrufosLocale` member, one `LOCALES` entry, and the catalog file.
+- Menu items with an Electron `role` are localized by the OS – leave them alone.
+- Adding a field to `AppSettings` is a schema-only change: give it a `.default()` in
+  `src/shim/app-settings.ts`. `settings-service.ts` parses preferences on read, so existing user
+  choices are preserved without a migrator.
+
+Translating a not-yet-covered area is a normal PR: wrap its strings, add the keys to both
+catalogs, and update any test that asserted on the English literal.
 
 ## Development Commands
 
