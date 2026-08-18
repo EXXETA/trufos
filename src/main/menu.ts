@@ -33,16 +33,12 @@ export class MenuBuilder {
     });
   }
 
-  private buildEditSubmenu(): MenuItemConstructorOptions[] {
-    return [
-      { role: 'undo' },
-      { role: 'redo' },
-      { type: 'separator' },
-      { role: 'cut' },
-      { role: 'copy' },
-      { role: 'paste' },
-      { role: 'selectAll' },
-    ];
+  private buildAppSettingsMenuItem(): MenuItemConstructorOptions {
+    return {
+      label: 'Settings…',
+      accelerator: 'CmdOrCtrl+,',
+      click: () => this.mainWindow.webContents.send('show-app-settings'),
+    };
   }
 
   private buildViewSubmenu(): MenuItemConstructorOptions[] {
@@ -90,6 +86,8 @@ export class MenuBuilder {
         submenu: [
           { role: 'about' },
           { type: 'separator' },
+          this.buildAppSettingsMenuItem(),
+          { type: 'separator' },
           { role: 'services' },
           { type: 'separator' },
           { role: 'hide' },
@@ -99,7 +97,6 @@ export class MenuBuilder {
           { role: 'quit' },
         ],
       },
-      { label: 'Edit', submenu: this.buildEditSubmenu() },
       { label: 'Collection', submenu: this.buildCollectionSubmenu() },
       { label: 'View', submenu: this.buildViewSubmenu() },
       {
@@ -120,9 +117,14 @@ export class MenuBuilder {
     return [
       {
         label: '&File',
-        submenu: [{ role: 'close' }, { role: 'quit' }],
+        submenu: [
+          { role: 'close' },
+          { type: 'separator' },
+          this.buildAppSettingsMenuItem(),
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
       },
-      { label: '&Edit', submenu: this.buildEditSubmenu() },
       { label: '&Collection', submenu: this.buildCollectionSubmenu() },
       { label: '&View', submenu: this.buildViewSubmenu() },
       { role: 'help', submenu: this.buildHelpSubmenu() },

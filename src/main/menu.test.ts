@@ -79,33 +79,63 @@ describe('MenuBuilder', () => {
     const template = buildTemplate('darwin');
 
     expect(template[0].label).toBe('Trufos');
-    const appRoles = collectStrings(template[0].submenu as MenuItemConstructorOptions[]);
+    const appItems = template[0].submenu as MenuItemConstructorOptions[];
+    const appRoles = collectStrings(appItems);
     expect(appRoles).toEqual(
       expect.arrayContaining(['about', 'services', 'hide', 'hideOthers', 'unhide', 'quit'])
     );
     expect(template.map((item) => item.label ?? item.role)).toEqual([
       'Trufos',
-      'Edit',
       'Collection',
       'View',
       'Window',
       'help',
     ]);
+
+    // Settings… sits right before Services in the Trufos app-menu tab.
+    const settingsIndex = appItems.findIndex((item) => item.label === 'Settings…');
+    const servicesIndex = appItems.findIndex((item) => item.role === 'services');
+    expect(settingsIndex).toBeGreaterThanOrEqual(0);
+    expect(servicesIndex).toBe(settingsIndex + 2); // separator sits between them
   });
 
-  it('builds the default menu with File, Edit, View and Help', () => {
+  it('builds the default menu with File, View, Collection and Help', () => {
     const template = buildTemplate('win32');
 
     expect(template.map((item) => item.label ?? item.role)).toEqual([
       '&File',
-      '&Edit',
       '&Collection',
       '&View',
       'help',
     ]);
-    const fileRoles = collectStrings(template[0].submenu as MenuItemConstructorOptions[]);
-    expect(fileRoles).toEqual(['close', 'quit']);
+    const fileItems = collectStrings(template[0].submenu as MenuItemConstructorOptions[]);
+    expect(fileItems).toEqual(['close', 'Settings…', 'quit']);
   });
+
+  it('no longer contains an Edit menu on any platform', () => {
+    for (const platform of ['darwin', 'win32', 'linux'] as const) {
+      const strings = collectStrings(buildTemplate(platform));
+      expect(strings).not.toContain('Edit');
+      expect(strings).not.toContain('&Edit');
+      expect(strings).not.toContain('undo');
+      expect(strings).not.toContain('redo');
+      expect(strings).not.toContain('selectAll');
+    }
+  });
+
+  it.each(['darwin', 'win32'] as const)(
+    'opens the app settings modal from the %s menu via CmdOrCtrl+,',
+    (platform) => {
+      const template = buildTemplate(platform);
+      // Settings… lives in the Trufos app-menu tab on macOS, and in &File elsewhere.
+      const items = template[0].submenu as MenuItemConstructorOptions[];
+
+      const settingsItem = items.find((item) => item.label === 'Settings…')!;
+      expect(settingsItem.accelerator).toBe('CmdOrCtrl+,');
+      (settingsItem.click as () => void)();
+      expect(sendMock).toHaveBeenCalledWith('show-app-settings');
+    }
+  );
 
   it.each(['darwin', 'win32'] as const)(
     'includes Reload and DevTools on %s only in development',
