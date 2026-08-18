@@ -32,6 +32,8 @@ export interface RendererEventService {
 
   on(event: 'show-collection-settings', listener: () => void): this;
 
+  on(event: 'show-app-settings', listener: () => void): this;
+
   /**
    * The first argument is the Electron IPC event, which this listener does not need; the payload is
    * the second argument.
