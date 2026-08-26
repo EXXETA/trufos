@@ -7,7 +7,7 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCollectionStore } from '@/state/collectionStore';
 import { showError } from '@/error/errorHandler';
 import { toast } from '@/components/ui/sonner';
-import { sanitizeTitle } from 'shim/fs';
+import { sanitizeTitle } from 'shim/string';
 
 const eventService = RendererEventService.instance;
 
@@ -29,7 +29,7 @@ export const ExportEditor = () => {
     if (dirPath == null || isExporting) return;
     try {
       const { canceled, filePath } = await eventService.showSaveDialog({
-        defaultPath: `${sanitizeTitle(title) || 'collection'}.zip`,
+        defaultPath: `${sanitizeTitle(title)}.zip`,
         filters: [{ name: 'Zip Archive', extensions: ['zip'] }],
       });
       if (canceled || filePath == null) return;

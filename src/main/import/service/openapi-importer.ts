@@ -1,36 +1,57 @@
 import { dereference } from '@readme/openapi-parser';
 import { CollectionImporter } from './import-service';
+import { importSecurity, ImportedSecurity } from './openapi-security';
+import { createExampleGenerator, ExampleGenerator, ExampleSchema } from './schema-example';
+import {
+  completeBaseUrl,
+  DEFAULT_BASE_URL,
+  getEnvironmentKey,
+  getSwaggerBaseUrl,
+  joinUrl,
+  resolveServerUrl,
+} from './openapi-url';
+import {
+  getParameters,
+  getTitle,
+  importHeaders,
+  importQueryParams,
+  isOpenApi3,
+  OpenApiDocument,
+  Operation,
+  Parameter,
+  PathItem,
+  stringifyExample,
+  stringifyParameterValue,
+} from './openapi-values';
 import { Collection as TrufosCollection } from 'shim/objects/collection';
 import { Folder as TrufosFolder } from 'shim/objects/folder';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
-import { TrufosHeader } from 'shim/objects/headers';
-import {
-  AuthorizationInformation,
-  AuthorizationType,
-  OAuth2ClientAuthenticationMethod,
-  OAuth2Method,
-} from 'shim';
+import { sanitizeVariableName } from 'shim/objects/variables';
+import { uniqueName } from 'shim/string';
+import { AuthorizationType } from 'shim';
 import { randomUUID } from 'node:crypto';
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 const JSON_MIME_TYPE = 'application/json';
-const DEFAULT_BASE_URL = 'http://localhost';
 
-type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;
-type OpenApi3Document = OpenAPIV3.Document | OpenAPIV3_1.Document;
-type OpenApi3Operation = OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject;
-type OpenApi3Parameter = OpenAPIV3.ParameterObject | OpenAPIV3_1.ParameterObject;
+/** The collection variable that holds the server URL all imported requests are sent to. */
+const BASE_URL_VARIABLE = 'baseUrl';
+
+/** The base URL that every imported request is built against: a template, not a URL. */
+const BASE_URL_TEMPLATE = `{{${BASE_URL_VARIABLE}}}`;
+
+/** Matches a path template parameter, e.g. the `{appId}` in `/apps/{appId}/versions`. */
+const PATH_PARAMETER_REGEX = /\{([^{}/]*)\}/g;
+
 type OpenApi3RequestBody = OpenAPIV3.RequestBodyObject | OpenAPIV3_1.RequestBodyObject;
-type OpenApi3SecurityScheme = OpenAPIV3.SecuritySchemeObject | OpenAPIV3_1.SecuritySchemeObject;
-type OAuth2Flow = {
-  authorizationUrl?: string;
-  tokenUrl?: string;
-};
 
-const HTTP_METHODS = new Set(Object.values(RequestMethod).map((method) => method.toLowerCase()));
+/** Maps the lowercase method keys of OpenAPI path items to the request methods of Trufos. */
+const HTTP_METHODS = new Map(
+  Object.values(RequestMethod).map((method) => [method.toLowerCase(), method])
+);
 
 export class OpenApiImporter implements CollectionImporter {
   public async importCollection(srcFilePath: string) {
@@ -38,7 +59,25 @@ export class OpenApiImporter implements CollectionImporter {
       dereference: { circular: 'ignore' },
     })) as OpenApiDocument;
 
-    const collection: TrufosCollection = {
+    return new OpenApiImport(document).import();
+  }
+}
+
+/**
+ * One import run: the assembly of the collection, its folders, variables and environments. The
+ * document and the collection being built live here as fields, so that no method has to thread
+ * them through its signature; everything stateless lives in the openapi-* modules next door.
+ * Instances are single-use.
+ */
+class OpenApiImport {
+  private readonly collection: TrufosCollection;
+  private readonly foldersByTag = new Map<string, TrufosFolder>();
+  private readonly pathVariableNames = new Map<string, string | undefined>();
+  private readonly generateExample: ExampleGenerator;
+  private readonly documentSecurity?: ImportedSecurity;
+
+  constructor(private readonly document: OpenApiDocument) {
+    this.collection = {
       id: randomUUID(),
       type: 'collection',
       lastModified: Date.now(),
@@ -48,133 +87,173 @@ export class OpenApiImporter implements CollectionImporter {
       variables: {},
       environments: {},
     };
-
-    this.importPaths(collection, document);
-    return collection;
+    this.generateExample = createExampleGenerator(document);
+    this.documentSecurity = importSecurity(document, document.security);
   }
 
-  private importPaths(collection: TrufosCollection, document: OpenApiDocument) {
-    const foldersByTag = new Map<string, TrufosFolder>();
-    const baseUrl = this.getBaseUrl(document);
+  public import(): TrufosCollection {
+    // the document security applies to every operation that does not bring its own, so it becomes
+    // the authorization of the collection and the operations inherit it
+    this.collection.auth = this.documentSecurity?.auth;
+    this.importServers();
 
-    for (const [pathTemplate, pathItem] of Object.entries(document.paths ?? {})) {
+    for (const [pathTemplate, pathItem] of Object.entries(this.document.paths ?? {})) {
       if (pathItem == null) continue;
 
-      for (const [method, operationCandidate] of Object.entries(pathItem)) {
-        if (!this.isOperation(method, operationCandidate)) continue;
+      for (const [key, operationCandidate] of Object.entries(pathItem)) {
+        const method = HTTP_METHODS.get(key);
+        if (method == null || !isOperation(operationCandidate)) continue;
 
-        const request = this.importOperation(
-          collection.id,
-          baseUrl,
-          pathTemplate,
-          method as Lowercase<RequestMethod>,
-          pathItem,
-          operationCandidate,
-          document
-        );
+        const request = this.importOperation(pathTemplate, method, pathItem, operationCandidate);
         const firstTag = operationCandidate.tags?.[0];
         if (firstTag == null || firstTag.trim() === '') {
-          collection.children.push(request);
+          this.collection.children.push(request);
           continue;
         }
 
-        const folder = this.getOrCreateFolder(collection, foldersByTag, firstTag);
+        const folder = this.getOrCreateFolder(firstTag);
         request.parentId = folder.id;
         folder.children.push(request);
       }
     }
+
+    return this.collection;
   }
 
   private importOperation(
-    parentId: string,
-    baseUrl: string,
     pathTemplate: string,
-    method: Lowercase<RequestMethod>,
-    pathItem: OpenAPIV2.PathItemObject | OpenAPIV3.PathItemObject | OpenAPIV3_1.PathItemObject,
-    operation: OpenAPIV2.OperationObject | OpenApi3Operation,
-    document: OpenApiDocument
+    method: RequestMethod,
+    pathItem: PathItem,
+    operation: Operation
   ): TrufosRequest {
-    const parameters = this.getParameters(pathItem, operation);
-    const query = parameters
-      .filter((parameter) => parameter.in === 'query')
-      .map((parameter) => ({
-        key: parameter.name,
-        value: this.stringifyParameterValue(parameter) ?? '',
-        isActive: true,
-      }));
+    const parameters = getParameters(pathItem, operation);
+
+    // an operation without security of its own inherits the one of the document
+    const inheritsSecurity = operation.security == null;
+    const security = inheritsSecurity
+      ? this.documentSecurity
+      : importSecurity(this.document, operation.security);
 
     return {
       id: randomUUID(),
-      parentId,
+      parentId: this.collection.id,
       type: 'request',
       lastModified: Date.now(),
-      title:
-        operation.summary || operation.operationId || `${method.toUpperCase()} ${pathTemplate}`,
+      title: getTitle(operation, pathTemplate),
       url: {
-        ...parseUrl(this.joinUrl(baseUrl, pathTemplate)),
-        query,
+        ...parseUrl(joinUrl(BASE_URL_TEMPLATE, this.importPathTemplate(pathTemplate, parameters))),
+        query: importQueryParams(parameters).concat(security?.query ?? []),
       },
-      headers: this.importHeaders(parameters),
-      method: method.toUpperCase() as RequestMethod,
+      headers: importHeaders(parameters).concat(security?.headers ?? []),
+      method,
       body: this.importBody(operation),
-      auth: this.importAuth(document, operation),
+      auth: inheritsSecurity ? { type: AuthorizationType.INHERIT } : security?.auth,
     };
   }
 
-  private getOrCreateFolder(
-    collection: TrufosCollection,
-    foldersByTag: Map<string, TrufosFolder>,
-    tag: string
-  ) {
-    let folder = foldersByTag.get(tag);
+  /**
+   * Converts the OpenAPI path template syntax `{appId}` into the Trufos template variable syntax
+   * `{{appId}}` and declares each parameter as a collection variable, so that the templates in
+   * the imported URL resolve to something. The variables are derived from the path template rather
+   * than from the parameter list, because specs in the wild use parameters they never declare.
+   * Already known variables are kept, as the same parameter usually appears in many operations.
+   * Parameters that cannot be a variable stay literal.
+   * @param pathTemplate the path of the operation, e.g. `/apps/{appId}/versions`
+   * @param parameters the parameters of the operation, used as source of values and descriptions
+   * @returns the path with all of its parameters in Trufos template variable syntax
+   */
+  private importPathTemplate(pathTemplate: string, parameters: Parameter[]): string {
+    return pathTemplate.replace(PATH_PARAMETER_REGEX, (parameter, parameterName: string) => {
+      const name = this.getPathVariableName(parameterName);
+      if (name == null) return parameter;
+
+      if (this.collection.variables[name] == null) {
+        const declared = parameters.find(
+          (candidate) => candidate.in === 'path' && candidate.name === parameterName
+        );
+        this.collection.variables[name] = {
+          value: (declared == null ? undefined : stringifyParameterValue(declared)) ?? '',
+          description: declared?.description,
+        };
+      }
+
+      return `{{${name}}}`;
+    });
+  }
+
+  /**
+   * Maps a path parameter to the variable it is imported as. Names that Trufos does not allow are
+   * sanitized, e.g. `app.id` becomes `app-id`; distinct parameters that sanitize to the same name
+   * get a counter suffix, so that they never silently share one variable. The mapping is cached,
+   * because URL rewriting and variable declaration must agree on it across all operations.
+   * @param parameterName the name of the path parameter, e.g. `app.id`
+   * @returns the variable name, or undefined if the parameter has to stay literal
+   */
+  private getPathVariableName(parameterName: string): string | undefined {
+    if (this.pathVariableNames.has(parameterName)) {
+      return this.pathVariableNames.get(parameterName);
+    }
+
+    const baseName = sanitizeVariableName(parameterName);
+    if (baseName == null) {
+      logger.warn(`Path parameter {${parameterName}} stays literal in imported URLs`);
+      this.pathVariableNames.set(parameterName, undefined);
+      return undefined;
+    }
+
+    // unique within the whole variable namespace, so that a parameter can never annex a variable
+    // that someone else owns, e.g. the baseUrl variable holding the server URL
+    const name = uniqueName(baseName, (candidate) => this.collection.variables[candidate] != null);
+    this.pathVariableNames.set(parameterName, name);
+    return name;
+  }
+
+  private getOrCreateFolder(tag: string) {
+    let folder = this.foldersByTag.get(tag);
     if (folder != null) return folder;
 
     folder = {
       id: randomUUID(),
-      parentId: collection.id,
+      parentId: this.collection.id,
       type: 'folder',
       lastModified: Date.now(),
       title: tag,
       children: [],
     };
-    foldersByTag.set(tag, folder);
-    collection.children.push(folder);
+    this.foldersByTag.set(tag, folder);
+    this.collection.children.push(folder);
     return folder;
   }
 
-  private getBaseUrl(document: OpenApiDocument) {
-    if (this.isOpenApi3(document)) {
-      return this.completeBaseUrl(this.resolveServerUrl(document.servers?.[0]));
+  /**
+   * Imports the servers of the document. Requests are built against a {@link BASE_URL_VARIABLE}
+   * variable instead of the server URL itself, so that the whole collection can be pointed at
+   * another installation by editing one value. Documents that list more than one server get an
+   * environment per server on top, which makes switching between them a single click.
+   */
+  private importServers() {
+    const servers = isOpenApi3(this.document)
+      ? (this.document.servers ?? []).map((server) => ({
+          url: completeBaseUrl(resolveServerUrl(server)),
+          description: server.description,
+        }))
+      : [{ url: getSwaggerBaseUrl(this.document), description: undefined }];
+
+    this.collection.variables[BASE_URL_VARIABLE] = { value: servers[0]?.url ?? DEFAULT_BASE_URL };
+    if (servers.length < 2) return;
+
+    for (const server of servers) {
+      const key = uniqueName(
+        getEnvironmentKey(server),
+        (candidate) => this.collection.environments[candidate] !== undefined
+      );
+      this.collection.environments[key] = {
+        variables: { [BASE_URL_VARIABLE]: { value: server.url } },
+      };
     }
-
-    const scheme = document.schemes?.[0] ?? 'https';
-    const host = document.host ?? '';
-    const basePath = document.basePath ?? '';
-    return this.completeBaseUrl(host === '' ? basePath : `${scheme}://${host}${basePath}`);
   }
 
-  private getParameters(
-    pathItem: OpenAPIV2.PathItemObject | OpenAPIV3.PathItemObject | OpenAPIV3_1.PathItemObject,
-    operation: OpenAPIV2.OperationObject | OpenApi3Operation
-  ) {
-    return [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])].filter(
-      (parameter) => parameter != null && 'name' in parameter && 'in' in parameter
-    ) as Array<OpenAPIV2.ParameterObject | OpenApi3Parameter>;
-  }
-
-  private importHeaders(
-    parameters: Array<OpenAPIV2.ParameterObject | OpenApi3Parameter>
-  ): TrufosHeader[] {
-    return parameters
-      .filter((parameter) => parameter.in === 'header')
-      .map((parameter) => ({
-        key: parameter.name,
-        value: this.stringifyParameterValue(parameter) ?? '',
-        isActive: true,
-      }));
-  }
-
-  private importBody(operation: OpenAPIV2.OperationObject | OpenApi3Operation): RequestBody {
+  private importBody(operation: Operation): RequestBody {
     if ('requestBody' in operation && operation.requestBody != null) {
       return this.importOpenApi3Body(operation.requestBody as OpenApi3RequestBody);
     }
@@ -186,7 +265,9 @@ export class OpenApiImporter implements CollectionImporter {
       return {
         type: RequestBodyType.TEXT,
         mimeType: JSON_MIME_TYPE,
-        text: this.stringifyExample(bodyParameter.example),
+        text: stringifyExample(
+          bodyParameter.example ?? this.generateExample(bodyParameter.schema as ExampleSchema)
+        ),
       };
     }
 
@@ -205,153 +286,17 @@ export class OpenApiImporter implements CollectionImporter {
     return {
       type: RequestBodyType.TEXT,
       mimeType,
-      text: this.stringifyExample(mediaType?.example),
+      text: stringifyExample(
+        mediaType?.example ?? this.generateExample(mediaType?.schema as ExampleSchema | undefined)
+      ),
     };
   }
+}
 
-  private importAuth(
-    document: OpenApiDocument,
-    operation: OpenAPIV2.OperationObject | OpenApi3Operation
-  ): AuthorizationInformation | undefined {
-    const securityRequirement = operation.security?.[0] ?? document.security?.[0];
-    const schemeName = Object.keys(securityRequirement ?? {})[0];
-    if (schemeName == null) return;
-
-    const scheme = this.getSecurityScheme(document, schemeName);
-    if (scheme == null) return;
-
-    if (scheme.type === 'http' && scheme.scheme?.toLowerCase() === 'basic') {
-      return { type: AuthorizationType.BASIC, username: '', password: '' };
-    }
-    if (scheme.type === 'http' && scheme.scheme?.toLowerCase() === 'bearer') {
-      return { type: AuthorizationType.BEARER, token: '' };
-    }
-    if (scheme.type === 'basic') {
-      return { type: AuthorizationType.BASIC, username: '', password: '' };
-    }
-    if (scheme.type === 'oauth2') {
-      return this.importOAuth2Auth(scheme, securityRequirement?.[schemeName] ?? []);
-    }
-  }
-
-  private getSecurityScheme(document: OpenApiDocument, schemeName: string) {
-    if (this.isOpenApi3(document)) {
-      return document.components?.securitySchemes?.[schemeName] as OpenApi3SecurityScheme;
-    }
-
-    return document.securityDefinitions?.[schemeName];
-  }
-
-  private importOAuth2Auth(
-    scheme: OpenAPIV2.SecuritySchemeObject | OpenApi3SecurityScheme,
-    scopes: string[]
-  ): AuthorizationInformation | undefined {
-    const flow = this.getOAuth2Flow(scheme);
-    if (flow == null) return;
-
-    const base = {
-      type: AuthorizationType.OAUTH2 as const,
-      issuerUrl: '',
-      tokenUrl: flow.tokenUrl ?? '',
-      clientId: '',
-      clientSecret: '',
-      scope: scopes.join(' '),
-      clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
-    };
-
-    if (flow.authorizationUrl != null) {
-      return {
-        ...base,
-        method: OAuth2Method.AUTHORIZATION_CODE,
-        authorizationUrl: flow.authorizationUrl,
-        callbackUrl: '',
-      };
-    }
-
-    return {
-      ...base,
-      method: OAuth2Method.CLIENT_CREDENTIALS,
-    };
-  }
-
-  private getOAuth2Flow(
-    scheme: OpenAPIV2.SecuritySchemeObject | OpenApi3SecurityScheme
-  ): OAuth2Flow | undefined {
-    if ('flows' in scheme && scheme.flows != null) {
-      return (
-        scheme.flows.authorizationCode ??
-        scheme.flows.clientCredentials ??
-        scheme.flows.password ??
-        scheme.flows.implicit
-      );
-    }
-
-    if ('tokenUrl' in scheme || 'authorizationUrl' in scheme) {
-      return scheme;
-    }
-  }
-
-  private stringifyParameterValue(parameter: OpenAPIV2.ParameterObject | OpenApi3Parameter) {
-    if ('example' in parameter && parameter.example != null) {
-      return this.stringifyPrimitive(parameter.example);
-    }
-    if ('schema' in parameter && parameter.schema != null) {
-      const schema = parameter.schema as { default?: unknown; example?: unknown };
-      return this.stringifyPrimitive(schema.example ?? schema.default);
-    }
-
-    return undefined;
-  }
-
-  private stringifyExample(value: unknown) {
-    if (value == null) return undefined;
-    return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-  }
-
-  private stringifyPrimitive(value: unknown) {
-    if (value == null) return undefined;
-    return typeof value === 'string' ? value : String(value);
-  }
-
-  private resolveServerUrl(server?: OpenAPIV3.ServerObject | OpenAPIV3_1.ServerObject) {
-    return Object.entries(server?.variables ?? {}).reduce((url, [key, variable]) => {
-      return url.replaceAll(`{${key}}`, variable.default);
-    }, server?.url ?? '');
-  }
-
-  private completeBaseUrl(url: string) {
-    const trimmed = url.trim();
-    if (trimmed === '') return DEFAULT_BASE_URL;
-    if (URL.canParse(trimmed)) return this.removeTrailingSlash(trimmed);
-    if (trimmed.startsWith('//')) return this.removeTrailingSlash(`https:${trimmed}`);
-    if (trimmed.startsWith('/')) return this.removeTrailingSlash(`${DEFAULT_BASE_URL}${trimmed}`);
-
-    const firstSegment = trimmed.split('/')[0];
-    if (firstSegment.includes('.') || firstSegment.includes(':')) {
-      return this.removeTrailingSlash(`https://${trimmed}`);
-    }
-
-    return this.removeTrailingSlash(`${DEFAULT_BASE_URL}/${trimmed}`);
-  }
-
-  private joinUrl(baseUrl: string, pathTemplate: string) {
-    if (URL.canParse(pathTemplate)) return pathTemplate;
-    const normalizedPath = pathTemplate.startsWith('/') ? pathTemplate : `/${pathTemplate}`;
-    return `${this.removeTrailingSlash(baseUrl)}${normalizedPath}`;
-  }
-
-  private removeTrailingSlash(value: string) {
-    return value.replace(/\/+$/, '');
-  }
-
-  private isOpenApi3(document: OpenApiDocument): document is OpenApi3Document {
-    return 'openapi' in document;
-  }
-
-  private isOperation(
-    method: string,
-    candidate: unknown
-  ): candidate is OpenAPIV2.OperationObject | OpenApi3Operation {
-    return HTTP_METHODS.has(method) && candidate != null && typeof candidate === 'object';
-  }
+/**
+ * @param candidate the value of an HTTP method key of a path item, an operation object per spec
+ * @returns true if the candidate is an object, guarding against malformed documents
+ */
+function isOperation(candidate: unknown): candidate is Operation {
+  return candidate != null && typeof candidate === 'object';
 }

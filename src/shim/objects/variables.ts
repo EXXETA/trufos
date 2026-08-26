@@ -3,6 +3,20 @@ import { z } from 'zod';
 /** Regex for variable names, e.g. for collection variables */
 export const VARIABLE_NAME_REGEX = /^[a-zA-Z_]+(-?[0-9a-zA-Z_]+)*$/;
 
+/**
+ * Sanitizes a name into a valid variable name, e.g. when importing variables whose names Trufos
+ * does not allow. Invalid characters become dashes, so that `app.id` becomes `app-id`.
+ * @param name the name to sanitize
+ * @returns the sanitized name, or undefined if nothing usable remains
+ */
+export function sanitizeVariableName(name: string): string | undefined {
+  const sanitized = name
+    .replace(/[^0-9a-zA-Z_]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/^([0-9])/, '_$1');
+  return VARIABLE_NAME_REGEX.test(sanitized) ? sanitized : undefined;
+}
+
 /** A variable object. Either a user defined variable or a system variable. */
 export const VariableObject = z.object({
   /** The value of the variable. Might change on each call for dynamic variables */

@@ -10,7 +10,7 @@ import { RequestMethod } from 'shim/objects/request-method';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateDefaultCollection } from './default-collection';
-import { sanitizeTitle } from 'shim/fs';
+import { sanitizeTitle } from 'shim/string';
 import { CollectionInfoFile, RequestInfoFile, GIT_IGNORE_FILE_NAME } from './info-files/latest';
 import { PersistenceService } from './persistence-service';
 import { DRAFT_DIR_NAME, ORDER_FILE_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
@@ -161,6 +161,36 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, folder.title, request.title))).toBe(false);
   });
 
+  it('moveChild() should not move onto a sibling directory with the same name', async () => {
+    // Arrange: the folder already holds a request whose directory name the moved request would get
+    const folder = getExampleFolder(collection.id);
+    const request = getExampleRequest(collection.id);
+    const sibling = getExampleRequest(folder.id);
+    collection.children.push(folder, request);
+    folder.children.push(sibling);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act
+    await persistenceService.moveChild(request, collection, folder);
+
+    // Assert: both requests exist side by side, the moved one with a suffixed directory name
+    const folderDirPath = path.join(collection.dirPath, folder.title);
+    expect(await exists(path.join(folderDirPath, sibling.title))).toBe(true);
+    expect(await exists(path.join(folderDirPath, `${request.title}-2`))).toBe(true);
+
+    // Assert: the request stays saveable at its new location
+    await persistenceService.saveRequest(request);
+    expect(
+      await exists(
+        path.join(
+          folderDirPath,
+          `${request.title}-2`,
+          persistenceService.getInfoFileName('request')
+        )
+      )
+    ).toBe(true);
+  });
+
   it('rename() should rename the directory of a folder', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
@@ -254,13 +284,39 @@ describe('PersistenceService', () => {
     folderB.title = 'FolderB';
     collection.children.push(folderA, folderB);
     await persistenceService.saveCollection(collection, true);
-    const expectedDirPath = path.join(collection.dirPath, 'folderb-2');
+    const expectedDirPath = path.join(collection.dirPath, `${sanitizeTitle('FolderB')}-2`);
 
     // Act
     await persistenceService.rename(folderA, 'FolderB');
 
     // Assert
     expect(await exists(expectedDirPath)).toBe(true);
+  });
+
+  it('saveRequest() should prefer the given text body over an inline one', async () => {
+    // Arrange: a collection imported by an older version has its body inline and no body file
+    const request = getExampleRequest(collection.id);
+    request.body = { type: RequestBodyType.TEXT, mimeType: 'application/json', text: 'inline' };
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection);
+
+    // Act: the editor saves the text that the user actually typed
+    await persistenceService.saveRequest(request, 'edited');
+
+    // Assert
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('edited');
+    // saving reads the request, it does not rewrite it — the caller keeps the object it passed
+    expect(request.body).toEqual({
+      type: RequestBodyType.TEXT,
+      mimeType: 'application/json',
+      text: 'inline',
+    });
+    // the info file never repeats the text: the outdated inline body cannot resurrect from disk
+    const info = JSON.parse(
+      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
+    ) as RequestInfoFile;
+    expect(info.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
   });
 
   it('saveRequest() should save the metadata of the request', async () => {
@@ -341,6 +397,58 @@ describe('PersistenceService', () => {
     expect(secrets.variables).toEqual(
       Object.fromEntries(Object.entries(variables).filter(([, v]) => v.secret))
     );
+  });
+
+  it('saveCollection(recursive=true) should write the inline body of an imported request to its body file', async () => {
+    // Arrange: importers deliver the body inline, because they never touch the file system
+    const text = '{\n  "name": ""\n}';
+    const request = getExampleRequest(collection.id);
+    request.body = { type: RequestBodyType.TEXT, mimeType: 'application/json', text };
+    collection.children.push(request);
+
+    // Act
+    await persistenceService.saveCollection(collection, true);
+
+    // Assert: the body file is the canonical form, so the info file must not repeat the text
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe(text);
+    const info = JSON.parse(
+      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
+    ) as RequestInfoFile;
+    expect(info.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
+
+    // Assert: the request is readable again, which is what the editor and the sending both use
+    const stream = await persistenceService.loadTextBodyOfRequest(request);
+    expect(stream).toBeDefined();
+    expect(await streamToString(stream!)).toBe(text);
+  });
+
+  it('saveCollection(recursive=true) should keep the inline text of form data fields', async () => {
+    // Arrange: form data has no body file, so its field texts must stay in the info file
+    const request = getExampleRequest(collection.id);
+    request.body = {
+      type: RequestBodyType.FORM_DATA,
+      fields: [
+        {
+          key: 'name',
+          isActive: true,
+          value: { type: RequestBodyType.TEXT, mimeType: 'text/plain', text: 'Milo' },
+        },
+      ],
+    };
+    collection.children.push(request);
+
+    // Act
+    await persistenceService.saveCollection(collection, true);
+
+    // Assert
+    const info = JSON.parse(
+      await readFile(
+        path.join(collection.dirPath, request.title, persistenceService.getInfoFileName('request')),
+        'utf-8'
+      )
+    ) as RequestInfoFile;
+    expect(info.body).toEqual(request.body);
   });
 
   it('saveCollection(recursive=true) should create .gitignore when directory does not exist', async () => {
@@ -437,6 +545,29 @@ describe('PersistenceService', () => {
     expect(await exists(expectedFirstDirPath)).toBe(true);
     expect(await exists(expectedSecondDirPath)).toBe(true);
     expect(await exists(expectedThirdDirPath)).toBe(true);
+  });
+
+  it('saveRequest() should shorten directory names of very long titles', async () => {
+    // Arrange: titles as long as e.g. an OpenAPI operation summary containing the whole endpoint
+    // documentation. Both share a prefix, so their shortened directory names collide.
+    const longTitle = `Takes native app file from request and creates new appstore application. ${'x'.repeat(300)}`;
+    const firstRequest = { ...getExampleRequest(collection.id), title: longTitle };
+    const secondRequest = { ...getExampleRequest(collection.id), title: longTitle };
+    await persistenceService.saveCollection(collection, true);
+
+    // Act
+    collection.children.push(firstRequest, secondRequest);
+    await persistenceService.saveRequest(firstRequest);
+    await persistenceService.saveRequest(secondRequest);
+
+    // Assert
+    const dirNames = (await fs.readdir(collection.dirPath, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    expect(dirNames).toHaveLength(2);
+    for (const dirName of dirNames) {
+      expect(Buffer.byteLength(dirName)).toBeLessThanOrEqual(255);
+    }
   });
 
   it('saveFolder() should save the metadata of the folder', async () => {

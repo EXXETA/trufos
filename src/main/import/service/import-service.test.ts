@@ -5,6 +5,8 @@ import { PersistenceService } from 'main/persistence/service/persistence-service
 import { TrufosRequest } from 'shim/objects/request';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { FALLBACK_TITLE_DIR_NAME } from 'shim/string';
 import { vi, describe, it, expect } from 'vitest';
 
 const POSTMAN_COLLECTION =
@@ -113,6 +115,110 @@ describe('ImportService', () => {
       mimeType: 'text/plain',
       text: 'blahblah',
       type: 'text',
+    });
+  });
+
+  describe('collection directory', () => {
+    async function importInto(targetDirPath: string, title?: string) {
+      const importService = ImportService.instance;
+      await fs.writeFile(POSTMAN_COLLECTION_FILE_PATH, POSTMAN_COLLECTION);
+      // @ts-expect-error saveCollection mock returns null but type expects void
+      vi.mocked(PersistenceService.instance.saveCollection).mockImplementation(async () => null);
+
+      const result = await importService.importCollection(
+        POSTMAN_COLLECTION_FILE_PATH,
+        targetDirPath,
+        'Postman',
+        title
+      );
+      return result.collection.dirPath;
+    }
+
+    it('uses an empty target directory directly', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-empty-'));
+
+      expect(await importInto(targetDirPath)).toBe(targetDirPath);
+    });
+
+    it('uses a target directory that does not exist yet directly', async () => {
+      const targetDirPath = path.join(tmpdir(), `import-missing-${randomUUID()}`);
+
+      expect(await importInto(targetDirPath)).toBe(targetDirPath);
+    });
+
+    it('creates a subdirectory when the target directory is already in use', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-used-'));
+      await fs.writeFile(path.join(targetDirPath, 'some-other-file.txt'), '');
+
+      expect(await importInto(targetDirPath)).toBe(
+        path.join(targetDirPath, 'http-status-messages')
+      );
+    });
+
+    it('suffixes the subdirectory when its name is already taken', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-collision-'));
+      await fs.mkdir(path.join(targetDirPath, 'http-status-messages'));
+      await fs.writeFile(path.join(targetDirPath, 'http-status-messages', 'collection.json'), '{}');
+
+      expect(await importInto(targetDirPath)).toBe(
+        path.join(targetDirPath, 'http-status-messages-2')
+      );
+    });
+
+    /** Fails the save after writing part of the collection, like a full disk would. */
+    function mockPartiallyFailingSave() {
+      vi.mocked(PersistenceService.instance.saveCollection).mockImplementationOnce(
+        async (collection) => {
+          await fs.mkdir(path.join(collection.dirPath, 'half-imported'), { recursive: true });
+          throw new Error('disk full');
+        }
+      );
+    }
+
+    it('leaves no half-imported directory behind when saving fails', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-fail-'));
+      await fs.writeFile(path.join(targetDirPath, 'some-other-file.txt'), '');
+      await fs.writeFile(POSTMAN_COLLECTION_FILE_PATH, POSTMAN_COLLECTION);
+      mockPartiallyFailingSave();
+
+      await expect(
+        ImportService.instance.importCollection(
+          POSTMAN_COLLECTION_FILE_PATH,
+          targetDirPath,
+          'Postman'
+        )
+      ).rejects.toThrow('disk full');
+
+      // neither the collection directory nor its staging directory survive the failure
+      expect(await fs.readdir(targetDirPath)).toEqual(['some-other-file.txt']);
+    });
+
+    it('leaves a directly used target directory untouched when saving fails', async () => {
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-fail-direct-'));
+      await fs.writeFile(POSTMAN_COLLECTION_FILE_PATH, POSTMAN_COLLECTION);
+      mockPartiallyFailingSave();
+
+      await expect(
+        ImportService.instance.importCollection(
+          POSTMAN_COLLECTION_FILE_PATH,
+          targetDirPath,
+          'Postman'
+        )
+      ).rejects.toThrow('disk full');
+
+      // the directory the user picked is restored, only the half-imported content is gone
+      expect(await fs.readdir(targetDirPath)).toEqual([]);
+    });
+
+    it('never writes into the used target directory itself, even for non-Latin titles', async () => {
+      // an all-non-Latin title sanitizes to the fallback name instead of an empty string, which
+      // would make the subdirectory path collapse to the target directory holding other data
+      const targetDirPath = await fs.mkdtemp(path.join(tmpdir(), 'import-cyrillic-'));
+      await fs.writeFile(path.join(targetDirPath, 'some-other-file.txt'), '');
+
+      expect(await importInto(targetDirPath, 'Получить приложения')).toBe(
+        path.join(targetDirPath, FALLBACK_TITLE_DIR_NAME)
+      );
     });
   });
 

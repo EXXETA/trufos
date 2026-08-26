@@ -2,7 +2,7 @@ import { TrufosObject } from 'shim/objects';
 import { omit, split } from 'main/util/object-util';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
-import { TrufosRequest } from 'shim/objects/request';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { VariableMap } from 'shim/objects/variables';
 import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-4-0';
 import { SettingsService } from '../settings-service';
@@ -24,8 +24,11 @@ export function toInfoFile(object: TrufosObject): InfoFile {
   }; // this is a shallow copy which has id and title on top of the JSON
 
   switch (infoFile.type) {
-    case 'request':
-      return omit(infoFile, 'type', 'lastModified', 'parentId', 'draft');
+    case 'request': {
+      const request = omit(infoFile, 'type', 'lastModified', 'parentId', 'draft');
+      if (request.body.type === RequestBodyType.TEXT) delete request.body.text;
+      return request;
+    }
     case 'collection':
       return omit(infoFile, 'type', 'lastModified', 'isDefault', 'dirPath', 'children');
     case 'folder':

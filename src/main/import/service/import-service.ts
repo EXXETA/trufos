@@ -5,7 +5,9 @@ import { PostmanImporter } from './postman-importer';
 import { OpenApiImporter } from './openapi-importer';
 import { BrunoImporter } from './bruno-importer';
 import type { ImportResult, ImportStrategy, ImportWarning } from 'shim/event-service';
-import { sanitizeTitle } from 'shim/fs';
+import { sanitizeTitle, uniqueNameAsync } from 'shim/string';
+import { exists, isEmpty } from 'main/util/fs-util';
+import fs from 'node:fs/promises';
 import path from 'path';
 
 export interface CollectionImporter {
@@ -64,11 +66,48 @@ export class ImportService {
 
     // set directory
     collection.title = title || collection.title;
-    collection.dirPath = path.join(targetDirPath, sanitizeTitle(collection.title));
+    const dirPath = await this.getCollectionDirPath(targetDirPath, collection.title);
+    collection.dirPath = dirPath;
+    const dirExistedBefore = await exists(dirPath);
 
-    // save on file system
+    // serialize onto FS
+    try {
+      await persistenceService.saveCollection(collection, true);
+    } catch (error) {
+      await fs.rm(dirPath, { recursive: true, force: true }).catch(() => {});
+      if (dirExistedBefore) await fs.mkdir(dirPath, { recursive: true }).catch(() => {});
+      throw error;
+    }
+
     logger.info('Successfully imported collection:', collection);
-    await persistenceService.saveCollection(collection, true);
     return { collection, warnings };
+  }
+
+  /**
+   * Determines the directory the imported collection is written to. An empty or missing target
+   * directory becomes the collection directory itself, because nesting another directory inside
+   * a directory that the user picked for this very import would not be useful. A used target
+   * directory gets a subdirectory named after the collection, suffixed with a counter if that
+   * name is taken, so that no existing data is ever overwritten.
+   * @param targetDirPath the target directory of the import
+   * @param title the title of the imported collection
+   * @returns the directory to write the collection to, empty or not existing yet
+   */
+  private async getCollectionDirPath(targetDirPath: string, title: string) {
+    if (await this.isUsableCollectionDir(targetDirPath)) return targetDirPath;
+
+    const dirName = await uniqueNameAsync(
+      sanitizeTitle(title),
+      async (name) => !(await this.isUsableCollectionDir(path.join(targetDirPath, name)))
+    );
+    return path.join(targetDirPath, dirName);
+  }
+
+  /**
+   * @param dirPath the directory to check
+   * @returns true if the directory is empty or does not exist yet, false otherwise
+   */
+  private async isUsableCollectionDir(dirPath: string) {
+    return await isEmpty(dirPath).catch(() => true);
   }
 }
