@@ -21,6 +21,7 @@ export function FooterBar() {
       <div className="flex items-center justify-between">
         {/* Settings and theme toggle on the left */}
         <button
+          type="button"
           onClick={openAppSettings}
           className="hover:text-foreground flex cursor-pointer items-center gap-2 text-(--text-secondary) transition-colors duration-300"
         >
@@ -37,7 +38,8 @@ export function FooterBar() {
           href="https://github.com/EXXETA/trufos"
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-foreground flex cursor-pointer items-center gap-2 text-(--text-secondary) transition-colors duration-300"
+          aria-label="Visit Trufos GitHub repository"
+          className="hover:text-foreground flex items-center gap-2 text-(--text-secondary) transition-colors duration-300"
         >
           <span className="flex h-3.75 w-6.5 shrink-0 items-center self-center text-[12px] leading-[1.2] font-medium whitespace-pre normal-case no-underline">
             {appVersion ?? null}
