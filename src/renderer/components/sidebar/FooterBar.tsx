@@ -20,23 +20,32 @@ export function FooterBar() {
       <Divider />
       <div className="flex items-center justify-between">
         {/* Settings and theme toggle on the left */}
-        <div className="flex items-center gap-2">
-          <FiSettings className="ml-2 cursor-pointer text-xl" onClick={openAppSettings} />
-          <span className="shrink-0 text-[12px] leading-[1.2] font-medium tracking-normal whitespace-pre text-(--text-secondary) normal-case no-underline">
+        <button
+          type="button"
+          onClick={openAppSettings}
+          className="hover:text-foreground flex cursor-pointer items-center gap-2 text-(--text-secondary) transition-colors duration-300"
+        >
+          <div className="flex h-6 w-6 items-center justify-center">
+            <FiSettings className="text-lg" />
+          </div>
+          <span className="shrink-0 text-[12px] leading-[1.2] font-medium tracking-normal whitespace-pre normal-case no-underline">
             Settings
           </span>
-        </div>
+        </button>
 
-        <div className="flex items-center gap-2">
-          {/* Icons and version on the right */}
-          <span className="flex h-3.75 w-6.5 shrink-0 items-center self-center text-[12px] leading-[1.2] font-medium whitespace-pre text-(--text-secondary) normal-case no-underline">
+        {/* Icons and version on the right */}
+        <a
+          href="https://github.com/EXXETA/trufos"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Visit Trufos GitHub repository"
+          className="hover:text-foreground flex items-center gap-2 text-(--text-secondary) transition-colors duration-300"
+        >
+          <span className="flex h-3.75 w-6.5 shrink-0 items-center self-center text-[12px] leading-[1.2] font-medium whitespace-pre normal-case no-underline">
             {appVersion ?? null}
           </span>
-          {/* GitHub Icon */}
-          <a href="https://github.com/EXXETA/trufos" target="_blank" rel="noopener noreferrer">
-            <GithubIcon />
-          </a>
-        </div>
+          <GithubIcon />
+        </a>
       </div>
     </SidebarFooter>
   );
