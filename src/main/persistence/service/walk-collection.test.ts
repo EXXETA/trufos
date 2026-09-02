@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import fs, { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { USER_DATA_DIR } from 'main/util/fs-util';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -66,6 +66,10 @@ async function streamToString(stream?: Readable) {
 describe('PersistenceService.walkCollection()', () => {
   let collection: Collection;
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(async () => {
     collection = getExampleCollection();
     await mkdir(collection.dirPath, { recursive: true });
@@ -109,6 +113,37 @@ describe('PersistenceService.walkCollection()', () => {
 
     const rootSnapshot = snapshot.children[0] as RequestSnapshot;
     expect(await rootSnapshot.getBodyContent()).toBeUndefined();
+  });
+
+  it('keeps the directory order when children finish walking out of order', async () => {
+    // Arrange - more children than may be read concurrently, so that reads are queued
+    const childCount = 12;
+    for (let i = 0; i < childCount; i++) {
+      collection.children.push(
+        getExampleRequest(collection.id, `req-${String(i).padStart(2, '0')}`)
+      );
+    }
+    await persistenceService.saveCollection(collection, true);
+
+    // let the earlier children finish last, so that collecting them by completion instead of by
+    // position would return them in the wrong order
+    const originalReadFile = fs.readFile.bind(fs);
+    vi.spyOn(fs, 'readFile').mockImplementation(async (...args: Parameters<typeof fs.readFile>) => {
+      const content = await originalReadFile(...args);
+      const index = /req-(\d+)/.exec(String(args[0]))?.[1];
+      if (index != null) {
+        await new Promise((resolve) => setTimeout(resolve, childCount - Number(index)));
+      }
+      return content;
+    });
+
+    // Act
+    const snapshot = await persistenceService.walkCollection(collection.dirPath);
+
+    // Assert
+    expect(snapshot.children.map((child) => child.title)).toEqual(
+      collection.children.map((child) => child.title)
+    );
   });
 
   it('uses the saved state of a request, ignoring its draft overlay', async () => {
