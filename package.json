@@ -111,7 +111,7 @@
     "tailwind-merge": "^3.6.0",
     "template-replace-stream": "^3.0.1",
     "tmp": "^0.2.7",
-    "undici": "^8.10.0",
+    "undici": "^8.10.1",
     "update-electron-app": "^3.3.0",
     "winston": "^3.19.0",
     "xml-formatter": "^3.7.0",
