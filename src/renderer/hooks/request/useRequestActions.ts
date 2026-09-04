@@ -4,7 +4,6 @@ import { saveModelContent } from '@/lib/monaco/models';
 import { HttpService } from '@/services/http/http-service';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { showError } from '@/error/errorHandler';
-import { RequestAbortedError } from 'shim/error/RequestAbortedError';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
 
@@ -69,10 +68,11 @@ export function useSendRequest() {
       sendingFlag.set(true);
       await Promise.all(editor.getModels().map(saveModelContent));
 
-      addResponse(request.id, await httpService.sendRequest(request, abortKey));
+      // No response means the user cancelled, so there is nothing to store.
+      const response = await httpService.sendRequest(request, abortKey);
+      if (response != null) addResponse(request.id, response);
     } catch (error) {
-      // Cancelling is the user's own doing, so it is not reported back to them as a failure.
-      if (!(error instanceof RequestAbortedError)) showError(error);
+      showError(error);
     } finally {
       activeAbortKey = null;
       sendingFlag.set(false);

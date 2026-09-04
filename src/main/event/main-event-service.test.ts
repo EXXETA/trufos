@@ -236,7 +236,7 @@ describe('MainEventService', () => {
       expect(signal?.aborted).toBe(true);
     });
 
-    it('rejects an aborted request with a plain error instead of the platform abort error', async () => {
+    it('resolves an aborted request with null instead of failing', async () => {
       const collection = makeCollection({ x: { value: 'before' } });
       vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
 
@@ -259,10 +259,7 @@ describe('MainEventService', () => {
 
       await eventService.abortRequest('runner-request-2');
 
-      const error = await requestPromise.catch((error: unknown) => error);
-      expect(error).toBeInstanceOf(Error);
-      expect(error).not.toBeInstanceOf(DOMException);
-      expect((error as Error).name).toBe('RequestAbortedError');
+      await expect(requestPromise).resolves.toBeNull();
     });
 
     it('rethrows a non-abort failure unchanged', async () => {

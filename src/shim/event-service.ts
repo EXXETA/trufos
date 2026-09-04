@@ -63,8 +63,10 @@ export interface IEventService {
   /**
    * Send an HTTP request.
    * @param request The request to send.
+   * @param abortKey Key under which the request can be aborted via {@link abortRequest}.
+   * @returns The response, or `null` if the request was aborted before one arrived.
    */
-  sendRequest(request: TrufosRequest, abortKey?: string): Promise<TrufosResponse>;
+  sendRequest(request: TrufosRequest, abortKey?: string): Promise<TrufosResponse | null>;
 
   /**
    * Abort an in-flight HTTP request started with the given abort key.

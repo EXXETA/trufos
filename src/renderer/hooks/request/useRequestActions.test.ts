@@ -1,7 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useSendRequest, useSaveRequest } from './useRequestActions';
-import { RequestAbortedError } from 'shim/error/RequestAbortedError';
 
 const {
   mockSendRequest,
@@ -106,11 +105,11 @@ describe('useSendRequest', () => {
   it('cancels the in-flight send with the abort key it was sent with', async () => {
     const { result } = renderHook(() => useSendRequest());
 
-    let rejectSend!: (reason: unknown) => void;
+    let resolveSend!: (value: unknown) => void;
     mockSendRequest.mockImplementation(
       () =>
-        new Promise((_resolve, reject) => {
-          rejectSend = reject;
+        new Promise((resolve) => {
+          resolveSend = resolve;
         })
     );
 
@@ -128,9 +127,9 @@ describe('useSendRequest', () => {
     act(() => result.current.cancelRequest());
     expect(mockAbortRequest).toHaveBeenCalledWith(abortKey);
 
-    // The aborted send rejects afterwards; that rejection is the user's own doing, so it must not
-    // surface as an error toast.
-    rejectSend(new RequestAbortedError());
+    // An aborted send has no response, which is the user's own doing rather than a failure: no
+    // response is stored and no error toast is shown.
+    resolveSend(null);
     await act(async () => {
       await sendPromise;
     });

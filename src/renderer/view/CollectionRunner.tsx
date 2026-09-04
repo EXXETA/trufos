@@ -421,7 +421,9 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
         activeRequestAbortKeyRef.current = abortKey;
         try {
           const response = await httpService.sendRequest(request, abortKey);
-          if (runIdRef.current !== runId) {
+          // No response means this request was aborted, which only happens when the run was
+          // stopped, so there is nothing left to record.
+          if (runIdRef.current !== runId || response == null) {
             abortActiveRequest();
             return;
           }

@@ -1,6 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { DisplayableError } from 'shim/error/DisplayableError';
-import { RequestAbortedError } from 'shim/error/RequestAbortedError';
 import { TrufosRequest } from 'shim/objects/request';
 import { HttpService } from './http-service';
 
@@ -34,18 +33,12 @@ describe('HttpService', () => {
     await expect(httpService.sendRequest(request)).resolves.toBe(response);
   });
 
-  it('rejects with a RequestAbortedError when the send was aborted by key', async () => {
-    // Arrange: the main process reports an abort as an ordinary failure, so only the recorded
-    // abort key tells it apart from a request that broke on its own.
-    mockSendRequest.mockImplementation(async () => {
-      await httpService.abortRequest('key-1');
-      throw new Error('The request was aborted');
-    });
+  it('returns null for an aborted request instead of failing', async () => {
+    // Arrange
+    mockSendRequest.mockResolvedValue(null);
 
     // Act & Assert
-    await expect(httpService.sendRequest(request, 'key-1')).rejects.toBeInstanceOf(
-      RequestAbortedError
-    );
+    await expect(httpService.sendRequest(request, 'key-1')).resolves.toBeNull();
   });
 
   it('wraps a genuine failure in a DisplayableError', async () => {
@@ -58,24 +51,6 @@ describe('HttpService', () => {
     );
   });
 
-  it('does not treat a later send under a reused key as aborted', async () => {
-    // Arrange: the abort key is cleared once the send it belongs to settles.
-    mockSendRequest.mockImplementationOnce(async () => {
-      await httpService.abortRequest('key-3');
-      throw new Error('The request was aborted');
-    });
-    await expect(httpService.sendRequest(request, 'key-3')).rejects.toBeInstanceOf(
-      RequestAbortedError
-    );
-
-    mockSendRequest.mockRejectedValue(new Error('connection refused'));
-
-    // Act & Assert
-    await expect(httpService.sendRequest(request, 'key-3')).rejects.toBeInstanceOf(
-      DisplayableError
-    );
-  });
-
   it('passes a DisplayableError through unchanged', async () => {
     // Arrange
     const error = new DisplayableError('description', 'title');
@@ -83,5 +58,13 @@ describe('HttpService', () => {
 
     // Act & Assert
     await expect(httpService.sendRequest(request)).rejects.toBe(error);
+  });
+
+  it('forwards the abort key to the event service', async () => {
+    // Act
+    await httpService.abortRequest('key-3');
+
+    // Assert
+    expect(mockAbortRequest).toHaveBeenCalledWith('key-3');
   });
 });
