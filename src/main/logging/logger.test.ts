@@ -5,9 +5,7 @@ import { LogEntry } from 'shim/logger';
 import { transports } from 'winston';
 import { EOL } from 'node:os';
 
-import './logger';
-
-const SPLAT = Symbol.for('splat');
+import { SPLAT } from './logger';
 
 class MemoryTransport extends Transport {
   public logs: unknown[] = [];

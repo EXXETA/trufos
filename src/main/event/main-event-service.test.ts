@@ -49,7 +49,7 @@ describe('MainEventService', () => {
     // Every test builds its own MainEventService, and each one subscribes to the shared
     // ScriptingService. Lift the cap so those accumulating subscriptions are not mistaken for a
     // listener leak once the suite grows past Node's default of ten.
-    const { ScriptingService } = await import('main/scripting/scripting-service');
+    const { ScriptingService } = await import('../scripting/scripting-service.js');
     ScriptingService.instance.setMaxListeners(0);
   });
 

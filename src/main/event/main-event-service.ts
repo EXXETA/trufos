@@ -6,6 +6,7 @@ import type {
   TrufosObject,
   Folder,
   TrufosRequest,
+  TrufosResponse,
   VariableMap,
   EnvironmentMap,
   ScriptType,

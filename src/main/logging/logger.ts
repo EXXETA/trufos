@@ -5,7 +5,7 @@ import { LogEntry } from 'shim/logger';
 import { format as formatString } from 'node:util';
 import { omit } from 'main/util/object-util';
 
-const SPLAT = Symbol.for('splat');
+export const SPLAT = Symbol.for('splat');
 const LOG_SECRET = Symbol('logSecret');
 
 console.info('Saving logs at', app.getPath('logs'));

@@ -5,18 +5,8 @@ import { TrufosResponse } from 'shim/objects/response';
 
 const eventService = RendererEventService.instance;
 
-/**
- * An {@link AbortSignal} cannot cross the IPC boundary, so the main process identifies the request
- * to abort by key instead. That is a detail of the IPC hop this service owns, which is why the keys
- * are minted here and callers pass an ordinary signal.
- */
-let abortKeySequence = 0;
-
 export class HttpService {
   public static readonly instance: HttpService = new HttpService();
-
-  public sendRequest(request: TrufosRequest): Promise<TrufosResponse>;
-  public sendRequest(request: TrufosRequest, signal: AbortSignal): Promise<TrufosResponse | null>;
 
   /**
    * Send an HTTP request.
@@ -30,21 +20,14 @@ export class HttpService {
     request: TrufosRequest,
     signal?: AbortSignal
   ): Promise<TrufosResponse | null> {
-    if (signal == null) return await this.invokeSendRequest(request);
-    if (signal.aborted) return null;
+    if (signal?.aborted) return null;
 
-    const abortKey = `send-request:${abortKeySequence++}`;
-    const abort = () => void eventService.abortRequest(abortKey).catch(console.error);
-    signal.addEventListener('abort', abort, { once: true });
+    // An AbortSignal cannot cross the IPC boundary, so the main process identifies the request to
+    // abort by a key instead — a detail of the IPC hop this service owns.
+    const abortKey = signal && crypto.randomUUID();
+    const abort = () => void eventService.abortRequest(abortKey!).catch(console.error);
+    signal?.addEventListener('abort', abort, { once: true });
 
-    try {
-      return await this.invokeSendRequest(request, abortKey);
-    } finally {
-      signal.removeEventListener('abort', abort);
-    }
-  }
-
-  private async invokeSendRequest(request: TrufosRequest, abortKey?: string) {
     try {
       console.info('Sending request:', request);
       const response = await eventService.sendRequest(request, abortKey);
@@ -64,6 +47,8 @@ export class HttpService {
         'Could not send Request',
         error
       );
+    } finally {
+      signal?.removeEventListener('abort', abort);
     }
   }
 }
