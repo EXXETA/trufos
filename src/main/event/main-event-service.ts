@@ -25,6 +25,7 @@ import { ResponseBodyService } from 'main/network/service/response-body-service'
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
 import { DisplayableError } from 'shim/error/DisplayableError';
+import { RequestAbortedError } from 'shim/error/RequestAbortedError';
 
 // register stream events
 import './stream-events';
@@ -48,7 +49,12 @@ function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
     try {
       return (await fn(...args)) as R;
     } catch (error) {
-      logger.error(error);
+      // Cancelling a request is a deliberate user action, not a failure worth an error log.
+      if (error instanceof RequestAbortedError) {
+        logger.debug(error.message);
+      } else {
+        logger.error(error);
+      }
       if (error instanceof DisplayableError) {
         return error.serialize();
       }
@@ -135,6 +141,9 @@ export class MainEventService implements IEventService {
 
     try {
       return await HttpService.instance.fetchAsync(request, abortController.signal);
+    } catch (error) {
+      if (abortController.signal.aborted) throw new RequestAbortedError();
+      throw error;
     } finally {
       this.abortControllers.delete(abortKey);
     }

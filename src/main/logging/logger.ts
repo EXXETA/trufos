@@ -27,7 +27,15 @@ class SplatFormat implements Format {
   // @ts-expect-error logform's Format.transform signature uses TransformableInfo but we use an extended type
   transform(info: TransformableInfoExtended) {
     if (info instanceof Error) {
-      info.message = info.stack ?? info.message;
+      // Not a plain assignment: some Error subclasses expose `message` as a getter-only accessor
+      // on their prototype (e.g. DOMException, which is what an aborted request rejects with), and
+      // assigning to it throws. Defining an own property shadows the accessor instead.
+      Object.defineProperty(info, 'message', {
+        value: info.stack ?? info.message,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      });
       return info;
     }
 
@@ -46,9 +54,14 @@ class SplatFormat implements Format {
       info.message = '';
     }
 
-    // handle broken error object formatting
+    // handle broken error object formatting: winston already appended the error's message to the
+    // log message, so strip it to avoid printing it twice. Guarded by endsWith() because a message
+    // shorter than the error's would otherwise be sliced away entirely.
     if (args.length > 0 && args[0] instanceof Error) {
-      info.message = info.message.slice(0, -args[0].message.length - 1);
+      const duplicate = ` ${args[0].message}`;
+      if (info.message.endsWith(duplicate)) {
+        info.message = info.message.slice(0, -duplicate.length);
+      }
     }
 
     // format any other arguments

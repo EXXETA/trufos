@@ -45,6 +45,12 @@ describe('MainEventService', () => {
     ({ MainEventService } = await import('./main-event-service'));
     // @ts-expect-error dynamic import type inference
     ({ PersistenceService } = await import('../persistence/service/persistence-service'));
+
+    // Every test builds its own MainEventService, and each one subscribes to the shared
+    // ScriptingService. Lift the cap so those accumulating subscriptions are not mistaken for a
+    // listener leak once the suite grows past Node's default of ten.
+    const { ScriptingService } = await import('main/scripting/scripting-service');
+    ScriptingService.instance.setMaxListeners(0);
   });
 
   it('should register event functions on the backend', async () => {
@@ -228,6 +234,50 @@ describe('MainEventService', () => {
       await requestPromise;
 
       expect(signal?.aborted).toBe(true);
+    });
+
+    it('rejects an aborted request with a plain error instead of the platform abort error', async () => {
+      const collection = makeCollection({ x: { value: 'before' } });
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
+
+      const { HttpService } = await import('../network/service/http-service.js');
+      let signal: AbortSignal | undefined;
+      vi.mocked(HttpService.instance.fetchAsync).mockImplementation((_request, abortSignal) => {
+        signal = abortSignal;
+        return new Promise((_, reject) => {
+          // What undici actually rejects with on abort: a DOMException, whose read-only properties
+          // break both logging and IPC serialization.
+          abortSignal?.addEventListener('abort', () =>
+            reject(new DOMException('This operation was aborted', 'AbortError'))
+          );
+        });
+      });
+
+      const eventService = new MainEventService();
+      const requestPromise = eventService.sendRequest(makeRequest(), 'runner-request-2');
+      await vi.waitFor(() => expect(signal).toBeDefined());
+
+      await eventService.abortRequest('runner-request-2');
+
+      const error = await requestPromise.catch((error: unknown) => error);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(DOMException);
+      expect((error as Error).name).toBe('RequestAbortedError');
+    });
+
+    it('rethrows a non-abort failure unchanged', async () => {
+      const collection = makeCollection({ x: { value: 'before' } });
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
+
+      const { HttpService } = await import('../network/service/http-service.js');
+      const failure = new Error('connection refused');
+      vi.mocked(HttpService.instance.fetchAsync).mockRejectedValue(failure);
+
+      const eventService = new MainEventService();
+
+      await expect(eventService.sendRequest(makeRequest(), 'runner-request-3')).rejects.toBe(
+        failure
+      );
     });
 
     it('persists and pushes when ScriptingService emits variables-changed', async () => {

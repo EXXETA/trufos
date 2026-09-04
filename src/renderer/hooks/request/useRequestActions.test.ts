@@ -1,9 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useSendRequest, useSaveRequest } from './useRequestActions';
+import { RequestAbortedError } from 'shim/error/RequestAbortedError';
 
 const {
   mockSendRequest,
+  mockAbortRequest,
   mockSaveChanges,
   mockSaveModelContent,
   mockAddResponse,
@@ -11,6 +13,7 @@ const {
   mockShowError,
 } = vi.hoisted(() => ({
   mockSendRequest: vi.fn(),
+  mockAbortRequest: vi.fn(),
   mockSaveChanges: vi.fn(),
   mockSaveModelContent: vi.fn(),
   mockAddResponse: vi.fn(),
@@ -29,7 +32,7 @@ vi.mock('@/lib/monaco/models', () => ({
 }));
 
 vi.mock('@/services/http/http-service', () => ({
-  HttpService: { instance: { sendRequest: mockSendRequest } },
+  HttpService: { instance: { sendRequest: mockSendRequest, abortRequest: mockAbortRequest } },
 }));
 
 vi.mock('@/services/event/renderer-event-service', () => ({
@@ -54,7 +57,9 @@ describe('useSendRequest', () => {
   beforeEach(() => {
     mockCurrentRequest = { id: 'req-1' };
     mockSendRequest.mockClear();
+    mockAbortRequest.mockClear().mockResolvedValue(undefined);
     mockAddResponse.mockClear();
+    mockShowError.mockClear();
   });
 
   it('shares isSending across every hook instance, not just the caller that triggered it', async () => {
@@ -96,6 +101,95 @@ describe('useSendRequest', () => {
 
     expect(a.result.current.isSending).toBe(false);
     expect(b.result.current.isSending).toBe(false);
+  });
+
+  it('cancels the in-flight send with the abort key it was sent with', async () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    let rejectSend!: (reason: unknown) => void;
+    mockSendRequest.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        })
+    );
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.sendRequest();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const abortKey = mockSendRequest.mock.calls[0][1];
+    expect(abortKey).toBeTypeOf('string');
+
+    act(() => result.current.cancelRequest());
+    expect(mockAbortRequest).toHaveBeenCalledWith(abortKey);
+
+    // The aborted send rejects afterwards; that rejection is the user's own doing, so it must not
+    // surface as an error toast.
+    rejectSend(new RequestAbortedError());
+    await act(async () => {
+      await sendPromise;
+    });
+
+    expect(mockShowError).not.toHaveBeenCalled();
+    expect(mockAddResponse).not.toHaveBeenCalled();
+    expect(result.current.isSending).toBe(false);
+  });
+
+  it('still reports a genuine failure of the send', async () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    const failure = new Error('connection refused');
+    mockSendRequest.mockRejectedValue(failure);
+
+    await act(async () => {
+      await result.current.sendRequest();
+    });
+
+    expect(mockShowError).toHaveBeenCalledWith(failure);
+    expect(result.current.isSending).toBe(false);
+  });
+
+  it('does not start a second send while one is still in flight', async () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    let resolveSend!: (value: unknown) => void;
+    mockSendRequest.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSend = resolve;
+        })
+    );
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.sendRequest();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.sendRequest();
+    });
+    expect(mockSendRequest).toHaveBeenCalledTimes(1);
+
+    resolveSend({});
+    await act(async () => {
+      await sendPromise;
+    });
+  });
+
+  it('ignores a cancel when nothing is in flight', () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    act(() => result.current.cancelRequest());
+
+    expect(mockAbortRequest).not.toHaveBeenCalled();
   });
 });
 

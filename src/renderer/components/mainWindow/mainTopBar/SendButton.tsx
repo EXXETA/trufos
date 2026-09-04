@@ -1,17 +1,24 @@
 import * as React from 'react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ArrowForwardIcon } from '@/components/icons';
+import { useSendRequest } from '@/hooks/request/useRequestActions';
 
-interface SendButtonProps {
-  onClick: () => void;
-  disabled?: boolean;
-  children?: React.ReactNode;
-}
+/**
+ * Sends the selected request. While that request is in flight the button turns into a cancel
+ * button that aborts it.
+ */
+export const SendButton: React.FC = () => {
+  const { sendRequest, cancelRequest, isSending } = useSendRequest();
 
-export const SendButton: React.FC<SendButtonProps> = ({ onClick, disabled = false, children }) => (
-  <Button className="gap-3 pl-[30px]" onClick={onClick} variant="secondary" disabled={disabled}>
-    <span className="leading-4 font-bold">Send</span>
+  return (
+    <Button
+      className="gap-3 pl-7.5"
+      onClick={isSending ? cancelRequest : sendRequest}
+      variant="secondary"
+    >
+      <span className="leading-4 font-bold">{isSending ? 'Cancel' : 'Send'}</span>
 
-    {children ?? <ArrowForwardIcon />}
-  </Button>
-);
+      {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
+    </Button>
+  );
+};

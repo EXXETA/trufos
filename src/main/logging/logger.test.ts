@@ -7,6 +7,8 @@ import { EOL } from 'node:os';
 
 import './logger';
 
+const SPLAT = Symbol.for('splat');
+
 class MemoryTransport extends Transport {
   public logs: unknown[] = [];
 
@@ -130,6 +132,35 @@ describe('Logger', () => {
     }
   });
 
+  it('should log exceptions whose message is a getter-only accessor', async () => {
+    // Arrange: a DOMException — what an aborted request rejects with — inherits `message` as a
+    // getter-only accessor, so the format may not assign to it.
+    const now = new Date();
+    const error = new DOMException('This operation was aborted', 'AbortError');
+    const expected = `${now.toISOString()} [MAIN] [ERROR]: ${error.stack}${EOL}`;
+
+    const data: unknown[] = [];
+    const stream = new Writable({ write: (chunk) => data.push(chunk) });
+    const transport = new transports.Stream({ stream });
+
+    vi.useFakeTimers({ now });
+    logger.add(transport);
+
+    try {
+      // Act
+      logger.error(error);
+
+      // Assert
+      expect(data.length).toBe(1);
+      expect(data[0]).toBeInstanceOf(Buffer);
+      const actual = (data[0] as Buffer).toString();
+      expect(actual).toEqual(expected);
+    } finally {
+      vi.useRealTimers();
+      logger.remove(transport);
+    }
+  });
+
   it('should log exceptions as last argument after message', async () => {
     // Arrange
     const now = new Date();
@@ -157,6 +188,21 @@ describe('Logger', () => {
       vi.useRealTimers();
       logger.remove(transport);
     }
+  });
+
+  it('should keep the message of a forwarded renderer log that precedes an exception', () => {
+    // Arrange: the renderer forwards its message and arguments separately, so unlike a main
+    // process log the message does not already end with the error's message and nothing may be
+    // stripped from it — not even when the error's message is the longer of the two.
+    const message = 'Error during request:';
+    const error = new Error('a message that is far longer than the one preceding it');
+
+    // Act
+    logger.write({ process: 'renderer', level: 'error', message, [SPLAT]: [error] });
+
+    // Assert
+    expect(memoryTransport.logs).toHaveLength(1);
+    expect((memoryTransport.logs[0] as LogEntry).message).toBe(`${message} ${error.stack}`);
   });
 
   it('should filter secret logs from file transport but allow in memory transport', () => {
