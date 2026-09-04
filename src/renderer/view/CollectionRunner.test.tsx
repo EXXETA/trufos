@@ -8,17 +8,15 @@ import { RequestBodyType, type TrufosRequest } from 'shim/objects/request';
 import type { TrufosResponse } from 'shim/objects/response';
 
 const sendRequestMock =
-  vi.fn<(request: TrufosRequest, abortKey?: string) => Promise<TrufosResponse>>();
-const abortRequestMock = vi.fn().mockResolvedValue(undefined);
+  vi.fn<(request: TrufosRequest, signal?: AbortSignal) => Promise<TrufosResponse | null>>();
 const addResponseMock = vi.fn();
 const showErrorMock = vi.fn();
 
 vi.mock('@/services/http/http-service', () => ({
   HttpService: {
     instance: {
-      sendRequest: (request: TrufosRequest, abortKey?: string) =>
-        sendRequestMock(request, abortKey),
-      abortRequest: (abortKey: string) => abortRequestMock(abortKey),
+      sendRequest: (request: TrufosRequest, signal?: AbortSignal) =>
+        sendRequestMock(request, signal),
     },
   },
 }));
@@ -149,7 +147,6 @@ function deferred<T>() {
 
 beforeEach(() => {
   sendRequestMock.mockReset();
-  abortRequestMock.mockClear();
   addResponseMock.mockClear();
   showErrorMock.mockClear();
   selectEnvironmentMock.mockClear();
@@ -423,7 +420,7 @@ describe('CollectionRunner execution', () => {
     );
     // Only the first request was sent; the rest of the run is aborted.
     expect(sendRequestMock).toHaveBeenCalledTimes(1);
-    expect(abortRequestMock).toHaveBeenCalledWith(sendRequestMock.mock.calls[0][1]);
+    expect(sendRequestMock.mock.calls[0][1]?.aborted).toBe(true);
     expect(screen.queryAllByText('Passed')).toHaveLength(0);
     expect(screen.getAllByText('Pending')).toHaveLength(4);
   });
@@ -589,7 +586,7 @@ describe('CollectionRunner closing', () => {
 
     first.resolve(makeResponse(200));
     await waitFor(() => expect(sendRequestMock).toHaveBeenCalledTimes(1));
-    expect(abortRequestMock).toHaveBeenCalledWith(sendRequestMock.mock.calls[0][1]);
+    expect(sendRequestMock.mock.calls[0][1]?.aborted).toBe(true);
     expect(addResponseMock).not.toHaveBeenCalled();
   });
 });

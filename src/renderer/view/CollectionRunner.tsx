@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { editor } from 'monaco-editor';
 import { ChevronDown, ChevronRight, Loader2, Play, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -244,36 +244,27 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   // Incremented to invalidate an in-flight run (stop button, collection switch, unmount).
   const runIdRef = useRef(0);
   const runStartRef = useRef(0);
-  const abortSequenceRef = useRef(0);
-  const activeRequestAbortKeyRef = useRef<string | undefined>(undefined);
+  const activeRequestRef = useRef<AbortController | null>(null);
   const knownRequestIdsRef = useRef<Set<string>>(new Set(requests.keys()));
   const requestsRef = useRef(requests);
   requestsRef.current = requests;
 
-  const abortActiveRequest = useCallback(() => {
-    const abortKey = activeRequestAbortKeyRef.current;
-    if (abortKey == null) return;
-
-    activeRequestAbortKeyRef.current = undefined;
-    void httpService.abortRequest(abortKey).catch(console.error);
-  }, []);
-
   useEffect(
     () => () => {
       runIdRef.current++;
-      abortActiveRequest();
+      activeRequestRef.current?.abort();
     },
-    [abortActiveRequest]
+    []
   );
 
   // Abort an in-flight run when the runner view is closed.
   useEffect(() => {
     if (!open) {
       runIdRef.current++;
-      abortActiveRequest();
+      activeRequestRef.current?.abort();
       setIsRunning(false);
     }
-  }, [abortActiveRequest, open]);
+  }, [open]);
 
   // Close the runner view with Escape, like the previous dialog did.
   useEffect(() => {
@@ -287,7 +278,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
 
   useEffect(() => {
     runIdRef.current++;
-    abortActiveRequest();
+    activeRequestRef.current?.abort();
     setSelectedRequestIds(new Set(requestsRef.current.keys()));
     setResults({});
     setRunOrder([]);
@@ -295,7 +286,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     setCollapsedFolders(new Set());
     setTotalDuration(null);
     setIsRunning(false);
-  }, [abortActiveRequest, collection?.id]);
+  }, [collection?.id]);
 
   // Keep the selection in sync when requests are added or removed in the sidebar
   // without discarding the user's choices or any run results.
@@ -411,20 +402,21 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
 
       for (const request of requestsToRun) {
         if (runIdRef.current !== runId) {
-          abortActiveRequest();
+          activeRequestRef.current?.abort();
           return;
         }
         setResults((current) => ({ ...current, [request.id]: { state: 'running' } }));
 
         const requestStartedAt = performance.now();
-        const abortKey = `${runId}:${request.id}:${abortSequenceRef.current++}`;
-        activeRequestAbortKeyRef.current = abortKey;
+        const abortController = new AbortController();
+        activeRequestRef.current = abortController;
         try {
-          const response = await httpService.sendRequest(request, abortKey);
+          const response = await httpService.sendRequest(request, abortController.signal);
           // No response means this request was aborted, which only happens when the run was
-          // stopped, so there is nothing left to record.
-          if (runIdRef.current !== runId || response == null) {
-            abortActiveRequest();
+          // stopped, so there is nothing left to record or abort.
+          if (response == null) return;
+          if (runIdRef.current !== runId) {
+            abortController.abort();
             return;
           }
           addResponse(request.id, response);
@@ -434,7 +426,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
           if (stopOnFirstFailure && state === 'failed') break;
         } catch (error) {
           if (runIdRef.current !== runId) {
-            abortActiveRequest();
+            abortController.abort();
             return;
           }
           const message = error instanceof Error ? error.message : String(error);
@@ -449,8 +441,8 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
 
           if (stopOnFirstFailure) break;
         } finally {
-          if (activeRequestAbortKeyRef.current === abortKey) {
-            activeRequestAbortKeyRef.current = undefined;
+          if (activeRequestRef.current === abortController) {
+            activeRequestRef.current = null;
           }
         }
       }
@@ -466,7 +458,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
 
   const stopRun = () => {
     runIdRef.current++;
-    abortActiveRequest();
+    activeRequestRef.current?.abort();
     setResults({});
     setTotalDuration(performance.now() - runStartRef.current);
     setIsRunning(false);

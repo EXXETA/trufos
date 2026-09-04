@@ -11,18 +11,18 @@ const httpService = HttpService.instance;
 const eventService = RendererEventService.instance;
 
 /**
- * A boolean fact shared across every subscriber, independent of React's per-component state.
- * Used so `isSending`/`isSaving` reflect one real in-flight operation no matter how many
- * components call `useSendRequest`/`useSaveRequest` — a plain per-hook `useState` would instead
- * give each caller its own disconnected copy of the same fact.
+ * A fact shared across every subscriber, independent of React's per-component state. Used so
+ * `isSending`/`isSaving` reflect one real in-flight operation no matter how many components call
+ * `useSendRequest`/`useSaveRequest` — a plain per-hook `useState` would instead give each caller
+ * its own disconnected copy of the same fact.
  */
-function createBusyFlag() {
-  let value = false;
+function createSharedState<T>(initial: T) {
+  let value = initial;
   const listeners = new Set<() => void>();
 
   return {
     get: () => value,
-    set(next: boolean) {
+    set(next: T) {
       value = next;
       listeners.forEach((listener) => listener());
     },
@@ -33,16 +33,13 @@ function createBusyFlag() {
   };
 }
 
-const sendingFlag = createBusyFlag();
-const savingFlag = createBusyFlag();
-
 /**
- * Abort key of the send that is currently in flight, if any. Module-level for the same reason as
- * {@link sendingFlag}: cancelling from any component must hit the one real in-flight send, not a
- * per-caller copy.
+ * The controller of the send that is currently in flight, or `null` while none is. Being in flight
+ * and being cancellable are the same fact, so they are one piece of state: it cannot go stale
+ * against a separate "is sending" flag.
  */
-let activeAbortKey: string | null = null;
-let abortKeySequence = 0;
+const activeSend = createSharedState<AbortController | null>(null);
+const savingFlag = createSharedState(false);
 
 /**
  * Shared send-request side effect: flushes every open Monaco editor model, sends the currently
@@ -54,35 +51,32 @@ let abortKeySequence = 0;
  * regardless of which component triggered the send. `cancelRequest` aborts that same send.
  */
 export function useSendRequest() {
-  const isSending = useSyncExternalStore(sendingFlag.subscribe, sendingFlag.get);
+  const isSending = useSyncExternalStore(activeSend.subscribe, activeSend.get) != null;
   const request = useCollectionStore(selectRequest);
   const { addResponse } = useResponseActions();
 
   const sendRequest = useCallback(async () => {
-    if (request == null || sendingFlag.get()) return;
+    if (request == null || activeSend.get() != null) return;
 
-    const abortKey = `send-request:${abortKeySequence++}`;
-    activeAbortKey = abortKey;
+    const abortController = new AbortController();
+    activeSend.set(abortController);
 
     try {
-      sendingFlag.set(true);
+      // Cancelling during this flush aborts the signal before the request goes out, so the send
+      // below returns null without ever reaching the main process.
       await Promise.all(editor.getModels().map(saveModelContent));
 
       // No response means the user cancelled, so there is nothing to store.
-      const response = await httpService.sendRequest(request, abortKey);
+      const response = await httpService.sendRequest(request, abortController.signal);
       if (response != null) addResponse(request.id, response);
     } catch (error) {
       showError(error);
     } finally {
-      activeAbortKey = null;
-      sendingFlag.set(false);
+      activeSend.set(null);
     }
   }, [request, addResponse]);
 
-  const cancelRequest = useCallback(() => {
-    if (activeAbortKey == null) return;
-    void httpService.abortRequest(activeAbortKey).catch(console.error);
-  }, []);
+  const cancelRequest = useCallback(() => activeSend.get()?.abort(), []);
 
   return { sendRequest, cancelRequest, isSending };
 }

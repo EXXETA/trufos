@@ -4,7 +4,6 @@ import { useSendRequest, useSaveRequest } from './useRequestActions';
 
 const {
   mockSendRequest,
-  mockAbortRequest,
   mockSaveChanges,
   mockSaveModelContent,
   mockAddResponse,
@@ -12,7 +11,6 @@ const {
   mockShowError,
 } = vi.hoisted(() => ({
   mockSendRequest: vi.fn(),
-  mockAbortRequest: vi.fn(),
   mockSaveChanges: vi.fn(),
   mockSaveModelContent: vi.fn(),
   mockAddResponse: vi.fn(),
@@ -21,9 +19,10 @@ const {
 }));
 
 let mockCurrentRequest: { id: string; draft?: boolean } | undefined;
+let mockModels: unknown[] = [];
 
 vi.mock('monaco-editor', () => ({
-  editor: { getModels: () => [] },
+  editor: { getModels: () => mockModels },
 }));
 
 vi.mock('@/lib/monaco/models', () => ({
@@ -31,7 +30,7 @@ vi.mock('@/lib/monaco/models', () => ({
 }));
 
 vi.mock('@/services/http/http-service', () => ({
-  HttpService: { instance: { sendRequest: mockSendRequest, abortRequest: mockAbortRequest } },
+  HttpService: { instance: { sendRequest: mockSendRequest } },
 }));
 
 vi.mock('@/services/event/renderer-event-service', () => ({
@@ -55,8 +54,9 @@ vi.mock('@/state/responseStore', () => ({
 describe('useSendRequest', () => {
   beforeEach(() => {
     mockCurrentRequest = { id: 'req-1' };
+    mockModels = [];
     mockSendRequest.mockClear();
-    mockAbortRequest.mockClear().mockResolvedValue(undefined);
+    mockSaveModelContent.mockClear().mockResolvedValue(undefined);
     mockAddResponse.mockClear();
     mockShowError.mockClear();
   });
@@ -102,7 +102,7 @@ describe('useSendRequest', () => {
     expect(b.result.current.isSending).toBe(false);
   });
 
-  it('cancels the in-flight send with the abort key it was sent with', async () => {
+  it('cancels the in-flight send by aborting the signal it was sent with', async () => {
     const { result } = renderHook(() => useSendRequest());
 
     let resolveSend!: (value: unknown) => void;
@@ -121,11 +121,11 @@ describe('useSendRequest', () => {
       await Promise.resolve();
     });
 
-    const abortKey = mockSendRequest.mock.calls[0][1];
-    expect(abortKey).toBeTypeOf('string');
+    const signal = mockSendRequest.mock.calls[0][1] as AbortSignal;
+    expect(signal.aborted).toBe(false);
 
     act(() => result.current.cancelRequest());
-    expect(mockAbortRequest).toHaveBeenCalledWith(abortKey);
+    expect(signal.aborted).toBe(true);
 
     // An aborted send has no response, which is the user's own doing rather than a failure: no
     // response is stored and no error toast is shown.
@@ -136,6 +136,44 @@ describe('useSendRequest', () => {
 
     expect(mockShowError).not.toHaveBeenCalled();
     expect(mockAddResponse).not.toHaveBeenCalled();
+    expect(result.current.isSending).toBe(false);
+  });
+
+  it('hands an already aborted signal to the send when cancelled during the editor flush', async () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    // Hold the hook inside the Monaco flush that precedes the send. The button already reads
+    // "Cancel" at this point, so a cancel here has to take effect — the HTTP service turns the
+    // aborted signal into a request that never leaves the renderer.
+    mockModels = [{}];
+    let finishFlush!: () => void;
+    mockSaveModelContent.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishFlush = resolve;
+      })
+    );
+
+    let abortedWhenSent: boolean | undefined;
+    mockSendRequest.mockImplementation((_request: unknown, signal: AbortSignal) => {
+      abortedWhenSent = signal.aborted;
+      return Promise.resolve(null);
+    });
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.sendRequest();
+    });
+    expect(result.current.isSending).toBe(true);
+
+    act(() => result.current.cancelRequest());
+    finishFlush();
+    await act(async () => {
+      await sendPromise;
+    });
+
+    expect(abortedWhenSent).toBe(true);
+    expect(mockAddResponse).not.toHaveBeenCalled();
+    expect(mockShowError).not.toHaveBeenCalled();
     expect(result.current.isSending).toBe(false);
   });
 
@@ -186,9 +224,8 @@ describe('useSendRequest', () => {
   it('ignores a cancel when nothing is in flight', () => {
     const { result } = renderHook(() => useSendRequest());
 
-    act(() => result.current.cancelRequest());
-
-    expect(mockAbortRequest).not.toHaveBeenCalled();
+    expect(() => act(() => result.current.cancelRequest())).not.toThrow();
+    expect(result.current.isSending).toBe(false);
   });
 });
 

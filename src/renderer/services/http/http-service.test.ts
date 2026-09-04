@@ -20,7 +20,7 @@ describe('HttpService', () => {
   const httpService = HttpService.instance;
 
   beforeEach(() => {
-    mockSendRequest.mockReset();
+    mockSendRequest.mockReset().mockResolvedValue({ id: 'res-1' });
     mockAbortRequest.mockReset().mockResolvedValue(undefined);
   });
 
@@ -33,12 +33,58 @@ describe('HttpService', () => {
     await expect(httpService.sendRequest(request)).resolves.toBe(response);
   });
 
-  it('returns null for an aborted request instead of failing', async () => {
+  it('does not send a request whose signal is already aborted', async () => {
     // Arrange
-    mockSendRequest.mockResolvedValue(null);
+    const controller = new AbortController();
+    controller.abort();
 
-    // Act & Assert
-    await expect(httpService.sendRequest(request, 'key-1')).resolves.toBeNull();
+    // Act
+    const response = await httpService.sendRequest(request, controller.signal);
+
+    // Assert
+    expect(response).toBeNull();
+    expect(mockSendRequest).not.toHaveBeenCalled();
+  });
+
+  it('aborts the in-flight request by key when the signal is aborted', async () => {
+    // Arrange
+    const controller = new AbortController();
+    let abortKey: string | undefined;
+    mockSendRequest.mockImplementation((_request: unknown, key: string) => {
+      abortKey = key;
+      controller.abort();
+      return Promise.resolve(null);
+    });
+
+    // Act
+    const response = await httpService.sendRequest(request, controller.signal);
+
+    // Assert
+    expect(abortKey).toBeTypeOf('string');
+    expect(mockAbortRequest).toHaveBeenCalledWith(abortKey);
+    expect(response).toBeNull();
+  });
+
+  it('mints a fresh abort key per request', async () => {
+    // Act
+    await httpService.sendRequest(request, new AbortController().signal);
+    await httpService.sendRequest(request, new AbortController().signal);
+
+    // Assert
+    const [[, first], [, second]] = mockSendRequest.mock.calls;
+    expect(first).not.toBe(second);
+  });
+
+  it('stops listening to the signal once the request settled', async () => {
+    // Arrange
+    const controller = new AbortController();
+    await httpService.sendRequest(request, controller.signal);
+
+    // Act: aborting a request that already settled must not reach the main process.
+    controller.abort();
+
+    // Assert
+    expect(mockAbortRequest).not.toHaveBeenCalled();
   });
 
   it('wraps a genuine failure in a DisplayableError', async () => {
@@ -46,9 +92,9 @@ describe('HttpService', () => {
     mockSendRequest.mockRejectedValue(new Error('connection refused'));
 
     // Act & Assert
-    await expect(httpService.sendRequest(request, 'key-2')).rejects.toBeInstanceOf(
-      DisplayableError
-    );
+    await expect(
+      httpService.sendRequest(request, new AbortController().signal)
+    ).rejects.toBeInstanceOf(DisplayableError);
   });
 
   it('passes a DisplayableError through unchanged', async () => {
@@ -58,13 +104,5 @@ describe('HttpService', () => {
 
     // Act & Assert
     await expect(httpService.sendRequest(request)).rejects.toBe(error);
-  });
-
-  it('forwards the abort key to the event service', async () => {
-    // Act
-    await httpService.abortRequest('key-3');
-
-    // Assert
-    expect(mockAbortRequest).toHaveBeenCalledWith('key-3');
   });
 });
