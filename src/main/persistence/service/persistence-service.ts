@@ -546,7 +546,7 @@ export class PersistenceService {
     this.idToPathMap.set(info.id, dirPath);
     const children = recursive ? await this.loadChildren(info.id, dirPath) : [];
 
-    const lastModified = await this.getInfoFileModifactionTime(dirPath, type);
+    const lastModified = await this.getInfoFileModificationTime(dirPath, type);
     return fromCollectionInfoFile(info, lastModified, dirPath, children);
   }
 
@@ -570,7 +570,7 @@ export class PersistenceService {
     logger.info('Walking collection at', dirPath);
     const type = 'collection' as const;
     const info = await this.readInfoFile(dirPath, type);
-    const lastModified = await this.getInfoFileModifactionTime(dirPath, type);
+    const lastModified = await this.getInfoFileModificationTime(dirPath, type);
     const children = await this.walkChildren(info.id, dirPath);
 
     const snapshot = fromCollectionInfoFile(
@@ -609,13 +609,13 @@ export class PersistenceService {
   ): Promise<SnapshotChild | undefined> {
     if (await exists(path.join(childDirPath, getInfoFileName('folder')))) {
       const info = await this.readInfoFile(childDirPath, 'folder');
-      const lastModified = await this.getInfoFileModifactionTime(childDirPath, 'folder');
+      const lastModified = await this.getInfoFileModificationTime(childDirPath, 'folder');
       const children = await this.walkChildren(info.id, childDirPath);
       return fromFolderInfoFile(info, lastModified, parentId, children) as FolderSnapshot;
     } else if (await exists(path.join(childDirPath, getInfoFileName('request')))) {
       // NOTE: draft-only (never saved) requests have no main request.json and are skipped here.
       const info = await this.readInfoFile(childDirPath, 'request');
-      const lastModified = await this.getInfoFileModifactionTime(childDirPath, 'request');
+      const lastModified = await this.getInfoFileModificationTime(childDirPath, 'request');
       const request = fromRequestInfoFile(info, lastModified, parentId, false);
       return this.createRequestSnapshot(request, childDirPath);
     }
@@ -654,7 +654,7 @@ export class PersistenceService {
     const info = await this.readInfoFile(draft ? this.getDraftDirPath(dirPath) : dirPath, type);
     this.idToPathMap.set(info.id, dirPath);
 
-    const lastModified = await this.getInfoFileModifactionTime(
+    const lastModified = await this.getInfoFileModificationTime(
       draft ? this.getDraftDirPath(dirPath) : dirPath,
       type
     );
@@ -667,11 +667,11 @@ export class PersistenceService {
     this.idToPathMap.set(info.id, dirPath);
     const children = await this.loadChildren(info.id, dirPath);
 
-    const lastModified = await this.getInfoFileModifactionTime(dirPath, type);
+    const lastModified = await this.getInfoFileModificationTime(dirPath, type);
     return fromFolderInfoFile(info, lastModified, parentId, children);
   }
 
-  private async getInfoFileModifactionTime(
+  private async getInfoFileModificationTime(
     dirPath: string,
     type: TrufosObject['type']
   ): Promise<number> {
