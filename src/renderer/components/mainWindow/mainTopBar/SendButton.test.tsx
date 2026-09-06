@@ -1,40 +1,74 @@
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { SendButton } from './SendButton';
 
+const { mockSendRequest, mockCancelRequest } = vi.hoisted(() => ({
+  mockSendRequest: vi.fn(),
+  mockCancelRequest: vi.fn(),
+}));
+
+let mockIsSending = false;
+
+vi.mock('@/hooks/request/useRequestActions', () => ({
+  useSendRequest: () => ({
+    sendRequest: mockSendRequest,
+    cancelRequest: mockCancelRequest,
+    isSending: mockIsSending,
+  }),
+}));
+
 describe('SendButton', () => {
+  beforeEach(() => {
+    mockIsSending = false;
+    mockSendRequest.mockClear();
+    mockCancelRequest.mockClear();
+  });
+
   it('should render "Send" text', () => {
     // Arrange & Act
-    const { getByText } = render(<SendButton onClick={() => {}} />);
+    const { getByText } = render(<SendButton />);
 
     // Assert
     expect(getByText('Send')).toBeTruthy();
   });
 
-  it('should call onClick when clicked', async () => {
+  it('should send the request when clicked', async () => {
     // Arrange
-    const onClickMock = vi.fn();
     const user = userEvent.setup();
-    const { getByText } = render(<SendButton onClick={onClickMock} />);
+    const { getByText } = render(<SendButton />);
 
     // Act
     await user.click(getByText('Send'));
 
     // Assert
-    expect(onClickMock).toHaveBeenCalledTimes(1);
+    expect(mockSendRequest).toHaveBeenCalledTimes(1);
+    expect(mockCancelRequest).not.toHaveBeenCalled();
   });
 
-  it('should not call onClick when disabled', async () => {
+  it('should render "Cancel" text while a request is in flight', () => {
     // Arrange
-    const onClickMock = vi.fn();
-    const user = userEvent.setup();
-    const { getByText } = render(<SendButton onClick={onClickMock} disabled />);
+    mockIsSending = true;
 
     // Act
-    await user.click(getByText('Send'));
+    const { getByText, queryByText } = render(<SendButton />);
 
     // Assert
-    expect(onClickMock).not.toHaveBeenCalled();
+    expect(getByText('Cancel')).toBeTruthy();
+    expect(queryByText('Send')).toBeNull();
+  });
+
+  it('should cancel the request when clicked while a request is in flight', async () => {
+    // Arrange
+    mockIsSending = true;
+    const user = userEvent.setup();
+    const { getByText } = render(<SendButton />);
+
+    // Act
+    await user.click(getByText('Cancel'));
+
+    // Assert
+    expect(mockCancelRequest).toHaveBeenCalledTimes(1);
+    expect(mockSendRequest).not.toHaveBeenCalled();
   });
 });

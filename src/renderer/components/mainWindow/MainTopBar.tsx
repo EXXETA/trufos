@@ -3,7 +3,7 @@ import { HttpMethodSelect } from './mainTopBar/HttpMethodSelect';
 import { UrlInput } from './mainTopBar/UrlInput';
 import { SendButton } from './mainTopBar/SendButton';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { ArrowRight, Loader2, SaveIcon, EraserIcon } from 'lucide-react';
+import { SaveIcon, EraserIcon } from 'lucide-react';
 import { TrufosURL } from 'shim/objects/url';
 import { IconButton } from '@/components/ui/icon-button';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
@@ -15,7 +15,7 @@ export function MainTopBar() {
   const { updateRequest, discardChanges } = useCollectionActions();
   const request = useCollectionStore(selectRequest)!;
   const { url, method } = request;
-  const { sendRequest, isSending } = useSendRequest();
+  const { sendRequest } = useSendRequest();
   const { saveRequest } = useSaveRequest();
   const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
 
@@ -47,9 +47,7 @@ export function MainTopBar() {
         <SaveIcon />
       </IconButton>
 
-      <SendButton onClick={sendRequest} disabled={isSending}>
-        {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight />}
-      </SendButton>
+      <SendButton />
     </div>
   );
 }

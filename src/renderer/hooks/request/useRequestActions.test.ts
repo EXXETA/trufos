@@ -19,9 +19,10 @@ const {
 }));
 
 let mockCurrentRequest: { id: string; draft?: boolean } | undefined;
+let mockModels: unknown[] = [];
 
 vi.mock('monaco-editor', () => ({
-  editor: { getModels: () => [] },
+  editor: { getModels: () => mockModels },
 }));
 
 vi.mock('@/lib/monaco/models', () => ({
@@ -53,8 +54,11 @@ vi.mock('@/state/responseStore', () => ({
 describe('useSendRequest', () => {
   beforeEach(() => {
     mockCurrentRequest = { id: 'req-1' };
+    mockModels = [];
     mockSendRequest.mockClear();
+    mockSaveModelContent.mockClear().mockResolvedValue(undefined);
     mockAddResponse.mockClear();
+    mockShowError.mockClear();
   });
 
   it('shares isSending across every hook instance, not just the caller that triggered it', async () => {
@@ -96,6 +100,132 @@ describe('useSendRequest', () => {
 
     expect(a.result.current.isSending).toBe(false);
     expect(b.result.current.isSending).toBe(false);
+  });
+
+  it('cancels the in-flight send by aborting the signal it was sent with', async () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    let resolveSend!: (value: unknown) => void;
+    mockSendRequest.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSend = resolve;
+        })
+    );
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.sendRequest();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const signal = mockSendRequest.mock.calls[0][1] as AbortSignal;
+    expect(signal.aborted).toBe(false);
+
+    act(() => result.current.cancelRequest());
+    expect(signal.aborted).toBe(true);
+
+    // An aborted send has no response, which is the user's own doing rather than a failure: no
+    // response is stored and no error toast is shown.
+    resolveSend(null);
+    await act(async () => {
+      await sendPromise;
+    });
+
+    expect(mockShowError).not.toHaveBeenCalled();
+    expect(mockAddResponse).not.toHaveBeenCalled();
+    expect(result.current.isSending).toBe(false);
+  });
+
+  it('hands an already aborted signal to the send when cancelled during the editor flush', async () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    // Hold the hook inside the Monaco flush that precedes the send. The button already reads
+    // "Cancel" at this point, so a cancel here has to take effect — the HTTP service turns the
+    // aborted signal into a request that never leaves the renderer.
+    mockModels = [{}];
+    let finishFlush!: () => void;
+    mockSaveModelContent.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishFlush = resolve;
+      })
+    );
+
+    let abortedWhenSent: boolean | undefined;
+    mockSendRequest.mockImplementation((_request: unknown, signal: AbortSignal) => {
+      abortedWhenSent = signal.aborted;
+      return Promise.resolve(null);
+    });
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.sendRequest();
+    });
+    expect(result.current.isSending).toBe(true);
+
+    act(() => result.current.cancelRequest());
+    finishFlush();
+    await act(async () => {
+      await sendPromise;
+    });
+
+    expect(abortedWhenSent).toBe(true);
+    expect(mockAddResponse).not.toHaveBeenCalled();
+    expect(mockShowError).not.toHaveBeenCalled();
+    expect(result.current.isSending).toBe(false);
+  });
+
+  it('still reports a genuine failure of the send', async () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    const failure = new Error('connection refused');
+    mockSendRequest.mockRejectedValue(failure);
+
+    await act(async () => {
+      await result.current.sendRequest();
+    });
+
+    expect(mockShowError).toHaveBeenCalledWith(failure);
+    expect(result.current.isSending).toBe(false);
+  });
+
+  it('does not start a second send while one is still in flight', async () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    let resolveSend!: (value: unknown) => void;
+    mockSendRequest.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSend = resolve;
+        })
+    );
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.sendRequest();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.sendRequest();
+    });
+    expect(mockSendRequest).toHaveBeenCalledTimes(1);
+
+    resolveSend({});
+    await act(async () => {
+      await sendPromise;
+    });
+  });
+
+  it('ignores a cancel when nothing is in flight', () => {
+    const { result } = renderHook(() => useSendRequest());
+
+    expect(() => act(() => result.current.cancelRequest())).not.toThrow();
+    expect(result.current.isSending).toBe(false);
   });
 });
 

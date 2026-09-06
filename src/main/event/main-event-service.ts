@@ -6,6 +6,7 @@ import type {
   TrufosObject,
   Folder,
   TrufosRequest,
+  TrufosResponse,
   VariableMap,
   EnvironmentMap,
   ScriptType,
@@ -125,7 +126,7 @@ export class MainEventService implements IEventService {
     return await environmentService.listCollections();
   }
 
-  async sendRequest(request: TrufosRequest, abortKey?: string) {
+  async sendRequest(request: TrufosRequest, abortKey?: string): Promise<TrufosResponse | null> {
     if (abortKey == null) {
       return await HttpService.instance.fetchAsync(request);
     }
@@ -135,6 +136,12 @@ export class MainEventService implements IEventService {
 
     try {
       return await HttpService.instance.fetchAsync(request, abortController.signal);
+    } catch (error) {
+      // An aborted request simply has no response. This is the outcome the caller asked for, so it
+      // is reported as one instead of as the platform's abort error.
+      if (!abortController.signal.aborted) throw error;
+      logger.debug('Request was aborted:', request.id);
+      return null;
     } finally {
       this.abortControllers.delete(abortKey);
     }
