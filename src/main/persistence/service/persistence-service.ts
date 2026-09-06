@@ -1,4 +1,4 @@
-import { exists, isEmpty } from 'main/util/fs-util';
+import { exists, isEmpty, readFileLimited } from 'main/util/fs-util';
 import { assign } from 'main/util/object-util';
 import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -546,7 +546,7 @@ export class PersistenceService {
     this.idToPathMap.set(info.id, dirPath);
     const children = recursive ? await this.loadChildren(info.id, dirPath) : [];
 
-    const lastModified = await this.getInfoFileModifactionTime(dirPath, type);
+    const lastModified = await this.getInfoFileModificationTime(dirPath, type);
     return fromCollectionInfoFile(info, lastModified, dirPath, children);
   }
 
@@ -570,7 +570,7 @@ export class PersistenceService {
     logger.info('Walking collection at', dirPath);
     const type = 'collection' as const;
     const info = await this.readInfoFile(dirPath, type);
-    const lastModified = await this.getInfoFileModifactionTime(dirPath, type);
+    const lastModified = await this.getInfoFileModificationTime(dirPath, type);
     const children = await this.walkChildren(info.id, dirPath);
 
     const snapshot = fromCollectionInfoFile(
@@ -584,29 +584,42 @@ export class PersistenceService {
   }
 
   private async walkChildren(parentId: string, parentDirPath: string): Promise<SnapshotChild[]> {
-    const children: SnapshotChild[] = [];
+    const nodes = (await fs.readdir(parentDirPath, { withFileTypes: true })).filter(
+      (node) => node.isDirectory() && node.name !== DRAFT_DIR_NAME
+    );
 
-    for (const node of await fs.readdir(parentDirPath, { withFileTypes: true })) {
-      if (!node.isDirectory() || node.name === DRAFT_DIR_NAME) continue;
-      const childDirPath = path.join(parentDirPath, node.name);
+    // Promise.all() resolves by index, so the children keep their directory order regardless of
+    // which of them finishes walking first
+    const [children, order] = await Promise.all([
+      Promise.all(
+        nodes.map((node) => this.walkChild(parentId, path.join(parentDirPath, node.name)))
+      ),
+      this.loadOrderFile(parentDirPath),
+    ]);
 
-      if (await exists(path.join(childDirPath, getInfoFileName('folder')))) {
-        const info = await this.readInfoFile(childDirPath, 'folder');
-        const lastModified = await this.getInfoFileModifactionTime(childDirPath, 'folder');
-        const folderChildren = await this.walkChildren(info.id, childDirPath);
-        children.push(
-          fromFolderInfoFile(info, lastModified, parentId, folderChildren) as FolderSnapshot
-        );
-      } else if (await exists(path.join(childDirPath, getInfoFileName('request')))) {
-        // NOTE: draft-only (never saved) requests have no main request.json and are skipped here.
-        const info = await this.readInfoFile(childDirPath, 'request');
-        const lastModified = await this.getInfoFileModifactionTime(childDirPath, 'request');
-        const request = fromRequestInfoFile(info, lastModified, parentId, false);
-        children.push(this.createRequestSnapshot(request, childDirPath));
-      }
+    return this.sortChildrenArray(
+      children.filter((child) => child != null),
+      order
+    );
+  }
+
+  private async walkChild(
+    parentId: string,
+    childDirPath: string
+  ): Promise<SnapshotChild | undefined> {
+    if (await exists(path.join(childDirPath, getInfoFileName('folder')))) {
+      const info = await this.readInfoFile(childDirPath, 'folder');
+      const lastModified = await this.getInfoFileModificationTime(childDirPath, 'folder');
+      const children = await this.walkChildren(info.id, childDirPath);
+      return fromFolderInfoFile(info, lastModified, parentId, children) as FolderSnapshot;
+    } else if (await exists(path.join(childDirPath, getInfoFileName('request')))) {
+      // NOTE: draft-only (never saved) requests have no main request.json and are skipped here.
+      const info = await this.readInfoFile(childDirPath, 'request');
+      const lastModified = await this.getInfoFileModificationTime(childDirPath, 'request');
+      const request = fromRequestInfoFile(info, lastModified, parentId, false);
+      return this.createRequestSnapshot(request, childDirPath);
     }
-
-    return this.sortChildrenArray(children, await this.loadOrderFile(parentDirPath));
+    return undefined;
   }
 
   /**
@@ -641,7 +654,7 @@ export class PersistenceService {
     const info = await this.readInfoFile(draft ? this.getDraftDirPath(dirPath) : dirPath, type);
     this.idToPathMap.set(info.id, dirPath);
 
-    const lastModified = await this.getInfoFileModifactionTime(
+    const lastModified = await this.getInfoFileModificationTime(
       draft ? this.getDraftDirPath(dirPath) : dirPath,
       type
     );
@@ -654,11 +667,11 @@ export class PersistenceService {
     this.idToPathMap.set(info.id, dirPath);
     const children = await this.loadChildren(info.id, dirPath);
 
-    const lastModified = await this.getInfoFileModifactionTime(dirPath, type);
+    const lastModified = await this.getInfoFileModificationTime(dirPath, type);
     return fromFolderInfoFile(info, lastModified, parentId, children);
   }
 
-  private async getInfoFileModifactionTime(
+  private async getInfoFileModificationTime(
     dirPath: string,
     type: TrufosObject['type']
   ): Promise<number> {
@@ -671,22 +684,21 @@ export class PersistenceService {
     parentId: string,
     parentDirPath: string
   ): Promise<(Folder | TrufosRequest)[]> {
-    const children: (Folder | TrufosRequest)[] = [];
+    const nodes = (await fs.readdir(parentDirPath, { withFileTypes: true })).filter(
+      (node) => node.isDirectory() && node.name !== DRAFT_DIR_NAME
+    );
 
-    for (const node of await fs.readdir(parentDirPath, {
-      withFileTypes: true,
-    })) {
-      if (!node.isDirectory() || node.name === DRAFT_DIR_NAME) {
-        continue;
-      }
+    // Promise.all() resolves by index, so the children keep their directory order regardless of
+    // which of them finishes loading first
+    const [children, order] = await Promise.all([
+      Promise.all(nodes.map((node) => this.load(parentId, path.join(parentDirPath, node.name)))),
+      this.loadOrderFile(parentDirPath),
+    ]);
 
-      const child = await this.load(parentId, path.join(parentDirPath, node.name));
-      if (child != null) {
-        children.push(child);
-      }
-    }
-
-    return this.sortChildrenArray(children, await this.loadOrderFile(parentDirPath));
+    return this.sortChildrenArray(
+      children.filter((child) => child != null),
+      order
+    );
   }
 
   private sortChildrenArray<T extends { id: string }>(children: T[], order: string[]): T[] {
@@ -704,7 +716,7 @@ export class PersistenceService {
       return [];
     }
 
-    return await OrderFile.parseAsync(JSON.parse(await fs.readFile(filePath, 'utf8')));
+    return await OrderFile.parseAsync(JSON.parse(await readFileLimited(filePath, 'utf8')));
   }
 
   private async saveOrderFile(dirPath: string, children: string[]) {
@@ -737,11 +749,14 @@ export class PersistenceService {
   private readInfoFile(dirPath: string, type: Folder['type']): Promise<FolderInfoFile>;
   private readInfoFile(dirPath: string, type: TrufosRequest['type']): Promise<RequestInfoFile>;
 
-  private async readInfoFile<T extends TrufosObject>(dirPath: string, type: T['type']) {
+  private async readInfoFile<T extends TrufosObject>(
+    dirPath: string,
+    type: T['type']
+  ): Promise<InfoFile> {
     const filePath = path.join(dirPath, this.getInfoFileName(type));
     try {
       const info = assign(
-        JSON.parse(await fs.readFile(filePath, 'utf8')) as InfoFile,
+        JSON.parse(await readFileLimited(filePath, 'utf8')) as InfoFile,
         await this.loadSecrets(dirPath)
       );
       const latest = await migrateInfoFile(info, type, filePath); // (potentially) migrate the info file to the latest version
@@ -756,7 +771,7 @@ export class PersistenceService {
     const filePath = path.join(dirPath, SECRETS_FILE_NAME);
     if (await exists(filePath)) {
       logger.debug('Loading secrets from', filePath);
-      return JSON.parse(secretService.decrypt(await fs.readFile(filePath)));
+      return JSON.parse(secretService.decrypt(await readFileLimited(filePath)));
     } else {
       return {};
     }

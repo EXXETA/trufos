@@ -1100,6 +1100,82 @@ describe('PersistenceService', () => {
     expect(loaded.children[0].title).toBe('Folder2');
   });
 
+  it('loadCollection() should keep the directory order when children finish loading out of order', async () => {
+    // Arrange - more children than may be read concurrently, so that reads are queued
+    const childCount = 12;
+    for (let i = 0; i < childCount; i++) {
+      const request = getExampleRequest(collection.id);
+      request.title = `req-${String(i).padStart(2, '0')}`;
+      collection.children.push(request);
+    }
+    await persistenceService.saveCollection(collection, true);
+
+    // let the earlier children finish last, so that collecting them by completion instead of by
+    // position would return them in the wrong order
+    const originalReadFile = fs.readFile.bind(fs);
+    vi.spyOn(fs, 'readFile').mockImplementation(async (...args: Parameters<typeof fs.readFile>) => {
+      const content = await originalReadFile(...args);
+      const index = /req-(\d+)/.exec(String(args[0]))?.[1];
+      if (index != null) {
+        await new Promise((resolve) => setTimeout(resolve, childCount - Number(index)));
+      }
+      return content;
+    });
+
+    // Act
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+
+    // Assert
+    expect(loaded.children.map((child) => child.title)).toEqual(
+      collection.children.map((child) => child.title)
+    );
+  });
+
+  it('loadCollection() should preserve order.json of nested folders', async () => {
+    // Arrange
+    const folder = getExampleFolder(collection.id);
+    const requests = ['a', 'b', 'c'].map((title) => {
+      const request = getExampleRequest(folder.id);
+      request.title = title;
+      return request;
+    });
+    folder.children.push(...requests);
+    collection.children.push(folder);
+    await persistenceService.saveCollection(collection, true);
+
+    // move the last request to the front
+    await persistenceService.reorderItem(folder, requests[2].id, 0);
+
+    // Act
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+
+    // Assert
+    const loadedFolder = loaded.children[0];
+    if (loadedFolder.type !== 'folder') throw new Error('expected a folder');
+    expect(loadedFolder.children.map((child) => child.title)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('loadCollection() should fail if the info file of a child is corrupt', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    request.title = 'broken';
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await writeFile(
+      path.join(
+        collection.dirPath,
+        sanitizeTitle(request.title),
+        persistenceService.getInfoFileName(request.type)
+      ),
+      '{ this is not json'
+    );
+
+    // Act & Assert
+    await expect(persistenceService.loadCollection(collection.dirPath)).rejects.toThrow(
+      'Failed to load request info file'
+    );
+  });
+
   it('reorderItem() should reorder items within same parent', async () => {
     // Arrange
     const request1 = getExampleRequest(collection.id);
