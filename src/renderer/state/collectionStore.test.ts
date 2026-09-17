@@ -48,7 +48,7 @@ const makeRequest = (id: string, parentId: string): TrufosRequest =>
     draft: false,
   }) as unknown as TrufosRequest;
 
-const makeCollection = (id: string, children: TrufosRequest[] = []): Collection =>
+const makeCollection = (id: string, children: Collection['children'] = []): Collection =>
   ({
     id,
     parentId: null,
@@ -308,7 +308,7 @@ describe('selection actions', () => {
   });
 });
 
-const makeFolder = (id: string, parentId: string, children: TrufosRequest[] = []): Folder =>
+const makeFolder = (id: string, parentId: string, children: Folder['children'] = []): Folder =>
   ({
     id,
     parentId,
