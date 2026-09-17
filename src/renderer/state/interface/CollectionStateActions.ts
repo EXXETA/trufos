@@ -72,6 +72,18 @@ export interface CollectionStateActions {
    */
   clearSelection(): void;
 
+  /**
+   * Delete every top-level id in the sidebar's multi-selection (a selected folder's
+   * already-selected descendants are not deleted a second time), then clear the selection.
+   */
+  deleteSelectedItems(): Promise<void>;
+
+  /**
+   * Duplicate every top-level id in the sidebar's multi-selection (a selected folder's
+   * already-selected descendants are not duplicated a second time), then clear the selection.
+   */
+  duplicateSelectedItems(): Promise<void>;
+
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
   discardChanges(): Promise<void>;

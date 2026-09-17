@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import { type StoreApi, useStore } from 'zustand';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import {
+  getTopLevelSelectedIds,
   isRequestInAParentFolder,
   setRequestTextBody,
   setScriptContent,
@@ -264,6 +265,37 @@ export const createCollectionStore = (collection: Collection) => {
         set((state) => {
           state.selectedIds = new Set();
         });
+      },
+
+      deleteSelectedItems: async () => {
+        const { selectedIds, requests, folders, deleteRequest, deleteFolder, clearSelection } =
+          get();
+        const topLevelIds = getTopLevelSelectedIds(selectedIds, requests, folders);
+
+        for (const id of topLevelIds) {
+          if (requests.has(id)) {
+            await deleteRequest(id);
+          } else if (folders.has(id)) {
+            await deleteFolder(id);
+          }
+        }
+
+        clearSelection();
+      },
+
+      duplicateSelectedItems: async () => {
+        const { selectedIds, requests, folders, copyRequest, copyFolder, clearSelection } = get();
+        const topLevelIds = getTopLevelSelectedIds(selectedIds, requests, folders);
+
+        for (const id of topLevelIds) {
+          if (requests.has(id)) {
+            await copyRequest(id);
+          } else if (folders.has(id)) {
+            await copyFolder(id);
+          }
+        }
+
+        clearSelection();
       },
 
       deleteRequest: async (id) => {

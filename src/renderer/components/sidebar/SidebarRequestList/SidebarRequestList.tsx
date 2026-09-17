@@ -103,8 +103,15 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   const sortMode = useCollectionStore((state) => state.sortMode);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const selectedIds = useCollectionStore((state) => state.selectedIds);
-  const { moveItem, setSelectedRequest, toggleItemSelected, setSelection, clearSelection } =
-    useCollectionActions();
+  const {
+    moveItem,
+    setSelectedRequest,
+    toggleItemSelected,
+    setSelection,
+    clearSelection,
+    deleteSelectedItems,
+    duplicateSelectedItems,
+  } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
@@ -265,12 +272,12 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   };
 
   const handleDuplicateSelected = () => {
-    // TODO(Task 4): wire to the real `duplicateSelectedItems` store action once it exists.
+    duplicateSelectedItems();
   };
 
   const handleConfirmBulkDelete = () => {
-    // TODO(Task 4): wire to the real `deleteSelectedItems` store action once it exists.
     setIsBulkDeleteDialogOpen(false);
+    deleteSelectedItems();
   };
 
   // Find the active item for the DragOverlay preview

@@ -10,9 +10,13 @@ vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: vi.fn() },
 }));
 
-vi.mock('@/state/helper/collectionUtil', () => ({
-  isRequestInAParentFolder: vi.fn(() => false),
-}));
+vi.mock('@/state/helper/collectionUtil', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./helper/collectionUtil')>();
+  return {
+    ...actual,
+    isRequestInAParentFolder: vi.fn(() => false),
+  };
+});
 
 vi.mock('@/services/event/renderer-event-service', () => ({
   RendererEventService: {
@@ -301,6 +305,87 @@ describe('selection actions', () => {
     store.getState().clearSelection();
 
     expect(store.getState().selectedIds.size).toBe(0);
+  });
+});
+
+const makeFolder = (id: string, parentId: string, children: TrufosRequest[] = []): Folder =>
+  ({
+    id,
+    parentId,
+    type: 'folder',
+    title: id,
+    children,
+  }) as unknown as Folder;
+
+describe('deleteSelectedItems', () => {
+  it('deletes each top-level selected id via deleteRequest/deleteFolder, then clears the selection', async () => {
+    const request = makeRequest(REQ_ID, COL_ID);
+    const folder = makeFolder('folder-a', COL_ID);
+    const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
+
+    const deleteRequestMock = vi.fn().mockResolvedValue(undefined);
+    const deleteFolderMock = vi.fn().mockResolvedValue(undefined);
+    store.setState({ deleteRequest: deleteRequestMock, deleteFolder: deleteFolderMock });
+
+    store.getState().setSelection([REQ_ID, 'folder-a']);
+    await store.getState().deleteSelectedItems();
+
+    expect(deleteRequestMock).toHaveBeenCalledWith(REQ_ID);
+    expect(deleteFolderMock).toHaveBeenCalledWith('folder-a');
+    expect(store.getState().selectedIds.size).toBe(0);
+  });
+
+  it("excludes a selected folder's own selected descendant from the delete loop", async () => {
+    const childReq = makeRequest('child-req', 'folder-a');
+    const folder = makeFolder('folder-a', COL_ID, [childReq]);
+    const store = createCollectionStore(makeCollection(COL_ID, [folder]));
+
+    const deleteRequestMock = vi.fn().mockResolvedValue(undefined);
+    const deleteFolderMock = vi.fn().mockResolvedValue(undefined);
+    store.setState({ deleteRequest: deleteRequestMock, deleteFolder: deleteFolderMock });
+
+    store.getState().setSelection(['folder-a', 'child-req']);
+    await store.getState().deleteSelectedItems();
+
+    expect(deleteFolderMock).toHaveBeenCalledTimes(1);
+    expect(deleteFolderMock).toHaveBeenCalledWith('folder-a');
+    expect(deleteRequestMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('duplicateSelectedItems', () => {
+  it('duplicates each top-level selected id via copyRequest/copyFolder, then clears the selection', async () => {
+    const request = makeRequest(REQ_ID, COL_ID);
+    const folder = makeFolder('folder-a', COL_ID);
+    const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
+
+    const copyRequestMock = vi.fn().mockResolvedValue(undefined);
+    const copyFolderMock = vi.fn().mockResolvedValue(undefined);
+    store.setState({ copyRequest: copyRequestMock, copyFolder: copyFolderMock });
+
+    store.getState().setSelection([REQ_ID, 'folder-a']);
+    await store.getState().duplicateSelectedItems();
+
+    expect(copyRequestMock).toHaveBeenCalledWith(REQ_ID);
+    expect(copyFolderMock).toHaveBeenCalledWith('folder-a');
+    expect(store.getState().selectedIds.size).toBe(0);
+  });
+
+  it("excludes a selected folder's own selected descendant from the duplicate loop", async () => {
+    const childReq = makeRequest('child-req', 'folder-a');
+    const folder = makeFolder('folder-a', COL_ID, [childReq]);
+    const store = createCollectionStore(makeCollection(COL_ID, [folder]));
+
+    const copyRequestMock = vi.fn().mockResolvedValue(undefined);
+    const copyFolderMock = vi.fn().mockResolvedValue(undefined);
+    store.setState({ copyRequest: copyRequestMock, copyFolder: copyFolderMock });
+
+    store.getState().setSelection(['folder-a', 'child-req']);
+    await store.getState().duplicateSelectedItems();
+
+    expect(copyFolderMock).toHaveBeenCalledTimes(1);
+    expect(copyFolderMock).toHaveBeenCalledWith('folder-a');
+    expect(copyRequestMock).not.toHaveBeenCalled();
   });
 });
 
