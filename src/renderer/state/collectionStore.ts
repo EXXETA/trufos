@@ -40,6 +40,9 @@ interface CollectionState {
   /** A set of folder IDs that are currently open in the sidebar */
   openFolders: Set<Folder['id']>;
 
+  /** A set of request/folder IDs currently multi-selected in the sidebar */
+  selectedIds: Set<TrufosRequest['id'] | Folder['id']>;
+
   /** The currently active script type in the script editor */
   currentScriptType: ScriptType;
 
@@ -89,6 +92,7 @@ export const createCollectionStore = (collection: Collection) => {
     immer((set, get) => ({
       collection,
       openFolders: new Set(),
+      selectedIds: new Set(),
       currentScriptType: ScriptType.PRE_REQUEST,
       sortMode: SortMode.DEFAULT,
       ...buildCollectionItemMaps(collection),
@@ -107,11 +111,16 @@ export const createCollectionStore = (collection: Collection) => {
           if (isNewCollection) {
             state.selectedRequestId = undefined;
             state.openFolders = new Set();
+            state.selectedIds = new Set();
           } else {
             if (state.selectedRequestId != null && !state.requests.has(state.selectedRequestId)) {
               state.selectedRequestId = undefined;
             }
-            state.openFolders = state.openFolders.intersection(new Set(folders.keys()));
+            // Immer's draft Sets don't support the ES2024 Set.prototype.intersection() method
+            // (it silently returns an empty set), so intersect manually via filter instead.
+            state.openFolders = new Set([...state.openFolders].filter((id) => folders.has(id)));
+            const validIds = new Set([...requests.keys(), ...folders.keys()]);
+            state.selectedIds = new Set([...state.selectedIds].filter((id) => validIds.has(id)));
           }
           console.info('Initialized collection:', collection);
         });
@@ -233,6 +242,28 @@ export const createCollectionStore = (collection: Collection) => {
 
       setSortMode: (mode) => {
         set({ sortMode: mode });
+      },
+
+      toggleItemSelected: (id) => {
+        set((state) => {
+          if (state.selectedIds.has(id)) {
+            state.selectedIds.delete(id);
+          } else {
+            state.selectedIds.add(id);
+          }
+        });
+      },
+
+      setSelection: (ids) => {
+        set((state) => {
+          state.selectedIds = new Set(ids);
+        });
+      },
+
+      clearSelection: () => {
+        set((state) => {
+          state.selectedIds = new Set();
+        });
       },
 
       deleteRequest: async (id) => {

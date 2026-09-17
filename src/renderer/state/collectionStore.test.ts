@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createCollectionStore } from './collectionStore';
 import { ClientCertificate, Collection } from 'shim/objects/collection';
+import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { AuthorizationType, OAuth2Method } from 'shim/objects';
@@ -196,6 +197,26 @@ describe('initialize', () => {
     expect(store.getState().openFolders.has('folder-a')).toBe(false); // pruned (folder not in new map)
   });
 
+  it('retains an openFolders entry still present after reinitializing the same collection', () => {
+    // Regression test: Immer draft Sets don't support Set.prototype.intersection() (it
+    // silently returns empty), so this guards against a naive `.intersection()` call
+    // wiping out still-valid open folders on every collection reload.
+    const folder: Folder = {
+      id: 'folder-a',
+      parentId: COL_ID,
+      type: 'folder',
+      title: 'Folder A',
+      children: [],
+    } as unknown as Folder;
+    const store = buildStore();
+    store.getState().initialize(makeCollection(COL_ID, [folder]));
+    store.getState().setFolderOpen('folder-a');
+
+    store.getState().initialize(makeCollection(COL_ID, [folder]));
+
+    expect(store.getState().openFolders.has('folder-a')).toBe(true);
+  });
+
   it('resets openFolders and selectedRequestId when switching to a different collection', () => {
     const store = buildStore();
     store.getState().setFolderOpen('folder-a');
@@ -222,6 +243,64 @@ describe('initialize', () => {
     store.getState().initialize(makeCollection(COL_ID, [])); // request removed
 
     expect(store.getState().selectedRequestId).toBeUndefined();
+  });
+
+  it('prunes selectedIds to ids still present when reinitializing the same collection', () => {
+    const store = buildStore();
+    store.getState().setSelection([REQ_ID, 'stale-id']);
+
+    store.getState().initialize(makeCollection(COL_ID, [makeRequest(REQ_ID, COL_ID)]));
+
+    const state = store.getState();
+    expect(state.selectedIds.has(REQ_ID)).toBe(true);
+    expect(state.selectedIds.has('stale-id')).toBe(false);
+  });
+
+  it('resets selectedIds when switching to a different collection', () => {
+    const store = buildStore();
+    store.getState().setSelection([REQ_ID]);
+
+    store.getState().initialize(makeCollection('col-2'));
+
+    expect(store.getState().selectedIds.size).toBe(0);
+  });
+});
+
+describe('selection actions', () => {
+  it('toggleItemSelected adds an id not yet selected', () => {
+    const store = buildStore();
+
+    store.getState().toggleItemSelected(REQ_ID);
+
+    expect(store.getState().selectedIds.has(REQ_ID)).toBe(true);
+  });
+
+  it('toggleItemSelected removes an id already selected', () => {
+    const store = buildStore();
+    store.getState().toggleItemSelected(REQ_ID);
+
+    store.getState().toggleItemSelected(REQ_ID);
+
+    expect(store.getState().selectedIds.has(REQ_ID)).toBe(false);
+  });
+
+  it('setSelection replaces the entire selection', () => {
+    const store = buildStore();
+    store.getState().toggleItemSelected('other-id');
+
+    store.getState().setSelection([REQ_ID, 'folder-a']);
+
+    const state = store.getState();
+    expect([...state.selectedIds].sort()).toEqual([REQ_ID, 'folder-a'].sort());
+  });
+
+  it('clearSelection empties the selection', () => {
+    const store = buildStore();
+    store.getState().setSelection([REQ_ID, 'folder-a']);
+
+    store.getState().clearSelection();
+
+    expect(store.getState().selectedIds.size).toBe(0);
   });
 });
 
