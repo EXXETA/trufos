@@ -28,6 +28,8 @@ import { cn } from '@/lib/utils';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
+import { BulkActionBar } from '@/components/sidebar/SidebarRequestList/BulkActionBar';
+import { BulkDeleteDialog } from '@/components/sidebar/SidebarRequestList/BulkDeleteDialog';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 
@@ -106,6 +108,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -225,9 +228,9 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     ],
     {
       // Scoped independently of the navigation hotkeys above: selection can be non-empty
-      // while no request is open. Task 3 adds `&& !isBulkDeleteDialogOpen` once the dialog
-      // exists, so Escape closes the dialog instead of racing with the selection clear.
-      enabled: selectedIds.size > 0,
+      // while no request is open. Disabled while the bulk-delete dialog is open so Escape
+      // closes the dialog (Radix's own handling) instead of racing with the selection clear.
+      enabled: selectedIds.size > 0 && !isBulkDeleteDialogOpen,
     }
   );
 
@@ -259,6 +262,15 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
 
   const handleDragCancel = () => {
     setActiveId(null);
+  };
+
+  const handleDuplicateSelected = () => {
+    // TODO(Task 4): wire to the real `duplicateSelectedItems` store action once it exists.
+  };
+
+  const handleConfirmBulkDelete = () => {
+    // TODO(Task 4): wire to the real `deleteSelectedItems` store action once it exists.
+    setIsBulkDeleteDialogOpen(false);
   };
 
   // Find the active item for the DragOverlay preview
@@ -324,21 +336,35 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   }, [sortableItems, creatingItem, collectionId, onCreateItem, handleItemClick, selectedIds]);
 
   return (
-    <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
-      <DndContext
-        sensors={activeSensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-        <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          <SidebarMenu className="gap-0">{renderItems}</SidebarMenu>
-        </SortableContext>
-        <DragOverlay dropAnimation={null}>
-          {activeItem ? <DragOverlayContent itemId={activeItem.id} /> : null}
-        </DragOverlay>
-      </DndContext>
-    </SidebarContent>
+    <>
+      <BulkActionBar
+        count={selectedIds.size}
+        onClear={clearSelection}
+        onDuplicate={handleDuplicateSelected}
+        onDeleteClick={() => setIsBulkDeleteDialogOpen(true)}
+      />
+      <BulkDeleteDialog
+        open={isBulkDeleteDialogOpen}
+        count={selectedIds.size}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+      />
+      <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
+        <DndContext
+          sensors={activeSensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+            <SidebarMenu className="gap-0">{renderItems}</SidebarMenu>
+          </SortableContext>
+          <DragOverlay dropAnimation={null}>
+            {activeItem ? <DragOverlayContent itemId={activeItem.id} /> : null}
+          </DragOverlay>
+        </DndContext>
+      </SidebarContent>
+    </>
   );
 };
