@@ -117,6 +117,29 @@ export function removeChildrenOf(items: FlattenedItem[], ids: string[]): Flatten
   });
 }
 
+export interface GroupMoveTarget {
+  id: string;
+  parentId: string;
+  newIndex: number;
+}
+
+/**
+ * Given the drop projection already computed for the actively-dragged item (via
+ * `getProjection`), compute the move targets for the rest of a multi-selected group being
+ * dragged together. Each of `otherTopLevelIds` (already in their pre-drag relative order) is
+ * inserted immediately after the active item, in the same parent, preserving that order.
+ */
+export function getGroupMoveTargets(
+  activeProjection: Pick<ReturnType<typeof getProjection>, 'parentId' | 'newIndex'>,
+  otherTopLevelIds: string[]
+): GroupMoveTarget[] {
+  return otherTopLevelIds.map((id, index) => ({
+    id,
+    parentId: activeProjection.parentId,
+    newIndex: activeProjection.newIndex + 1 + index,
+  }));
+}
+
 /**
  * Given the current flat list, the active/over IDs, and the horizontal drag
  * offset, compute the projected depth, parentId, and insertion index.

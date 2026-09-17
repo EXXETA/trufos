@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getMaxTimestamp, getRangeSelection } from './treeUtilities';
+import { getGroupMoveTargets, getMaxTimestamp, getRangeSelection } from './treeUtilities';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 
@@ -117,5 +117,26 @@ describe('getRangeSelection', () => {
 
   it('falls back to just the target when the target is not found', () => {
     expect(getRangeSelection(ORDERED_IDS, 'b', 'missing')).toEqual(['missing']);
+  });
+});
+
+describe('getGroupMoveTargets', () => {
+  it('returns an empty list when there are no other ids', () => {
+    expect(getGroupMoveTargets({ parentId: 'col-1', newIndex: 2 }, [])).toEqual([]);
+  });
+
+  it('places each other id right after the active item, in the same parent', () => {
+    const result = getGroupMoveTargets({ parentId: 'col-1', newIndex: 2 }, ['b', 'c']);
+
+    expect(result).toEqual([
+      { id: 'b', parentId: 'col-1', newIndex: 3 },
+      { id: 'c', parentId: 'col-1', newIndex: 4 },
+    ]);
+  });
+
+  it('preserves the given relative order of the other ids', () => {
+    const result = getGroupMoveTargets({ parentId: 'folder-a', newIndex: 0 }, ['z', 'a', 'm']);
+
+    expect(result.map((target) => target.id)).toEqual(['z', 'a', 'm']);
   });
 });

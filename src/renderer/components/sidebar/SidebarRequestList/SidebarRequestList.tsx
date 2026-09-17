@@ -20,8 +20,10 @@ import {
   getProjection,
   getMaxTimestamp,
   getRangeSelection,
+  getGroupMoveTargets,
   SortMode,
 } from './treeUtilities';
+import { getTopLevelSelectedIds } from '@/state/helper/collectionUtil';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
@@ -79,19 +81,34 @@ const DragOverlayRequest = ({ request }: { request: TrufosRequest }) => {
 };
 
 /** Drag overlay that looks like the actual sidebar items */
-const DragOverlayContent = ({ itemId }: { itemId: string }) => {
+const DragOverlayContent = ({ itemId, groupCount }: { itemId: string; groupCount?: number }) => {
   const request = useCollectionStore((state) => state.requests.get(itemId));
   const folder = useCollectionStore((state) => state.folders.get(itemId));
 
-  if (folder) {
-    return <DragOverlayFolder folder={folder} />;
-  }
+  const content = folder ? (
+    <DragOverlayFolder folder={folder} />
+  ) : request ? (
+    <DragOverlayRequest request={request} />
+  ) : null;
 
-  if (request) {
-    return <DragOverlayRequest request={request} />;
-  }
+  if (!content) return null;
 
-  return null;
+  return (
+    <div className="relative">
+      {content}
+      {groupCount != null && groupCount > 1 && (
+        <span
+          className={cn(
+            'absolute -top-2 -right-2',
+            'flex h-5 min-w-5 items-center justify-center rounded-full px-1',
+            'bg-accent-primary text-accent-tertiary text-[10px] font-semibold'
+          )}
+        >
+          +{groupCount - 1}
+        </span>
+      )}
+    </div>
+  );
 };
 
 export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarRequestListProps) => {
@@ -164,11 +181,33 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     [flattenedItems]
   );
 
-  // During drag: remove children of the dragged folder so they travel with it
+  // Top-level (non-nested) members of the current multi-selection: excludes any selected id
+  // that is itself a descendant of another selected folder, since moving that ancestor folder
+  // already carries it along.
+  const topLevelSelectedIds = useMemo(
+    () => getTopLevelSelectedIds(selectedIds, requests, folders),
+    [selectedIds, requests, folders]
+  );
+
+  // A drag counts as a "group drag" only when the dragged item is itself a top-level member
+  // of a multi-selection — dragging a selected item whose ancestor folder is also selected
+  // falls back to plain single-item behavior (that row isn't independently sortable anyway,
+  // see the `draggedIds` exclusion below).
+  const isMultiDrag =
+    activeId != null && selectedIds.size > 1 && topLevelSelectedIds.includes(activeId);
+
+  // During drag: remove children of the dragged item(s) so they travel with their parent.
+  // For a group drag, every top-level selected folder's children are excluded, not just the
+  // actively-dragged item's.
+  const draggedIds = useMemo(() => {
+    if (!activeId) return [];
+    return isMultiDrag ? topLevelSelectedIds : [activeId];
+  }, [activeId, isMultiDrag, topLevelSelectedIds]);
+
   const sortableItems = useMemo(() => {
     if (!activeId) return flattenedItems;
-    return removeChildrenOf(flattenedItems, [activeId]);
-  }, [flattenedItems, activeId]);
+    return removeChildrenOf(flattenedItems, draggedIds);
+  }, [flattenedItems, activeId, draggedIds]);
 
   const sortableIds = useMemo(() => sortableItems.map((item) => item.id), [sortableItems]);
 
@@ -265,6 +304,19 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
 
     setActiveId(null);
     await moveItem(activeIdStr, projection.parentId, projection.newIndex);
+
+    if (isMultiDrag) {
+      // Preserve the rest of the group's pre-drag relative order.
+      const otherTopLevelIds = flattenedItems
+        .filter((item) => item.id !== activeIdStr && topLevelSelectedIds.includes(item.id))
+        .map((item) => item.id);
+
+      for (const target of getGroupMoveTargets(projection, otherTopLevelIds)) {
+        await moveItem(target.id, target.parentId, target.newIndex);
+      }
+
+      clearSelection();
+    }
   };
 
   const handleDragCancel = () => {
@@ -368,7 +420,12 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
             <SidebarMenu className="gap-0">{renderItems}</SidebarMenu>
           </SortableContext>
           <DragOverlay dropAnimation={null}>
-            {activeItem ? <DragOverlayContent itemId={activeItem.id} /> : null}
+            {activeItem ? (
+              <DragOverlayContent
+                itemId={activeItem.id}
+                groupCount={isMultiDrag ? topLevelSelectedIds.length : undefined}
+              />
+            ) : null}
           </DragOverlay>
         </DndContext>
       </SidebarContent>
