@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getMaxTimestamp } from './treeUtilities';
+import { getMaxTimestamp, getRangeSelection } from './treeUtilities';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
 
@@ -93,5 +93,29 @@ describe('getMaxTimestamp', () => {
     ]);
 
     expect(getMaxTimestamp(outerFolder, requests, folders)).toBe(9000);
+  });
+});
+
+describe('getRangeSelection', () => {
+  const ORDERED_IDS = ['a', 'b', 'c', 'd', 'e'];
+
+  it('returns the inclusive range when anchor comes before target', () => {
+    expect(getRangeSelection(ORDERED_IDS, 'b', 'd')).toEqual(['b', 'c', 'd']);
+  });
+
+  it('returns the inclusive range when target comes before anchor', () => {
+    expect(getRangeSelection(ORDERED_IDS, 'd', 'b')).toEqual(['b', 'c', 'd']);
+  });
+
+  it('returns a single-item range when anchor and target are the same', () => {
+    expect(getRangeSelection(ORDERED_IDS, 'c', 'c')).toEqual(['c']);
+  });
+
+  it('falls back to just the target when the anchor is not found', () => {
+    expect(getRangeSelection(ORDERED_IDS, 'missing', 'c')).toEqual(['c']);
+  });
+
+  it('falls back to just the target when the target is not found', () => {
+    expect(getRangeSelection(ORDERED_IDS, 'b', 'missing')).toEqual(['missing']);
   });
 });

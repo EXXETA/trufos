@@ -78,6 +78,29 @@ export function flattenTree(
 }
 
 /**
+ * Compute the inclusive contiguous range of ids between `anchorId` and `targetId` within
+ * `orderedIds` (the current flattened, visible sidebar order). Used for shift-click
+ * range-selection. If either id is not found, only `targetId` is selected.
+ */
+export function getRangeSelection(
+  orderedIds: string[],
+  anchorId: string,
+  targetId: string
+): string[] {
+  const anchorIndex = orderedIds.indexOf(anchorId);
+  const targetIndex = orderedIds.indexOf(targetId);
+
+  if (anchorIndex === -1 || targetIndex === -1) {
+    return [targetId];
+  }
+
+  const [start, end] =
+    anchorIndex <= targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex];
+
+  return orderedIds.slice(start, end + 1);
+}
+
+/**
  * Remove all descendants of the given folder IDs from the flat list.
  * Used during drag so children travel with their parent.
  */

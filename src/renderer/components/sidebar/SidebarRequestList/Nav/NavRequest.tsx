@@ -5,13 +5,22 @@ import { RequestView } from '@/components/sidebar/SidebarRequestList/Nav/Request
 import { useCollectionStore } from '@/state/collectionStore';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { ItemClickHandler } from '@/components/sidebar/SidebarRequestList/types';
+import { cn } from '@/lib/utils';
 
 interface NavRequestProps {
   requestId: TrufosRequest['id'];
   depth?: number;
+  onItemClick: ItemClickHandler;
+  isSelected?: boolean;
 }
 
-export const NavRequest = ({ requestId, depth = 0 }: NavRequestProps) => {
+export const NavRequest = ({
+  requestId,
+  depth = 0,
+  onItemClick,
+  isSelected = false,
+}: NavRequestProps) => {
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const isHighlighted = selectedRequestId === requestId;
 
@@ -48,10 +57,14 @@ export const NavRequest = ({ requestId, depth = 0 }: NavRequestProps) => {
       className="relative cursor-grab active:cursor-grabbing"
     >
       <SidebarMenuItem
-        className={`group hover:bg-divider overflow-x-hidden ${isHighlighted && 'bg-divider'}`}
+        className={cn(
+          'group hover:bg-divider overflow-x-hidden',
+          isHighlighted && 'bg-divider',
+          isSelected && 'bg-accent-primary/10'
+        )}
       >
         <SidebarMenuSubButton asChild isActive={requestId === selectedRequestId}>
-          <RequestView requestId={requestId} depth={depth} />
+          <RequestView requestId={requestId} depth={depth} onItemClick={onItemClick} />
         </SidebarMenuSubButton>
       </SidebarMenuItem>
     </div>

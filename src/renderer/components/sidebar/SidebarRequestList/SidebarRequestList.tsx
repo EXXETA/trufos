@@ -19,6 +19,7 @@ import {
   removeChildrenOf,
   getProjection,
   getMaxTimestamp,
+  getRangeSelection,
   SortMode,
 } from './treeUtilities';
 import { FolderIcon, SmallArrow } from '@/components/icons';
@@ -30,7 +31,7 @@ import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCr
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
 
-import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
+import type { CreatingItem, ItemClickHandler } from '@/components/sidebar/SidebarRequestList/types';
 interface SidebarRequestListProps {
   creatingItem: CreatingItem;
   onCreateItem: (item: CreatingItem) => void;
@@ -99,9 +100,12 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   const requests = useCollectionStore((state) => state.requests);
   const sortMode = useCollectionStore((state) => state.sortMode);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
-  const { moveItem, setSelectedRequest } = useCollectionActions();
+  const selectedIds = useCollectionStore((state) => state.selectedIds);
+  const { moveItem, setSelectedRequest, toggleItemSelected, setSelection, clearSelection } =
+    useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -158,6 +162,25 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
 
   const sortableIds = useMemo(() => sortableItems.map((item) => item.id), [sortableItems]);
 
+  const handleItemClick: ItemClickHandler = (id, event, defaultAction) => {
+    if (event.shiftKey) {
+      const anchor = selectionAnchorId ?? id;
+      setSelection(getRangeSelection(sortableIds, anchor, id));
+      setSelectionAnchorId(anchor);
+      return;
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+      toggleItemSelected(id);
+      setSelectionAnchorId(id);
+      return;
+    }
+
+    clearSelection();
+    setSelectionAnchorId(id);
+    defaultAction();
+  };
+
   const navigateRequest = (direction: -1 | 1) => {
     if (!selectedRequestId) return;
 
@@ -190,6 +213,21 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     ],
     {
       enabled: !!selectedRequestId,
+    }
+  );
+
+  useHotkeys(
+    [
+      {
+        keys: HOTKEYS.clearSelection,
+        handler: () => clearSelection(),
+      },
+    ],
+    {
+      // Scoped independently of the navigation hotkeys above: selection can be non-empty
+      // while no request is open. Task 3 adds `&& !isBulkDeleteDialogOpen` once the dialog
+      // exists, so Escape closes the dialog instead of racing with the selection clear.
+      enabled: selectedIds.size > 0,
     }
   );
 
@@ -234,9 +272,17 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
           folderId={item.id}
           depth={item.depth + 1}
           onCreateItem={onCreateItem}
+          onItemClick={handleItemClick}
+          isSelected={selectedIds.has(item.id)}
         />
       ) : (
-        <NavRequest key={item.id} requestId={item.id} depth={item.depth + 1} />
+        <NavRequest
+          key={item.id}
+          requestId={item.id}
+          depth={item.depth + 1}
+          onItemClick={handleItemClick}
+          isSelected={selectedIds.has(item.id)}
+        />
       )
     );
 
@@ -275,7 +321,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     }
 
     return items;
-  }, [sortableItems, creatingItem, collectionId, onCreateItem]);
+  }, [sortableItems, creatingItem, collectionId, onCreateItem, handleItemClick, selectedIds]);
 
   return (
     <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
