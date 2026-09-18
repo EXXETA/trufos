@@ -22,6 +22,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Needed to create the CANDIDATE_LABEL (labels are managed via the issues API).
+  issues: write
 
 env:
   MIN_AGE_DAYS: ${{ vars.DEPENDABOT_MIN_AGE_DAYS || '3' }}
@@ -47,14 +49,21 @@ jobs:
 
       # Mark patch PRs so the scheduled run can re-evaluate them later, even
       # though fetch-metadata is only available on the pull_request event.
+      # `gh pr edit --add-label` fails if the label does not exist in the
+      # repository, so make sure it does first (`--force` makes this idempotent).
       - name: Label patch PRs
         if: >-
           github.event_name == 'pull_request_target' &&
           steps.meta.outputs.update-type == 'version-update:semver-patch'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-        run: gh pr edit "$PR_URL" --add-label "$CANDIDATE_LABEL"
+        run: |
+          gh label create "$CANDIDATE_LABEL" --repo "$REPO" --force \
+            --color 0366d6 \
+            --description "Dependabot patch update awaiting the auto-merge age gate"
+          gh pr edit "$PR_URL" --add-label "$CANDIDATE_LABEL"
 
       - name: Evaluate and enable auto-merge
         env:
