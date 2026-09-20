@@ -43,7 +43,8 @@ const createWindow = async () => {
 
     // create the browser window
     const mainWindow = new BrowserWindow({
-      ...settingsService.settings.windowState,
+      name: 'main',
+      windowStatePersistence: true,
       minWidth: 1024,
       minHeight: 728,
       webPreferences: {
@@ -75,23 +76,8 @@ const createWindow = async () => {
         event.preventDefault();
         setImmediate(() => mainWindow.webContents.send('before-close'));
 
-        async function saveWindowState() {
-          try {
-            const [width, height] = mainWindow.getSize();
-            const [x, y] = mainWindow.getPosition();
-            await settingsService.updateSettings({ windowState: { width, height, x, y } });
-          } catch (error) {
-            logger.error('Could not save window state on close:', error);
-          }
-        }
-
-        // save settings and wait for renderer to be ready to close in parallel
-        await Promise.race([
-          Promise.allSettled([saveWindowState(), once(ipcMain, 'ready-to-close')]),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout during close')), 30000)
-          ),
-        ]);
+        // wait for renderer to be ready to close, or give up after 30s
+        await once(ipcMain, 'ready-to-close', { signal: AbortSignal.timeout(30_000) });
 
         // close app
         mainWindow.close();

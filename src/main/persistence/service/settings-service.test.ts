@@ -68,59 +68,68 @@ describe('SettingsService', async () => {
     });
   });
 
-  it('should migrate settings from 1.0.0 to current version on init', async () => {
-    // Arrange
-    const oldSettings = {
+  it.each([
+    {
       version: '1.0.0',
-      currentCollectionIndex: 1,
-      collections: ['path/to/collection1', 'path/to/collection2'],
-    };
-    await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(oldSettings));
-
-    // Act
-    await settingsService.init();
-
-    // Assert - migrated in memory
-    expect(settingsService.settings.currentCollectionIndex).toBe(1);
-    expect(settingsService.settings.collections).toEqual([
-      'path/to/collection1',
-      'path/to/collection2',
-    ]);
-
-    // Act - persist migrated settings
-    await settingsService.updateSettings({});
-
-    // Assert - file now has migrated version
-    const fileContent = JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
-    expect(fileContent.version).toBe(VERSION.string);
-    expect(fileContent.currentCollectionIndex).toBe(1);
-    expect(fileContent.collections).toEqual(['path/to/collection1', 'path/to/collection2']);
-    expect(fileContent.preferences).toEqual({ theme: 'system' });
-  });
-
-  it('should migrate settings from 1.1.0 to current version on init', async () => {
-    // Arrange
-    const oldSettings = {
+      oldSettings: {
+        currentCollectionIndex: 1,
+        collections: ['path/to/collection1', 'path/to/collection2'],
+      },
+      expected: {
+        currentCollectionIndex: 1,
+        collections: ['path/to/collection1', 'path/to/collection2'],
+        preferences: { theme: 'system' },
+      },
+    },
+    {
       version: '1.1.0',
-      currentCollectionIndex: 0,
-      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-      windowState: { width: 1280, height: 800 },
-    };
-    await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(oldSettings));
+      oldSettings: {
+        currentCollectionIndex: 0,
+        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+        windowState: { width: 1280, height: 800 },
+      },
+      expected: {
+        currentCollectionIndex: 0,
+        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+        preferences: { theme: 'system' },
+      },
+    },
+    {
+      version: '1.2.0',
+      oldSettings: {
+        currentCollectionIndex: 1,
+        collections: ['path/to/collection1', 'path/to/collection2'],
+        windowState: { width: 1280, height: 800, x: 10, y: 20 },
+        preferences: { theme: 'dark' },
+      },
+      expected: {
+        currentCollectionIndex: 1,
+        collections: ['path/to/collection1', 'path/to/collection2'],
+        preferences: { theme: 'dark' },
+      },
+    },
+  ])(
+    'should migrate settings from $version to current version on init',
+    async ({ version, oldSettings, expected }) => {
+      // Arrange
+      await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify({ version, ...oldSettings }));
 
-    // Act
-    await settingsService.init();
+      // Act
+      await settingsService.init();
 
-    // Assert - preferences added with defaults
-    expect(settingsService.settings.preferences).toEqual({ theme: 'system' });
-    expect(settingsService.settings.windowState).toEqual({ width: 1280, height: 800 });
+      // Assert - migrated in memory, legacy window state dropped
+      expect(settingsService.settings).toMatchObject(expected);
+      expect(settingsService.settings).not.toHaveProperty('windowState');
 
-    // Assert - persisted correctly
-    await settingsService.updateSettings({});
-    const fileContent = JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
-    expect(fileContent.version).toBe(VERSION.string);
-    expect(fileContent.preferences).toEqual({ theme: 'system' });
-  });
+      // Act - persist migrated settings
+      await settingsService.updateSettings({});
+
+      // Assert - file now has migrated version
+      const fileContent = JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
+      expect(fileContent).toMatchObject({ ...expected, version: VERSION.string });
+      expect(fileContent).not.toHaveProperty('windowState');
+    }
+  );
 
   it('should throw error when migrating from unknown version', async () => {
     // Arrange

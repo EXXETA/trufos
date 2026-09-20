@@ -3,12 +3,11 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { Initializable } from 'main/shared/initializable';
 import { SemVer } from 'main/util/semver';
-import { BrowserWindowConstructorOptions } from 'electron';
 import { AppSettings } from 'shim/app-settings';
 
 const DEFAULT_APP_SETTINGS: AppSettings = { theme: 'system' };
 
-export const VERSION = new SemVer(1, 2, 0);
+export const VERSION = new SemVer(1, 3, 0);
 
 type VersionedObject = { version: string };
 
@@ -18,9 +17,6 @@ export interface SettingsObject {
 
   /** A list of all the collection directories that have been opened */
   collections: string[];
-
-  /** The state of the main window (size and position) */
-  windowState?: Pick<BrowserWindowConstructorOptions, 'width' | 'height' | 'x' | 'y'>;
 
   /** Application-level UI settings (theme, etc.) */
   preferences?: AppSettings;
@@ -34,20 +30,29 @@ interface SettingsFile_V_1_0_0 {
   version: '1.0.0';
 }
 
-interface SettingsFile_V_1_1_0 {
-  currentCollectionIndex: number;
-  collections: string[];
-  windowState?: Pick<BrowserWindowConstructorOptions, 'width' | 'height' | 'x' | 'y'>;
+interface SettingsFile_V_1_1_0 extends Omit<SettingsFile_V_1_0_0, 'version'> {
+  /** legacy window bounds, dropped in 1.3.0 in favor of Electron's native window state persistence */
+  windowState?: unknown;
   version: '1.1.0';
+}
+
+interface SettingsFile_V_1_2_0 extends Omit<SettingsFile_V_1_1_0, 'version'> {
+  preferences?: AppSettings;
+  version: '1.2.0';
 }
 
 type SettingsMigrator<I, O> = (old: I) => O;
 
 const MIGRATORS = {
   '1.0.0': (old: SettingsFile_V_1_0_0): SettingsFile_V_1_1_0 => ({ ...old, version: '1.1.0' }),
-  '1.1.0': (old: SettingsFile_V_1_1_0): SettingsInfoFile => ({
+  '1.1.0': (old: SettingsFile_V_1_1_0): SettingsFile_V_1_2_0 => ({
     ...old,
     preferences: DEFAULT_APP_SETTINGS,
+    version: '1.2.0',
+  }),
+  // window state is now persisted natively by Electron (windowStatePersistence), so drop the legacy field
+  '1.2.0': ({ windowState: _windowState, ...rest }: SettingsFile_V_1_2_0): SettingsInfoFile => ({
+    ...rest,
     version: VERSION.string,
   }),
 } as const;
