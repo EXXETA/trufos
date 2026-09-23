@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { LuCopyPlus, LuEraser, LuTrash2 } from 'react-icons/lu';
 
 export interface BulkActionBarProps {
   count: number;
@@ -21,28 +22,31 @@ export const BulkActionBar = ({
       className={cn(
         'flex items-center justify-between gap-2',
         'border-divider border-b px-5 py-2',
-        'bg-sidebar-accent'
+        'bg-sidebar-accent',
+        '-mx-6'
       )}
     >
       <span className="text-xs font-medium text-(--text-secondary)">
         {count} {count === 1 ? 'item' : 'items'} selected
       </span>
 
-      <div className="flex items-center gap-1">
-        <Button variant="ghost" size="sm" type="button" onClick={onClear}>
-          Clear
+      <div className="flex items-center gap-4">
+        <Button variant="secondary" size="icon" type="button" onClick={onClear}>
+          <LuEraser size={16} />
         </Button>
-        <Button variant="ghost" size="sm" type="button" onClick={onDuplicate}>
-          Duplicate
+
+        <Button variant="secondary" size="icon" type="button" onClick={onDuplicate}>
+          <LuCopyPlus size={16} />
         </Button>
+
         <Button
-          variant="ghost"
-          size="sm"
+          variant="secondary"
+          size="icon"
           type="button"
           className="text-danger"
           onClick={onDeleteClick}
         >
-          Delete
+          <LuTrash2 size={16} />
         </Button>
       </div>
     </div>
