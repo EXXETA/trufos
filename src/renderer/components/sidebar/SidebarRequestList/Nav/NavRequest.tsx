@@ -12,16 +12,11 @@ interface NavRequestProps {
   requestId: TrufosRequest['id'];
   depth?: number;
   onItemClick: ItemClickHandler;
-  isSelected?: boolean;
 }
 
-export const NavRequest = ({
-  requestId,
-  depth = 0,
-  onItemClick,
-  isSelected = false,
-}: NavRequestProps) => {
+export const NavRequest = ({ requestId, depth = 0, onItemClick }: NavRequestProps) => {
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
+  const isSelected = useCollectionStore((state) => state.selectedIds.has(requestId));
   const isHighlighted = selectedRequestId === requestId;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({

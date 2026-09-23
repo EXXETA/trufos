@@ -16,20 +16,14 @@ interface NavFolderProps {
   depth?: number;
   onCreateItem?: (item: CreatingItem) => void;
   onItemClick: ItemClickHandler;
-  isSelected?: boolean;
 }
 
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
-export const NavFolder = ({
-  folderId,
-  depth = 0,
-  onCreateItem,
-  onItemClick,
-  isSelected = false,
-}: NavFolderProps) => {
+export const NavFolder = ({ folderId, depth = 0, onCreateItem, onItemClick }: NavFolderProps) => {
   const { setFolderOpen, setFolderClose, renameFolder } = useCollectionActions();
   const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
+  const isSelected = useCollectionStore((state) => state.selectedIds.has(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
   const [isEditing, setIsEditing] = useState(false);
 

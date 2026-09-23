@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -131,7 +131,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   } = useCollectionActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
+  const selectionAnchorRef = useRef<string | null>(null);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 
   const sensors = useSensors(
@@ -211,24 +211,27 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
 
   const sortableIds = useMemo(() => sortableItems.map((item) => item.id), [sortableItems]);
 
-  const handleItemClick: ItemClickHandler = (id, event, defaultAction) => {
-    if (event.shiftKey) {
-      const anchor = selectionAnchorId ?? id;
-      setSelection(getRangeSelection(sortableIds, anchor, id));
-      setSelectionAnchorId(anchor);
-      return;
-    }
+  const handleItemClick: ItemClickHandler = useCallback(
+    (id, event, defaultAction) => {
+      if (event.shiftKey) {
+        const anchor = selectionAnchorRef.current ?? id;
+        setSelection(getRangeSelection(sortableIds, anchor, id));
+        selectionAnchorRef.current = anchor;
+        return;
+      }
 
-    if (event.ctrlKey || event.metaKey) {
-      toggleItemSelected(id);
-      setSelectionAnchorId(id);
-      return;
-    }
+      if (event.ctrlKey || event.metaKey) {
+        toggleItemSelected(id);
+        selectionAnchorRef.current = id;
+        return;
+      }
 
-    clearSelection();
-    setSelectionAnchorId(id);
-    defaultAction();
-  };
+      clearSelection();
+      selectionAnchorRef.current = id;
+      defaultAction();
+    },
+    [sortableIds, setSelection, toggleItemSelected, clearSelection]
+  );
 
   const navigateRequest = (direction: -1 | 1) => {
     if (!selectedRequestId) return;
@@ -344,7 +347,6 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
           depth={item.depth + 1}
           onCreateItem={onCreateItem}
           onItemClick={handleItemClick}
-          isSelected={selectedIds.has(item.id)}
         />
       ) : (
         <NavRequest
@@ -352,7 +354,6 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
           requestId={item.id}
           depth={item.depth + 1}
           onItemClick={handleItemClick}
-          isSelected={selectedIds.has(item.id)}
         />
       )
     );
@@ -392,7 +393,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     }
 
     return items;
-  }, [sortableItems, creatingItem, collectionId, onCreateItem, handleItemClick, selectedIds]);
+  }, [sortableItems, creatingItem, collectionId, onCreateItem, handleItemClick]);
 
   return (
     <>
