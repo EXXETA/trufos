@@ -23,7 +23,7 @@ import {
   getGroupMoveTargets,
   SortMode,
 } from './treeUtilities';
-import { getTopLevelSelectedIds } from '@/state/helper/collectionUtil';
+import { getTopLevelSelectedItems } from '@/state/helper/collectionUtil';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
@@ -185,7 +185,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   // that is itself a descendant of another selected folder, since moving that ancestor folder
   // already carries it along.
   const topLevelSelectedIds = useMemo(
-    () => getTopLevelSelectedIds(selectedIds, requests, folders),
+    () => getTopLevelSelectedItems(selectedIds, requests, folders).map((item) => item.id),
     [selectedIds, requests, folders]
   );
 

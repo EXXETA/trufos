@@ -65,14 +65,18 @@ export function hasSelectedAncestor(
 }
 
 /**
- * Filters `selectedIds` down to its top-level members: ids that are not descendants of
- * another selected folder. A bulk action loops over only these, since deleting/duplicating a
- * selected folder already covers its own (also-selected) descendants.
+ * Filters `selectedIds` down to its top-level members: items that are not descendants of
+ * another selected folder, resolved to their full request/folder objects. A bulk action loops
+ * over only these, since deleting/duplicating a selected folder already covers its own
+ * (also-selected) descendants.
  */
-export function getTopLevelSelectedIds(
+export function getTopLevelSelectedItems(
   selectedIds: Set<TrufosRequest['id'] | Folder['id']>,
   requests: Map<TrufosRequest['id'], TrufosRequest>,
   folders: Map<Folder['id'], Folder>
-): (TrufosRequest['id'] | Folder['id'])[] {
-  return [...selectedIds].filter((id) => !hasSelectedAncestor(id, selectedIds, requests, folders));
+): (TrufosRequest | Folder)[] {
+  return [...selectedIds]
+    .filter((id) => !hasSelectedAncestor(id, selectedIds, requests, folders))
+    .map((id) => requests.get(id) ?? folders.get(id))
+    .filter((item): item is TrufosRequest | Folder => item != null);
 }

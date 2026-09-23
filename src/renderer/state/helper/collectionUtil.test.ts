@@ -2,7 +2,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ScriptType } from 'shim/scripting';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { getTopLevelSelectedIds, hasSelectedAncestor, setScriptContent } from './collectionUtil';
+import { getTopLevelSelectedItems, hasSelectedAncestor, setScriptContent } from './collectionUtil';
 
 const { setValueMock, readAllMock, openMock } = vi.hoisted(() => ({
   setValueMock: vi.fn(),
@@ -146,8 +146,8 @@ describe('hasSelectedAncestor', () => {
   });
 });
 
-describe('getTopLevelSelectedIds', () => {
-  it('returns all selected ids when none are nested under another selected folder', () => {
+describe('getTopLevelSelectedItems', () => {
+  it('returns all selected items when none are nested under another selected folder', () => {
     const req1 = makeReq('req-1', COL_ID);
     const req2 = makeReq('req-2', COL_ID);
     const requests = new Map([
@@ -156,9 +156,9 @@ describe('getTopLevelSelectedIds', () => {
     ]);
     const folders = new Map<string, Folder>();
 
-    const result = getTopLevelSelectedIds(new Set(['req-1', 'req-2']), requests, folders);
+    const result = getTopLevelSelectedItems(new Set(['req-1', 'req-2']), requests, folders);
 
-    expect([...result].sort()).toEqual(['req-1', 'req-2']);
+    expect(result.map((item) => item.id).sort()).toEqual(['req-1', 'req-2']);
   });
 
   it('excludes a selected descendant whose parent folder is also selected', () => {
@@ -167,9 +167,9 @@ describe('getTopLevelSelectedIds', () => {
     const requests = new Map([['child-req', childReq]]);
     const folders = new Map([['folder-a', folder]]);
 
-    const result = getTopLevelSelectedIds(new Set(['folder-a', 'child-req']), requests, folders);
+    const result = getTopLevelSelectedItems(new Set(['folder-a', 'child-req']), requests, folders);
 
-    expect(result).toEqual(['folder-a']);
+    expect(result).toEqual([folder]);
   });
 
   it('keeps a selected descendant whose ancestor folder is not selected', () => {
@@ -178,8 +178,8 @@ describe('getTopLevelSelectedIds', () => {
     const requests = new Map([['child-req', childReq]]);
     const folders = new Map([['folder-a', folder]]);
 
-    const result = getTopLevelSelectedIds(new Set(['child-req']), requests, folders);
+    const result = getTopLevelSelectedItems(new Set(['child-req']), requests, folders);
 
-    expect(result).toEqual(['child-req']);
+    expect(result).toEqual([childReq]);
   });
 });

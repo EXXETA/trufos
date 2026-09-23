@@ -1,10 +1,19 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCollectionStore } from './collectionStore';
+import { RendererEventService } from '@/services/event/renderer-event-service';
+import { isRequestInAParentFolder } from '@/state/helper/collectionUtil';
 import { ClientCertificate, Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { AuthorizationType, OAuth2Method } from 'shim/objects';
+
+const mockEventService = RendererEventService.instance as unknown as {
+  deleteObject: ReturnType<typeof vi.fn>;
+  copyRequest: ReturnType<typeof vi.fn>;
+  copyFolder: ReturnType<typeof vi.fn>;
+  loadCollection: ReturnType<typeof vi.fn>;
+};
 
 vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: vi.fn() },
@@ -23,6 +32,10 @@ vi.mock('@/services/event/renderer-event-service', () => ({
     instance: {
       rename: vi.fn(),
       setClientCertificate: vi.fn(),
+      deleteObject: vi.fn().mockResolvedValue(undefined),
+      copyRequest: vi.fn().mockResolvedValue(undefined),
+      copyFolder: vi.fn().mockResolvedValue(undefined),
+      loadCollection: vi.fn(),
     },
   },
 }));
@@ -318,20 +331,23 @@ const makeFolder = (id: string, parentId: string, children: Folder['children'] =
   }) as unknown as Folder;
 
 describe('deleteSelectedItems', () => {
-  it('deletes each top-level selected id via deleteRequest/deleteFolder, then clears the selection', async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEventService.deleteObject.mockResolvedValue(undefined);
+  });
+
+  it('deletes each top-level selected item via eventService.deleteObject, reloads exactly once, and clears the selection', async () => {
     const request = makeRequest(REQ_ID, COL_ID);
     const folder = makeFolder('folder-a', COL_ID);
     const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
-
-    const deleteRequestMock = vi.fn().mockResolvedValue(undefined);
-    const deleteFolderMock = vi.fn().mockResolvedValue(undefined);
-    store.setState({ deleteRequest: deleteRequestMock, deleteFolder: deleteFolderMock });
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, []));
 
     store.getState().setSelection([REQ_ID, 'folder-a']);
     await store.getState().deleteSelectedItems();
 
-    expect(deleteRequestMock).toHaveBeenCalledWith(REQ_ID);
-    expect(deleteFolderMock).toHaveBeenCalledWith('folder-a');
+    expect(mockEventService.deleteObject).toHaveBeenCalledWith(request);
+    expect(mockEventService.deleteObject).toHaveBeenCalledWith(folder);
+    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
     expect(store.getState().selectedIds.size).toBe(0);
   });
 
@@ -339,35 +355,54 @@ describe('deleteSelectedItems', () => {
     const childReq = makeRequest('child-req', 'folder-a');
     const folder = makeFolder('folder-a', COL_ID, [childReq]);
     const store = createCollectionStore(makeCollection(COL_ID, [folder]));
-
-    const deleteRequestMock = vi.fn().mockResolvedValue(undefined);
-    const deleteFolderMock = vi.fn().mockResolvedValue(undefined);
-    store.setState({ deleteRequest: deleteRequestMock, deleteFolder: deleteFolderMock });
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, []));
 
     store.getState().setSelection(['folder-a', 'child-req']);
     await store.getState().deleteSelectedItems();
 
-    expect(deleteFolderMock).toHaveBeenCalledTimes(1);
-    expect(deleteFolderMock).toHaveBeenCalledWith('folder-a');
-    expect(deleteRequestMock).not.toHaveBeenCalled();
+    expect(mockEventService.deleteObject).toHaveBeenCalledTimes(1);
+    expect(mockEventService.deleteObject).toHaveBeenCalledWith(folder);
+    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
+  });
+
+  it('disposes the open request before reloading when it is a descendant of a bulk-deleted folder', async () => {
+    const childReq = makeRequest('child-req', 'folder-a');
+    const folder = makeFolder('folder-a', COL_ID, [childReq]);
+    const store = createCollectionStore(makeCollection(COL_ID, [folder]));
+    store.getState().setSelectedRequest('child-req');
+    vi.mocked(isRequestInAParentFolder).mockReturnValueOnce(true);
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, []));
+
+    const setSelectedRequestMock = vi.fn(store.getState().setSelectedRequest);
+    store.setState({ setSelectedRequest: setSelectedRequestMock });
+
+    store.getState().setSelection(['folder-a']);
+    await store.getState().deleteSelectedItems();
+
+    expect(setSelectedRequestMock).toHaveBeenCalledWith(undefined);
+    expect(store.getState().selectedRequestId).toBeUndefined();
   });
 });
 
 describe('duplicateSelectedItems', () => {
-  it('duplicates each top-level selected id via copyRequest/copyFolder, then clears the selection', async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEventService.copyRequest.mockResolvedValue(undefined);
+    mockEventService.copyFolder.mockResolvedValue(undefined);
+  });
+
+  it('duplicates each top-level selected item via eventService.copyRequest/copyFolder, reloads exactly once, and clears the selection', async () => {
     const request = makeRequest(REQ_ID, COL_ID);
     const folder = makeFolder('folder-a', COL_ID);
     const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
-
-    const copyRequestMock = vi.fn().mockResolvedValue(undefined);
-    const copyFolderMock = vi.fn().mockResolvedValue(undefined);
-    store.setState({ copyRequest: copyRequestMock, copyFolder: copyFolderMock });
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [request, folder]));
 
     store.getState().setSelection([REQ_ID, 'folder-a']);
     await store.getState().duplicateSelectedItems();
 
-    expect(copyRequestMock).toHaveBeenCalledWith(REQ_ID);
-    expect(copyFolderMock).toHaveBeenCalledWith('folder-a');
+    expect(mockEventService.copyRequest).toHaveBeenCalledWith(request);
+    expect(mockEventService.copyFolder).toHaveBeenCalledWith(folder);
+    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
     expect(store.getState().selectedIds.size).toBe(0);
   });
 
@@ -375,17 +410,15 @@ describe('duplicateSelectedItems', () => {
     const childReq = makeRequest('child-req', 'folder-a');
     const folder = makeFolder('folder-a', COL_ID, [childReq]);
     const store = createCollectionStore(makeCollection(COL_ID, [folder]));
-
-    const copyRequestMock = vi.fn().mockResolvedValue(undefined);
-    const copyFolderMock = vi.fn().mockResolvedValue(undefined);
-    store.setState({ copyRequest: copyRequestMock, copyFolder: copyFolderMock });
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [folder]));
 
     store.getState().setSelection(['folder-a', 'child-req']);
     await store.getState().duplicateSelectedItems();
 
-    expect(copyFolderMock).toHaveBeenCalledTimes(1);
-    expect(copyFolderMock).toHaveBeenCalledWith('folder-a');
-    expect(copyRequestMock).not.toHaveBeenCalled();
+    expect(mockEventService.copyFolder).toHaveBeenCalledTimes(1);
+    expect(mockEventService.copyFolder).toHaveBeenCalledWith(folder);
+    expect(mockEventService.copyRequest).not.toHaveBeenCalled();
+    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react';
 import { type StoreApi, useStore } from 'zustand';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import {
-  getTopLevelSelectedIds,
+  getTopLevelSelectedItems,
   isRequestInAParentFolder,
   setRequestTextBody,
   setScriptContent,
@@ -268,34 +268,27 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       deleteSelectedItems: async () => {
-        const { selectedIds, requests, folders, deleteRequest, deleteFolder, clearSelection } =
-          get();
-        const topLevelIds = getTopLevelSelectedIds(selectedIds, requests, folders);
+        const { selectedIds, requests, folders } = get();
+        const items = getTopLevelSelectedItems(selectedIds, requests, folders);
 
-        for (const id of topLevelIds) {
-          if (requests.has(id)) {
-            await deleteRequest(id);
-          } else if (folders.has(id)) {
-            await deleteFolder(id);
-          }
-        }
-
-        clearSelection();
+        await runBulk(
+          get,
+          items,
+          (request) => eventService.deleteObject(request),
+          (folder) => eventService.deleteObject(folder)
+        );
       },
 
       duplicateSelectedItems: async () => {
-        const { selectedIds, requests, folders, copyRequest, copyFolder, clearSelection } = get();
-        const topLevelIds = getTopLevelSelectedIds(selectedIds, requests, folders);
+        const { selectedIds, requests, folders } = get();
+        const items = getTopLevelSelectedItems(selectedIds, requests, folders);
 
-        for (const id of topLevelIds) {
-          if (requests.has(id)) {
-            await copyRequest(id);
-          } else if (folders.has(id)) {
-            await copyFolder(id);
-          }
-        }
-
-        clearSelection();
+        await runBulk(
+          get,
+          items,
+          (request) => eventService.copyRequest(request),
+          (folder) => eventService.copyFolder(folder)
+        );
       },
 
       deleteRequest: async (id) => {
@@ -657,6 +650,50 @@ export { CollectionStoreContext };
 const selectParent = (state: CollectionState, parentId: string) => {
   if (state.collection!.id === parentId) return state.collection as Collection;
   return state.folders.get(parentId)!;
+};
+
+/**
+ * Runs a bulk request/folder action (delete or duplicate) against each top-level item. If the
+ * action will remove the currently-open request — directly, or as a descendant of a
+ * bulk-acted-on folder — its Monaco model is disposed up front via `setSelectedRequest`, before
+ * `selectedRequestId` gets cleared by the reload below (unlike the single-item `deleteFolder`
+ * action, whose equivalent check runs too late to ever fire). Regardless of how many items are
+ * in `items`, the collection is reloaded and the selection cleared exactly once, in a `finally`
+ * so a mid-loop IPC failure still leaves state consistent instead of a stale selection
+ * referencing now-nonexistent ids; the exception still propagates, no rollback is attempted.
+ */
+const runBulk = async (
+  get: () => CollectionState & CollectionStateActions,
+  items: (TrufosRequest | Folder)[],
+  onRequest: (request: TrufosRequest) => Promise<unknown>,
+  onFolder: (folder: Folder) => Promise<unknown>
+): Promise<void> => {
+  const { selectedRequestId } = get();
+  const affectsOpenRequest =
+    selectedRequestId != null &&
+    items.some((item) =>
+      isRequest(item)
+        ? item.id === selectedRequestId
+        : isRequestInAParentFolder(selectedRequestId, item)
+    );
+
+  if (affectsOpenRequest) {
+    get().setSelectedRequest(undefined);
+  }
+
+  try {
+    for (const item of items) {
+      if (isRequest(item)) {
+        await onRequest(item);
+      } else {
+        await onFolder(item);
+      }
+    }
+  } finally {
+    const collection = await eventService.loadCollection(true);
+    get().initialize(collection);
+    get().clearSelection();
+  }
 };
 
 const replaceChild = (state: CollectionState, child: Folder | TrufosRequest) => {
