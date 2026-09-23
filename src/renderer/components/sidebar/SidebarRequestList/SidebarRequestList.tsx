@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -133,6 +133,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   const [activeId, setActiveId] = useState<string | null>(null);
   const selectionAnchorRef = useRef<string | null>(null);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const sidebarWrapperRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -283,6 +284,22 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     }
   );
 
+  // Mirrors the Escape hotkey above: a click outside the sidebar list + bulk action bar clears
+  // the multi-selection. Row clicks already self-handle via handleItemClick; the bulk-delete
+  // dialog is excluded via the same gating condition since it's a Radix portal rendered outside
+  // this subtree, and clicking its Confirm button must not wipe the selection out from under it.
+  useEffect(() => {
+    if (selectedIds.size === 0 || isBulkDeleteDialogOpen) return;
+
+    const handleMouseDown = (event: MouseEvent) => {
+      if (sidebarWrapperRef.current?.contains(event.target as Node)) return;
+      clearSelection();
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [selectedIds.size, isBulkDeleteDialogOpen, clearSelection]);
+
   const handleDragStart = ({ active }: DragStartEvent) => {
     setActiveId(active.id as string);
   };
@@ -397,39 +414,41 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
 
   return (
     <>
-      <BulkActionBar
-        count={selectedIds.size}
-        onClear={clearSelection}
-        onDuplicate={handleDuplicateSelected}
-        onDeleteClick={() => setIsBulkDeleteDialogOpen(true)}
-      />
+      <div ref={sidebarWrapperRef} className="contents">
+        <BulkActionBar
+          count={selectedIds.size}
+          onClear={clearSelection}
+          onDuplicate={handleDuplicateSelected}
+          onDeleteClick={() => setIsBulkDeleteDialogOpen(true)}
+        />
+        <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
+          <DndContext
+            sensors={activeSensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+              <SidebarMenu className="gap-0">{renderItems}</SidebarMenu>
+            </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {activeItem ? (
+                <DragOverlayContent
+                  itemId={activeItem.id}
+                  groupCount={isMultiDrag ? topLevelSelectedIds.length : undefined}
+                />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </SidebarContent>
+      </div>
       <BulkDeleteDialog
         open={isBulkDeleteDialogOpen}
         count={selectedIds.size}
         onOpenChange={setIsBulkDeleteDialogOpen}
         onConfirm={handleConfirmBulkDelete}
       />
-      <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
-        <DndContext
-          sensors={activeSensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-            <SidebarMenu className="gap-0">{renderItems}</SidebarMenu>
-          </SortableContext>
-          <DragOverlay dropAnimation={null}>
-            {activeItem ? (
-              <DragOverlayContent
-                itemId={activeItem.id}
-                groupCount={isMultiDrag ? topLevelSelectedIds.length : undefined}
-              />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </SidebarContent>
     </>
   );
 };

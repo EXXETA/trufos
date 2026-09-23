@@ -53,7 +53,7 @@ export const NavRequest = ({ requestId, depth = 0, onItemClick }: NavRequestProp
     >
       <SidebarMenuItem
         className={cn(
-          'group hover:bg-divider overflow-x-hidden',
+          'group hover:bg-divider overflow-x-hidden select-none',
           isHighlighted && 'bg-divider',
           isSelected && 'bg-accent-primary/10'
         )}

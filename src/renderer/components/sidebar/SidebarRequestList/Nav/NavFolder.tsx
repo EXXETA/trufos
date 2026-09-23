@@ -70,6 +70,7 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem, onItemClick }: Na
             'cursor-grab active:cursor-grabbing',
             'gap-1',
             'hover:bg-sidebar-accent',
+            'select-none',
             isSelected && 'bg-accent-primary/10',
             getIndentation(depth)
           )}
