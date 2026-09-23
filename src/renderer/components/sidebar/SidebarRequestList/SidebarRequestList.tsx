@@ -331,11 +331,16 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
         .filter((item) => item.id !== activeIdStr && topLevelSelectedIds.includes(item.id))
         .map((item) => item.id);
 
-      for (const target of getGroupMoveTargets(projection, otherTopLevelIds)) {
-        await moveItem(target.id, target.parentId, target.newIndex);
+      try {
+        for (const target of getGroupMoveTargets(projection, otherTopLevelIds)) {
+          await moveItem(target.id, target.parentId, target.newIndex);
+        }
+      } finally {
+        // Clear even if one of the group's moveItem calls failed mid-loop, so the selection
+        // doesn't keep referencing items that may have already been relocated; no rollback is
+        // attempted here either, matching runBulk's error-handling posture.
+        clearSelection();
       }
-
-      clearSelection();
     }
   };
 
