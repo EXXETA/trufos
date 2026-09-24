@@ -31,11 +31,23 @@ export const BulkActionBar = ({
       </span>
 
       <div className="flex items-center gap-4">
-        <Button variant="secondary" size="icon" type="button" onClick={onClear}>
+        <Button
+          variant="secondary"
+          size="icon"
+          type="button"
+          aria-label="Clear selection"
+          onClick={onClear}
+        >
           <LuEraser size={16} />
         </Button>
 
-        <Button variant="secondary" size="icon" type="button" onClick={onDuplicate}>
+        <Button
+          variant="secondary"
+          size="icon"
+          type="button"
+          aria-label="Duplicate selected items"
+          onClick={onDuplicate}
+        >
           <LuCopyPlus size={16} />
         </Button>
 
@@ -44,6 +56,7 @@ export const BulkActionBar = ({
           size="icon"
           type="button"
           className="text-danger"
+          aria-label="Delete selected items"
           onClick={onDeleteClick}
         >
           <LuTrash2 size={16} />
