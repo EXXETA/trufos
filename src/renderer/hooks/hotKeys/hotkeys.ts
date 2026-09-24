@@ -21,6 +21,8 @@ export const HOTKEYS = {
   // Sidebar request navigation (SidebarRequestList.tsx)
   selectPreviousRequest: 'mod+pageup',
   selectNextRequest: 'mod+pagedown',
+  // Sidebar multi-select (SidebarRequestList.tsx)
+  clearSelection: 'escape',
   // Command palette tab-strip cycling (CommandPalette.tsx) — the only modifier-free entries, since
   // this is local widget navigation, not a global app command
   cyclePaletteTabForward: 'arrowright',

@@ -40,3 +40,43 @@ export function isRequestInAParentFolder(requestId: string, folder: Folder): boo
     return child.id === requestId;
   });
 }
+
+/**
+ * Returns true if any ancestor folder of `itemId` is itself present in `selectedIds`.
+ * Used to filter a multi-selection down to its "top-level" members before a bulk action,
+ * so a selected folder's already-selected descendants aren't acted on a second time.
+ */
+export function hasSelectedAncestor(
+  itemId: string,
+  selectedIds: Set<string>,
+  requests: Map<TrufosRequest['id'], TrufosRequest>,
+  folders: Map<Folder['id'], Folder>
+): boolean {
+  let parentId = requests.get(itemId)?.parentId ?? folders.get(itemId)?.parentId;
+
+  while (parentId != null) {
+    if (selectedIds.has(parentId)) return true;
+    const parentFolder = folders.get(parentId);
+    if (parentFolder == null) return false; // reached the collection root
+    parentId = parentFolder.parentId;
+  }
+
+  return false;
+}
+
+/**
+ * Filters `selectedIds` down to its top-level members: items that are not descendants of
+ * another selected folder, resolved to their full request/folder objects. A bulk action loops
+ * over only these, since deleting/duplicating a selected folder already covers its own
+ * (also-selected) descendants.
+ */
+export function getTopLevelSelectedItems(
+  selectedIds: Set<TrufosRequest['id'] | Folder['id']>,
+  requests: Map<TrufosRequest['id'], TrufosRequest>,
+  folders: Map<Folder['id'], Folder>
+): (TrufosRequest | Folder)[] {
+  return [...selectedIds]
+    .filter((id) => !hasSelectedAncestor(id, selectedIds, requests, folders))
+    .map((id) => requests.get(id) ?? folders.get(id))
+    .filter((item): item is TrufosRequest | Folder => item != null);
+}

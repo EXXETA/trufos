@@ -1,19 +1,20 @@
 import { httpMethodColor } from '@/services/StyleHelper';
 import { TrufosRequest } from 'shim/objects/request';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { handleMouseEvent } from '@/util/callback-util';
 import { cn } from '@/lib/utils';
 import { RequestDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/RequestDropdown';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
 import { useState } from 'react';
 import { InlineRename } from '@/components/shared/InlineRename';
+import type { ItemClickHandler } from '@/components/sidebar/SidebarRequestList/types';
 
 export interface NavRequestProps {
   requestId: TrufosRequest['id'];
   depth?: number;
+  onItemClick: ItemClickHandler;
 }
 
-export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
+export const RequestView = ({ requestId, depth = 0, onItemClick }: NavRequestProps) => {
   const { setSelectedRequest, renameRequest } = useCollectionActions();
   const request = useCollectionStore((state) => selectRequest(state, requestId)!);
   const [isEditing, setIsEditing] = useState(false);
@@ -33,7 +34,10 @@ export const RequestView = ({ requestId, depth = 0 }: NavRequestProps) => {
           'w-full',
           getIndentation(depth)
         )}
-        onClick={handleMouseEvent(() => setSelectedRequest(requestId))}
+        onClick={(e) => {
+          e.stopPropagation();
+          onItemClick(requestId, e, () => setSelectedRequest(requestId));
+        }}
       >
         <div
           className={cn('shrink-0 text-xs leading-3 font-normal', httpMethodColor(request.method))}

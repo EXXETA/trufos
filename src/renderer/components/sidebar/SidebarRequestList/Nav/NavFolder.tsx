@@ -9,19 +9,21 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState } from 'react';
 import { InlineRename } from '@/components/shared/InlineRename';
-import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
+import type { CreatingItem, ItemClickHandler } from '@/components/sidebar/SidebarRequestList/types';
 
 interface NavFolderProps {
   folderId: Folder['id'];
   depth?: number;
   onCreateItem?: (item: CreatingItem) => void;
+  onItemClick: ItemClickHandler;
 }
 
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
-export const NavFolder = ({ folderId, depth = 0, onCreateItem }: NavFolderProps) => {
+export const NavFolder = ({ folderId, depth = 0, onCreateItem, onItemClick }: NavFolderProps) => {
   const { setFolderOpen, setFolderClose, renameFolder } = useCollectionActions();
   const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
+  const isSelected = useCollectionStore((state) => state.selectedIds.has(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
   const [isEditing, setIsEditing] = useState(false);
 
@@ -57,7 +59,7 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem }: NavFolderProps)
       <SidebarGroup className={cn('overflow-x-hidden p-0')}>
         <SidebarMenuSubButton
           {...listeners}
-          onClick={toggleFolder}
+          onClick={(e) => onItemClick(folderId, e, toggleFolder)}
           className={cn(
             'sidebar-request-list-item',
             'group',
@@ -68,6 +70,8 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem }: NavFolderProps)
             'cursor-grab active:cursor-grabbing',
             'gap-1',
             'hover:bg-sidebar-accent',
+            'select-none',
+            isSelected && 'bg-accent-primary/10',
             getIndentation(depth)
           )}
         >

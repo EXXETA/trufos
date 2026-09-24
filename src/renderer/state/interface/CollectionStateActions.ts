@@ -55,6 +55,35 @@ export interface CollectionStateActions {
 
   setSortMode(mode: SortMode): void;
 
+  /**
+   * Toggle a request or folder's membership in the sidebar's multi-selection.
+   * @param id the request or folder id
+   */
+  toggleItemSelected(id: TrufosRequest['id'] | Folder['id']): void;
+
+  /**
+   * Replace the sidebar's multi-selection with the given ids.
+   * @param ids the request/folder ids to select
+   */
+  setSelection(ids: Iterable<TrufosRequest['id'] | Folder['id']>): void;
+
+  /**
+   * Clear the sidebar's multi-selection.
+   */
+  clearSelection(): void;
+
+  /**
+   * Delete every top-level id in the sidebar's multi-selection (a selected folder's
+   * already-selected descendants are not deleted a second time), then clear the selection.
+   */
+  deleteSelectedItems(): Promise<void>;
+
+  /**
+   * Duplicate every top-level id in the sidebar's multi-selection (a selected folder's
+   * already-selected descendants are not duplicated a second time), then clear the selection.
+   */
+  duplicateSelectedItems(): Promise<void>;
+
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
   discardChanges(): Promise<void>;

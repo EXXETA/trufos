@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import { type StoreApi, useStore } from 'zustand';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import {
+  getTopLevelSelectedItems,
   isRequestInAParentFolder,
   setRequestTextBody,
   setScriptContent,
@@ -39,6 +40,9 @@ interface CollectionState {
 
   /** A set of folder IDs that are currently open in the sidebar */
   openFolders: Set<Folder['id']>;
+
+  /** A set of request/folder IDs currently multi-selected in the sidebar */
+  selectedIds: Set<TrufosRequest['id'] | Folder['id']>;
 
   /** The currently active script type in the script editor */
   currentScriptType: ScriptType;
@@ -89,6 +93,7 @@ export const createCollectionStore = (collection: Collection) => {
     immer((set, get) => ({
       collection,
       openFolders: new Set(),
+      selectedIds: new Set(),
       currentScriptType: ScriptType.PRE_REQUEST,
       sortMode: SortMode.DEFAULT,
       ...buildCollectionItemMaps(collection),
@@ -107,11 +112,16 @@ export const createCollectionStore = (collection: Collection) => {
           if (isNewCollection) {
             state.selectedRequestId = undefined;
             state.openFolders = new Set();
+            state.selectedIds = new Set();
           } else {
             if (state.selectedRequestId != null && !state.requests.has(state.selectedRequestId)) {
               state.selectedRequestId = undefined;
             }
-            state.openFolders = state.openFolders.intersection(new Set(folders.keys()));
+            // Immer's draft Sets don't support the ES2024 Set.prototype.intersection() method
+            // (it silently returns an empty set), so intersect manually via filter instead.
+            state.openFolders = new Set([...state.openFolders].filter((id) => folders.has(id)));
+            const validIds = new Set([...requests.keys(), ...folders.keys()]);
+            state.selectedIds = new Set([...state.selectedIds].filter((id) => validIds.has(id)));
           }
           console.info('Initialized collection:', collection);
         });
@@ -233,6 +243,52 @@ export const createCollectionStore = (collection: Collection) => {
 
       setSortMode: (mode) => {
         set({ sortMode: mode });
+      },
+
+      toggleItemSelected: (id) => {
+        set((state) => {
+          if (state.selectedIds.has(id)) {
+            state.selectedIds.delete(id);
+          } else {
+            state.selectedIds.add(id);
+          }
+        });
+      },
+
+      setSelection: (ids) => {
+        set((state) => {
+          state.selectedIds = new Set(ids);
+        });
+      },
+
+      clearSelection: () => {
+        set((state) => {
+          state.selectedIds = new Set();
+        });
+      },
+
+      deleteSelectedItems: async () => {
+        const { selectedIds, requests, folders } = get();
+        const items = getTopLevelSelectedItems(selectedIds, requests, folders);
+
+        await runBulk(
+          get,
+          items,
+          (request) => eventService.deleteObject(request),
+          (folder) => eventService.deleteObject(folder)
+        );
+      },
+
+      duplicateSelectedItems: async () => {
+        const { selectedIds, requests, folders } = get();
+        const items = getTopLevelSelectedItems(selectedIds, requests, folders);
+
+        await runBulk(
+          get,
+          items,
+          (request) => eventService.copyRequest(request),
+          (folder) => eventService.copyFolder(folder)
+        );
       },
 
       deleteRequest: async (id) => {
@@ -594,6 +650,50 @@ export { CollectionStoreContext };
 const selectParent = (state: CollectionState, parentId: string) => {
   if (state.collection!.id === parentId) return state.collection as Collection;
   return state.folders.get(parentId)!;
+};
+
+/**
+ * Runs a bulk request/folder action (delete or duplicate) against each top-level item. If the
+ * action will remove the currently-open request — directly, or as a descendant of a
+ * bulk-acted-on folder — its Monaco model is disposed up front via `setSelectedRequest`, before
+ * `selectedRequestId` gets cleared by the reload below (unlike the single-item `deleteFolder`
+ * action, whose equivalent check runs too late to ever fire). Regardless of how many items are
+ * in `items`, the collection is reloaded and the selection cleared exactly once, in a `finally`
+ * so a mid-loop IPC failure still leaves state consistent instead of a stale selection
+ * referencing now-nonexistent ids; the exception still propagates, no rollback is attempted.
+ */
+const runBulk = async (
+  get: () => CollectionState & CollectionStateActions,
+  items: (TrufosRequest | Folder)[],
+  onRequest: (request: TrufosRequest) => Promise<unknown>,
+  onFolder: (folder: Folder) => Promise<unknown>
+): Promise<void> => {
+  const { selectedRequestId } = get();
+  const affectsOpenRequest =
+    selectedRequestId != null &&
+    items.some((item) =>
+      isRequest(item)
+        ? item.id === selectedRequestId
+        : isRequestInAParentFolder(selectedRequestId, item)
+    );
+
+  if (affectsOpenRequest) {
+    get().setSelectedRequest(undefined);
+  }
+
+  try {
+    for (const item of items) {
+      if (isRequest(item)) {
+        await onRequest(item);
+      } else {
+        await onFolder(item);
+      }
+    }
+  } finally {
+    const collection = await eventService.loadCollection(true);
+    get().initialize(collection);
+    get().clearSelection();
+  }
 };
 
 const replaceChild = (state: CollectionState, child: Folder | TrufosRequest) => {
