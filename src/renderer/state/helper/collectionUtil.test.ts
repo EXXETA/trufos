@@ -2,7 +2,13 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ScriptType } from 'shim/scripting';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { getTopLevelSelectedItems, hasSelectedAncestor, setScriptContent } from './collectionUtil';
+import {
+  getIndexAfter,
+  getTopLevelSelectedItems,
+  hasSelectedAncestor,
+  isWithinGroup,
+  setScriptContent,
+} from './collectionUtil';
 
 const { setValueMock, readAllMock, openMock } = vi.hoisted(() => ({
   setValueMock: vi.fn(),
@@ -181,5 +187,59 @@ describe('getTopLevelSelectedItems', () => {
     const result = getTopLevelSelectedItems(new Set(['child-req']), requests, folders);
 
     expect(result).toEqual([childReq]);
+  });
+});
+
+describe('getIndexAfter', () => {
+  const ids = (...list: string[]): { id: string }[] => list.map((id) => ({ id }));
+
+  it('returns the index right after the anchor when the moving item is in a different parent', () => {
+    expect(getIndexAfter(ids('p', 'a', 'q'), 'x', 'a')).toBe(2);
+  });
+
+  it('ignores the moving item when it sits before the anchor (same-parent splice-out)', () => {
+    // [b, p, a, q]: removing b gives [p, a, q]; after a => index 2
+    expect(getIndexAfter(ids('b', 'p', 'a', 'q'), 'b', 'a')).toBe(2);
+  });
+
+  it('ignores the moving item when it sits after the anchor (same-parent splice-out)', () => {
+    // [p, a, q, b]: removing b gives [p, a, q]; after a => index 2
+    expect(getIndexAfter(ids('p', 'a', 'q', 'b'), 'b', 'a')).toBe(2);
+  });
+
+  it('returns the end index when the anchor is the last remaining child', () => {
+    expect(getIndexAfter(ids('p', 'b', 'a'), 'b', 'a')).toBe(2);
+  });
+
+  it('returns 0 when the anchor is not among the children', () => {
+    expect(getIndexAfter(ids('p', 'q'), 'b', 'missing')).toBe(0);
+  });
+});
+
+describe('isWithinGroup', () => {
+  const outer = makeFolder('outer', COL_ID);
+  const inner = makeFolder('inner', 'outer');
+  const other = makeFolder('other', COL_ID);
+  const requests = new Map<string, TrufosRequest>([['req-a', makeReq('req-a', COL_ID)]]);
+  const folders = new Map([
+    ['outer', outer],
+    ['inner', inner],
+    ['other', other],
+  ]);
+
+  it('returns true when the target parent is itself a group member', () => {
+    expect(isWithinGroup('outer', new Set(['outer', 'req-a']), requests, folders)).toBe(true);
+  });
+
+  it('returns true when the target parent is a descendant of a group member', () => {
+    expect(isWithinGroup('inner', new Set(['outer', 'req-a']), requests, folders)).toBe(true);
+  });
+
+  it('returns false when the target parent is outside the group', () => {
+    expect(isWithinGroup('other', new Set(['outer', 'req-a']), requests, folders)).toBe(false);
+  });
+
+  it('returns false when the target parent is the collection root', () => {
+    expect(isWithinGroup(COL_ID, new Set(['outer', 'req-a']), requests, folders)).toBe(false);
   });
 });

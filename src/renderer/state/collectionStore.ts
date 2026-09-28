@@ -2,8 +2,10 @@ import { createContext, useContext } from 'react';
 import { type StoreApi, useStore } from 'zustand';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import {
+  getIndexAfter,
   getTopLevelSelectedItems,
   isRequestInAParentFolder,
+  isWithinGroup,
   setRequestTextBody,
   setScriptContent,
 } from '@/state/helper/collectionUtil';
@@ -616,6 +618,36 @@ export const createCollectionStore = (collection: Collection) => {
             newParent,
             newIndex
           );
+        }
+      },
+
+      moveItemsAfter: async (afterId, ids) => {
+        // Every id lands in the anchor's parent, so validating that parent once up front is
+        // enough to guarantee no group member gets nested inside itself (I20).
+        const initial = get();
+        const anchor = selectRequest(initial, afterId) ?? selectFolder(initial, afterId);
+        if (anchor == null) {
+          throw new Error(`Cannot move items after ${afterId}: item not found`);
+        }
+        if (isWithinGroup(anchor.parentId, new Set(ids), initial.requests, initial.folders)) {
+          throw new Error(
+            `Cannot move items after ${afterId}: its parent ${anchor.parentId} is one of the moved items or inside one`
+          );
+        }
+
+        let prevId = afterId;
+        for (const id of ids) {
+          // Re-read state on every iteration: each moveItem splices live children and may
+          // change an item's parentId, so no index or parent can be precomputed up front.
+          const state = get();
+          const prev = selectRequest(state, prevId) ?? selectFolder(state, prevId);
+          if (prev == null) {
+            throw new Error(`Cannot move ${id} after ${prevId}: item not found`);
+          }
+          const parent = selectParent(state, prev.parentId);
+          const index = getIndexAfter(parent.children, id, prevId);
+          await get().moveItem(id, prev.parentId, index);
+          prevId = id;
         }
       },
 

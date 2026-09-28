@@ -240,6 +240,22 @@ export interface CollectionStateActions {
   moveItem(itemId: string, newParentId: string, position: number): Promise<void>;
 
   /**
+   * Move each of `ids`, in order, so they form a contiguous run directly after `afterId`
+   * (the first id right after `afterId`, each next one right after the previous), under
+   * whichever parent the preceding item currently lives in. Each position is computed from
+   * fresh state right before its move, so earlier moves can't shift later targets.
+   * Reuses `moveItem` for every step.
+   *
+   * Throws before moving anything if `afterId` doesn't exist or if its parent is one of `ids`
+   * or a descendant of one (that would nest a moved item inside itself). Also throws, leaving
+   * the earlier moves in place, if a previously-placed item can no longer be found.
+   *
+   * @param afterId The id of the anchor item the run is placed after.
+   * @param ids The ids to move, in the order they should appear.
+   */
+  moveItemsAfter(afterId: string, ids: string[]): Promise<void>;
+
+  /**
    * Update the client certificate of the current collection and persist it to the backend.
    * @param certificate The certificate to set, or null to clear it.
    */

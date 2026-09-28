@@ -20,10 +20,9 @@ import {
   getProjection,
   getMaxTimestamp,
   getRangeSelection,
-  getGroupMoveTargets,
   SortMode,
 } from './treeUtilities';
-import { getTopLevelSelectedItems } from '@/state/helper/collectionUtil';
+import { getTopLevelSelectedItems, isWithinGroup } from '@/state/helper/collectionUtil';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
@@ -122,6 +121,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   const selectedIds = useCollectionStore((state) => state.selectedIds);
   const {
     moveItem,
+    moveItemsAfter,
     setSelectedRequest,
     toggleItemSelected,
     setSelection,
@@ -323,6 +323,17 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     );
 
     setActiveId(null);
+
+    if (
+      isMultiDrag &&
+      isWithinGroup(projection.parentId, new Set(topLevelSelectedIds), requests, folders)
+    ) {
+      // Dropping the group into one of its own folders (or their descendants) would nest a
+      // member inside itself; reject the whole drop before anything moves (I20).
+      clearSelection();
+      return;
+    }
+
     await moveItem(activeIdStr, projection.parentId, projection.newIndex);
 
     if (isMultiDrag) {
@@ -332,9 +343,9 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
         .map((item) => item.id);
 
       try {
-        for (const target of getGroupMoveTargets(projection, otherTopLevelIds)) {
-          await moveItem(target.id, target.parentId, target.newIndex);
-        }
+        // Positions are resolved relative to the previously-placed item from fresh state on
+        // each step, so the group lands as a contiguous run right after the active item.
+        await moveItemsAfter(activeIdStr, otherTopLevelIds);
       } finally {
         // Clear even if one of the group's moveItem calls failed mid-loop, so the selection
         // doesn't keep referencing items that may have already been relocated; no rollback is

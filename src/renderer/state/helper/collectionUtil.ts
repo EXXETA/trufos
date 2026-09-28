@@ -80,3 +80,34 @@ export function getTopLevelSelectedItems(
     .map((id) => requests.get(id) ?? folders.get(id))
     .filter((item): item is TrufosRequest | Folder => item != null);
 }
+
+/**
+ * Returns the insertion index that places `movingId` directly after `afterId` among `children`,
+ * matching `moveItem`'s index semantics: for a same-parent move the item is spliced out before
+ * being re-inserted, so the index is computed with `movingId` filtered out; for a cross-parent
+ * move `movingId` isn't in `children` and the filter is a no-op. Returns 0 if `afterId` is not
+ * among `children`.
+ */
+export function getIndexAfter(
+  children: { id: string }[],
+  movingId: string,
+  afterId: string
+): number {
+  return children.filter((child) => child.id !== movingId).findIndex((c) => c.id === afterId) + 1;
+}
+
+/**
+ * Returns true if `targetParentId` is one of `groupIds` or a descendant of one of them. A group
+ * move into such a parent would nest a group member inside itself (a tree cycle), so it must be
+ * rejected before any item is moved.
+ */
+export function isWithinGroup(
+  targetParentId: string,
+  groupIds: Set<string>,
+  requests: Map<TrufosRequest['id'], TrufosRequest>,
+  folders: Map<Folder['id'], Folder>
+): boolean {
+  return (
+    groupIds.has(targetParentId) || hasSelectedAncestor(targetParentId, groupIds, requests, folders)
+  );
+}

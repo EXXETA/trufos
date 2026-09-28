@@ -13,6 +13,8 @@ const mockEventService = RendererEventService.instance as unknown as {
   copyRequest: ReturnType<typeof vi.fn>;
   copyFolder: ReturnType<typeof vi.fn>;
   loadCollection: ReturnType<typeof vi.fn>;
+  reorderItem: ReturnType<typeof vi.fn>;
+  moveItem: ReturnType<typeof vi.fn>;
 };
 
 vi.mock('@/lib/ipc-stream', () => ({
@@ -36,6 +38,9 @@ vi.mock('@/services/event/renderer-event-service', () => ({
       copyRequest: vi.fn().mockResolvedValue(undefined),
       copyFolder: vi.fn().mockResolvedValue(undefined),
       loadCollection: vi.fn(),
+      reorderItem: vi.fn().mockResolvedValue(undefined),
+      moveItem: vi.fn().mockResolvedValue(undefined),
+      saveRequest: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));
@@ -454,5 +459,133 @@ describe('setClientCertificate', () => {
     store.getState().setClientCertificate(newCert);
 
     expect(store.getState().collection?.clientCertificate).toEqual(newCert);
+  });
+});
+
+describe('moveItemsAfter', () => {
+  const childIds = (
+    store: ReturnType<typeof createCollectionStore>,
+    parentId: string
+  ): string[] => {
+    const state = store.getState();
+    const parent =
+      state.collection!.id === parentId ? state.collection! : state.folders.get(parentId)!;
+    return parent.children.map((child) => child.id);
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('keeps a same-parent group contiguous after the anchor even when indices would drift (I17)', async () => {
+    const ids = ['P', 'B', 'Q', 'C', 'R', 'A', 'S'];
+    const store = createCollectionStore(
+      makeCollection(
+        COL_ID,
+        ids.map((id) => makeRequest(id, COL_ID))
+      )
+    );
+
+    // The actively-dragged item is dropped first, as handleDragEnd does.
+    await store.getState().moveItem('A', COL_ID, 2);
+    expect(childIds(store, COL_ID)).toEqual(['P', 'B', 'A', 'Q', 'C', 'R', 'S']);
+
+    await store.getState().moveItemsAfter('A', ['B', 'C']);
+
+    expect(childIds(store, COL_ID)).toEqual(['P', 'A', 'B', 'C', 'Q', 'R', 'S']);
+  });
+
+  it('gathers items from different parents into one contiguous run after the anchor', async () => {
+    const folder1 = makeFolder('F1', COL_ID, [makeRequest('X', 'F1'), makeRequest('B', 'F1')]);
+    const folder2 = makeFolder('F2', COL_ID, [makeRequest('C', 'F2'), makeRequest('Y', 'F2')]);
+    const target = makeFolder('T', COL_ID, [
+      makeRequest('P', 'T'),
+      makeRequest('A', 'T'),
+      makeRequest('Q', 'T'),
+      makeRequest('D', 'T'),
+    ]);
+    const store = createCollectionStore(makeCollection(COL_ID, [folder1, folder2, target]));
+
+    await store.getState().moveItemsAfter('A', ['B', 'C', 'D']);
+
+    expect(childIds(store, 'T')).toEqual(['P', 'A', 'B', 'C', 'D', 'Q']);
+    expect(childIds(store, 'F1')).toEqual(['X']);
+    expect(childIds(store, 'F2')).toEqual(['Y']);
+    const { requests } = store.getState();
+    expect(['B', 'C', 'D'].map((id) => requests.get(id)!.parentId)).toEqual(['T', 'T', 'T']);
+  });
+
+  it('follows the anchor into its current parent when the anchor itself was moved', async () => {
+    const target = makeFolder('T', COL_ID, [makeRequest('P', 'T')]);
+    const store = createCollectionStore(
+      makeCollection(COL_ID, [makeRequest('A', COL_ID), makeRequest('B', COL_ID), target])
+    );
+
+    await store.getState().moveItem('A', 'T', 0);
+    await store.getState().moveItemsAfter('A', ['B']);
+
+    expect(childIds(store, 'T')).toEqual(['A', 'B', 'P']);
+    expect(childIds(store, COL_ID)).toEqual(['T']);
+  });
+
+  it('moves a folder after the anchor together with its subtree', async () => {
+    const folder = makeFolder('F', 'S', [makeRequest('F-child', 'F')]);
+    const source = makeFolder('S', COL_ID, [folder]);
+    const store = createCollectionStore(
+      makeCollection(COL_ID, [makeRequest('P', COL_ID), makeRequest('A', COL_ID), source])
+    );
+
+    await store.getState().moveItemsAfter('A', ['F']);
+
+    expect(childIds(store, COL_ID)).toEqual(['P', 'A', 'F', 'S']);
+    expect(childIds(store, 'S')).toEqual([]);
+    const { folders, requests } = store.getState();
+    expect(folders.get('F')!.parentId).toBe(COL_ID);
+    expect(childIds(store, 'F')).toEqual(['F-child']);
+    expect(requests.get('F-child')!.parentId).toBe('F');
+  });
+
+  it.each([
+    ['is a group member', 'F'],
+    ['is a descendant of a group member', 'F-sub'],
+  ])(
+    'throws without touching state when the anchor parent %s (I20)',
+    async (_label, anchorParentId) => {
+      const sub = makeFolder('F-sub', 'F', []);
+      const folder = makeFolder('F', COL_ID, [sub]);
+      const anchor = makeRequest('A', anchorParentId);
+      (anchorParentId === 'F' ? folder : sub).children.push(anchor);
+      const store = createCollectionStore(
+        makeCollection(COL_ID, [makeRequest('P', COL_ID), folder, makeRequest('B', COL_ID)])
+      );
+      const before = {
+        root: childIds(store, COL_ID),
+        folder: childIds(store, 'F'),
+        sub: childIds(store, 'F-sub'),
+      };
+
+      await expect(store.getState().moveItemsAfter('A', ['B', 'F'])).rejects.toThrow(
+        /one of the moved items or inside one/
+      );
+
+      expect({
+        root: childIds(store, COL_ID),
+        folder: childIds(store, 'F'),
+        sub: childIds(store, 'F-sub'),
+      }).toEqual(before);
+      expect(store.getState().folders.get('F')!.parentId).toBe(COL_ID);
+      expect(store.getState().requests.get('B')!.parentId).toBe(COL_ID);
+      expect(mockEventService.reorderItem).not.toHaveBeenCalled();
+      expect(mockEventService.moveItem).not.toHaveBeenCalled();
+    }
+  );
+
+  it('throws when the anchor does not exist', async () => {
+    const store = createCollectionStore(makeCollection(COL_ID, [makeRequest('B', COL_ID)]));
+
+    await expect(store.getState().moveItemsAfter('missing', ['B'])).rejects.toThrow(
+      /item not found/
+    );
+    expect(mockEventService.reorderItem).not.toHaveBeenCalled();
   });
 });
