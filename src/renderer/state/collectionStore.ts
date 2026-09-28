@@ -292,7 +292,8 @@ export const createCollectionStore = (collection: Collection) => {
           get,
           items,
           (request) => eventService.deleteObject(request),
-          (folder) => eventService.deleteObject(folder)
+          (folder) => eventService.deleteObject(folder),
+          true
         );
       },
 
@@ -305,7 +306,8 @@ export const createCollectionStore = (collection: Collection) => {
           get,
           items,
           (request) => eventService.copyRequest(request),
-          (folder) => eventService.copyFolder(folder)
+          (folder) => eventService.copyFolder(folder),
+          false
         );
       },
 
@@ -705,14 +707,15 @@ const selectParent = (state: CollectionState, parentId: string) => {
  * another bulk action is already in flight (`isBulkActionRunning`), this call is a no-op;
  * otherwise the flag is set synchronously before the first `await`, so the check-and-set is
  * atomic with respect to the event loop and e.g. a fast double-click can't start a second
- * concurrent run over the same selection. If the action will remove the currently-open
- * request — directly, or as a descendant of a bulk-acted-on folder — its Monaco model is
- * disposed up front via `setSelectedRequest`, before `selectedRequestId` gets cleared by the
- * reload below (unlike the single-item `deleteFolder` action, whose equivalent check runs too
- * late to ever fire). Regardless of how many items are in `items`, the collection is reloaded
- * and the selection cleared exactly once, in a `finally` so a mid-loop IPC failure still leaves
- * state consistent instead of a stale selection referencing now-nonexistent ids; the exception
- * still propagates, no rollback is attempted.
+ * concurrent run over the same selection. If the action removes items (`removesItems`, i.e.
+ * bulk delete) and will remove the currently-open request — directly, or as a descendant of a
+ * bulk-deleted folder — its Monaco model is disposed up front via `setSelectedRequest`, before
+ * `selectedRequestId` gets cleared by the reload below (unlike the single-item `deleteFolder`
+ * action, whose equivalent check runs too late to ever fire). Non-removing actions (bulk
+ * duplicate) leave the open request and its Monaco models untouched. Regardless of how many
+ * items are in `items`, the collection is reloaded and the selection cleared exactly once, in a
+ * `finally` so a mid-loop IPC failure still leaves state consistent instead of a stale selection
+ * referencing now-nonexistent ids; the exception still propagates, no rollback is attempted.
  * The in-flight flag is reset last (`initialize()` never touches it), even if the reload fails.
  */
 const runBulk = async (
@@ -720,7 +723,8 @@ const runBulk = async (
   get: () => CollectionState & CollectionStateActions,
   items: (TrufosRequest | Folder)[],
   onRequest: (request: TrufosRequest) => Promise<unknown>,
-  onFolder: (folder: Folder) => Promise<unknown>
+  onFolder: (folder: Folder) => Promise<unknown>,
+  removesItems: boolean
 ): Promise<void> => {
   if (get().isBulkActionRunning) return;
   set((state) => {
@@ -730,6 +734,7 @@ const runBulk = async (
   try {
     const { selectedRequestId } = get();
     const affectsOpenRequest =
+      removesItems &&
       selectedRequestId != null &&
       items.some((item) =>
         isRequest(item)

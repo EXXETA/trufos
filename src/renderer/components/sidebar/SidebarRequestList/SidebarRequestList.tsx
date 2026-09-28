@@ -281,6 +281,11 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
       {
         keys: HOTKEYS.clearSelection,
         handler: () => clearSelection(),
+        // Let Escape keep flowing: Radix layers (row dropdowns, selects, popovers) only dismiss
+        // when the event isn't defaultPrevented, so an open menu must still close on the first
+        // Escape even while a multi-selection exists.
+        preventDefault: false,
+        stopPropagation: false,
       },
     ],
     {
@@ -469,7 +474,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
       </div>
       <BulkDeleteDialog
         open={isBulkDeleteDialogOpen}
-        count={selectedIds.size}
+        count={topLevelSelectedIds.length}
         onOpenChange={setIsBulkDeleteDialogOpen}
         onConfirm={handleConfirmBulkDelete}
       />

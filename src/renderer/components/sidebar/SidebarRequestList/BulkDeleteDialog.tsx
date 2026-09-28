@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import type { ReactElement } from 'react';
 
 export interface BulkDeleteDialogProps {
   open: boolean;
@@ -21,7 +22,7 @@ export const BulkDeleteDialog = ({
   count,
   onOpenChange,
   onConfirm,
-}: BulkDeleteDialogProps) => {
+}: BulkDeleteDialogProps): ReactElement => {
   const itemWord = count === 1 ? 'item' : 'items';
 
   return (

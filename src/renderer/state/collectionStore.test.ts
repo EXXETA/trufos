@@ -446,6 +446,47 @@ describe('duplicateSelectedItems', () => {
     expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the open request when it is among the duplicated items', async () => {
+    const request = makeRequest(REQ_ID, COL_ID);
+    const other = makeRequest('req-2', COL_ID);
+    const store = createCollectionStore(makeCollection(COL_ID, [request, other]));
+    store.getState().setSelectedRequest(REQ_ID);
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [request, other]));
+
+    const setSelectedRequestMock = vi.fn(store.getState().setSelectedRequest);
+    store.setState({ setSelectedRequest: setSelectedRequestMock });
+
+    store.getState().setSelection([REQ_ID, 'req-2']);
+    await store.getState().duplicateSelectedItems();
+
+    expect(mockEventService.copyRequest).toHaveBeenCalledTimes(2);
+    expect(setSelectedRequestMock).not.toHaveBeenCalled();
+    expect(store.getState().selectedRequestId).toBe(REQ_ID);
+  });
+
+  it('keeps the open request when it is a descendant of a duplicated folder', async () => {
+    const childReq = makeRequest('child-req', 'folder-a');
+    const folder = makeFolder('folder-a', COL_ID, [childReq]);
+    const store = createCollectionStore(makeCollection(COL_ID, [folder]));
+    store.getState().setSelectedRequest('child-req');
+    vi.mocked(isRequestInAParentFolder).mockReturnValue(true);
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [folder]));
+
+    const setSelectedRequestMock = vi.fn(store.getState().setSelectedRequest);
+    store.setState({ setSelectedRequest: setSelectedRequestMock });
+
+    try {
+      store.getState().setSelection(['folder-a']);
+      await store.getState().duplicateSelectedItems();
+    } finally {
+      vi.mocked(isRequestInAParentFolder).mockReturnValue(false);
+    }
+
+    expect(mockEventService.copyFolder).toHaveBeenCalledWith(folder);
+    expect(setSelectedRequestMock).not.toHaveBeenCalled();
+    expect(store.getState().selectedRequestId).toBe('child-req');
+  });
+
   it('ignores a second call while the first is still in flight', async () => {
     const request = makeRequest(REQ_ID, COL_ID);
     const folder = makeFolder('folder-a', COL_ID);
