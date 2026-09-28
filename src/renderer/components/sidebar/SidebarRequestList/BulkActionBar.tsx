@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { LuCopyPlus, LuEraser, LuTrash2 } from 'react-icons/lu';
+import { LuCopyPlus, LuTrash2, LuX } from 'react-icons/lu';
 
 export interface BulkActionBarProps {
   count: number;
@@ -38,7 +38,7 @@ export const BulkActionBar = ({
           aria-label="Clear selection"
           onClick={onClear}
         >
-          <LuEraser size={16} />
+          <LuX size={16} />
         </Button>
 
         <Button
