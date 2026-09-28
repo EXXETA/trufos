@@ -119,6 +119,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   const sortMode = useCollectionStore((state) => state.sortMode);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const selectedIds = useCollectionStore((state) => state.selectedIds);
+  const isBulkActionRunning = useCollectionStore((state) => state.isBulkActionRunning);
   const {
     moveItem,
     moveItemsAfter,
@@ -436,6 +437,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
           onClear={clearSelection}
           onDuplicate={handleDuplicateSelected}
           onDeleteClick={() => setIsBulkDeleteDialogOpen(true)}
+          disabled={isBulkActionRunning}
         />
         <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
           <DndContext

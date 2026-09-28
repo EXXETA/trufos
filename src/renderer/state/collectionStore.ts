@@ -51,6 +51,9 @@ interface CollectionState {
 
   /** The currently active sort mode for the sidebar */
   sortMode: SortMode;
+
+  /** Whether a bulk delete/duplicate is currently in flight (guards against concurrent runs) */
+  isBulkActionRunning: boolean;
 }
 
 type CollectionStore = StoreApi<CollectionState & CollectionStateActions>;
@@ -98,6 +101,7 @@ export const createCollectionStore = (collection: Collection) => {
       selectedIds: new Set(),
       currentScriptType: ScriptType.PRE_REQUEST,
       sortMode: SortMode.DEFAULT,
+      isBulkActionRunning: false,
       ...buildCollectionItemMaps(collection),
 
       initialize: (collection) => {
@@ -274,6 +278,7 @@ export const createCollectionStore = (collection: Collection) => {
         const items = getTopLevelSelectedItems(selectedIds, requests, folders);
 
         await runBulk(
+          set,
           get,
           items,
           (request) => eventService.deleteObject(request),
@@ -286,6 +291,7 @@ export const createCollectionStore = (collection: Collection) => {
         const items = getTopLevelSelectedItems(selectedIds, requests, folders);
 
         await runBulk(
+          set,
           get,
           items,
           (request) => eventService.copyRequest(request),
@@ -685,35 +691,46 @@ const selectParent = (state: CollectionState, parentId: string) => {
 };
 
 /**
- * Runs a bulk request/folder action (delete or duplicate) against each top-level item. If the
- * action will remove the currently-open request — directly, or as a descendant of a
- * bulk-acted-on folder — its Monaco model is disposed up front via `setSelectedRequest`, before
- * `selectedRequestId` gets cleared by the reload below (unlike the single-item `deleteFolder`
- * action, whose equivalent check runs too late to ever fire). Regardless of how many items are
- * in `items`, the collection is reloaded and the selection cleared exactly once, in a `finally`
- * so a mid-loop IPC failure still leaves state consistent instead of a stale selection
- * referencing now-nonexistent ids; the exception still propagates, no rollback is attempted.
+ * Runs a bulk request/folder action (delete or duplicate) against each top-level item. If
+ * another bulk action is already in flight (`isBulkActionRunning`), this call is a no-op;
+ * otherwise the flag is set synchronously before the first `await`, so the check-and-set is
+ * atomic with respect to the event loop and e.g. a fast double-click can't start a second
+ * concurrent run over the same selection. If the action will remove the currently-open
+ * request — directly, or as a descendant of a bulk-acted-on folder — its Monaco model is
+ * disposed up front via `setSelectedRequest`, before `selectedRequestId` gets cleared by the
+ * reload below (unlike the single-item `deleteFolder` action, whose equivalent check runs too
+ * late to ever fire). Regardless of how many items are in `items`, the collection is reloaded
+ * and the selection cleared exactly once, in a `finally` so a mid-loop IPC failure still leaves
+ * state consistent instead of a stale selection referencing now-nonexistent ids; the exception
+ * still propagates, no rollback is attempted.
+ * The in-flight flag is reset last (`initialize()` never touches it), even if the reload fails.
  */
 const runBulk = async (
+  set: (updater: (state: CollectionState) => void) => void,
   get: () => CollectionState & CollectionStateActions,
   items: (TrufosRequest | Folder)[],
   onRequest: (request: TrufosRequest) => Promise<unknown>,
   onFolder: (folder: Folder) => Promise<unknown>
 ): Promise<void> => {
-  const { selectedRequestId } = get();
-  const affectsOpenRequest =
-    selectedRequestId != null &&
-    items.some((item) =>
-      isRequest(item)
-        ? item.id === selectedRequestId
-        : isRequestInAParentFolder(selectedRequestId, item)
-    );
-
-  if (affectsOpenRequest) {
-    get().setSelectedRequest(undefined);
-  }
+  if (get().isBulkActionRunning) return;
+  set((state) => {
+    state.isBulkActionRunning = true;
+  });
 
   try {
+    const { selectedRequestId } = get();
+    const affectsOpenRequest =
+      selectedRequestId != null &&
+      items.some((item) =>
+        isRequest(item)
+          ? item.id === selectedRequestId
+          : isRequestInAParentFolder(selectedRequestId, item)
+      );
+
+    if (affectsOpenRequest) {
+      get().setSelectedRequest(undefined);
+    }
+
     for (const item of items) {
       if (isRequest(item)) {
         await onRequest(item);
@@ -722,9 +739,15 @@ const runBulk = async (
       }
     }
   } finally {
-    const collection = await eventService.loadCollection(true);
-    get().initialize(collection);
-    get().clearSelection();
+    try {
+      const collection = await eventService.loadCollection(true);
+      get().initialize(collection);
+      get().clearSelection();
+    } finally {
+      set((state) => {
+        state.isBulkActionRunning = false;
+      });
+    }
   }
 };
 

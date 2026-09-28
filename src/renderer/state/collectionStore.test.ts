@@ -425,6 +425,50 @@ describe('duplicateSelectedItems', () => {
     expect(mockEventService.copyRequest).not.toHaveBeenCalled();
     expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
   });
+
+  it('ignores a second call while the first is still in flight', async () => {
+    const request = makeRequest(REQ_ID, COL_ID);
+    const folder = makeFolder('folder-a', COL_ID);
+    const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [request, folder]));
+
+    store.getState().setSelection([REQ_ID, 'folder-a']);
+    const first = store.getState().duplicateSelectedItems();
+    expect(store.getState().isBulkActionRunning).toBe(true);
+    const second = store.getState().duplicateSelectedItems();
+    await Promise.all([first, second]);
+
+    expect(mockEventService.copyRequest).toHaveBeenCalledTimes(1);
+    expect(mockEventService.copyFolder).toHaveBeenCalledTimes(1);
+    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
+    expect(store.getState().isBulkActionRunning).toBe(false);
+  });
+
+  it('resets the in-flight flag after a mid-loop rejection', async () => {
+    const request = makeRequest(REQ_ID, COL_ID);
+    const folder = makeFolder('folder-a', COL_ID);
+    const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [request, folder]));
+    mockEventService.copyRequest.mockRejectedValueOnce(new Error('copy failed'));
+
+    store.getState().setSelection([REQ_ID, 'folder-a']);
+    await expect(store.getState().duplicateSelectedItems()).rejects.toThrow('copy failed');
+
+    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
+    expect(store.getState().isBulkActionRunning).toBe(false);
+    expect(store.getState().selectedIds.size).toBe(0);
+  });
+
+  it('resets the in-flight flag even when the reload itself fails', async () => {
+    const request = makeRequest(REQ_ID, COL_ID);
+    const store = createCollectionStore(makeCollection(COL_ID, [request]));
+    mockEventService.loadCollection.mockRejectedValueOnce(new Error('reload failed'));
+
+    store.getState().setSelection([REQ_ID]);
+    await expect(store.getState().duplicateSelectedItems()).rejects.toThrow('reload failed');
+
+    expect(store.getState().isBulkActionRunning).toBe(false);
+  });
 });
 
 describe('setClientCertificate', () => {

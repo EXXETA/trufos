@@ -98,4 +98,32 @@ describe('BulkActionBar', () => {
 
     expect(onDeleteClickMock).toHaveBeenCalledTimes(1);
   });
+
+  it('disables Duplicate and Delete (but not Clear) when disabled', async () => {
+    const user = userEvent.setup();
+    render(
+      <BulkActionBar
+        count={2}
+        onClear={onClearMock}
+        onDuplicate={onDuplicateMock}
+        onDeleteClick={onDeleteClickMock}
+        disabled
+      />
+    );
+
+    const duplicateButton = screen.getByRole('button', { name: /duplicate/i });
+    const deleteButton = screen.getByRole('button', { name: /delete/i });
+    const clearButton = screen.getByRole('button', { name: /clear/i });
+    expect(duplicateButton).toHaveProperty('disabled', true);
+    expect(deleteButton).toHaveProperty('disabled', true);
+    expect(clearButton).toHaveProperty('disabled', false);
+
+    await user.click(duplicateButton);
+    await user.click(deleteButton);
+    await user.click(clearButton);
+
+    expect(onDuplicateMock).not.toHaveBeenCalled();
+    expect(onDeleteClickMock).not.toHaveBeenCalled();
+    expect(onClearMock).toHaveBeenCalledTimes(1);
+  });
 });
