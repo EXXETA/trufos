@@ -267,6 +267,16 @@ export const createCollectionStore = (collection: Collection) => {
         });
       },
 
+      addToSelection: (ids) => {
+        set((state) => {
+          // Immer's draft Set doesn't support the ES2024 Set.prototype.union() method (see the
+          // intersection note in initialize() above), so add each id individually instead.
+          for (const id of ids) {
+            state.selectedIds.add(id);
+          }
+        });
+      },
+
       clearSelection: () => {
         set((state) => {
           state.selectedIds = new Set();

@@ -126,6 +126,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     setSelectedRequest,
     toggleItemSelected,
     setSelection,
+    addToSelection,
     clearSelection,
     deleteSelectedItems,
     duplicateSelectedItems,
@@ -217,7 +218,12 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     (id, event, defaultAction) => {
       if (event.shiftKey) {
         const anchor = selectionAnchorRef.current ?? id;
-        setSelection(getRangeSelection(sortableIds, anchor, id));
+        const range = getRangeSelection(sortableIds, anchor, id);
+        if (event.ctrlKey || event.metaKey) {
+          addToSelection(range);
+        } else {
+          setSelection(range);
+        }
         selectionAnchorRef.current = anchor;
         return;
       }
@@ -232,7 +238,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
       selectionAnchorRef.current = id;
       defaultAction();
     },
-    [sortableIds, setSelection, toggleItemSelected, clearSelection]
+    [sortableIds, setSelection, addToSelection, toggleItemSelected, clearSelection]
   );
 
   const navigateRequest = (direction: -1 | 1) => {

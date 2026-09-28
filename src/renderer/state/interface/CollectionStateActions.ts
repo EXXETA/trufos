@@ -68,6 +68,13 @@ export interface CollectionStateActions {
   setSelection(ids: Iterable<TrufosRequest['id'] | Folder['id']>): void;
 
   /**
+   * Union the given ids into the sidebar's existing multi-selection, without removing any
+   * currently-selected id.
+   * @param ids the request/folder ids to add to the selection
+   */
+  addToSelection(ids: Iterable<TrufosRequest['id'] | Folder['id']>): void;
+
+  /**
    * Clear the sidebar's multi-selection.
    */
   clearSelection(): void;

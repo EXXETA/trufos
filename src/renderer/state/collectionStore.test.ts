@@ -324,6 +324,26 @@ describe('selection actions', () => {
 
     expect(store.getState().selectedIds.size).toBe(0);
   });
+
+  it('addToSelection unions ids into the existing selection', () => {
+    const store = buildStore();
+    store.getState().setSelection([REQ_ID]);
+
+    store.getState().addToSelection(['folder-a', 'folder-b']);
+
+    const state = store.getState();
+    expect([...state.selectedIds].sort()).toEqual([REQ_ID, 'folder-a', 'folder-b'].sort());
+  });
+
+  it('addToSelection does not remove already-selected ids not in the given range', () => {
+    const store = buildStore();
+    store.getState().setSelection([REQ_ID, 'folder-a']);
+
+    store.getState().addToSelection(['folder-b']);
+
+    const state = store.getState();
+    expect([...state.selectedIds].sort()).toEqual([REQ_ID, 'folder-a', 'folder-b'].sort());
+  });
 });
 
 const makeFolder = (id: string, parentId: string, children: Folder['children'] = []): Folder =>
