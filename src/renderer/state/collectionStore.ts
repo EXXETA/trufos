@@ -2,7 +2,10 @@ import { createContext, useContext } from 'react';
 import { type StoreApi, useStore } from 'zustand';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import {
+  getIndexAfter,
+  getTopLevelSelectedItems,
   isRequestInAParentFolder,
+  isWithinGroup,
   setRequestTextBody,
   setScriptContent,
 } from '@/state/helper/collectionUtil';
@@ -40,11 +43,17 @@ interface CollectionState {
   /** A set of folder IDs that are currently open in the sidebar */
   openFolders: Set<Folder['id']>;
 
+  /** A set of request/folder IDs currently multi-selected in the sidebar */
+  selectedIds: Set<TrufosRequest['id'] | Folder['id']>;
+
   /** The currently active script type in the script editor */
   currentScriptType: ScriptType;
 
   /** The currently active sort mode for the sidebar */
   sortMode: SortMode;
+
+  /** Whether a bulk delete/duplicate is currently in flight (guards against concurrent runs) */
+  isBulkActionRunning: boolean;
 }
 
 type CollectionStore = StoreApi<CollectionState & CollectionStateActions>;
@@ -89,8 +98,10 @@ export const createCollectionStore = (collection: Collection) => {
     immer((set, get) => ({
       collection,
       openFolders: new Set(),
+      selectedIds: new Set(),
       currentScriptType: ScriptType.PRE_REQUEST,
       sortMode: SortMode.DEFAULT,
+      isBulkActionRunning: false,
       ...buildCollectionItemMaps(collection),
 
       initialize: (collection) => {
@@ -107,11 +118,16 @@ export const createCollectionStore = (collection: Collection) => {
           if (isNewCollection) {
             state.selectedRequestId = undefined;
             state.openFolders = new Set();
+            state.selectedIds = new Set();
           } else {
             if (state.selectedRequestId != null && !state.requests.has(state.selectedRequestId)) {
               state.selectedRequestId = undefined;
             }
-            state.openFolders = state.openFolders.intersection(new Set(folders.keys()));
+            // Immer's draft Sets don't support the ES2024 Set.prototype.intersection() method
+            // (it silently returns an empty set), so intersect manually via filter instead.
+            state.openFolders = new Set([...state.openFolders].filter((id) => folders.has(id)));
+            const validIds = new Set([...requests.keys(), ...folders.keys()]);
+            state.selectedIds = new Set([...state.selectedIds].filter((id) => validIds.has(id)));
           }
           console.info('Initialized collection:', collection);
         });
@@ -233,6 +249,66 @@ export const createCollectionStore = (collection: Collection) => {
 
       setSortMode: (mode) => {
         set({ sortMode: mode });
+      },
+
+      toggleItemSelected: (id) => {
+        set((state) => {
+          if (state.selectedIds.has(id)) {
+            state.selectedIds.delete(id);
+          } else {
+            state.selectedIds.add(id);
+          }
+        });
+      },
+
+      setSelection: (ids) => {
+        set((state) => {
+          state.selectedIds = new Set(ids);
+        });
+      },
+
+      addToSelection: (ids) => {
+        set((state) => {
+          // Immer's draft Set doesn't support the ES2024 Set.prototype.union() method (see the
+          // intersection note in initialize() above), so add each id individually instead.
+          for (const id of ids) {
+            state.selectedIds.add(id);
+          }
+        });
+      },
+
+      clearSelection: () => {
+        set((state) => {
+          state.selectedIds = new Set();
+        });
+      },
+
+      deleteSelectedItems: async () => {
+        const { selectedIds, requests, folders } = get();
+        const items = getTopLevelSelectedItems(selectedIds, requests, folders);
+
+        await runBulk(
+          set,
+          get,
+          items,
+          (request) => eventService.deleteObject(request),
+          (folder) => eventService.deleteObject(folder),
+          true
+        );
+      },
+
+      duplicateSelectedItems: async () => {
+        const { selectedIds, requests, folders } = get();
+        const items = getTopLevelSelectedItems(selectedIds, requests, folders);
+
+        await runBulk(
+          set,
+          get,
+          items,
+          (request) => eventService.copyRequest(request),
+          (folder) => eventService.copyFolder(folder),
+          false
+        );
       },
 
       deleteRequest: async (id) => {
@@ -563,6 +639,36 @@ export const createCollectionStore = (collection: Collection) => {
         }
       },
 
+      moveItemsAfter: async (afterId, ids) => {
+        // Every id lands in the anchor's parent, so validating that parent once up front is
+        // enough to guarantee no group member gets nested inside itself (I20).
+        const initial = get();
+        const anchor = selectRequest(initial, afterId) ?? selectFolder(initial, afterId);
+        if (anchor == null) {
+          throw new Error(`Cannot move items after ${afterId}: item not found`);
+        }
+        if (isWithinGroup(anchor.parentId, new Set(ids), initial.requests, initial.folders)) {
+          throw new Error(
+            `Cannot move items after ${afterId}: its parent ${anchor.parentId} is one of the moved items or inside one`
+          );
+        }
+
+        let prevId = afterId;
+        for (const id of ids) {
+          // Re-read state on every iteration: each moveItem splices live children and may
+          // change an item's parentId, so no index or parent can be precomputed up front.
+          const state = get();
+          const prev = selectRequest(state, prevId) ?? selectFolder(state, prevId);
+          if (prev == null) {
+            throw new Error(`Cannot move ${id} after ${prevId}: item not found`);
+          }
+          const parent = selectParent(state, prev.parentId);
+          const index = getIndexAfter(parent.children, id, prevId);
+          await get().moveItem(id, prev.parentId, index);
+          prevId = id;
+        }
+      },
+
       setClientCertificate: async (certificate) => {
         set((state) => {
           if (state.collection) {
@@ -594,6 +700,70 @@ export { CollectionStoreContext };
 const selectParent = (state: CollectionState, parentId: string) => {
   if (state.collection!.id === parentId) return state.collection as Collection;
   return state.folders.get(parentId)!;
+};
+
+/**
+ * Runs a bulk request/folder action (delete or duplicate) against each top-level item. If
+ * another bulk action is already in flight (`isBulkActionRunning`), this call is a no-op;
+ * otherwise the flag is set synchronously before the first `await`, so the check-and-set is
+ * atomic with respect to the event loop and e.g. a fast double-click can't start a second
+ * concurrent run over the same selection. If the action removes items (`removesItems`, i.e.
+ * bulk delete) and will remove the currently-open request — directly, or as a descendant of a
+ * bulk-deleted folder — its Monaco model is disposed up front via `setSelectedRequest`, before
+ * `selectedRequestId` gets cleared by the reload below (unlike the single-item `deleteFolder`
+ * action, whose equivalent check runs too late to ever fire). Non-removing actions (bulk
+ * duplicate) leave the open request and its Monaco models untouched. Regardless of how many
+ * items are in `items`, the collection is reloaded and the selection cleared exactly once, in a
+ * `finally` so a mid-loop IPC failure still leaves state consistent instead of a stale selection
+ * referencing now-nonexistent ids; the exception still propagates, no rollback is attempted.
+ * The in-flight flag is reset last (`initialize()` never touches it), even if the reload fails.
+ */
+const runBulk = async (
+  set: (updater: (state: CollectionState) => void) => void,
+  get: () => CollectionState & CollectionStateActions,
+  items: (TrufosRequest | Folder)[],
+  onRequest: (request: TrufosRequest) => Promise<unknown>,
+  onFolder: (folder: Folder) => Promise<unknown>,
+  removesItems: boolean
+): Promise<void> => {
+  if (get().isBulkActionRunning) return;
+  set((state) => {
+    state.isBulkActionRunning = true;
+  });
+
+  try {
+    const { selectedRequestId } = get();
+    const affectsOpenRequest =
+      removesItems &&
+      selectedRequestId != null &&
+      items.some((item) =>
+        isRequest(item)
+          ? item.id === selectedRequestId
+          : isRequestInAParentFolder(selectedRequestId, item)
+      );
+
+    if (affectsOpenRequest) {
+      get().setSelectedRequest(undefined);
+    }
+
+    for (const item of items) {
+      if (isRequest(item)) {
+        await onRequest(item);
+      } else {
+        await onFolder(item);
+      }
+    }
+  } finally {
+    try {
+      const collection = await eventService.loadCollection(true);
+      get().initialize(collection);
+      get().clearSelection();
+    } finally {
+      set((state) => {
+        state.isBulkActionRunning = false;
+      });
+    }
+  }
 };
 
 const replaceChild = (state: CollectionState, child: Folder | TrufosRequest) => {

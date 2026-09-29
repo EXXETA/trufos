@@ -55,6 +55,25 @@ describe('useHotkeys', () => {
     expect(stopImmediatePropagation).not.toHaveBeenCalled();
   });
 
+  it('lets a bare Escape hotkey opt out of preventDefault and propagation', () => {
+    // Arrange — mirrors the sidebar's clear-selection registration
+    const handler = vi.fn();
+    renderHook(() =>
+      useHotkeys([{ keys: 'escape', handler, preventDefault: false, stopPropagation: false }])
+    );
+
+    // Act
+    const { event, preventDefault, stopImmediatePropagation } = dispatchKeyDown({
+      key: 'Escape',
+    });
+
+    // Assert
+    expect(handler).toHaveBeenCalledWith(event);
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(stopImmediatePropagation).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it('skips form elements by default but still runs when skipFormElements is false', () => {
     // Arrange
     const skipping = vi.fn();

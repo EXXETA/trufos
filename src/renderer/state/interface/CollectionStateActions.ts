@@ -55,6 +55,42 @@ export interface CollectionStateActions {
 
   setSortMode(mode: SortMode): void;
 
+  /**
+   * Toggle a request or folder's membership in the sidebar's multi-selection.
+   * @param id the request or folder id
+   */
+  toggleItemSelected(id: TrufosRequest['id'] | Folder['id']): void;
+
+  /**
+   * Replace the sidebar's multi-selection with the given ids.
+   * @param ids the request/folder ids to select
+   */
+  setSelection(ids: Iterable<TrufosRequest['id'] | Folder['id']>): void;
+
+  /**
+   * Union the given ids into the sidebar's existing multi-selection, without removing any
+   * currently-selected id.
+   * @param ids the request/folder ids to add to the selection
+   */
+  addToSelection(ids: Iterable<TrufosRequest['id'] | Folder['id']>): void;
+
+  /**
+   * Clear the sidebar's multi-selection.
+   */
+  clearSelection(): void;
+
+  /**
+   * Delete every top-level id in the sidebar's multi-selection (a selected folder's
+   * already-selected descendants are not deleted a second time), then clear the selection.
+   */
+  deleteSelectedItems(): Promise<void>;
+
+  /**
+   * Duplicate every top-level id in the sidebar's multi-selection (a selected folder's
+   * already-selected descendants are not duplicated a second time), then clear the selection.
+   */
+  duplicateSelectedItems(): Promise<void>;
+
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
   discardChanges(): Promise<void>;
@@ -209,6 +245,22 @@ export interface CollectionStateActions {
   closeCollection(dirPath?: string): Promise<void>;
 
   moveItem(itemId: string, newParentId: string, position: number): Promise<void>;
+
+  /**
+   * Move each of `ids`, in order, so they form a contiguous run directly after `afterId`
+   * (the first id right after `afterId`, each next one right after the previous), under
+   * whichever parent the preceding item currently lives in. Each position is computed from
+   * fresh state right before its move, so earlier moves can't shift later targets.
+   * Reuses `moveItem` for every step.
+   *
+   * Throws before moving anything if `afterId` doesn't exist or if its parent is one of `ids`
+   * or a descendant of one (that would nest a moved item inside itself). Also throws, leaving
+   * the earlier moves in place, if a previously-placed item can no longer be found.
+   *
+   * @param afterId The id of the anchor item the run is placed after.
+   * @param ids The ids to move, in the order they should appear.
+   */
+  moveItemsAfter(afterId: string, ids: string[]): Promise<void>;
 
   /**
    * Update the client certificate of the current collection and persist it to the backend.
