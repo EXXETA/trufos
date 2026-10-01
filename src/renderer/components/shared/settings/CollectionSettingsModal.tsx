@@ -113,37 +113,43 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex h-[80vh] max-w-4xl flex-col p-0 lg:max-w-5xl">
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col overflow-hidden rounded-lg">
           {/* Header - Fixed */}
-          <div className="shrink-0 px-4 pt-4">
+          <div className="bg-background-secondary shrink-0 px-4 pt-4">
             <DialogHeader>
               <DialogTitle className="font-bold">Collection Settings</DialogTitle>
             </DialogHeader>
           </div>
 
           {/* Tabs - Takes remaining space */}
-          <Tabs defaultValue="general" className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 px-4 py-4">
-              <TabsList className="bg-background">
-                <TabsTrigger value="general" className="font-light!">
+          <Tabs
+            defaultValue="general"
+            className="bg-background-primary flex min-h-0 flex-1 flex-col rounded-none"
+          >
+            <div className="bg-background-secondary shrink-0 px-4 py-4">
+              <TabsList className="bg-transparent">
+                <TabsTrigger value="general" className="px-4 py-2.5 font-light!">
                   General
                 </TabsTrigger>
-                <TabsTrigger value="variables" className="font-light!">
+                <TabsTrigger value="variables" className="px-4 py-2.5 font-light!">
                   Variables
                 </TabsTrigger>
-                <TabsTrigger value="environments" className="font-light!">
+                <TabsTrigger value="environments" className="px-4 py-2.5 font-light!">
                   Environments
                 </TabsTrigger>
-                <TabsTrigger value="tls" className="font-light!">
+                <TabsTrigger value="tls" className="px-4 py-2.5 font-light!">
                   mTLS
                 </TabsTrigger>
-                <TabsTrigger value="export" className="font-light!">
+                <TabsTrigger value="export" className="px-4 py-2.5 font-light!">
                   Export
                 </TabsTrigger>
               </TabsList>
             </div>
 
-            <TabsContent value="general" className="m-0 min-h-0 flex-1 overflow-y-auto p-0">
+            <TabsContent
+              value="general"
+              className="bg-background-primary m-0 min-h-0 flex-1 overflow-y-auto rounded-none p-0"
+            >
               <div className="h-full overflow-y-auto p-4">
                 <GeneralEditor
                   name={draft.title}
@@ -153,7 +159,10 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
               </div>
             </TabsContent>
 
-            <TabsContent value="variables" className="m-0 min-h-0 flex-1 p-0">
+            <TabsContent
+              value="variables"
+              className="bg-background-primary m-0 min-h-0 flex-1 rounded-none p-0"
+            >
               <div className="h-full overflow-y-auto p-4">
                 <VariableEditor
                   variables={draft.variables}
@@ -162,7 +171,10 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
               </div>
             </TabsContent>
 
-            <TabsContent value="environments" className="m-0 min-h-0 flex-1 p-0">
+            <TabsContent
+              value="environments"
+              className="bg-background-primary m-0 min-h-0 flex-1 rounded-none p-0"
+            >
               <EnvironmentEditor
                 environments={draft.environments}
                 selectedEnvironment={draft.selectedEnvironment ?? null}
@@ -171,14 +183,20 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
               />
             </TabsContent>
 
-            <TabsContent value="tls" className="m-0 min-h-0 flex-1 overflow-y-auto p-0">
+            <TabsContent
+              value="tls"
+              className="bg-background-primary m-0 min-h-0 flex-1 overflow-y-auto rounded-none p-0"
+            >
               <CertificateEditor
                 certificate={draft.clientCertificate}
                 onCertificateChange={(clientCertificate) => update({ clientCertificate })}
               />
             </TabsContent>
 
-            <TabsContent value="export" className="m-0 min-h-0 flex-1 overflow-y-auto p-0">
+            <TabsContent
+              value="export"
+              className="bg-background-primary m-0 min-h-0 flex-1 overflow-y-auto rounded-none p-0"
+            >
               <ExportEditor />
             </TabsContent>
           </Tabs>
