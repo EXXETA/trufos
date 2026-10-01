@@ -155,4 +155,24 @@ describe('VariableEditor', () => {
     // Assert - Second variable added
     expect(currentVariables).toHaveLength(2);
   });
+
+  it('should toggle the secret flag when the Secret checkbox is clicked', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const onVariablesChangeMock = vi.fn();
+    const initialVariables: VariableObjectWithKey[] = [
+      { key: 'API_KEY', value: 'test123', description: 'API Key', secret: false },
+    ];
+
+    const { getByRole } = render(
+      <VariableEditor variables={initialVariables} onVariablesChange={onVariablesChangeMock} />
+    );
+
+    // Act
+    await user.click(getByRole('checkbox'));
+
+    // Assert
+    expect(onVariablesChangeMock).toHaveBeenCalledTimes(1);
+    expect(onVariablesChangeMock.mock.calls[0][0][0].secret).toBe(true);
+  });
 });
