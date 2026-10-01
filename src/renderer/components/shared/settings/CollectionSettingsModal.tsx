@@ -1,10 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { GeneralEditor } from '@/components/shared/settings/GeneralTab/GeneralEditor';
 import {
   VariableEditor,
@@ -199,19 +193,17 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
             >
               <ExportEditor />
             </TabsContent>
-          </Tabs>
 
-          {/* Footer - Fixed */}
-          <DialogFooter className="shrink-0 p-4">
-            <div className="flex gap-2">
+            {/* Actions - Fixed, below the active tab content */}
+            <div className="flex shrink-0 justify-end gap-2 p-4">
               <Button onClick={onClose} variant="outline">
                 <span className="leading-4 font-bold">Cancel</span>
               </Button>
-              <Button onClick={save} disabled={!canSave}>
+              <Button onClick={save} disabled={!canSave} className="h-10 px-5">
                 <span className="leading-4 font-bold">Save</span>
               </Button>
             </div>
-          </DialogFooter>
+          </Tabs>
         </div>
       </DialogContent>
     </Dialog>
