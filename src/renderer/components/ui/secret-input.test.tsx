@@ -1,5 +1,6 @@
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { vi, describe, it, expect } from 'vitest';
 import { SecretInput } from './secret-input';
 
@@ -53,6 +54,49 @@ describe('SecretInput', () => {
     // Assert - Hidden again
     expect(input.type).toBe('password');
     expect(getByText('Show')).toBeDefined();
+  });
+
+  it('should not show toggle but still mask when secret is true and value is empty', () => {
+    // Arrange
+    const { container, queryByText } = render(
+      <SecretInput secret={true} value="" onChange={vi.fn()} />
+    );
+
+    // Assert
+    expect(queryByText('Show')).toBeNull();
+    expect(queryByText('Hide')).toBeNull();
+    expect((container.querySelector('input') as HTMLInputElement).type).toBe('password');
+  });
+
+  it('should show toggle when typing a value into an empty secret input', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const Wrapper = () => {
+      const [value, setValue] = useState('');
+      return <SecretInput secret={true} value={value} onChange={(e) => setValue(e.target.value)} />;
+    };
+    const { container, queryByText } = render(<Wrapper />);
+    expect(queryByText('Show')).toBeNull();
+
+    // Act
+    await user.type(container.querySelector('input') as HTMLInputElement, 'abc');
+
+    // Assert
+    expect(queryByText('Show')).not.toBeNull();
+  });
+
+  it('should show toggle when rerendered with a value', () => {
+    // Arrange
+    const { rerender, queryByText } = render(
+      <SecretInput secret={true} value="" onChange={vi.fn()} />
+    );
+    expect(queryByText('Show')).toBeNull();
+
+    // Act
+    rerender(<SecretInput secret={true} value="x" onChange={vi.fn()} />);
+
+    // Assert
+    expect(queryByText('Show')).not.toBeNull();
   });
 
   it('should call onChange when value changes', async () => {
