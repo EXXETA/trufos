@@ -169,7 +169,7 @@ describe('VariableEditor', () => {
     );
 
     // Act
-    await user.click(getByRole('checkbox'));
+    await user.click(getByRole('checkbox', { name: 'Secret' }));
 
     // Assert
     expect(onVariablesChangeMock).toHaveBeenCalledTimes(1);
