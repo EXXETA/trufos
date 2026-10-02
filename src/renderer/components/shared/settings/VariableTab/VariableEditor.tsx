@@ -138,7 +138,7 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <div className="flex justify-center">
                     <ActiveCheckbox
                       aria-label="Secret"
-                      checked={variable.secret}
+                      checked={variable.secret ?? false}
                       onChange={(checked) => update(index, { secret: checked })}
                     />
                   </div>
