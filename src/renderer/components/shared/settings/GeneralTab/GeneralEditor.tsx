@@ -74,7 +74,7 @@ export const GeneralEditor = ({ name, onNameChange, onCloseCollection }: General
               variant="destructive"
               size="sm"
               disabled={collections.length === 1}
-              className="border-danger bg-danger/10 text-danger hover:bg-danger hover:text-background-primary rounded-full border"
+              className="border-danger bg-danger/10 text-danger hover:bg-danger hover:text-background-primary active:bg-danger active:border-danger active:text-background-primary rounded-full border"
               onClick={handleCloseCollection}
             >
               Close
