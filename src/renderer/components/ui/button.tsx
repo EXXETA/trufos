@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-accent-primary text-accent-tertiary hover:bg-accent-primary/90',
-        defaultDisable: 'border border-primary text-accent-tertiary hover:bg-accent-primary/90',
+        defaultDisable: 'bg-accent-disabled text-text-disabled disabled:opacity-100',
         disabled: 'text-disabled bg-accent-tertiary',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline: 'border border-primary bg-background hover:bg-accent hover:text-accent-foreground',
@@ -42,7 +42,7 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
-    // A disabled "default" button automatically gets the outlined "defaultDisable" look,
+    // A disabled "default" button automatically gets the filled, muted "defaultDisable" look,
     // so call sites don't need to swap the variant themselves.
     const resolvedVariant =
       disabled && (variant == null || variant === 'default') ? 'defaultDisable' : variant;
