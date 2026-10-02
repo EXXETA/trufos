@@ -12,7 +12,7 @@ import {
 import { VARIABLE_NAME_REGEX, VariableObjectWithKey } from 'shim/objects/variables';
 import { memo, useEffect } from 'react';
 import { produce } from 'immer';
-import { Checkbox } from '@/components/ui/checkbox';
+import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
 import { Trash2 } from 'lucide-react';
 import { SecretInput } from '@/components/ui/secret-input';
 import { cn } from '@/lib/utils';
@@ -135,11 +135,13 @@ export const VariableEditor = memo<VariableEditorProps>(
                   />
                 </TableCell>
                 <TableCell className="text-center">
-                  <Checkbox
-                    className="border-text-secondary data-[state=checked]:bg-text-secondary data-[state=checked]:text-background-primary cursor-pointer"
-                    checked={variable.secret}
-                    onCheckedChange={(checked) => update(index, { secret: Boolean(checked) })}
-                  />
+                  <div className="flex justify-center">
+                    <ActiveCheckbox
+                      aria-label="Secret"
+                      checked={variable.secret}
+                      onChange={(checked) => update(index, { secret: checked })}
+                    />
+                  </div>
                 </TableCell>
                 <TableCell className="py-2 text-center">
                   <Button
