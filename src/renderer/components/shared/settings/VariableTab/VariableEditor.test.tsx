@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect } from 'vitest';
 import { VariableEditor } from './VariableEditor';
@@ -154,5 +154,47 @@ describe('VariableEditor', () => {
 
     // Assert - Second variable added
     expect(currentVariables).toHaveLength(2);
+  });
+
+  it('should treat an undefined secret as unchecked and toggle it to true', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const onVariablesChangeMock = vi.fn();
+    const initialVariables: VariableObjectWithKey[] = [
+      { key: 'API_KEY', value: 'test123', description: 'API Key' },
+    ];
+
+    render(
+      <VariableEditor variables={initialVariables} onVariablesChange={onVariablesChangeMock} />
+    );
+    const checkbox = screen.getByRole<HTMLInputElement>('checkbox', { name: 'Secret' });
+    expect(checkbox.checked).toBe(false);
+
+    // Act
+    await user.click(checkbox);
+
+    // Assert
+    expect(onVariablesChangeMock).toHaveBeenCalledTimes(1);
+    expect(onVariablesChangeMock.mock.calls[0][0][0].secret).toBe(true);
+  });
+
+  it('should toggle the secret flag when the Secret checkbox is clicked', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const onVariablesChangeMock = vi.fn();
+    const initialVariables: VariableObjectWithKey[] = [
+      { key: 'API_KEY', value: 'test123', description: 'API Key', secret: false },
+    ];
+
+    const { getByRole } = render(
+      <VariableEditor variables={initialVariables} onVariablesChange={onVariablesChangeMock} />
+    );
+
+    // Act
+    await user.click(getByRole('checkbox', { name: 'Secret' }));
+
+    // Assert
+    expect(onVariablesChangeMock).toHaveBeenCalledTimes(1);
+    expect(onVariablesChangeMock.mock.calls[0][0][0].secret).toBe(true);
   });
 });

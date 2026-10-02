@@ -68,13 +68,13 @@ export const GeneralEditor = ({ name, onNameChange, onCloseCollection }: General
           <Separator />
 
           <div className="flex items-center justify-between">
-            <span className="text-destructive font-medium">Close Collection</span>
+            <span className="text-danger font-medium">Close Collection</span>
 
             <Button
-              variant={'destructive'}
+              variant="destructive"
               size="sm"
               disabled={collections.length === 1}
-              className="rounded-full"
+              className="border-danger bg-danger/10 text-danger hover:bg-danger hover:text-background-primary active:bg-danger active:border-danger active:text-background-primary rounded-full border"
               onClick={handleCloseCollection}
             >
               Close

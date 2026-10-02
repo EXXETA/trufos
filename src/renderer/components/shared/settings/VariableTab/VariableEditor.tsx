@@ -12,7 +12,7 @@ import {
 import { VARIABLE_NAME_REGEX, VariableObjectWithKey } from 'shim/objects/variables';
 import { memo, useEffect } from 'react';
 import { produce } from 'immer';
-import { Checkbox } from '@/components/ui/checkbox';
+import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
 import { Trash2 } from 'lucide-react';
 import { SecretInput } from '@/components/ui/secret-input';
 import { cn } from '@/lib/utils';
@@ -105,9 +105,10 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <input
                     type="text"
                     value={variable.key}
-                    className={cn('w-full bg-transparent outline-hidden', {
-                      'text-danger': invalidVariableKeys.has(variable.key),
-                    })}
+                    className={cn(
+                      'w-full bg-transparent outline-hidden',
+                      invalidVariableKeys.has(variable.key) ? 'text-danger' : 'text-text-secondary'
+                    )}
                     placeholder="Enter variable key"
                     onChange={(e) => update(index, { key: e.target.value })}
                   />
@@ -116,9 +117,10 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <SecretInput
                     secret={variable.secret}
                     value={variable.value}
-                    className={cn('w-full border-none bg-transparent outline-hidden', {
-                      'text-danger': invalidVariableKeys.has(variable.key),
-                    })}
+                    className={cn(
+                      'w-full border-none bg-transparent outline-hidden',
+                      invalidVariableKeys.has(variable.key) ? 'text-danger' : 'text-text-secondary'
+                    )}
                     placeholder="Enter variable value"
                     onChange={(e) => update(index, { value: e.target.value })}
                   />
@@ -127,22 +129,25 @@ export const VariableEditor = memo<VariableEditorProps>(
                   <input
                     type="text"
                     value={variable.description}
-                    className="w-full bg-transparent outline-hidden"
+                    className="text-text-secondary w-full bg-transparent outline-hidden"
                     placeholder="Enter variable description"
                     onChange={(e) => update(index, { description: e.target.value })}
                   />
                 </TableCell>
                 <TableCell className="text-center">
-                  <Checkbox
-                    checked={variable.secret}
-                    onCheckedChange={(checked) => update(index, { secret: Boolean(checked) })}
-                  />
+                  <div className="flex justify-center">
+                    <ActiveCheckbox
+                      aria-label="Secret"
+                      checked={variable.secret ?? false}
+                      onChange={(checked) => update(index, { secret: checked })}
+                    />
+                  </div>
                 </TableCell>
                 <TableCell className="py-2 text-center">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="hover:text-accent-primary active:text-accent-secondary w-5 hover:bg-transparent"
+                    className="text-text-secondary hover:text-accent-primary active:text-accent-secondary w-5 hover:bg-transparent"
                     onClick={() => remove(index)}
                   >
                     <Trash2 />
