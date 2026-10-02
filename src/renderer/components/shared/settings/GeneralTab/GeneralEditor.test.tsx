@@ -47,11 +47,18 @@ describe('GeneralEditor close collection button', () => {
     );
   });
 
-  it('uses the danger tint without leftover destructive classes', () => {
+  it('uses the danger tint without leftover destructive classes', async () => {
     listCollections.mockResolvedValue([{}, {}]);
     render(<GeneralEditor name="a" onNameChange={vi.fn()} onCloseCollection={vi.fn()} />);
 
-    const className = screen.getByRole('button', { name: 'Close' }).className;
+    await waitFor(() => expect(listCollections).toHaveBeenCalled());
+    const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Close' });
+    await waitFor(() => expect(button.disabled).toBe(false));
+    const className = button.className;
+    expect(className).toContain('active:bg-danger');
+    expect(className).toContain('active:border-danger');
+    expect(className).toContain('active:text-background-primary');
+    expect(className).not.toContain('active:bg-accent-secondary');
     expect(className).not.toMatch(/destructive/);
     expect(className).toContain('bg-danger/10');
     expect(className).toContain('hover:bg-danger');
