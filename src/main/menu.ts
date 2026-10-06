@@ -41,6 +41,19 @@ export class MenuBuilder {
     };
   }
 
+  /** macOS only routes Cmd+A/C/V/X/Z to focused inputs through these Edit menu roles. */
+  private buildEditSubmenu(): MenuItemConstructorOptions[] {
+    return [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' },
+    ];
+  }
+
   private buildViewSubmenu(): MenuItemConstructorOptions[] {
     const submenu: MenuItemConstructorOptions[] = [{ role: 'togglefullscreen' }];
     if (!app.isPackaged) {
@@ -97,6 +110,7 @@ export class MenuBuilder {
           { role: 'quit' },
         ],
       },
+      { label: 'Edit', submenu: this.buildEditSubmenu() },
       { label: 'Collection', submenu: this.buildCollectionSubmenu() },
       { label: 'View', submenu: this.buildViewSubmenu() },
       {

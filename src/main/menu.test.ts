@@ -86,6 +86,7 @@ describe('MenuBuilder', () => {
     );
     expect(template.map((item) => item.label ?? item.role)).toEqual([
       'Trufos',
+      'Edit',
       'Collection',
       'View',
       'Window',
@@ -112,15 +113,24 @@ describe('MenuBuilder', () => {
     expect(fileItems).toEqual(['close', 'Settings…', 'quit']);
   });
 
-  it('no longer contains an Edit menu on any platform', () => {
-    for (const platform of ['darwin', 'win32', 'linux'] as const) {
-      const strings = collectStrings(buildTemplate(platform));
-      expect(strings).not.toContain('Edit');
-      expect(strings).not.toContain('&Edit');
-      expect(strings).not.toContain('undo');
-      expect(strings).not.toContain('redo');
-      expect(strings).not.toContain('selectAll');
-    }
+  it('provides the text editing roles on macOS so Cmd+A/C/V/X/Z work in inputs', () => {
+    const template = buildTemplate('darwin');
+    const edit = template.find((item) => item.label === 'Edit')!;
+
+    expect(collectStrings(edit.submenu as MenuItemConstructorOptions[])).toEqual([
+      'undo',
+      'redo',
+      'cut',
+      'copy',
+      'paste',
+      'selectAll',
+    ]);
+  });
+
+  it.each(['win32', 'linux'] as const)('contains no Edit menu on %s', (platform) => {
+    const strings = collectStrings(buildTemplate(platform));
+    expect(strings).not.toContain('&Edit');
+    expect(strings).not.toContain('selectAll');
   });
 
   it.each(['darwin', 'win32'] as const)(
