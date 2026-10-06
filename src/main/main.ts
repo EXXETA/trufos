@@ -48,7 +48,7 @@ const createWindow = async () => {
       minWidth: 1024,
       minHeight: 728,
       webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
+        preload: path.join(__dirname, 'preload.cjs'),
       },
       show: false,
     });
