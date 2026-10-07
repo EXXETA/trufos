@@ -3470,15 +3470,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@usebruno/lang@npm:^0.39.0":
-  version: 0.39.0
-  resolution: "@usebruno/lang@npm:0.39.0"
+"@usebruno/lang@npm:^0.40.0":
+  version: 0.40.0
+  resolution: "@usebruno/lang@npm:0.40.0"
   dependencies:
     arcsecond: "npm:^5.0.0"
     dotenv: "npm:^16.3.1"
     lodash: "npm:4.18.1"
     ohm-js: "npm:^16.6.0"
-  checksum: 10c0/7557e93ba9b702066f901eb4dc3672aad6d15148270c841e114c8c75ba69f925e4ce25661a78c61e0a466fceea01f566c5b371a1ae80f91990e7a684edd007fc
+  checksum: 10c0/47478843700e9386d964579c72c8c2fe57dff9ad6f0880a61f448348acb06c27f99a0effd8c31e9c6a12b85000acd82af7045c78e2df886aa67f072d33d3c392
   languageName: node
   linkType: hard
 
@@ -7480,7 +7480,7 @@ __metadata:
     "@types/tmp": "npm:^0.2.6"
     "@typescript-eslint/eslint-plugin": "npm:^8.71.0"
     "@typescript-eslint/parser": "npm:^8.71.0"
-    "@usebruno/lang": "npm:^0.39.0"
+    "@usebruno/lang": "npm:^0.40.0"
     "@vitejs/plugin-react": "npm:^6.1.1"
     "@vitest/coverage-v8": "npm:^5.0.3"
     "@zip.js/zip.js": "npm:^2.17.0"
