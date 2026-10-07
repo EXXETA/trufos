@@ -81,9 +81,15 @@ jobs:
       # Electron needs a display server even though nobody is watching, and a session bus: without
       # one, `safeStorage` talks to a secret service that is not there.
       - name: Run end-to-end tests
+        env:
+          # Chromium's browser process currently never announces its DevTools endpoint on this
+          # runner, and Playwright truncates the process output it quotes in a timeout. These make
+          # Playwright echo every line the app writes, and Chromium report its own startup.
+          DEBUG: pw:browser
+          ELECTRON_ENABLE_LOGGING: '1'
         run: >-
           xvfb-run --auto-servernum --server-args="-screen 0 1600x1200x24"
-          dbus-run-session -- yarn run e2e
+          dbus-run-session -- yarn run e2e --retries=0
 
       - name: Upload failure diagnostics
         if: ${{ failure() }}
