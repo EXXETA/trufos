@@ -36,6 +36,16 @@ const createWindow = async () => {
 
     // initialize services in correct order
     await app.whenReady();
+
+    // A CI runner has no desktop password manager for Chromium to store the key in, so safe
+    // storage would be unavailable and the check below would abort startup. Electron's documented
+    // fallback keeps the key in memory instead. Ignored in a packaged build, so a release can
+    // never be made to downgrade how it stores secrets.
+    if (!app.isPackaged && process.env.CI) {
+      logger.warn('Using plain text safe storage. Secrets are not encrypted at rest.');
+      safeStorage.setUsePlainTextEncryption(true);
+    }
+
     if (!safeStorage.isEncryptionAvailable()) throw new Error('Safe storage is not available');
     await settingsService.init();
     await environmentService.init();

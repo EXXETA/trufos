@@ -17,7 +17,7 @@ export default defineConfig({
   workers: 1,
 
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: 0,
 
   // Launching Electron plus the first paint of the renderer is far slower than a browser page
   // load.
