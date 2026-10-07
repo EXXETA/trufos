@@ -120,5 +120,5 @@
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },
-  "packageManager": "yarn@4.18.0"
+  "packageManager": "yarn@4.18.1"
 }
