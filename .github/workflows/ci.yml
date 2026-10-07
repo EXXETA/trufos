@@ -78,9 +78,12 @@ jobs:
       - name: Ensure the Electron binary is installed
         run: node node_modules/electron/install.js
 
-      # Electron needs a display server even though nobody is watching.
+      # Electron needs a display server even though nobody is watching, and a session bus: without
+      # one, `safeStorage` talks to a secret service that is not there.
       - name: Run end-to-end tests
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1600x1200x24" yarn run e2e
+        run: >-
+          xvfb-run --auto-servernum --server-args="-screen 0 1600x1200x24"
+          dbus-run-session -- yarn run e2e
 
       - name: Upload failure diagnostics
         if: ${{ failure() }}

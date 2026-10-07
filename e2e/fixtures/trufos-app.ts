@@ -55,12 +55,21 @@ interface TrufosWorkerFixtures {
 const LAUNCH_TIMEOUT_MS = 30_000;
 
 /**
- * Chromium's SUID sandbox helper needs privileges that CI containers usually do not grant, which
- * makes Electron abort before the first window opens. Local runs keep the sandbox on so they stay
- * faithful to what a user gets.
+ * Switches a headless Linux runner needs before Chromium's browser process can finish starting.
+ *
+ * Without them the process launches and Node runs, but the browser side never announces its
+ * DevTools endpoint, so Playwright waits for a connection that never arrives:
+ *
+ * - `--no-sandbox`: the SUID sandbox helper needs privileges CI does not grant.
+ * - `--disable-gpu`: GPU/ANGLE initialisation can hang when there is no real display behind Xvfb.
+ * - `--disable-dev-shm-usage`: a small `/dev/shm` makes Chromium fail in ways that do not surface
+ *   as an error.
+ *
+ * Local runs keep all of it on, so they stay faithful to what a user gets.
  */
-function sandboxArgs(): string[] {
-  return process.env.CI && process.platform === 'linux' ? ['--no-sandbox'] : [];
+function headlessLinuxArgs(): string[] {
+  if (!process.env.CI || process.platform !== 'linux') return [];
+  return ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'];
 }
 
 /**
@@ -89,7 +98,7 @@ async function launchApp(
       // Relocates everything the app persists into the test's temporary directory.
       `--user-data-dir=${userDataDir}`,
       ...keyringArgs(),
-      ...sandboxArgs(),
+      ...headlessLinuxArgs(),
       ...(options.args ?? []),
     ],
     // Without this the launch inherits the whole test budget. Playwright attaches to the main
