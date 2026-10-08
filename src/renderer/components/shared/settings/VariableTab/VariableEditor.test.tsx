@@ -167,8 +167,8 @@ describe('VariableEditor', () => {
     render(
       <VariableEditor variables={initialVariables} onVariablesChange={onVariablesChangeMock} />
     );
-    const checkbox = screen.getByRole<HTMLInputElement>('checkbox', { name: 'Secret' });
-    expect(checkbox.checked).toBe(false);
+    const checkbox = screen.getByRole('checkbox', { name: 'Secret' });
+    expect(checkbox.getAttribute('aria-checked')).toBe('false');
 
     // Act
     await user.click(checkbox);

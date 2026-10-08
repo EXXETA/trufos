@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { AddIcon, DeleteIcon } from '@/components/icons';
-import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Divider } from '@/components/shared/Divider';
 import {
   Table,
@@ -81,9 +81,9 @@ export const ParamsTab = () => {
 
                   <TableCell className="w-16 text-right">
                     <div className="flex items-center justify-center gap-2">
-                      <ActiveCheckbox
+                      <Checkbox
                         checked={param.isActive}
-                        onChange={(checked) => setQueryParamActive(index, checked)}
+                        onCheckedChange={(checked) => setQueryParamActive(index, checked === true)}
                       />
 
                       <Button
