@@ -14,6 +14,8 @@ export function SecretInput({ secret = false, className, ...props }: SecretInput
   }
 
   const hasValue = props.value != null && String(props.value) !== '';
+  // Re-mask once the value is cleared, so the next value typed is not revealed.
+  if (!hasValue && show) setShow(false);
 
   return (
     <div className="relative w-full">

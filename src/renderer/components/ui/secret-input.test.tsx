@@ -85,6 +85,27 @@ describe('SecretInput', () => {
     expect(queryByText('Show')).not.toBeNull();
   });
 
+  it('should mask a newly typed value after a revealed value was cleared', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const Wrapper = () => {
+      const [value, setValue] = useState('secret');
+      return <SecretInput secret={true} value={value} onChange={(e) => setValue(e.target.value)} />;
+    };
+    const { container, getByText } = render(<Wrapper />);
+    const input = container.querySelector('input') as HTMLInputElement;
+    await user.click(getByText('Show'));
+    expect(input.type).toBe('text');
+
+    // Act
+    await user.clear(input);
+    await user.type(input, 'new');
+
+    // Assert
+    expect(input.type).toBe('password');
+    expect(getByText('Show')).toBeDefined();
+  });
+
   it('should show toggle when rerendered with a value', () => {
     // Arrange
     const { rerender, queryByText } = render(
