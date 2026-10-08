@@ -9,10 +9,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-accent-primary text-accent-tertiary hover:bg-accent-primary/90',
-        defaultDisable: 'bg-accent-disabled text-text-disabled disabled:opacity-100',
-        disabled: 'text-disabled bg-accent-tertiary',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        default:
+          'bg-accent-primary text-accent-tertiary hover:bg-accent-primary/90 disabled:bg-accent-disabled disabled:text-text-disabled disabled:opacity-100',
+        destructive:
+          'border border-danger bg-danger/10 text-danger hover:bg-danger hover:text-background-primary active:bg-danger active:border-danger active:text-background-primary',
         outline: 'border border-primary bg-background hover:bg-accent hover:text-accent-foreground',
         secondary:
           'border border-accent-primary bg-accent-tertiary text-accent-primary hover:bg-accent-primary hover:border-accent-primary hover:text-accent-tertiary',
@@ -22,8 +22,8 @@ const buttonVariants = cva(
       },
       size: {
         default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-8',
+        sm: 'h-9 px-3',
+        lg: 'h-11 px-8',
         icon: 'h-10 w-10',
       },
     },
@@ -40,19 +40,10 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, disabled, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
-    // A disabled "default" button automatically gets the filled, muted "defaultDisable" look,
-    // so call sites don't need to swap the variant themselves.
-    const resolvedVariant =
-      disabled && (variant == null || variant === 'default') ? 'defaultDisable' : variant;
     return (
-      <Comp
-        className={cn(buttonVariants({ variant: resolvedVariant, size, className }))}
-        disabled={disabled}
-        ref={ref}
-        {...props}
-      />
+      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
     );
   }
 );
