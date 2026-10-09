@@ -4245,15 +4245,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dompurify@npm:3.4.8":
-  version: 3.4.8
-  resolution: "dompurify@npm:3.4.8"
+"dompurify@npm:3.4.15":
+  version: 3.4.15
+  resolution: "dompurify@npm:3.4.15"
   dependencies:
     "@types/trusted-types": "npm:^2.0.7"
   dependenciesMeta:
     "@types/trusted-types":
       optional: true
-  checksum: 10c0/8f56a53d0ac80c76068772c9b72721f31fad68cac64a528e2420699ce2bd26b3516e29a5a7bd2205c2732d7114b9859998bf922d20cdb9361c4a05dab8352570
+  checksum: 10c0/406b5f0f9c9dcbc80016367d33e73585b6a6f440815228d7e9cbe8abe71058183b1f4cb4207b79b8473637de4a106fc055eb6da271ef9db353d29679b891ecbc
   languageName: node
   linkType: hard
 
@@ -6085,13 +6085,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"monaco-editor@npm:^0.56.0":
-  version: 0.56.0
-  resolution: "monaco-editor@npm:0.56.0"
+"monaco-editor@npm:^0.57.0":
+  version: 0.57.0
+  resolution: "monaco-editor@npm:0.57.0"
   dependencies:
-    dompurify: "npm:3.4.8"
+    dompurify: "npm:3.4.15"
     marked: "npm:14.0.0"
-  checksum: 10c0/8ed728880042c5a1f42040f955e017b798fc1602fc59ef7a1f0e4da8f354e928b32cc0dba93ff677c538a37a542be3898210f9d1801f339e3c0f65f9ad3dc73e
+  checksum: 10c0/21a088dbd49cfdd27538d1c4af37bd26832866348ee673d2b43924cdf58d3e89daaafff19e94731758fa2cc81a00402f81968062867cbc5a98e010f1a84460d2
   languageName: node
   linkType: hard
 
@@ -7532,7 +7532,7 @@ __metadata:
     lucide-react: "npm:1.50.0"
     memfs: "npm:^4.78.1"
     mime-types: "npm:^3.0.2"
-    monaco-editor: "npm:^0.56.0"
+    monaco-editor: "npm:^0.57.0"
     next-themes: "npm:^0.4.6"
     openapi-types: "npm:^12.1.3"
     openid-client: "npm:^6.8.8"
