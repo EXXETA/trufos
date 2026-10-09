@@ -39,11 +39,11 @@ export function MainTopBar() {
         <UrlInput url={url} onChange={handleUrlChange} />
       </div>
 
-      <IconButton disabled={!request?.draft} onClick={discardChanges}>
+      <IconButton disabled={!request?.draft} onClick={discardChanges} aria-label="Discard changes">
         <EraserIcon />
       </IconButton>
 
-      <IconButton disabled={!request?.draft} onClick={saveRequest}>
+      <IconButton disabled={!request?.draft} onClick={saveRequest} aria-label="Save request">
         <SaveIcon />
       </IconButton>
 

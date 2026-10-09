@@ -1,0 +1,9 @@
+{
+  // End-to-end suite. Runs in Node via the Playwright runner, outside the app itself.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"]
+}

@@ -1,0 +1,31 @@
+{
+  "info": {
+    "name": "E2E Postman Collection",
+    "_postman_id": "d1f1c0de-0000-4000-8000-000000000001",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "host", "value": "https://example.com" }],
+  "item": [
+    {
+      "name": "Imported Request",
+      "request": {
+        "method": "GET",
+        "url": "https://example.com/resource",
+        "header": [{ "key": "accept", "value": "application/json" }]
+      }
+    },
+    {
+      "name": "Imported Folder",
+      "item": [
+        {
+          "name": "Nested Request",
+          "request": {
+            "method": "POST",
+            "url": "https://example.com/resource",
+            "body": { "mode": "raw", "raw": "{\"hello\":\"world\"}" }
+          }
+        }
+      ]
+    }
+  ]
+}

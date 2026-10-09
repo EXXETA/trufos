@@ -11,10 +11,12 @@
     "make": "electron-forge make",
     "publish": "electron-forge release",
     "lint": "eslint .",
-    "typecheck": "tsc -p src/shim && tsc -p src/main && tsc -p src/renderer && tsc -p .",
+    "typecheck": "tsc -p src/shim && tsc -p src/main && tsc -p src/renderer && tsc -p e2e && tsc -p .",
     "prettier": "prettier --write '**/*.{ts,tsx,mts,mjs,cjs}'",
     "prettier-check": "prettier --check '**/*.{ts,tsx,mts,mjs,cjs}'",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test --config e2e/playwright.config.ts",
+    "e2e:ui": "playwright test --config e2e/playwright.config.ts --ui"
   },
   "engines": {
     "node": ">=24"
@@ -31,6 +33,7 @@
     "@electron-forge/shared-types": "^8.0.1",
     "@electron/fuses": "2.1.3",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
@@ -117,5 +120,5 @@
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },
-  "packageManager": "yarn@4.18.0"
+  "packageManager": "yarn@4.18.1"
 }

@@ -27,7 +27,7 @@ Issue number: `${input:issueNumber:GitHub issue number to implement (e.g. 42)}`
 
 ### Step 2 – Gather Codebase Context
 
-1. Read `.github/copilot-instructions.md` for project conventions.
+1. Read `AGENTS.md` for project conventions.
 2. Identify all source files relevant to the issue (use search and codebase tools).
 3. Review existing patterns in the affected area (IPC handlers, Zustand stores, components).
 4. Check existing tests for the affected files to understand expected behaviour.

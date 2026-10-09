@@ -72,6 +72,17 @@ export default [
     languageOptions: { globals: globals.node },
   },
 
+  // End-to-end suite, which runs in Node via the Playwright runner.
+  {
+    files: ['e2e/**'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      // Playwright detects which fixtures a fixture depends on from its destructuring pattern, so
+      // one without dependencies has to be written as `async ({}, use) => …`.
+      'no-empty-pattern': 'off',
+    },
+  },
+
   // CommonJS test mocks, which have to use `require()` to be loadable as CJS.
   {
     files: ['**/*.cjs'],

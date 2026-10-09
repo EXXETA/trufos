@@ -49,3 +49,49 @@ jobs:
       - name: Build package
         if: ${{ steps.changes.outputs.dependencies == 'true' }}
         run: yarn run package
+
+  e2e:
+    if: ${{ !github.event.pull_request.draft }}
+    name: UI/UX End-to-End Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Produces the `.vite` production bundles the suite runs. Forge has no standalone build
+      # command, so packaging is the way to get them.
+      - name: Build application bundles
+        run: yarn run package
+
+      # The suite launches the Electron binary from node_modules, which is put there by electron's
+      # postinstall rather than by the package download itself. This is a no-op when it is already
+      # present, and `yarn install --immutable` does not reliably leave it behind on a cold runner.
+      - name: Ensure the Electron binary is installed
+        run: node node_modules/electron/install.js
+
+      # Electron needs a display server even though nobody is watching, and a session bus: without
+      # one, `safeStorage` talks to a secret service that is not there.
+      - name: Run end-to-end tests
+        run: >-
+          xvfb-run --auto-servernum --server-args="-screen 0 1600x1200x24"
+          dbus-run-session -- yarn run e2e
+
+      - name: Upload failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-diagnostics
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
