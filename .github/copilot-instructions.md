@@ -65,6 +65,7 @@ Key renderer directories:
 ```bash
 yarn start          # Start Electron app in development mode
 yarn test           # Run Vitest tests
+yarn e2e            # Run Playwright end-to-end tests (requires `yarn package` first)
 yarn lint           # Run ESLint
 yarn prettier-check # Check formatting
 yarn prettier       # Fix formatting

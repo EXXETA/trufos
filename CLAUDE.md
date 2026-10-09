@@ -11,6 +11,7 @@ and commit/branch rules. The notes below only add Claude-specific reminders.
 ```bash
 yarn start          # Start the Electron app in development mode
 yarn test           # Run Vitest tests
+yarn e2e            # Run Playwright end-to-end tests (requires `yarn package` first)
 yarn lint           # Run ESLint
 yarn prettier-check # Check formatting
 ```

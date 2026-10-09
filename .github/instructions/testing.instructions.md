@@ -5,6 +5,10 @@ description: Testing standards for the Trufos project using Vitest and Testing L
 
 # Testing Instructions
 
+> **Scope:** everything below describes the Vitest unit/component tests (`*.test.ts(x)`).
+> Files under `e2e/` are Playwright end-to-end tests — see the dedicated section at the end;
+> the Vitest, jsdom and mocking rules do not apply there.
+
 ## Framework & Tools
 
 - **Test runner:** Vitest
@@ -58,4 +62,25 @@ describe('formatHeaders', () => {
 ```bash
 yarn test          # Run all tests once
 yarn test --watch  # Watch mode during development
+```
+
+## End-to-End Tests (Playwright, `e2e/`)
+
+The `e2e/` suite launches the real Electron app from the production bundles in `.vite/build/` and
+exercises main process, preload, renderer and IPC together. Rules that differ from unit tests:
+
+- **Nothing is mocked.** Requests go to the local echo server fixture
+  (`e2e/fixtures/echo-server.ts`); never depend on external services. Native dialogs are the one
+  exception — stub them through the helpers in `e2e/helpers/main-process.ts`.
+- Each test gets a fresh app instance with a temporary `--user-data-dir`; put shared locators and
+  interactions in `e2e/helpers/` instead of repeating selectors.
+- Prefer accessible selectors (roles, labels, visible names). Add `data-testid` only where no
+  stable user-facing selector exists.
+- Monaco editors do not behave like inputs: their accessible name sits on a hidden element, so
+  use the `urlEditor`/`setUrl` helpers rather than `getByRole('textbox')` + `fill()`.
+
+```bash
+yarn package       # Build the bundles the suite runs (required first; rerun after `yarn start`)
+yarn e2e           # Run the end-to-end suite
+yarn e2e:ui        # Debug interactively in Playwright's UI mode
 ```

@@ -94,6 +94,8 @@ Key renderer directories:
 ```bash
 yarn start          # Start the Electron app in development mode
 yarn test           # Run Vitest tests
+yarn e2e            # Run Playwright end-to-end tests (requires `yarn package` first)
+yarn e2e:ui         # Run the end-to-end tests in Playwright's UI mode
 yarn lint           # Run ESLint
 yarn prettier-check # Check formatting
 yarn prettier       # Fix formatting
@@ -101,10 +103,33 @@ yarn prettier       # Fix formatting
 
 ## Testing
 
+### Unit and component tests (Vitest)
+
 - Write tests using **Vitest** and **@testing-library/react**.
 - Place test files next to the source file or in `__tests__/` subdirectories.
 - Mock Electron APIs and IPC calls when testing renderer components.
 - Cover edge cases, error states, and async behaviour.
+
+### End-to-end tests (Playwright)
+
+The `e2e/` directory holds a Playwright suite that drives the real Electron app — main process,
+preload, renderer and IPC — through the production bundles in `.vite/build/`. CI runs it on Linux
+for every pull request.
+
+- Run `yarn package` first: it produces the bundles the suite launches. If `yarn start` ran
+  afterwards, the bundles are dev builds that point at the Vite dev server and the suite refuses
+  to start — re-run `yarn package`.
+- Every test launches a fresh app against a temporary `--user-data-dir`, so tests are isolated
+  and nothing touches your real settings or collections.
+- Requests go to a per-worker local HTTP server (`e2e/fixtures/echo-server.ts`); tests must not
+  depend on external services.
+- Prefer accessible selectors (roles, labels, visible names), same as component tests. Shared
+  locators and interactions live in `e2e/helpers/`.
+- Failures leave a trace, screenshot and the main-process log in `e2e/test-results/`.
+- The packaged app (asar, Electron fuses) is **not** covered: the release fuses disable the
+  inspector Playwright attaches through. In CI the app also falls back to unencrypted
+  `safeStorage` (`main.ts`, gated to unpackaged builds with `CI` set) because headless runners
+  have no keyring.
 
 ## Commit & Branch Conventions
 

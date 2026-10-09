@@ -62,6 +62,7 @@ The output lands in `out/make` — a `Setup.exe` on Windows, `.dmg` on macOS, an
 | `yarn start`          | Run the app in development mode (Electron + Vite) |
 | `yarn make`           | Package distributables for the current OS         |
 | `yarn test`           | Execute Vitest test suite                         |
+| `yarn e2e`            | Run Playwright E2E tests (after `yarn package`)   |
 | `yarn lint`           | Run ESLint over TypeScript & React sources        |
 | `yarn prettier`       | Format code (TS/TSX) with Prettier                |
 | `yarn prettier-check` | Check formatting without writing changes          |
