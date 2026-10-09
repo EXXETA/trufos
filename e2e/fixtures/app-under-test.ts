@@ -43,7 +43,30 @@ export async function resolveAppUnderTest(): Promise<AppUnderTest> {
     );
   }
 
+  await assertProductionBundle(mainBundle);
+
   return { executablePath: await resolveElectronBinary(), entry: REPOSITORY_ROOT };
+}
+
+/**
+ * Rejects a main bundle that was built in development mode.
+ *
+ * `yarn start` rebuilds `.vite/build` with the Vite dev-server URL compiled in, and an app
+ * launched from that bundle dies with `ERR_CONNECTION_REFUSED` once the dev server is gone —
+ * behind a modal error dialog, so the suite would only see an app that never becomes ready.
+ *
+ * The marker is the compiled-in dev-server `loadURL` call; the production build eliminates that
+ * branch entirely. If the bundler ever changes the emitted shape, the check fails open and the
+ * launch surfaces the connection error instead.
+ */
+async function assertProductionBundle(mainBundle: string): Promise<void> {
+  const bundle = await readFile(mainBundle, 'utf8');
+  if (bundle.includes('loadURL("http://localhost:')) {
+    throw new Error(
+      `${mainBundle} is a development build left behind by \`yarn start\` — it loads the renderer ` +
+        'from the Vite dev server instead of the built files. Run `yarn package` to rebuild it.'
+    );
+  }
 }
 
 /**
