@@ -196,6 +196,28 @@ describe('markDraft', () => {
   });
 });
 
+describe('new entries', () => {
+  it('addHeader adds an active header', () => {
+    const store = buildStore();
+
+    store.getState().addHeader();
+
+    expect(store.getState().requests.get(REQ_ID)!.headers).toEqual([
+      { key: '', value: '', isActive: true },
+    ]);
+  });
+
+  it('addQueryParam adds an active query param', () => {
+    const store = buildStore();
+
+    store.getState().addQueryParam();
+
+    expect(store.getState().requests.get(REQ_ID)!.url.query).toEqual([
+      { key: '', value: '', isActive: true },
+    ]);
+  });
+});
+
 describe('renameRequest', () => {
   it('updates the request in the collection tree after previous edits replaced the map entry', async () => {
     const store = buildStore();

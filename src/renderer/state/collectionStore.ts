@@ -377,7 +377,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       addHeader: () =>
         set((state) => {
-          selectHeaders(state).push({ key: '', value: '', isActive: false });
+          selectHeaders(state).push({ key: '', value: '', isActive: true });
           markDraft(state);
         }),
 
