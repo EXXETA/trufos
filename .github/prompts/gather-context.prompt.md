@@ -10,7 +10,7 @@ TASK: Before writing any code, thoroughly understand the project context and req
 
 ## Instructions
 
-1. Read the workspace instructions in `.github/copilot-instructions.md`
+1. Read the workspace instructions in `AGENTS.md`
 2. Examine existing documentation: `README.md`, `CONTRIBUTING.md`, `docs/`
 3. Analyse the overall project structure:
    - `src/main/` – Electron main process (Node.js)

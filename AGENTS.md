@@ -1,8 +1,9 @@
 # AGENTS.md – Trufos
 
-Canonical guide for AI coding agents (Codex, Cursor, Claude Code, GitHub Copilot, etc.)
-working in this repository. Tool-specific entry files (`CLAUDE.md`,
-`.github/copilot-instructions.md`) defer to this document for the detailed rules.
+Canonical guide for AI coding agents (Claude Code, GitHub Copilot, Codex, Cursor, Gemini,
+etc.) working in this repository. This is the single agent entry point — there are no
+tool-specific instruction files to keep in sync. Path-scoped Copilot instructions under
+`.github/instructions/` supplement it for specific file types.
 
 ## Project Overview
 
@@ -100,6 +101,9 @@ yarn lint           # Run ESLint
 yarn prettier-check # Check formatting
 yarn prettier       # Fix formatting
 ```
+
+Run `yarn test` and `yarn lint` on the touched code after every change, not just before
+opening a PR.
 
 ## Testing
 
