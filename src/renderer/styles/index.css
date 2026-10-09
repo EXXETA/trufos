@@ -71,6 +71,7 @@
     --accent-primary: #0098ed;
     --accent-secondary: #e5f5fd;
     --accent-tertiary: #dbeafe;
+    --accent-disabled: #eef2f7;
 
     --background-primary: #ffffff;
     --background-secondary: #f2f3f5;
@@ -156,6 +157,7 @@
     --accent-primary: #75d9fb;
     --accent-secondary: #12b1e7;
     --accent-tertiary: #193641;
+    --accent-disabled: #11232a;
 
     --background-primary: #111111;
     --background-secondary: #1f1f1f;
@@ -295,6 +297,7 @@
   --color-accent-primary: var(--accent-primary);
   --color-accent-secondary: var(--accent-secondary);
   --color-accent-tertiary: var(--accent-tertiary);
+  --color-accent-disabled: var(--accent-disabled);
 
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
@@ -307,6 +310,7 @@
 
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
+  --color-text-disabled: var(--text-disabled);
 
   --color-http-get: var(--http-get);
   --color-http-put: var(--http-put);

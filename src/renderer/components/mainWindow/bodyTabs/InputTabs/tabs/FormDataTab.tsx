@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { AddIcon, DeleteIcon, SwapIcon } from '@/components/icons';
-import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Divider } from '@/components/shared/Divider';
 import {
   Table,
@@ -170,9 +170,11 @@ export const FormDataTab = () => {
 
                     <TableCell className="w-16 text-right">
                       <div className="flex items-center justify-center gap-2">
-                        <ActiveCheckbox
+                        <Checkbox
                           checked={field.isActive}
-                          onChange={(checked) => updateFormDataField(index, { isActive: checked })}
+                          onCheckedChange={(checked) =>
+                            updateFormDataField(index, { isActive: checked === true })
+                          }
                         />
                         <Button
                           variant="ghost"

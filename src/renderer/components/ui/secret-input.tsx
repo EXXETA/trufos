@@ -13,17 +13,27 @@ export function SecretInput({ secret = false, className, ...props }: SecretInput
     return <Input type="text" className={className} {...props} />;
   }
 
+  const hasValue = props.value != null && String(props.value) !== '';
+  // Re-mask once the value is cleared, so the next value typed is not revealed.
+  if (!hasValue && show) setShow(false);
+
   return (
     <div className="relative w-full">
-      <Input type={show ? 'text' : 'password'} className={cn('pr-16', className)} {...props} />
-      <button
-        type="button"
-        className="text-text-secondary hover:text-text-primary absolute inset-y-0 right-0 flex h-10 w-16 items-center justify-center text-sm"
-        onClick={() => setShow((prev) => !prev)}
-        tabIndex={-1}
-      >
-        {show ? 'Hide' : 'Show'}
-      </button>
+      <Input
+        type={show && hasValue ? 'text' : 'password'}
+        className={cn(hasValue && 'pr-16', className)}
+        {...props}
+      />
+      {hasValue && (
+        <button
+          type="button"
+          className="text-text-secondary hover:text-text-primary absolute inset-y-0 right-0 flex h-10 w-16 items-center justify-center text-sm"
+          onClick={() => setShow((prev) => !prev)}
+          tabIndex={-1}
+        >
+          {show ? 'Hide' : 'Show'}
+        </button>
+      )}
     </div>
   );
 }

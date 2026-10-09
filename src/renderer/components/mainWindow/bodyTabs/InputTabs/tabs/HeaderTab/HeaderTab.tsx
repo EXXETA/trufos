@@ -1,6 +1,7 @@
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { AddIcon, DeleteIcon, SwapIcon } from '@/components/icons';
-import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import { Divider } from '@/components/shared/Divider';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
@@ -45,15 +46,15 @@ export const HeaderTab = () => {
           </Button>
 
           <div className="flex gap-2">
-            <Button
-              className="h-fit gap-2 hover:bg-transparent"
-              size="sm"
-              variant="ghost"
-              onClick={handleSelectAll}
+            <label
+              className={cn(
+                buttonVariants({ variant: 'ghost', size: 'sm' }),
+                'h-fit gap-2 hover:bg-transparent'
+              )}
             >
-              <ActiveCheckbox checked={allSelected} onChange={() => handleSelectAll()} />
+              <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} />
               Select All
-            </Button>
+            </label>
 
             <Button
               className="h-fit gap-3 hover:bg-transparent"

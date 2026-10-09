@@ -3,7 +3,7 @@ import { Command, CommandItem, CommandList, CommandGroup } from '@/components/ui
 import { Button } from '@/components/ui/button';
 import { DeleteIcon } from '@/components/icons';
 import { HEADER_VALUES, COMMON_HEADERS } from '@/constants';
-import { ActiveCheckbox } from '@/components/shared/ActiveCheckbox';
+import { Checkbox } from '@/components/ui/checkbox';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -128,9 +128,9 @@ export const HeaderRow = ({ header, index, handleUpdateHeader, handleDeleteHeade
 
       <TableCell className="w-16 text-right">
         <div className="flex items-center justify-center gap-2">
-          <ActiveCheckbox
+          <Checkbox
             checked={header.isActive}
-            onChange={(checked) => handleUpdateHeader(index, { isActive: checked })}
+            onCheckedChange={(checked) => handleUpdateHeader(index, { isActive: checked === true })}
           />
 
           <Button
