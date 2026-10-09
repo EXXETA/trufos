@@ -11,7 +11,7 @@ import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
 import { TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { TrufosHeader } from 'shim/objects/headers';
+import { isBlankHeader, TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
 import process from 'node:process';
@@ -246,7 +246,7 @@ export class HttpService {
   private trufosHeadersToUndiciHeaders(trufosHeaders: TrufosHeader[]): HttpHeaders {
     const headers: HttpHeaders = {};
     for (const header of trufosHeaders) {
-      if (header.isActive) {
+      if (header.isActive && !isBlankHeader(header)) {
         const key = header.key.toLowerCase();
         if (!Reflect.has(headers, key)) headers[key] = [];
         headers[key].push(header.value);

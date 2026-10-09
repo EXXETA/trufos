@@ -342,6 +342,39 @@ describe('HttpService', () => {
     spy.mockRestore();
   });
 
+  it('fetchAsync() should skip headers with a blank key', async () => {
+    // Arrange
+    const finalUrl = new URL('https://example.com/blank');
+    const httpService = setupMockHttpService(finalUrl, 'OK');
+
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Blank Header Request',
+      url: parseUrl('https://example.com/blank'),
+      method: RequestMethod.GET,
+      headers: [
+        { key: '', value: '', isActive: true },
+        { key: '  ', value: 'ignored', isActive: true },
+        { key: 'X-Kept', value: 'yes', isActive: true },
+      ],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
+      body: null,
+    };
+
+    // Act
+    await httpService.fetchAsync(request);
+
+    // Assert
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
+    expect(lastCall.headers['x-kept']).toEqual(['yes']);
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
+    expect(Object.keys(lastCall.headers).some((key) => key.trim() === '')).toBe(false);
+  });
+
   it('fetchAsync() should send form data with text fields', async () => {
     // Arrange
     const url = new URL('https://example.com/formtext');
