@@ -40,7 +40,7 @@ ipcMain.handle(
     } else if (input.type === 'request') {
       stream = await persistenceService.loadTextBodyOfRequest(input, encoding);
     } else {
-      logger.error('Invalid stream input:', input);
+      logger.error('Invalid stream input of type', typeof input);
     }
 
     if (stream == null) {

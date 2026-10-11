@@ -29,12 +29,12 @@ export class HttpService {
     signal?.addEventListener('abort', abort, { once: true });
 
     try {
-      console.info('Sending request:', request);
+      console.info('Sending request', request.id);
       const response = await eventService.sendRequest(request, abortKey);
       if (response == null) {
         console.info('Request was aborted:', request.id);
       } else {
-        console.info('Received response:', response);
+        console.info('Received response', response.id);
       }
       return response;
     } catch (error) {

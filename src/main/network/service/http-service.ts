@@ -75,7 +75,8 @@ export class HttpService {
   }
 
   private async doFetchAsync(request: TrufosRequest, signal?: AbortSignal) {
-    logger.info('Sending request:', request);
+    // Requests and responses are not logged as a whole as they may contain secrets.
+    logger.info(`Sending ${request.method} request ${request.id}`);
 
     // resolve variables (except in body, which is resolved stream-based during send)
     let url: string;
@@ -167,7 +168,7 @@ export class HttpService {
         : undefined) as string,
     };
 
-    logger.debug('Returning response:', response);
+    logger.debug(`Returning response ${response.id}`);
     return response;
   }
 

@@ -561,6 +561,36 @@ describe('HttpService', () => {
     expect(executeSpy.mock.calls[0]?.[0]).toEqual(preScript);
     expect(executeSpy.mock.calls[1]?.[0]).toEqual(postScript);
   });
+
+  it('fetchAsync() should never write the request or response to the app log', async () => {
+    // Arrange
+    const password = 'app-log-secret';
+    const url = new URL('https://example.com/api/redacted');
+    const httpService = setupMockHttpService(url, 'OK', { 'set-cookie': 'session=app-log-cookie' });
+    const spies = (['info', 'debug', 'warn', 'error'] as const).map((level) =>
+      vi.spyOn(logger, level)
+    );
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Redacted Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
+      body: null,
+      auth: { type: AuthorizationType.BASIC, username: 'user', password },
+    };
+
+    // Act
+    await httpService.fetchAsync(request);
+
+    // Assert
+    const logged = spies.flatMap((spy) => spy.mock.calls.flat()).map(String);
+    expect(logged.some((arg) => arg.includes(password))).toBe(false);
+    expect(logged.some((arg) => arg.includes('app-log-cookie'))).toBe(false);
+  });
 });
 
 function setupMockHttpService(

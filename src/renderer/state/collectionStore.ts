@@ -92,7 +92,7 @@ const buildCollectionItemMaps = (collection: Collection) => {
 
 // Factory function to create a collection store with initial data
 export const createCollectionStore = (collection: Collection) => {
-  console.debug('Creating collection store with collection', collection);
+  console.debug('Creating collection store with collection', collection.id);
 
   return createStore<CollectionState & CollectionStateActions>()(
     immer((set, get) => ({
@@ -105,7 +105,7 @@ export const createCollectionStore = (collection: Collection) => {
       ...buildCollectionItemMaps(collection),
 
       initialize: (collection) => {
-        console.debug('Initializing collection store with collection', collection);
+        console.debug('Initializing collection store with collection', collection.id);
         const { requests, folders } = buildCollectionItemMaps(collection);
 
         // (re)set initial state
@@ -129,7 +129,7 @@ export const createCollectionStore = (collection: Collection) => {
             const validIds = new Set([...requests.keys(), ...folders.keys()]);
             state.selectedIds = new Set([...state.selectedIds].filter((id) => validIds.has(id)));
           }
-          console.info('Initialized collection:', collection);
+          console.info('Initialized collection', collection.id);
         });
       },
 
@@ -487,7 +487,7 @@ export const createCollectionStore = (collection: Collection) => {
 
       deleteFolder: async (id) => {
         const folder = selectFolder(get(), id)!;
-        console.info('Deleting folder', folder);
+        console.info('Deleting folder', folder.id);
         await eventService.deleteObject(folder);
 
         const collection = await eventService.loadCollection(true);
