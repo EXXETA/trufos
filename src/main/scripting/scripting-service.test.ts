@@ -3,6 +3,8 @@ import { app } from 'electron';
 import type { VariableMap } from 'shim/objects/variables';
 import { ScriptingService } from './scripting-service';
 import { vol } from 'memfs';
+import { HistoryService } from 'main/history/history-service';
+import { ScriptType } from 'shim/scripting';
 
 const mockState = vi.hoisted(() => {
   const collection: {
@@ -136,6 +138,70 @@ describe('ScriptingService', () => {
 
       // Act & Assert
       expect(() => service.executeScript(code)).not.toThrow();
+    });
+  });
+
+  describe('executeScript() - console', () => {
+    it.each([
+      ['log', 'info'],
+      ['info', 'info'],
+      ['debug', 'debug'],
+      ['warn', 'warn'],
+      ['error', 'error'],
+    ] as const)('should record console.%s in the request history as %s', (method, level) => {
+      // Arrange
+      const recordScriptLog = vi.spyOn(HistoryService.instance, 'recordScriptLog');
+
+      // Act
+      service.executeScript(`console.${method}('token', 42);`, ScriptType.PRE_REQUEST);
+
+      // Assert
+      expect(recordScriptLog).toHaveBeenCalledWith({
+        script: ScriptType.PRE_REQUEST,
+        level,
+        args: ['token', 42],
+      });
+    });
+
+    it('should keep running the script after logging', () => {
+      // Act
+      service.executeScript(`console.log('before'); trufos.setCollectionVariable('after', 'yes');`);
+
+      // Assert
+      expect(mockState.collection.variables.after?.value).toBe('yes');
+    });
+
+    it('should never write console output to the app log', () => {
+      // Arrange
+      const appLog = vi.spyOn(logger, 'info');
+
+      // Act
+      service.executeScript(`console.log('super-secret-token');`);
+
+      // Assert
+      expect(
+        appLog.mock.calls.flat().some((arg) => String(arg).includes('super-secret-token'))
+      ).toBe(false);
+    });
+
+    it('should record errors in the request history but only the error type in the app log', () => {
+      // Arrange
+      const recordScriptLog = vi.spyOn(HistoryService.instance, 'recordScriptLog');
+      const appLog = vi.spyOn(logger, 'info');
+
+      // Act
+      service.executeScript(`throw new Error('super-secret-token');`, ScriptType.POST_RESPONSE);
+
+      // Assert
+      expect(recordScriptLog).toHaveBeenCalledWith({
+        script: ScriptType.POST_RESPONSE,
+        level: 'error',
+        args: [expect.objectContaining({ message: 'super-secret-token' })],
+      });
+      expect(appLog).toHaveBeenCalledWith('Script execution failed with Error');
+      expect(
+        appLog.mock.calls.flat().some((arg) => String(arg).includes('super-secret-token'))
+      ).toBe(false);
     });
   });
 
@@ -415,15 +481,6 @@ describe('ScriptingService', () => {
         // This is a comment
         /* This is a block comment */
       `;
-
-      // Act & Assert
-      expect(() => service.executeScript(code)).not.toThrow();
-    });
-
-    it('should handle script with console output', () => {
-      // Arrange
-
-      const code = `console.log('Script output');`;
 
       // Act & Assert
       expect(() => service.executeScript(code)).not.toThrow();

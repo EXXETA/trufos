@@ -276,7 +276,7 @@ export class HttpService {
     const stream = await persistenceService.loadScript(request, type);
     if (stream != null) {
       const script = await text(stream);
-      scriptingService.executeScript(script);
+      scriptingService.executeScript(script, type);
     }
   }
 }

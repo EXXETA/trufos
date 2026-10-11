@@ -8,7 +8,16 @@ export enum ScriptType {
   POST_RESPONSE = 'post-response',
 }
 
+/**
+ * The console available in scripts. Its output is shown with the request in the request history
+ * (Settings → History) and never written to the app log.
+ */
+export type ScriptConsole = Pick<Console, 'log' | 'info' | 'debug' | 'warn' | 'error'>;
+
 export interface GlobalScriptingApi {
+  /** Prints to the request history entry of the request the script runs for. */
+  readonly console: ScriptConsole;
+
   readonly trufos: {
     /** The current version of the app. */
     readonly version: string;
