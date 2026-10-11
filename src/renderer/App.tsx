@@ -10,6 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
+import { useHistoryStore } from '@/state/historyStore';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useAppSettingsStore } from '@/state/appSettingsStore';
 import {
@@ -48,7 +49,8 @@ export const App = () => {
     RendererEventService.instance
       .on('show-collection-runner', () => useViewStore.getState().openCollectionRunner())
       .on('show-collection-settings', () => useViewStore.getState().openCollectionSettings())
-      .on('show-app-settings', () => useViewStore.getState().openAppSettings());
+      .on('show-app-settings', () => useViewStore.getState().openAppSettings())
+      .on('history-changed', () => void useHistoryStore.getState().refresh());
 
     RendererEventService.instance
       .getAppSettings()
