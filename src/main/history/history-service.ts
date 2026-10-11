@@ -1,15 +1,14 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { inspect } from 'node:util';
 import { BodyStore } from 'main/network/service/body-store';
 import type { BodyCopy } from 'main/network/service/request-body-copy';
+import type { RequestRecorder } from 'main/network/service/request-recorder';
 import {
   HistoryEntry,
   HistoryEntrySummary,
   HistoryOutcome,
   MAX_HISTORY_ENTRIES,
-  ReceivedResponse,
   ScriptLog,
   SentRequest,
   summarizeHistoryEntry,
@@ -28,10 +27,16 @@ type HistoryServiceEvents = {
 /** What is captured while a request runs, before its entry is stored. */
 interface InFlight {
   request: TrufosRequest;
+  collectionDirPath: string;
   timestamp: number;
-  sent?: Omit<SentRequest, 'body'>;
-  body?: BodyCopy;
+  sent?: { request: Omit<SentRequest, 'body'>; body?: BodyCopy };
   scriptLogs: ScriptLog[];
+}
+
+/** An entry together with the collection whose request it records. */
+interface StoredEntry {
+  collectionDirPath: string;
+  entry: HistoryEntry;
 }
 
 /**
@@ -39,33 +44,52 @@ interface InFlight {
  * error and the output of its scripts. Bodies are kept in the {@link BodyStore}, which the history
  * retains for as long as an entry references them.
  *
- * Everything that happens while a request is sent is attributed to it through an
- * {@link AsyncLocalStorage} context, see {@link record}. Entries contain secrets on purpose and
- * must never be written to the app log. The history is not persisted.
+ * Each collection has a history of its own, identified by the collection's directory. The limit of
+ * {@link MAX_HISTORY_ENTRIES} applies to all collections together, as it bounds the memory and the
+ * body files of the session.
+ *
+ * Entries contain secrets on purpose and must never be written to the app log. The history is not
+ * persisted.
  */
 export class HistoryService extends EventEmitter<HistoryServiceEvents> {
   public static readonly instance = new HistoryService();
 
-  private readonly context = new AsyncLocalStorage<InFlight>();
-
-  /** All entries, oldest first. */
-  private readonly entries: HistoryEntry[] = [];
+  /** All entries of all collections, oldest first. */
+  private readonly entries: StoredEntry[] = [];
 
   /**
    * Sends a request and records it in the history.
    * @param request the request that is sent
-   * @param send sends the request and resolves with its response, or `null` if it was aborted
+   * @param collectionDirPath the directory of the collection the request belongs to. It is taken
+   * when the request starts, so a request still running while the collection is changed is
+   * recorded in the history of its own collection.
+   * @param send sends the request and resolves with its response, or `null` if it was aborted. It
+   * reports what happens while the request is sent to the given recorder.
    * @returns the result of `send`
    */
   async record(
     request: TrufosRequest,
-    send: () => Promise<TrufosResponse | null>
+    collectionDirPath: string,
+    send: (recorder: RequestRecorder) => Promise<TrufosResponse | null>
   ): Promise<TrufosResponse | null> {
-    const inFlight: InFlight = { request, timestamp: Date.now(), scriptLogs: [] };
+    const inFlight: InFlight = {
+      request,
+      collectionDirPath,
+      timestamp: Date.now(),
+      scriptLogs: [],
+    };
+    const recorder: RequestRecorder = {
+      sent(sentRequest, body) {
+        inFlight.sent = { request: sentRequest, body };
+      },
+      scriptLog(log) {
+        inFlight.scriptLogs.push({ ...log, args: log.args.map(toCloneable) });
+      },
+    };
 
     let response: TrufosResponse | null;
     try {
-      response = await this.context.run(inFlight, send);
+      response = await send(recorder);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.store(inFlight, { type: 'error', message });
@@ -73,40 +97,20 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
     }
 
     const outcome: HistoryOutcome =
-      response == null
-        ? { type: 'aborted' }
-        : { type: 'response', response: toReceivedResponse(response) };
+      response == null ? { type: 'aborted' } : { type: 'response', response };
     await this.store(inFlight, outcome);
     return response;
   }
 
   /**
-   * Records the request that is currently recorded exactly as it is sent.
-   * @param sent the method, resolved URL and headers of the sent request
-   * @param body the copy of the sent body, see `copyRequestBody`
+   * Lists the entries of a collection, newest first.
+   * @param collectionDirPath the directory of the collection
    */
-  recordSentRequest(sent: Omit<SentRequest, 'body'>, body?: BodyCopy): void {
-    const inFlight = this.context.getStore();
-    if (inFlight == null) {
-      // nothing is recorded, so nobody would ever release the copy
-      if (body != null) bodyStore.remove(body.id);
-      return;
-    }
-    inFlight.sent = sent;
-    inFlight.body = body;
-  }
-
-  /**
-   * Records a console call or error of a user script for the request that is currently recorded.
-   * @param log the script output
-   */
-  recordScriptLog(log: ScriptLog): void {
-    this.context.getStore()?.scriptLogs.push({ ...log, args: log.args.map(toCloneable) });
-  }
-
-  /** Lists all entries, newest first. */
-  list(): HistoryEntrySummary[] {
-    return this.entries.map(summarizeHistoryEntry).reverse();
+  list(collectionDirPath: string): HistoryEntrySummary[] {
+    return this.entries
+      .filter((stored) => stored.collectionDirPath === collectionDirPath)
+      .map((stored) => summarizeHistoryEntry(stored.entry))
+      .reverse();
   }
 
   /**
@@ -114,12 +118,17 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
    * @param id the ID of the entry
    */
   get(id: string): HistoryEntry | undefined {
-    return this.entries.find((entry) => entry.id === id);
+    return this.entries.find((stored) => stored.entry.id === id)?.entry;
   }
 
-  /** Removes all entries and releases their bodies. */
-  clear(): void {
-    for (const entry of this.entries.splice(0)) {
+  /**
+   * Removes the entries of a collection and releases their bodies.
+   * @param collectionDirPath the directory of the collection
+   */
+  clear(collectionDirPath: string): void {
+    for (let i = this.entries.length - 1; i >= 0; i--) {
+      if (this.entries[i].collectionDirPath !== collectionDirPath) continue;
+      const [{ entry }] = this.entries.splice(i, 1);
       forEachBody(entry, (id) => bodyStore.release(id));
     }
     this.emit('changed');
@@ -127,34 +136,35 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
 
   /** Stores the entry of a finished request once the copy of its body is complete. */
   private async store(
-    { request, timestamp, sent, body, scriptLogs }: InFlight,
+    { request, collectionDirPath, timestamp, sent, scriptLogs }: InFlight,
     outcome: HistoryOutcome
   ) {
     // the request is finished, so whatever of the body was not sent yet will never be sent
+    const body = sent?.body;
     body?.cancel();
     await body?.done;
 
-    this.add({
+    this.add(collectionDirPath, {
       id: randomUUID(),
       requestId: request.id,
       requestTitle: request.title,
       timestamp,
       method: request.method,
-      url: sent?.url ?? buildUrl(request.url),
-      request:
-        sent != null
-          ? { ...sent, body: body && { id: body.id, size: bodyStore.getSize(body.id) ?? 0 } }
-          : undefined,
+      url: sent?.request.url ?? buildUrl(request.url),
+      request: sent && {
+        ...sent.request,
+        body: body && { id: body.id, size: bodyStore.getSize(body.id) ?? 0 },
+      },
       outcome,
       scriptLogs,
     });
   }
 
-  private add(entry: HistoryEntry) {
+  private add(collectionDirPath: string, entry: HistoryEntry) {
     forEachBody(entry, (id) => bodyStore.retain(id));
-    this.entries.push(entry);
+    this.entries.push({ collectionDirPath, entry });
     while (this.entries.length > MAX_HISTORY_ENTRIES) {
-      forEachBody(this.entries.shift()!, (id) => bodyStore.release(id));
+      forEachBody(this.entries.shift()!.entry, (id) => bodyStore.release(id));
     }
     this.emit('changed');
   }
@@ -165,14 +175,6 @@ function forEachBody({ request, outcome }: HistoryEntry, callback: (id: string) 
   const responseBody = outcome.type === 'response' ? outcome.response.body?.id : undefined;
   if (requestBody != null) callback(requestBody);
   if (responseBody != null) callback(responseBody);
-}
-
-function toReceivedResponse({ headers, metaInfo, id }: TrufosResponse): ReceivedResponse {
-  return {
-    headers,
-    metaInfo,
-    body: id != null ? { id, size: metaInfo.size.bodySizeInBytes } : undefined,
-  };
 }
 
 /**

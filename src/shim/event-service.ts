@@ -24,7 +24,10 @@ export enum MainProcessEvent {
   BeforeClose = 'before-close',
   /** The variables or environments of the current collection changed, see {@link CollectionVariablesUpdate}. */
   CollectionVariablesUpdated = 'collection-variables-updated',
-  /** The request history changed. The payload is the new list of history entries, newest first. */
+  /**
+   * The request history changed. The payload is the new history of the current collection, newest
+   * first.
+   */
   HistoryChanged = 'history-changed',
   /** Opens the app settings modal (app menu). */
   ShowAppSettings = 'show-app-settings',
@@ -32,6 +35,8 @@ export enum MainProcessEvent {
   ShowCollectionRunner = 'show-collection-runner',
   /** Opens the collection settings modal (Collection menu). */
   ShowCollectionSettings = 'show-collection-settings',
+  /** Shows the request history in the sidebar (Collection menu). */
+  ShowHistory = 'show-history',
 }
 
 /**
@@ -56,6 +61,7 @@ export interface MainProcessEventPayloads {
   [MainProcessEvent.ShowAppSettings]: [];
   [MainProcessEvent.ShowCollectionRunner]: [];
   [MainProcessEvent.ShowCollectionSettings]: [];
+  [MainProcessEvent.ShowHistory]: [];
 }
 
 /** The payload of every {@link RendererEvent}, see {@link MainProcessEventPayloads}. */
@@ -337,15 +343,14 @@ export interface IEventService {
   saveScript(request: TrufosRequest, type: ScriptType, script: string): Promise<void>;
 
   /**
-   * Save a response body to disk. Opens a native save dialog with a suggested filename
-   * derived from the Content-Disposition or Content-Type header, then copies the
-   * response body temp file to the chosen path. The response body never enters the
-   * renderer process.
+   * Save a request or response body to disk. Opens a native save dialog with a suggested filename
+   * derived from the Content-Disposition or Content-Type header, then saves the decrypted body to
+   * the chosen path. The body never enters the renderer process.
    *
-   * @param responseId The ID of the response body to save.
+   * @param bodyId The ID of the body to save.
    * @returns The saved file path, or null if the user cancelled or the body is unavailable.
    */
-  downloadResponse(responseId: string): Promise<string | null>;
+  downloadBody(bodyId: string): Promise<string | null>;
 
   /**
    * Returns the persisted application settings.
@@ -364,7 +369,7 @@ export interface IEventService {
   openLogDirectory(): Promise<void>;
 
   /**
-   * Lists the request history of the current session, newest first.
+   * Lists the request history of the current collection in this session, newest first.
    */
   getHistory(): Promise<HistoryEntrySummary[]>;
 
@@ -376,8 +381,8 @@ export interface IEventService {
   getHistoryEntry(id: string): Promise<HistoryEntry | undefined>;
 
   /**
-   * Clears the request history and deletes its stored bodies. The latest response of each request
-   * is kept, as it is still shown in the response panel.
+   * Clears the request history of the current collection and deletes its stored bodies. The latest
+   * response of each request is kept, as it is still shown in the response panel.
    */
   clearHistory(): Promise<void>;
 }

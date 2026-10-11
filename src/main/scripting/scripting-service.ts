@@ -4,7 +4,7 @@ import { createContext, Script } from 'node:vm';
 import { ScriptConsole, ScriptingContext, ScriptType, VariableMap, VariableObject } from 'shim';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { EventEmitter } from 'node:events';
-import { HistoryService } from 'main/history/history-service';
+import type { ScriptLogger } from 'main/network/service/request-recorder';
 import { ScriptLog } from 'shim/history';
 
 const environmentService = EnvironmentService.instance;
@@ -24,10 +24,10 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
   public static _instance: ScriptingService | null = null;
   private _variablesChanged = false;
 
-  private createApi(script: ScriptType) {
+  private createApi(script: ScriptType, log: ScriptLogger) {
     // Arrow functions so the API methods keep this service as their `this`.
     return Object.freeze<ScriptingContext>({
-      console: ScriptingService.createConsole(script),
+      console: ScriptingService.createConsole(script, log),
 
       trufos: {
         version: app.getVersion(),
@@ -60,20 +60,20 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
   }
 
   /**
-   * Creates the console of a script. Its output only goes to the request history, never to the app
-   * log, because scripts commonly log secrets like tokens.
+   * Creates the console of a script. Its output only goes to the given logger, e.g. the request
+   * history, never to the app log, because scripts commonly log secrets like tokens.
    */
-  private static createConsole(script: ScriptType): ScriptConsole {
-    const log =
+  private static createConsole(script: ScriptType, log: ScriptLogger): ScriptConsole {
+    const forLevel =
       (level: ScriptLog['level']) =>
       (...args: unknown[]) =>
-        HistoryService.instance.recordScriptLog({ script, level, args });
+        log({ script, level, args });
     return Object.freeze({
-      log: log('info'),
-      info: log('info'),
-      debug: log('debug'),
-      warn: log('warn'),
-      error: log('error'),
+      log: forLevel('info'),
+      info: forLevel('info'),
+      debug: forLevel('debug'),
+      warn: forLevel('warn'),
+      error: forLevel('error'),
     });
   }
 
@@ -106,8 +106,9 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
    * Executes a user script.
    * @param code the source code of the script
    * @param type the type of the script, used to label its console output
+   * @param log receives the console output and errors of the script
    */
-  public executeScript(code: string, type: ScriptType): void {
+  public executeScript(code: string, type: ScriptType, log: ScriptLogger): void {
     let script: Script;
     try {
       const now = getSteadyTimestamp();
@@ -115,18 +116,20 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
       logger.debug(`Script compiled successfully after ${getDurationStringFromNow(now)}`);
     } catch (err) {
       logger.info(`Script compilation failed with ${errorName(err)}`);
-      HistoryService.instance.recordScriptLog({ script: type, level: 'error', args: [err] });
+      log({ script: type, level: 'error', args: [err] });
       return;
     }
     this._variablesChanged = false;
     try {
-      const context = createContext(this.createApi(type), { name: 'Trufos Scripting Context' });
+      const context = createContext(this.createApi(type, log), {
+        name: 'Trufos Scripting Context',
+      });
       const now = getSteadyTimestamp();
       script.runInContext(context, { timeout: SCRIPT_TIMEOUT_SECONDS * 1000 });
       logger.debug(`Script executed successfully after ${getDurationStringFromNow(now)}`);
     } catch (err) {
       logger.info(`Script execution failed with ${errorName(err)}`);
-      HistoryService.instance.recordScriptLog({ script: type, level: 'error', args: [err] });
+      log({ script: type, level: 'error', args: [err] });
     }
     if (this._variablesChanged) {
       this.emit('variables-changed');

@@ -1,71 +1,70 @@
+import { History as HistoryIcon } from 'lucide-react';
 import { SidebarHeader } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { AddFolderIcon, CreateRequestIcon, SettingsIcon, SwapIcon } from '@/components/icons';
-import { ArrowUpAZ, ArrowDownAZ, ClockArrowUp, ClockArrowDown } from 'lucide-react';
-
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { selectIsCommandPaletteOpen, useViewActions, useViewStore } from '@/state/viewStore';
+import { SettingsIcon } from '@/components/icons';
+import { useCollectionStore } from '@/state/collectionStore';
+import {
+  selectIsCommandPaletteOpen,
+  selectSidebarView,
+  useViewActions,
+  useViewStore,
+} from '@/state/viewStore';
 import CollectionDropdown from '@/components/sidebar/CollectionDropdown';
 import { Divider } from '@/components/shared/Divider';
-import { SortMode, SORT_CYCLE } from '@/components/sidebar/SidebarRequestList/treeUtilities';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
+import { RequestsToolbar } from './RequestsToolbar';
+import { HistoryToolbar } from './HistoryToolbar';
+import { SIDEBAR_ICON_BUTTON_CLASS } from './sidebar-toolbar';
 
-const SORT_MODE_LABELS: Record<SortMode, string> = {
-  [SortMode.DEFAULT]: 'Manual order',
-  [SortMode.AZ_ASC]: 'A → Z',
-  [SortMode.AZ_DESC]: 'Z → A',
-  [SortMode.TIME_DESC]: 'Recently modified',
-  [SortMode.TIME_ASC]: 'Oldest modified',
-};
-
-const SortIcon = ({ mode }: { mode: SortMode }) => {
-  switch (mode) {
-    case SortMode.AZ_ASC:
-      return <ArrowUpAZ size={18} />;
-    case SortMode.AZ_DESC:
-      return <ArrowDownAZ size={18} />;
-    case SortMode.TIME_ASC:
-      return <ClockArrowUp size={18} />;
-    case SortMode.TIME_DESC:
-      return <ClockArrowDown size={18} />;
-    default:
-      return <SwapIcon size={16} viewBox="9 7 15 18" />;
-  }
-};
-
-interface SidebarHeaderBarProps {
-  onCreateItem: (item: CreatingItem) => void;
-}
-
-export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
+export const SidebarHeaderBar = () => {
   const collection = useCollectionStore((state) => state.collection);
-
-  const sortMode = useCollectionStore((state) => state.sortMode);
-  const { setSortMode } = useCollectionActions();
-  const { openCollectionSettings } = useViewActions();
+  const { openCollectionSettings, setSidebarView, requestCreateItem } = useViewActions();
   const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
+  const sidebarView = useViewStore(selectSidebarView);
 
-  const buttonClassName = cn('flex h-4 w-4 items-center justify-center gap-1');
-
-  const openModal = (type: 'request' | 'folder') => {
-    if (collection?.id) {
-      onCreateItem({ type, parentId: collection.id });
-    }
+  const create = (type: 'request' | 'folder') => {
+    if (collection?.id) requestCreateItem({ type, parentId: collection.id });
   };
-  const cycleSortMode = () => {
-    const currentIndex = SORT_CYCLE.indexOf(sortMode);
-    setSortMode(SORT_CYCLE[(currentIndex + 1) % SORT_CYCLE.length]);
-  };
+  const toggleHistory = () => setSidebarView(sidebarView === 'history' ? 'requests' : 'history');
 
   // Disabled while the Command Palette is open — it owns this same shortcut then; see
   // CommandPalette.tsx's own useHotkeys call.
-  useHotkeys([{ keys: HOTKEYS.newRequest, handler: () => openModal('request') }], {
+  useHotkeys([{ keys: HOTKEYS.newRequest, handler: () => create('request') }], {
     enabled: !isCommandPaletteOpen,
   });
+
+  // the actions of both sidebar views
+  const trailing = (
+    <>
+      <Button
+        className={cn(
+          SIDEBAR_ICON_BUTTON_CLASS,
+          sidebarView === 'history' ? 'text-accent-primary' : 'text-text-secondary'
+        )}
+        variant={'ghost'}
+        size={'icon'}
+        type="button"
+        onClick={toggleHistory}
+        aria-label="Request history"
+        aria-pressed={sidebarView === 'history'}
+      >
+        <HistoryIcon size={16} />
+      </Button>
+
+      <Button
+        className={SIDEBAR_ICON_BUTTON_CLASS}
+        variant={'ghost'}
+        size={'icon'}
+        type="button"
+        onClick={openCollectionSettings}
+        aria-label="Collection settings"
+      >
+        <SettingsIcon size={16} color={'secondary'} />
+      </Button>
+    </>
+  );
 
   return (
     <SidebarHeader className="flex-col gap-6">
@@ -74,61 +73,11 @@ export const SidebarHeaderBar = ({ onCreateItem }: SidebarHeaderBarProps) => {
       <Divider />
 
       <div className="-mt-4 mb-2 flex w-full items-center justify-between">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              className={cn(buttonClassName, 'text-text-secondary ml-3')}
-              variant={'ghost'}
-              type="button"
-              size={'icon'}
-              onClick={cycleSortMode}
-              aria-label="Sort collection"
-            >
-              <SortIcon mode={sortMode} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent
-            side="right"
-            className="bg-sidebar-accent text-sidebar-accent-foreground border-0 px-2.5 py-1 text-xs font-medium tracking-wide shadow-sm"
-          >
-            {SORT_MODE_LABELS[sortMode]}
-          </TooltipContent>
-        </Tooltip>
-
-        <div className="flex items-center gap-2">
-          <Button
-            className={buttonClassName}
-            variant={'ghost'}
-            type="button"
-            size={'icon'}
-            onClick={() => openModal('request')}
-            aria-label="Add new request"
-          >
-            <CreateRequestIcon size={16} color={'secondary'} />
-          </Button>
-
-          <Button
-            className={buttonClassName}
-            variant={'ghost'}
-            size={'icon'}
-            type="button"
-            onClick={() => openModal('folder')}
-            aria-label="Add new folder"
-          >
-            <AddFolderIcon size={16} color={'secondary'} />
-          </Button>
-
-          <Button
-            className={buttonClassName}
-            variant={'ghost'}
-            size={'icon'}
-            type="button"
-            onClick={openCollectionSettings}
-            aria-label="Collection settings"
-          >
-            <SettingsIcon size={16} color={'secondary'} />
-          </Button>
-        </div>
+        {sidebarView === 'requests' ? (
+          <RequestsToolbar onCreate={create} trailing={trailing} />
+        ) : (
+          <HistoryToolbar trailing={trailing} />
+        )}
       </div>
     </SidebarHeader>
   );

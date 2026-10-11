@@ -11,11 +11,15 @@ import { BodyStore } from './body-store';
 
 const store = BodyStore.instance;
 
+/** The bodies created by a test, deleted after it. */
+const created: string[] = [];
+
 /** Creates a body and finds its file, which the store keeps private, in the temp directory. */
 function createBody(headers = {}) {
   const directory = FileSystemService.instance.temporaryDirectory;
   const before = new Set(fs.readdirSync(directory));
   const body = store.create(headers);
+  created.push(body.id);
   const [file] = fs.readdirSync(directory).filter((name) => !before.has(String(name)));
   return { ...body, filePath: path.join(directory, String(file)) };
 }
@@ -28,7 +32,7 @@ async function storeBody(content: string, headers = {}) {
 
 describe('BodyStore', () => {
   afterEach(() => {
-    store.clear();
+    for (const id of created.splice(0)) store.remove(id);
   });
 
   it('should reference a body by its ID while it is written', () => {
@@ -63,22 +67,22 @@ describe('BodyStore', () => {
     await expect(text(store.openBody(id, { encoding: 'base64' })!)).resolves.toBe('aGVsbG8=');
   });
 
-  it('should save the decrypted body when downloading', async () => {
+  it('should save the decrypted body to a file', async () => {
     const { id } = await storeBody('plain body');
     const target = path.join(tmpdir(), 'download.txt');
 
-    await store.downloadResponse(id, target);
+    await store.saveTo(id, target);
 
     expect(fs.readFileSync(target, 'utf8')).toBe('plain body');
   });
 
-  it('should not open, measure or download unknown bodies', async () => {
+  it('should not open, measure or save unknown bodies', async () => {
     const id = randomUUID();
 
     expect(store.openBody(id)).toBeUndefined();
     expect(store.getSize(id)).toBeUndefined();
     expect(store.getHeaders(id)).toBeUndefined();
-    await expect(store.downloadResponse(id, path.join(tmpdir(), 'x'))).resolves.toBeNull();
+    await expect(store.saveTo(id, path.join(tmpdir(), 'x'))).resolves.toBeNull();
   });
 
   it('should delete a body', async () => {

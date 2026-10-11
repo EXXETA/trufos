@@ -5,7 +5,7 @@ import { TabbedDialog } from './TabbedDialog';
 
 const tabs = [
   { value: 'first', label: 'First', content: <p>first content</p> },
-  { value: 'second', label: 'Second', content: <p>second content</p>, scroll: false },
+  { value: 'second', label: 'Second', content: <p>second content</p> },
 ];
 
 describe('TabbedDialog', () => {
@@ -23,16 +23,6 @@ describe('TabbedDialog', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Second' }));
 
     screen.getByText('second content');
-  });
-
-  it('should let tabs opt out of scrolling', async () => {
-    render(<TabbedDialog title="Settings" isOpen onClose={vi.fn()} tabs={tabs} />);
-    expect(screen.getByRole('tabpanel').className).toContain('overflow-y-auto');
-
-    await userEvent.click(screen.getByRole('tab', { name: 'Second' }));
-
-    expect(screen.getByRole('tabpanel').className).toContain('overflow-hidden');
-    expect(screen.getByRole('tabpanel').className).not.toContain('overflow-y-auto');
   });
 
   it('should show the footer', () => {

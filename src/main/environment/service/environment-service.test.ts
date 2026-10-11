@@ -87,6 +87,23 @@ describe('EnvironmentService', () => {
     expect(result).toEqual(newCollection as Collection);
   });
 
+  it('changeCollection() should only announce a change to another collection', async () => {
+    // Arrange
+    const first = { ...collection, dirPath: '/first' } as Collection;
+    const second = { ...collection, dirPath: '/second' } as Collection;
+    await environmentService.changeCollection(first);
+    const changed = vi.fn();
+    environmentService.on('collection-changed', changed);
+
+    // Act: reloading the current collection, then changing to another one
+    await environmentService.changeCollection(structuredClone(first));
+    await environmentService.changeCollection(second);
+
+    // Assert
+    expect(changed).toHaveBeenCalledOnce();
+    environmentService.off('collection-changed', changed);
+  });
+
   it('getVariables() should return all currently available variables', () => {
     // Arrange
     const systemVariables = getSystemVariables();

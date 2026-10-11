@@ -1,14 +1,11 @@
 import type { ReactNode } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
 
 export interface DialogTab {
   value: string;
   label: string;
   content: ReactNode;
-  /** Whether the tab scrolls its content. Disable it for content that scrolls by itself. */
-  scroll?: boolean;
 }
 
 export interface TabbedDialogProps {
@@ -46,14 +43,11 @@ export const TabbedDialog = ({ title, isOpen, onClose, tabs, footer }: TabbedDia
             </TabsList>
           </div>
 
-          {tabs.map(({ value, content, scroll = true }) => (
+          {tabs.map(({ value, content }) => (
             <TabsContent
               key={value}
               value={value}
-              className={cn(
-                'bg-background-primary m-0 min-h-0 flex-1 rounded-none p-0',
-                scroll ? 'overflow-y-auto' : 'overflow-hidden'
-              )}
+              className="bg-background-primary m-0 min-h-0 flex-1 overflow-y-auto rounded-none p-0"
             >
               {content}
             </TabsContent>

@@ -55,9 +55,12 @@ export const App = () => {
         useViewStore.getState().openCollectionSettings()
       )
       .on(MainProcessEvent.ShowAppSettings, () => useViewStore.getState().openAppSettings())
+      .on(MainProcessEvent.ShowHistory, () => useViewStore.getState().setSidebarView('history'))
       .on(MainProcessEvent.HistoryChanged, (_event, payload) =>
         useHistoryStore.getState().receive(payload)
       );
+    // later changes, e.g. when the collection changes, are pushed by the main process
+    void useHistoryStore.getState().load();
 
     RendererEventService.instance
       .getAppSettings()

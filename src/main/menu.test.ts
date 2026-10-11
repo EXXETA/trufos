@@ -188,7 +188,7 @@ describe('MenuBuilder', () => {
   );
 
   it.each(['darwin', 'win32'] as const)(
-    'opens the collection runner and settings from the Collection menu on %s',
+    'opens the collection runner, history and settings from the Collection menu on %s',
     (platform) => {
       const template = buildTemplate(platform);
       const collectionMenu = template.find((item) => item.label?.includes('Collection'))!;
@@ -198,6 +198,11 @@ describe('MenuBuilder', () => {
       expect(runItem.accelerator).toBe('CmdOrCtrl+Shift+R');
       (runItem.click as () => void)();
       expect(sendMock).toHaveBeenCalledWith(MainProcessEvent.ShowCollectionRunner);
+
+      const historyItem = items.find((item) => item.label === 'History')!;
+      expect(historyItem.accelerator).toBe('CmdOrCtrl+Shift+H');
+      (historyItem.click as () => void)();
+      expect(sendMock).toHaveBeenCalledWith(MainProcessEvent.ShowHistory);
 
       const settingsItem = items.find((item) => item.label === 'Settings…')!;
       expect(settingsItem.accelerator).toBe('CmdOrCtrl+Shift+,');

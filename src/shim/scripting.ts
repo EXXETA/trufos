@@ -10,7 +10,7 @@ export enum ScriptType {
 
 /**
  * The console available in scripts. Its output is shown with the request in the request history
- * (Settings → History) and never written to the app log.
+ * (sidebar → History → Console tab) and never written to the app log.
  */
 export type ScriptConsole = Pick<Console, 'log' | 'info' | 'debug' | 'warn' | 'error'>;
 

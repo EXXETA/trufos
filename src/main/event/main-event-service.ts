@@ -118,13 +118,15 @@ export class MainEventService implements IEventService {
         )
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });
-    HistoryService.instance.on('changed', () =>
+    // the renderer shows the history of the current collection
+    const pushHistory = () =>
       sendToRenderer(
         this.window?.webContents,
         MainProcessEvent.HistoryChanged,
-        HistoryService.instance.list()
-      )
-    );
+        HistoryService.instance.list(environmentService.currentCollection.dirPath)
+      );
+    HistoryService.instance.on('changed', pushHistory);
+    environmentService.on('collection-changed', pushHistory);
     logger.debug('Registered event channels on backend');
   }
 
@@ -146,9 +148,10 @@ export class MainEventService implements IEventService {
     const abortController = new AbortController();
     if (abortKey != null) this.abortControllers.set(abortKey, abortController);
 
-    const response = await HistoryService.instance.record(request, async () => {
+    const { dirPath } = environmentService.currentCollection;
+    const response = await HistoryService.instance.record(request, dirPath, async (recorder) => {
       try {
-        return await HttpService.instance.fetchAsync(request, abortController.signal);
+        return await HttpService.instance.fetchAsync(request, recorder, abortController.signal);
       } catch (error) {
         // An aborted request simply has no response. This is the outcome the caller asked for, so
         // it is reported as one instead of as the platform's abort error.
@@ -161,7 +164,7 @@ export class MainEventService implements IEventService {
     });
 
     // the response panel and the collection runner show the latest response of a request
-    if (response != null) LatestResponseBodies.instance.set(request.id, response.id);
+    if (response != null) LatestResponseBodies.instance.set(request.id, response.body?.id);
     return response;
   }
 
@@ -298,10 +301,10 @@ export class MainEventService implements IEventService {
     await persistenceService.rename(object, newTitle);
   }
 
-  async downloadResponse(responseId: string): Promise<string | null> {
-    const headers = BodyStore.instance.getHeaders(responseId);
+  async downloadBody(bodyId: string): Promise<string | null> {
+    const headers = BodyStore.instance.getHeaders(bodyId);
     if (!headers) {
-      logger.warn(`Response body not found for ID: ${responseId}`);
+      logger.warn(`Body not found for ID: ${bodyId}`);
       return null;
     }
 
@@ -314,7 +317,7 @@ export class MainEventService implements IEventService {
       return null;
     }
 
-    return await BodyStore.instance.downloadResponse(responseId, chosenPath);
+    return await BodyStore.instance.saveTo(bodyId, chosenPath);
   }
 
   async getAppSettings(): Promise<AppSettings | undefined> {
@@ -326,7 +329,7 @@ export class MainEventService implements IEventService {
   }
 
   async getHistory(): Promise<HistoryEntrySummary[]> {
-    return HistoryService.instance.list();
+    return HistoryService.instance.list(environmentService.currentCollection.dirPath);
   }
 
   async getHistoryEntry(id: string): Promise<HistoryEntry | undefined> {
@@ -334,7 +337,7 @@ export class MainEventService implements IEventService {
   }
 
   async clearHistory(): Promise<void> {
-    HistoryService.instance.clear();
+    HistoryService.instance.clear(environmentService.currentCollection.dirPath);
   }
 
   async openLogDirectory(): Promise<void> {

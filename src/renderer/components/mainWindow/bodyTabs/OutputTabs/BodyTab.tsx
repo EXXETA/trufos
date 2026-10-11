@@ -1,19 +1,20 @@
 import { useMemo } from 'react';
+import { editor } from 'monaco-editor';
 import { Divider } from '@/components/shared/Divider';
 import { isFormattableLanguage, mimeTypeToLanguage } from '@/lib/monaco/language';
-import { useResponseStore, selectResponse } from '@/state/responseStore';
-import { useCollectionStore, selectRequest } from '@/state/collectionStore';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
-import { getMimeType } from './PrettyRenderer';
-import { BODY_SIZE_LIMIT } from '@/lib/body';
+import { BODY_SIZE_LIMIT, getMimeTypeFromHeaders } from '@/lib/body';
 import { ImagePrettyRenderer } from './ImagePrettyRenderer';
-import { TextualPrettyRenderer } from './TextualPrettyRenderer';
-import { DefaultRenderer } from './DefaultRenderer';
+import { TextRenderer } from './TextRenderer';
 import { useStateDerived } from '@/util/react-util';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { showError } from '@/error/errorHandler';
+import { getSizeText } from '@/util/format-util';
+import { HttpHeaders } from 'shim/headers';
+import { StoredBody } from 'shim/objects/response';
 
 enum OutputType {
   RAW = 'Raw',
@@ -25,22 +26,30 @@ function canBePrettified(mimeType?: string) {
   return isFormattableLanguage(mimeTypeToLanguage(mimeType)) || mimeType.startsWith('image/');
 }
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+export interface BodyTabProps {
+  /**
+   * The body to show, or `undefined` if there is none. Its identity must be stable, as the output
+   * type resets when it changes.
+   */
+  body?: StoredBody;
+  /** The headers sent with the body, used to detect its content type. */
+  headers: HttpHeaders;
+  /** The model textual bodies are shown in. */
+  model: editor.ITextModel;
 }
 
-export const BodyTab = () => {
-  const requestId = useCollectionStore((state) => selectRequest(state)?.id);
-  const response = useResponseStore((state) => selectResponse(state, requestId));
-  const [outputType, setOutputType] = useStateDerived(response, (response) =>
-    canBePrettified(getMimeType(response)) ? OutputType.PRETTY : OutputType.RAW
+/**
+ * Shows a request or response body stored in the main process. It is shown formatted if possible,
+ * and large bodies are cut off until the user asks for all of it.
+ */
+export const BodyTab = ({ body, headers, model }: BodyTabProps) => {
+  const mimeType = useMemo(() => getMimeTypeFromHeaders(headers), [headers]);
+  const [outputType, setOutputType] = useStateDerived(body, () =>
+    canBePrettified(mimeType) ? OutputType.PRETTY : OutputType.RAW
   );
-  const mimeType = useMemo(() => getMimeType(response), [response]);
-  const [loadFull, setLoadFull] = useStateDerived(response, () => false);
+  const [loadFull, setLoadFull] = useStateDerived(body, () => false);
 
-  const bodySize = response?.metaInfo.size.bodySizeInBytes ?? 0;
+  const bodySize = body?.size ?? 0;
   const isTooLarge = bodySize > BODY_SIZE_LIMIT;
   const maxBytes = isTooLarge && !loadFull ? BODY_SIZE_LIMIT : undefined;
   const showLoadMoreBanner = isTooLarge && !loadFull;
@@ -51,17 +60,21 @@ export const BodyTab = () => {
     return types;
   }, [mimeType]);
 
+  const isPretty = outputType === OutputType.PRETTY;
   const renderContent = () => {
-    if (!response) return null;
-    if (outputType === OutputType.PRETTY) {
-      if (mimeType?.startsWith('image/')) {
-        return <ImagePrettyRenderer response={response} />;
-      } else {
-        return <TextualPrettyRenderer response={response} maxBytes={maxBytes} />;
-      }
-    } else {
-      return <DefaultRenderer response={response} maxBytes={maxBytes} />;
+    if (isPretty && mimeType?.startsWith('image/')) {
+      return <ImagePrettyRenderer body={body} mimeType={mimeType} />;
     }
+    return (
+      <TextRenderer
+        body={body}
+        mimeType={mimeType}
+        model={model}
+        maxBytes={maxBytes}
+        // a partially loaded body is usually invalid, so it is shown as it is
+        format={isPretty && maxBytes == null}
+      />
+    );
   };
 
   return (
@@ -74,9 +87,14 @@ export const BodyTab = () => {
             items={outputTypes}
           />
           <IconButton
-            disabled={!response?.id}
-            onClick={() => RendererEventService.instance.downloadResponse(response!.id)}
-            title="Save response body"
+            disabled={body == null}
+            onClick={() =>
+              body != null &&
+              RendererEventService.instance
+                .downloadBody(body.id)
+                .catch((error) => showError('Could not save the body', error))
+            }
+            title="Save body"
           >
             <Download className="h-4 w-4" />
           </IconButton>
@@ -87,7 +105,7 @@ export const BodyTab = () => {
       {showLoadMoreBanner && (
         <div className="text-muted-foreground flex items-center justify-between px-6 pb-3 text-sm">
           <span>
-            Showing first {formatBytes(BODY_SIZE_LIMIT)} of {formatBytes(bodySize)}
+            Showing first {getSizeText(BODY_SIZE_LIMIT)} of {getSizeText(bodySize)}
           </span>
           <Button variant="secondary" size="sm" onClick={() => setLoadFull(true)}>
             Load more

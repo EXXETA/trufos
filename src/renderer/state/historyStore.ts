@@ -24,12 +24,9 @@ interface HistoryActions {
    * @param payload the entries as received via IPC
    */
   receive(payload: unknown): void;
-  /**
-   * Replaces the list.
-   * @param entries the entries, newest first
-   */
-  setEntries(entries: HistoryEntrySummary[]): void;
   select(id: string): Promise<void>;
+  /** Closes the selected entry. */
+  deselect(): void;
   clear(): Promise<void>;
 }
 
@@ -47,16 +44,14 @@ export const useHistoryStore = create<HistoryState & HistoryActions>()(
 
     receive(payload) {
       const result = HistoryEntrySummary.array().safeParse(payload);
-      if (result.success) {
-        get().setEntries(result.data);
-      } else {
+      if (!result.success) {
         showError('Received an invalid request history', result.error);
+        return;
       }
-    },
-
-    setEntries(entries) {
+      const entries = result.data;
       set((state) => {
         state.entries = entries;
+        // the selected entry may have been evicted, cleared, or belong to another collection
         if (!entries.some((entry) => entry.id === state.selectedId)) {
           state.selectedId = undefined;
           state.selectedEntry = undefined;
@@ -79,6 +74,13 @@ export const useHistoryStore = create<HistoryState & HistoryActions>()(
       } catch (error) {
         showError('Could not load the history entry', error);
       }
+    },
+
+    deselect() {
+      set((state) => {
+        state.selectedId = undefined;
+        state.selectedEntry = undefined;
+      });
     },
 
     async clear() {

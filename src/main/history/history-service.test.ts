@@ -34,7 +34,7 @@ function createResponse(): TrufosResponse {
   stream.end('{}');
   return {
     type: 'response',
-    id,
+    body: { id, size: 2 },
     headers: { 'content-type': 'application/json' },
     metaInfo: {
       status: 200,
@@ -47,6 +47,9 @@ function createResponse(): TrufosResponse {
 function readBody(id: string) {
   return buffer(bodyStore.openBody(id)!);
 }
+
+const COLLECTION = '/collections/first';
+const OTHER_COLLECTION = '/collections/second';
 
 describe('HistoryService', () => {
   let history: HistoryService;
@@ -63,16 +66,16 @@ describe('HistoryService', () => {
     history.on('changed', changed);
 
     // Act
-    await history.record(request, async () => {
-      history.recordScriptLog({ script: ScriptType.PRE_REQUEST, level: 'info', args: ['token'] });
+    await history.record(request, COLLECTION, async (recorder) => {
+      recorder.scriptLog({ script: ScriptType.PRE_REQUEST, level: 'info', args: ['token'] });
       const [body, copy] = copyRequestBody(Readable.from(['{"name":', '"Ada"}']), {});
-      history.recordSentRequest({ ...SENT, headers: { authorization: 'Bearer secret' } }, copy);
+      recorder.sent({ ...SENT, headers: { authorization: 'Bearer secret' } }, copy);
       await text(body as Readable);
       return response;
     });
 
     // Assert
-    const [summary] = history.list();
+    const [summary] = history.list(COLLECTION);
     expect(summary).toEqual({
       id: expect.any(String),
       requestId: request.id,
@@ -88,7 +91,7 @@ describe('HistoryService', () => {
         headers: { authorization: 'Bearer secret' },
         body: { id: expect.any(String), size: 14 },
       },
-      outcome: { type: 'response', response: { body: { id: response.id, size: 2 } } },
+      outcome: { type: 'response', response: { body: response.body } },
       scriptLogs: [{ script: ScriptType.PRE_REQUEST, level: 'info', args: ['token'] }],
     });
     expect((await readBody(entry.request!.body!.id)).toString()).toBe('{"name":"Ada"}');
@@ -98,15 +101,17 @@ describe('HistoryService', () => {
   it('should record the error and rethrow it if the request failed', async () => {
     // Act
     await expect(
-      history.record(createRequest(), () => Promise.reject(new Error('connect ECONNREFUSED')))
+      history.record(createRequest(), COLLECTION, () =>
+        Promise.reject(new Error('connect ECONNREFUSED'))
+      )
     ).rejects.toThrow('connect ECONNREFUSED');
 
     // Assert
-    expect(history.list()[0]).toMatchObject({
+    expect(history.list(COLLECTION)[0]).toMatchObject({
       url: 'https://example.com/users',
       outcome: { type: 'error', message: 'connect ECONNREFUSED' },
     });
-    expect(history.get(history.list()[0].id)?.outcome).toEqual({
+    expect(history.get(history.list(COLLECTION)[0].id)?.outcome).toEqual({
       type: 'error',
       message: 'connect ECONNREFUSED',
     });
@@ -114,45 +119,31 @@ describe('HistoryService', () => {
 
   it('should record aborted requests', async () => {
     // Act
-    await history.record(createRequest(), async () => null);
+    await history.record(createRequest(), COLLECTION, async () => null);
 
     // Assert
-    expect(history.list()[0].outcome).toEqual({ type: 'aborted' });
-    expect(history.get(history.list()[0].id)?.outcome).toEqual({ type: 'aborted' });
-  });
-
-  it('should discard the output and body copy of requests that are not recorded', () => {
-    // Arrange
-    const remove = vi.spyOn(bodyStore, 'remove');
-    const [, copy] = copyRequestBody(Readable.from(['body']), {});
-
-    // Act
-    history.recordScriptLog({ script: ScriptType.PRE_REQUEST, level: 'info', args: ['lost'] });
-    history.recordSentRequest(SENT, copy);
-
-    // Assert
-    expect(remove).toHaveBeenCalledWith(copy!.id);
-    expect(history.list()).toEqual([]);
+    expect(history.list(COLLECTION)[0].outcome).toEqual({ type: 'aborted' });
+    expect(history.get(history.list(COLLECTION)[0].id)?.outcome).toEqual({ type: 'aborted' });
   });
 
   it('should store the entry instead of waiting for a body that is never sent', async () => {
     // Act: e.g. undici rejected the request before sending its body
     await expect(
-      history.record(createRequest(), async () => {
+      history.record(createRequest(), COLLECTION, async (recorder) => {
         const [, copy] = copyRequestBody(Readable.from(['never sent']), {});
-        history.recordSentRequest(SENT, copy);
+        recorder.sent(SENT, copy);
         throw new Error('invalid header');
       })
     ).rejects.toThrow('invalid header');
 
     // Assert
-    expect(history.get(history.list()[0].id)?.request?.body?.size).toBe(0);
+    expect(history.get(history.list(COLLECTION)[0].id)?.request?.body?.size).toBe(0);
   });
 
   it('should store script arguments that cannot be cloned as strings', async () => {
     // Act
-    await history.record(createRequest(), async () => {
-      history.recordScriptLog({
+    await history.record(createRequest(), COLLECTION, async (recorder) => {
+      recorder.scriptLog({
         script: ScriptType.POST_RESPONSE,
         level: 'info',
         args: [() => 1, { a: 1 }],
@@ -161,20 +152,53 @@ describe('HistoryService', () => {
     });
 
     // Assert
-    expect(history.get(history.list()[0].id)?.scriptLogs[0].args).toEqual([
+    expect(history.get(history.list(COLLECTION)[0].id)?.scriptLogs[0].args).toEqual([
       '[Function (anonymous)]',
       { a: 1 },
     ]);
   });
 
+  it('should keep a history per collection', async () => {
+    // Act
+    await history.record({ ...createRequest(), title: 'first' }, COLLECTION, async () => null);
+    await history.record(
+      { ...createRequest(), title: 'second' },
+      OTHER_COLLECTION,
+      async () => null
+    );
+
+    // Assert
+    expect(history.list(COLLECTION).map((entry) => entry.requestTitle)).toEqual(['first']);
+    expect(history.list(OTHER_COLLECTION).map((entry) => entry.requestTitle)).toEqual(['second']);
+  });
+
+  it('should only clear the history of the given collection', async () => {
+    // Arrange
+    await history.record(createRequest(), COLLECTION, async () => null);
+    await history.record(createRequest(), OTHER_COLLECTION, async () => null);
+    const changed = vi.fn();
+    history.on('changed', changed);
+
+    // Act
+    history.clear(COLLECTION);
+
+    // Assert
+    expect(history.list(COLLECTION)).toEqual([]);
+    expect(history.list(OTHER_COLLECTION)).toHaveLength(1);
+    expect(changed).toHaveBeenCalledOnce();
+  });
+
   it('should list the newest entry first', async () => {
     // Act
     for (const title of ['first', 'second']) {
-      await history.record({ ...createRequest(), title }, async () => null);
+      await history.record({ ...createRequest(), title }, COLLECTION, async () => null);
     }
 
     // Assert
-    expect(history.list().map((entry) => entry.requestTitle)).toEqual(['second', 'first']);
+    expect(history.list(COLLECTION).map((entry) => entry.requestTitle)).toEqual([
+      'second',
+      'first',
+    ]);
   });
 
   describe('body references', () => {
@@ -188,14 +212,14 @@ describe('HistoryService', () => {
 
     async function recordWithBodies() {
       const response = createResponse();
-      await history.record(createRequest(), async () => {
+      await history.record(createRequest(), COLLECTION, async (recorder) => {
         const [body, copy] = copyRequestBody(Readable.from(['body']), {});
-        history.recordSentRequest(SENT, copy);
+        recorder.sent(SENT, copy);
         await text(body as Readable);
         return response;
       });
-      const entry = history.get(history.list()[0].id)!;
-      return { requestBody: entry.request!.body!.id, responseBody: response.id };
+      const entry = history.get(history.list(COLLECTION)[0].id)!;
+      return { requestBody: entry.request!.body!.id, responseBody: response.body!.id };
     }
 
     it('should retain the bodies of an entry while it is in the history', async () => {
@@ -210,20 +234,32 @@ describe('HistoryService', () => {
       const { requestBody, responseBody } = await recordWithBodies();
 
       for (let i = 0; i < MAX_HISTORY_ENTRIES; i++) {
-        await history.record(createRequest(), async () => null);
+        await history.record(createRequest(), COLLECTION, async () => null);
       }
 
-      expect(history.list()).toHaveLength(MAX_HISTORY_ENTRIES);
+      expect(history.list(COLLECTION)).toHaveLength(MAX_HISTORY_ENTRIES);
       expect(release).toHaveBeenCalledWith(requestBody);
       expect(release).toHaveBeenCalledWith(responseBody);
+    });
+
+    it('should evict the oldest entries of all collections together', async () => {
+      const { requestBody } = await recordWithBodies();
+
+      for (let i = 0; i < MAX_HISTORY_ENTRIES; i++) {
+        await history.record(createRequest(), OTHER_COLLECTION, async () => null);
+      }
+
+      expect(history.list(COLLECTION)).toEqual([]);
+      expect(history.list(OTHER_COLLECTION)).toHaveLength(MAX_HISTORY_ENTRIES);
+      expect(release).toHaveBeenCalledWith(requestBody);
     });
 
     it('should release the bodies of all entries when cleared', async () => {
       const { requestBody, responseBody } = await recordWithBodies();
 
-      history.clear();
+      history.clear(COLLECTION);
 
-      expect(history.list()).toEqual([]);
+      expect(history.list(COLLECTION)).toEqual([]);
       expect(release).toHaveBeenCalledWith(requestBody);
       expect(release).toHaveBeenCalledWith(responseBody);
     });

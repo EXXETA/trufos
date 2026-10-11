@@ -52,12 +52,14 @@ describe('MainEventService', () => {
     ({ PersistenceService } = await import('../persistence/service/persistence-service'));
 
     // Every test builds its own MainEventService, and each one subscribes to the shared
-    // ScriptingService and HistoryService. Lift the cap so those accumulating subscriptions are
+    // ScriptingService, HistoryService and EnvironmentService. Lift the cap so those accumulating subscriptions are
     // not mistaken for a listener leak once the suite grows past Node's default of ten.
     const { ScriptingService } = await import('../scripting/scripting-service.js');
     ScriptingService.instance.setMaxListeners(0);
     const { HistoryService } = await import('../history/history-service.js');
     HistoryService.instance.setMaxListeners(0);
+    const { EnvironmentService } = await import('../environment/service/environment-service.js');
+    EnvironmentService.instance.setMaxListeners(0);
   });
 
   it('should register event functions on the backend', async () => {
@@ -195,7 +197,7 @@ describe('MainEventService', () => {
 
     const makeResponse = (): TrufosResponse => ({
       type: 'response',
-      id: randomUUID(),
+      body: { id: randomUUID(), size: 0 },
       headers: {},
       metaInfo: {
         status: 200,
@@ -206,6 +208,10 @@ describe('MainEventService', () => {
 
     beforeEach(async () => {
       ({ EnvironmentService } = await import('../environment/service/environment-service.js'));
+      // a collection is always loaded before requests can be sent
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(
+        makeCollection()
+      );
     });
 
     it('keeps the latest response body of a request alive', async () => {
@@ -218,12 +224,12 @@ describe('MainEventService', () => {
 
       await new MainEventService().sendRequest(request);
 
-      expect(setLatest).toHaveBeenCalledWith(request.id, response.id);
+      expect(setLatest).toHaveBeenCalledWith(request.id, response.body!.id);
     });
 
     it('records the request in the history', async () => {
       const { HistoryService } = await import('../history/history-service.js');
-      HistoryService.instance.clear();
+      HistoryService.instance.clear(EnvironmentService.instance.currentCollection.dirPath);
       const { HttpService } = await import('../network/service/http-service.js');
       vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(makeResponse());
       const webContentsSend = vi.fn();
@@ -245,6 +251,19 @@ describe('MainEventService', () => {
 
       await eventService.clearHistory();
       expect(await eventService.getHistory()).toEqual([]);
+    });
+
+    it('pushes the history of the new collection when the collection changes', () => {
+      const webContentsSend = vi.fn();
+      const eventService = new MainEventService();
+      eventService.window = { webContents: { send: webContentsSend } } as never;
+
+      EnvironmentService.instance.emit('collection-changed');
+
+      expect(webContentsSend).toHaveBeenCalledWith(
+        MainProcessEvent.HistoryChanged,
+        expect.any(Array)
+      );
     });
 
     it('does not persist or push when script does not change variables', async () => {
@@ -277,12 +296,14 @@ describe('MainEventService', () => {
 
       const { HttpService } = await import('../network/service/http-service.js');
       let signal: AbortSignal | undefined;
-      vi.mocked(HttpService.instance.fetchAsync).mockImplementation((_request, abortSignal) => {
-        signal = abortSignal;
-        return new Promise((_, reject) => {
-          abortSignal?.addEventListener('abort', () => reject(new Error('aborted')));
-        });
-      });
+      vi.mocked(HttpService.instance.fetchAsync).mockImplementation(
+        (_request, _recorder, abortSignal) => {
+          signal = abortSignal;
+          return new Promise((_, reject) => {
+            abortSignal?.addEventListener('abort', () => reject(new Error('aborted')));
+          });
+        }
+      );
 
       const eventService = new MainEventService();
       const requestPromise = eventService
@@ -302,16 +323,18 @@ describe('MainEventService', () => {
 
       const { HttpService } = await import('../network/service/http-service.js');
       let signal: AbortSignal | undefined;
-      vi.mocked(HttpService.instance.fetchAsync).mockImplementation((_request, abortSignal) => {
-        signal = abortSignal;
-        return new Promise((_, reject) => {
-          // What undici actually rejects with on abort: a DOMException, whose read-only properties
-          // break both logging and IPC serialization.
-          abortSignal?.addEventListener('abort', () =>
-            reject(new DOMException('This operation was aborted', 'AbortError'))
-          );
-        });
-      });
+      vi.mocked(HttpService.instance.fetchAsync).mockImplementation(
+        (_request, _recorder, abortSignal) => {
+          signal = abortSignal;
+          return new Promise((_, reject) => {
+            // What undici actually rejects with on abort: a DOMException, whose read-only properties
+            // break both logging and IPC serialization.
+            abortSignal?.addEventListener('abort', () =>
+              reject(new DOMException('This operation was aborted', 'AbortError'))
+            );
+          });
+        }
+      );
 
       const eventService = new MainEventService();
       const requestPromise = eventService.sendRequest(makeRequest(), 'runner-request-2');

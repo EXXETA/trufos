@@ -137,7 +137,7 @@ function formatHeaders(headers: TrufosResponse['headers']) {
 function ResponseBodyPreview({ response }: { response: TrufosResponse }) {
   const [body, setBody] = useState('');
 
-  useBodyData(response.id, 'utf-8', setBody);
+  useBodyData(response.body?.id, 'utf-8', setBody);
 
   return <pre className="text-xs break-words whitespace-pre-wrap">{body}</pre>;
 }

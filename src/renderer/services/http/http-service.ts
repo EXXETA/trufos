@@ -34,7 +34,7 @@ export class HttpService {
       if (response == null) {
         console.info('Request was aborted:', request.id);
       } else {
-        console.info('Received response', response.id);
+        console.info('Received response with body', response.body?.id);
       }
       return response;
     } catch (error) {

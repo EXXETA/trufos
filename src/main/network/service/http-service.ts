@@ -9,7 +9,7 @@ import { EnvironmentService } from 'main/environment/service/environment-service
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
-import { TrufosResponse } from 'shim/objects/response';
+import { StoredBody, TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { isBlankHeader, TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
@@ -21,7 +21,7 @@ import { ScriptType } from 'shim/scripting';
 import { text, buffer } from 'node:stream/consumers';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { mapRequestError } from 'main/network/service/request-error';
-import { HistoryService } from 'main/history/history-service';
+import type { RequestRecorder, ScriptLogger } from 'main/network/service/request-recorder';
 import { copyRequestBody } from 'main/network/service/request-body-copy';
 
 const fileSystemService = FileSystemService.instance;
@@ -29,7 +29,6 @@ const environmentService = EnvironmentService.instance;
 const persistenceService = PersistenceService.instance;
 const bodyStore = BodyStore.instance;
 const scriptingService = ScriptingService.instance;
-const historyService = HistoryService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
 declare type DispatcherProvider = () => Promise<Dispatcher>;
@@ -67,9 +66,13 @@ export class HttpService {
    * @param request request object
    * @returns response object
    */
-  public async fetchAsync(request: TrufosRequest, signal?: AbortSignal): Promise<TrufosResponse> {
+  public async fetchAsync(
+    request: TrufosRequest,
+    recorder: RequestRecorder,
+    signal?: AbortSignal
+  ): Promise<TrufosResponse> {
     try {
-      return await this.doFetchAsync(request, signal);
+      return await this.doFetchAsync(request, recorder, signal);
     } catch (error) {
       if (signal?.aborted) throw error;
       if (error instanceof DisplayableError) throw error;
@@ -77,7 +80,11 @@ export class HttpService {
     }
   }
 
-  private async doFetchAsync(request: TrufosRequest, signal?: AbortSignal) {
+  private async doFetchAsync(
+    request: TrufosRequest,
+    recorder: RequestRecorder,
+    signal?: AbortSignal
+  ) {
     // Requests and responses are not logged as a whole as they may contain secrets. They are
     // recorded in the request history instead.
     logger.info(`Sending ${request.method} request ${request.id}`);
@@ -121,7 +128,7 @@ export class HttpService {
     );
 
     // execute pre-request script if it exists
-    await this.executeScript(request, ScriptType.PRE_REQUEST);
+    await this.executeScript(request, ScriptType.PRE_REQUEST, recorder.scriptLog);
 
     const [body, size] = await this.readBody(request);
     const sentHeaders = withoutUnsetHeaders({
@@ -132,10 +139,7 @@ export class HttpService {
       ...headers,
     });
     const [sentBody, bodyCopy] = copyRequestBody(body, sentHeaders);
-    historyService.recordSentRequest(
-      { method: request.method, url, headers: sentHeaders },
-      bodyCopy
-    );
+    recorder.sent({ method: request.method, url, headers: sentHeaders }, bodyCopy);
 
     // measure duration of the request
     const now = getSteadyTimestamp();
@@ -151,10 +155,10 @@ export class HttpService {
     logger.info(`Received response in ${duration}ms`);
 
     // execute post-response script if it exists
-    await this.executeScript(request, ScriptType.POST_RESPONSE);
+    await this.executeScript(request, ScriptType.POST_RESPONSE, recorder.scriptLog);
 
     // write the response body to an encrypted temporary file
-    let responseBodyId: string | undefined;
+    let responseBody: StoredBody | undefined;
     if (responseData.body != null) {
       const { id, stream } = bodyStore.create(responseData.headers);
       logger.debug('Writing response body', id);
@@ -162,7 +166,7 @@ export class HttpService {
         bodyStore.remove(id);
         throw error;
       });
-      responseBodyId = id;
+      responseBody = { id, size: bodyStore.getSize(id) ?? 0 };
       logger.debug('Successfully written response body');
     }
 
@@ -172,16 +176,13 @@ export class HttpService {
       metaInfo: {
         status: responseData.statusCode,
         duration: duration,
-        size: calculateResponseSize(
-          responseData.headers,
-          responseBodyId != null ? bodyStore.getSize(responseBodyId) : undefined
-        ),
+        size: calculateResponseSize(responseData.headers, responseBody?.size),
       },
       headers: Object.freeze(responseData.headers),
-      id: responseBodyId as string,
+      body: responseBody,
     };
 
-    logger.debug(`Returning response ${response.id}`);
+    logger.debug(`Returning response with body ${responseBody?.id}`);
     return response;
   }
 
@@ -283,11 +284,11 @@ export class HttpService {
     return Promise.all(values.map((value) => environmentService.setVariablesInString(value)));
   }
 
-  private async executeScript(request: TrufosRequest, type: ScriptType) {
+  private async executeScript(request: TrufosRequest, type: ScriptType, log: ScriptLogger) {
     const stream = await persistenceService.loadScript(request, type);
     if (stream != null) {
       const script = await text(stream);
-      scriptingService.executeScript(script, type);
+      scriptingService.executeScript(script, type, log);
     }
   }
 }

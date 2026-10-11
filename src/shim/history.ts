@@ -1,19 +1,15 @@
 import { z } from 'zod';
 import { HttpHeaders } from './headers';
 import { LogLevel } from './logger';
-import { MetaInfo } from './objects/response';
+import { ReceivedResponse, StoredBody } from './objects/response';
 import { RequestMethod } from './objects/request-method';
 import { ScriptType } from './scripting';
 
-/** Maximum number of entries kept in the request history. Older entries are evicted. */
+/**
+ * Maximum number of entries kept in the request history of all collections together. Older entries
+ * are evicted.
+ */
 export const MAX_HISTORY_ENTRIES = 100;
-
-/** A body stored in an encrypted temporary file of the main process, streamed by its ID. */
-export const StoredBody = z.object({
-  id: z.string(),
-  size: z.number(),
-});
-export type StoredBody = z.infer<typeof StoredBody>;
 
 /** A console call or error of a user script. */
 export const ScriptLog = z.object({
@@ -31,13 +27,6 @@ export const SentRequest = z.object({
   body: StoredBody.optional(),
 });
 export type SentRequest = z.infer<typeof SentRequest>;
-
-export const ReceivedResponse = z.object({
-  headers: HttpHeaders,
-  metaInfo: MetaInfo,
-  body: StoredBody.optional(),
-});
-export type ReceivedResponse = z.infer<typeof ReceivedResponse>;
 
 /** How a request ended: with a response, with an error, or because the user aborted it. */
 export const HistoryOutcome = z.discriminatedUnion('type', [

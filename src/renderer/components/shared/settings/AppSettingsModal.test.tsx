@@ -16,10 +16,6 @@ vi.mock('@/error/errorHandler', () => ({
   showError: (message: string, error: unknown) => showErrorMock(message, error),
 }));
 
-vi.mock('@/components/shared/settings/HistoryTab/HistoryTab', () => ({
-  HistoryTab: () => <div>history tab</div>,
-}));
-
 vi.mock('@/state/appSettingsStore', () => ({
   selectThemePreference: (s: { theme: string }) => s.theme,
   useAppSettingsActions: () => ({ updateSettings: vi.fn() }),
@@ -52,13 +48,5 @@ describe('AppSettingsModal', () => {
     await waitFor(() =>
       expect(showErrorMock).toHaveBeenCalledWith('Could not open the logs folder', error)
     );
-  });
-
-  it('shows the request history in its own tab', async () => {
-    render(<AppSettingsModal isOpen onClose={vi.fn()} />);
-
-    await userEvent.click(screen.getByRole('tab', { name: 'History' }));
-
-    expect(screen.getByText('history tab')).toBeDefined();
   });
 });

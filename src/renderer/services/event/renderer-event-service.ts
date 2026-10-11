@@ -88,7 +88,7 @@ export class RendererEventService implements IEventService {
   reorderItem = createEventMethod('reorderItem');
   updateApp = createEventMethod('updateApp');
   saveScript = createEventMethod('saveScript');
-  downloadResponse = createEventMethod('downloadResponse');
+  downloadBody = createEventMethod('downloadBody');
   setClientCertificate = createEventMethod('setClientCertificate');
   getAppSettings = createEventMethod('getAppSettings');
   saveAppSettings = createEventMethod('saveAppSettings');

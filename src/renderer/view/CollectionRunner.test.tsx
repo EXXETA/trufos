@@ -104,7 +104,7 @@ function makeFolder(id: string, title: string, children: Array<Folder | TrufosRe
 function makeResponse(status: number, duration = 100): TrufosResponse {
   return {
     type: 'response',
-    id: `response-${status}-${Math.random()}`,
+    body: { id: `response-${status}-${Math.random()}`, size: 5 },
     headers: { 'content-type': 'application/json' },
     metaInfo: {
       status,

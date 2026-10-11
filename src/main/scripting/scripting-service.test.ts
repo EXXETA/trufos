@@ -3,8 +3,10 @@ import { app } from 'electron';
 import type { VariableMap } from 'shim/objects/variables';
 import { ScriptingService } from './scripting-service';
 import { vol } from 'memfs';
-import { HistoryService } from 'main/history/history-service';
+import type { ScriptLogger } from 'main/network/service/request-recorder';
 import { ScriptType } from 'shim/scripting';
+
+const log = vi.fn<ScriptLogger>();
 
 const mockState = vi.hoisted(() => {
   const collection: {
@@ -88,10 +90,10 @@ describe('ScriptingService', () => {
       const code = 'const x = 1 + 1; console.log(x);';
 
       // Act
-      service.executeScript(code, ScriptType.PRE_REQUEST);
+      service.executeScript(code, ScriptType.PRE_REQUEST, log);
 
       // Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should provide access to trufos.version in script context', () => {
@@ -103,7 +105,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act & Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should execute script with multiple statements', () => {
@@ -119,7 +121,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act & Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should prevent modification of frozen trufos API object', () => {
@@ -137,7 +139,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act & Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
   });
 
@@ -148,15 +150,14 @@ describe('ScriptingService', () => {
       ['debug', 'debug'],
       ['warn', 'warn'],
       ['error', 'error'],
-    ] as const)('should record console.%s in the request history as %s', (method, level) => {
+    ] as const)('should pass console.%s to the logger as %s', (method, level) => {
       // Arrange
-      const recordScriptLog = vi.spyOn(HistoryService.instance, 'recordScriptLog');
 
       // Act
-      service.executeScript(`console.${method}('token', 42);`, ScriptType.PRE_REQUEST);
+      service.executeScript(`console.${method}('token', 42);`, ScriptType.PRE_REQUEST, log);
 
       // Assert
-      expect(recordScriptLog).toHaveBeenCalledWith({
+      expect(log).toHaveBeenCalledWith({
         script: ScriptType.PRE_REQUEST,
         level,
         args: ['token', 42],
@@ -167,7 +168,8 @@ describe('ScriptingService', () => {
       // Act
       service.executeScript(
         `console.log('before'); trufos.setCollectionVariable('after', 'yes');`,
-        ScriptType.PRE_REQUEST
+        ScriptType.PRE_REQUEST,
+        log
       );
 
       // Assert
@@ -179,7 +181,7 @@ describe('ScriptingService', () => {
       const appLog = vi.spyOn(logger, 'info');
 
       // Act
-      service.executeScript(`console.log('super-secret-token');`, ScriptType.PRE_REQUEST);
+      service.executeScript(`console.log('super-secret-token');`, ScriptType.PRE_REQUEST, log);
 
       // Assert
       expect(
@@ -187,16 +189,19 @@ describe('ScriptingService', () => {
       ).toBe(false);
     });
 
-    it('should record errors in the request history but only the error type in the app log', () => {
+    it('should pass errors to the logger but only the error type to the app log', () => {
       // Arrange
-      const recordScriptLog = vi.spyOn(HistoryService.instance, 'recordScriptLog');
       const appLog = vi.spyOn(logger, 'info');
 
       // Act
-      service.executeScript(`throw new Error('super-secret-token');`, ScriptType.POST_RESPONSE);
+      service.executeScript(
+        `throw new Error('super-secret-token');`,
+        ScriptType.POST_RESPONSE,
+        log
+      );
 
       // Assert
-      expect(recordScriptLog).toHaveBeenCalledWith({
+      expect(log).toHaveBeenCalledWith({
         script: ScriptType.POST_RESPONSE,
         level: 'error',
         args: [expect.objectContaining({ message: 'super-secret-token' })],
@@ -221,7 +226,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act & Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should return undefined for non-existent collection variables', () => {
@@ -233,7 +238,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act & Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should allow script to modify collection variables with string value', () => {
@@ -245,7 +250,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act
-      service.executeScript(code, ScriptType.PRE_REQUEST);
+      service.executeScript(code, ScriptType.PRE_REQUEST, log);
 
       // Assert
       expect(mockState.collection.variables.testVar.value).toBe('modified');
@@ -261,7 +266,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act
-      service.executeScript(code, ScriptType.PRE_REQUEST);
+      service.executeScript(code, ScriptType.PRE_REQUEST, log);
 
       // Assert
       expect(mockState.collection.variables.testVar.value).toBe('modified');
@@ -279,7 +284,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act & Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should provide access to named environment variables', () => {
@@ -291,7 +296,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act & Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should return undefined for non-existent environment variables', () => {
@@ -303,7 +308,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act & Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should allow script to set current environment variables with string value', () => {
@@ -314,7 +319,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act
-      service.executeScript(code, ScriptType.PRE_REQUEST);
+      service.executeScript(code, ScriptType.PRE_REQUEST, log);
 
       // Assert
       expect(mockState.collection.environments.dev.variables.baseUrl.value).toBe(
@@ -331,7 +336,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act
-      service.executeScript(code, ScriptType.PRE_REQUEST);
+      service.executeScript(code, ScriptType.PRE_REQUEST, log);
 
       // Assert
       expect(mockState.collection.environments.dev.variables.baseUrl.value).toBe(
@@ -352,7 +357,7 @@ describe('ScriptingService', () => {
       const listener = vi.fn();
       service.on('variables-changed', listener);
 
-      service.executeScript(`trufos.setCollectionVariable('x', 'y');`, ScriptType.PRE_REQUEST);
+      service.executeScript(`trufos.setCollectionVariable('x', 'y');`, ScriptType.PRE_REQUEST, log);
 
       expect(listener).toHaveBeenCalledTimes(1);
     });
@@ -366,7 +371,8 @@ describe('ScriptingService', () => {
         trufos.setCollectionVariable('a', '1');
         trufos.setCollectionVariable('b', '2');
       `,
-        ScriptType.PRE_REQUEST
+        ScriptType.PRE_REQUEST,
+        log
       );
 
       expect(listener).toHaveBeenCalledTimes(1);
@@ -378,7 +384,8 @@ describe('ScriptingService', () => {
 
       service.executeScript(
         `trufos.setEnvironmentVariable('baseUrl', 'http://localhost:9000');`,
-        ScriptType.PRE_REQUEST
+        ScriptType.PRE_REQUEST,
+        log
       );
 
       expect(listener).toHaveBeenCalledTimes(1);
@@ -388,7 +395,7 @@ describe('ScriptingService', () => {
       const listener = vi.fn();
       service.on('variables-changed', listener);
 
-      service.executeScript(`const x = 1 + 1;`, ScriptType.PRE_REQUEST);
+      service.executeScript(`const x = 1 + 1;`, ScriptType.PRE_REQUEST, log);
 
       expect(listener).not.toHaveBeenCalled();
     });
@@ -408,7 +415,7 @@ describe('ScriptingService', () => {
       // Arrange
 
       // Act - First script: define a global variable
-      service.executeScript('globalVar = 42;', ScriptType.PRE_REQUEST);
+      service.executeScript('globalVar = 42;', ScriptType.PRE_REQUEST, log);
 
       // Second script: try to access the variable from the first script
       const accessCode = `
@@ -418,7 +425,7 @@ describe('ScriptingService', () => {
       `;
 
       // Assert - Each execution gets a fresh context
-      expect(() => service.executeScript(accessCode, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(accessCode, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
   });
 
@@ -427,7 +434,7 @@ describe('ScriptingService', () => {
       // Arrange
 
       // Act & Assert
-      expect(() => service.executeScript('', ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript('', ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should handle script with only comments', () => {
@@ -439,20 +446,20 @@ describe('ScriptingService', () => {
       `;
 
       // Act & Assert
-      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(code, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should allow same const variable names in different script executions', () => {
       // Arrange
 
       // Act - First script: declare a const variable
-      service.executeScript('const key = "counter";', ScriptType.PRE_REQUEST);
+      service.executeScript('const key = "counter";', ScriptType.PRE_REQUEST, log);
 
       // Second script: declare same const variable - should NOT throw "already declared" error
       const secondCode = `const key = "counter";`;
 
       // Assert - Should not throw because each execution gets a fresh context
-      expect(() => service.executeScript(secondCode, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(secondCode, ScriptType.PRE_REQUEST, log)).not.toThrow();
     });
 
     it('should provide fresh trufos API in each script execution', () => {
@@ -461,7 +468,8 @@ describe('ScriptingService', () => {
       // Act - First script: use trufos API
       service.executeScript(
         `trufos.setCollectionVariable('counter', '1');`,
-        ScriptType.PRE_REQUEST
+        ScriptType.PRE_REQUEST,
+        log
       );
 
       // Verify the collection variable was set
@@ -474,7 +482,7 @@ describe('ScriptingService', () => {
       `;
 
       // Assert
-      expect(() => service.executeScript(secondCode, ScriptType.PRE_REQUEST)).not.toThrow();
+      expect(() => service.executeScript(secondCode, ScriptType.PRE_REQUEST, log)).not.toThrow();
       expect(mockState.collection.variables.counter.value).toBe('2');
     });
   });

@@ -1,7 +1,16 @@
-import { getDurationTextInSec, getSizeText } from './format-util';
+import { getDateTimeText, getDurationTextInSec, getSizeText } from './format-util';
 import { describe, it, expect } from 'vitest';
 
 describe('format-util', () => {
+  describe('getDateTimeText', () => {
+    it('formats the local date and time with zero padding', () => {
+      expect(getDateTimeText(new Date(2026, 0, 2, 3, 4, 5).getTime())).toBe('2026-01-02 03:04:05');
+      expect(getDateTimeText(new Date(2026, 9, 11, 22, 49, 0).getTime())).toBe(
+        '2026-10-11 22:49:00'
+      );
+    });
+  });
+
   describe('getDurationTextInSec', () => {
     it('converts milliseconds to seconds with two decimal places', () => {
       expect(getDurationTextInSec(1234)).toBe('1.23 s');

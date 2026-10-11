@@ -130,16 +130,22 @@ export class BodyStore {
     if (entry.references <= 0) this.remove(id);
   }
 
-  public async downloadResponse(id: string, chosenPath: string): Promise<string | null> {
+  /**
+   * Saves the decrypted body to a file, e.g. one the user chose.
+   * @param id the ID of the body
+   * @param filePath the path of the file
+   * @returns the path of the file, or `null` if the body does not exist
+   */
+  public async saveTo(id: string, filePath: string): Promise<string | null> {
     const body = this.openBody(id);
     if (!body) {
       logger.warn(`Body not found for ID: ${id}`);
       return null;
     }
 
-    await pipelineAsync(body, fs.createWriteStream(chosenPath));
-    logger.info(`Body saved to ${chosenPath}`);
-    return chosenPath;
+    await pipelineAsync(body, fs.createWriteStream(filePath));
+    logger.info(`Body saved to ${filePath}`);
+    return filePath;
   }
 
   /**
@@ -158,13 +164,6 @@ export class BodyStore {
       deleteFileIfExists(entry.filePath);
     }
     logger.debug(`Removed body: ${id}`);
-  }
-
-  public clear(): void {
-    for (const id of [...this.bodies.keys()]) {
-      this.remove(id);
-    }
-    logger.debug('Cleared all bodies');
   }
 
   /**

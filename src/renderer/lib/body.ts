@@ -1,7 +1,7 @@
 import { HttpHeaders } from 'shim/headers';
 
 /** Bodies larger than this are only shown partially. The full body can still be downloaded. */
-export const BODY_SIZE_LIMIT = 5 * 1024 * 1024; // 5 MB
+export const BODY_SIZE_LIMIT = 5_000_000; // 5 MB
 
 /**
  * @param headers the headers sent with a body

@@ -1,8 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { getToastForError } from '@/components/ui/use-toast';
 import { IpcPushStream } from '@/lib/ipc-stream';
-import { getMimeTypeFromHeaders } from '@/lib/body';
-import type { HttpHeaders } from 'shim/headers';
 import type { StringBufferEncoding } from 'shim/ipc-stream';
 
 /**
@@ -48,10 +46,3 @@ export const useBodyData = (
     };
   }, [bodyId, encoding, onChange, maxBytes]);
 };
-
-/**
- * @param headers the headers sent with a body
- * @returns the MIME type of the body, see {@link getMimeTypeFromHeaders}
- */
-export const useMimeType = (headers: HttpHeaders): string | undefined =>
-  useMemo(() => getMimeTypeFromHeaders(headers), [headers]);

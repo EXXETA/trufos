@@ -73,6 +73,11 @@ export class MenuBuilder {
         click: () =>
           sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowCollectionRunner),
       },
+      {
+        label: 'History',
+        accelerator: 'CmdOrCtrl+Shift+H',
+        click: () => sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowHistory),
+      },
       { type: 'separator' },
       {
         // CmdOrCtrl+, stays reserved for the general app settings.

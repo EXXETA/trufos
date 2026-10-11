@@ -26,6 +26,10 @@ vi.mock('@/components/sidebar/SidebarHeaderBar', () => ({
   SidebarHeaderBar: () => <div>SidebarHeaderBar</div>,
 }));
 
+vi.mock('@/components/history/HistoryList', () => ({
+  HistoryList: () => <div>HistoryList</div>,
+}));
+
 vi.mock('@/components/sidebar/FooterBar', () => ({
   FooterBar: () => <div>FooterBar</div>,
 }));
@@ -52,6 +56,7 @@ describe('Menubar pendingCreateItem bridge', () => {
   beforeEach(() => {
     act(() => {
       useViewStore.getState().requestCreateItem(null);
+      useViewStore.getState().setSidebarView('requests');
     });
   });
 
@@ -100,5 +105,21 @@ describe('Menubar pendingCreateItem bridge', () => {
 
     expect(await screen.findByText(JSON.stringify(item))).toBeDefined();
     expect(useViewStore.getState().pendingCreateItem).toBeNull();
+  });
+
+  it('shows the request tree when an item is requested while the history is shown', async () => {
+    act(() => {
+      useViewStore.getState().setSidebarView('history');
+    });
+    renderMenubar();
+
+    act(() => {
+      useViewStore.getState().requestCreateItem({ type: 'folder', parentId: 'col-1' });
+    });
+
+    expect(useViewStore.getState().sidebarView).toBe('requests');
+    expect(
+      await screen.findByText(JSON.stringify({ type: 'folder', parentId: 'col-1' }))
+    ).toBeDefined();
   });
 });

@@ -133,7 +133,7 @@ describe('historyStore', () => {
   it('should take over the entries pushed by the main process', () => {
     useHistoryStore.setState({ selectedId: 'gone', selectedEntry: entry('gone') });
 
-    useHistoryStore.getState().setEntries([summary('a')]);
+    useHistoryStore.getState().receive([summary('a')]);
 
     expect(useHistoryStore.getState().entries.map((e) => e.id)).toEqual(['a']);
     expect(useHistoryStore.getState().selectedId).toBeUndefined();
