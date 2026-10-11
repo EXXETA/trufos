@@ -3,6 +3,10 @@ import { ResponseBodyService } from './response-body-service';
 import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { vol } from 'memfs';
+import path from 'node:path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { text } from 'node:stream/consumers';
 
 vi.mock('node:fs');
 
@@ -149,6 +153,52 @@ describe('ResponseBodyService', () => {
       expect(fs.existsSync('/tmp/file2.txt')).toBe(false);
       expect(service.getFilePath(id1)).toBeUndefined();
       expect(service.getFilePath(id2)).toBeUndefined();
+    });
+  });
+
+  describe('encryption', () => {
+    async function storeBody(content: string, headers = {}) {
+      const filePath = path.join(path.dirname(mockFilePath), randomUUID());
+      const cipher = service.createCipher(filePath);
+      await pipeline(Readable.from([content]), cipher, fs.createWriteStream(filePath));
+      return { id: service.register(filePath, headers), filePath };
+    }
+
+    it('should only store encrypted bodies on disk', async () => {
+      const { id, filePath } = await storeBody('token=super-secret');
+
+      expect(fs.readFileSync(filePath, 'utf8')).not.toContain('super-secret');
+      expect(fs.statSync(filePath).size).toBe('token=super-secret'.length);
+      await expect(text(service.openBody(id)!)).resolves.toBe('token=super-secret');
+    });
+
+    it('should only read the file up to the given end', async () => {
+      // memfs ignores `end`, so only check that it reaches the file stream
+      const { id, filePath } = await storeBody('0123456789');
+      const createReadStream = vi.spyOn(fs, 'createReadStream');
+
+      await text(service.openBody(id, { end: 3 })!);
+
+      expect(createReadStream).toHaveBeenCalledWith(filePath, { end: 3 });
+    });
+
+    it('should decode the body with the given encoding', async () => {
+      const { id } = await storeBody('hello');
+
+      await expect(text(service.openBody(id, { encoding: 'base64' })!)).resolves.toBe('aGVsbG8=');
+    });
+
+    it('should save the decrypted body when downloading', async () => {
+      const { id } = await storeBody('plain body');
+      const target = path.join(path.dirname(mockFilePath), 'download.txt');
+
+      await service.downloadResponse(id, target);
+
+      expect(fs.readFileSync(target, 'utf8')).toBe('plain body');
+    });
+
+    it('should not open unknown bodies', () => {
+      expect(service.openBody(randomUUID())).toBeUndefined();
     });
   });
 });

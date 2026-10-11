@@ -35,18 +35,19 @@ export const httpInterceptor: Dispatcher.DispatcherComposeInterceptor =
   };
 
 /**
- * Copies the body into a temporary file registered in the {@link ResponseBodyService}.
+ * Copies the body encrypted into a temporary file registered in the {@link ResponseBodyService}.
  * @returns the body to send instead of the given one
  */
 function recordBody(body: Body, headers: HttpHeaders, onStored: (body: StoredBody) => void): Body {
   if (body == null) return body;
 
   const file = fileSystemService.temporaryFile();
+  const cipher = responseBodyService.createCipher(file.name);
   const register = (size: number, bodyHeaders = headers) =>
     onStored({ id: responseBodyService.register(file.name, bodyHeaders), size });
 
   if (body instanceof Readable) {
-    const recorder = new BodyRecorder(fs.createWriteStream('', { fd: file.fd }), register);
+    const recorder = new BodyRecorder(fs.createWriteStream('', { fd: file.fd }), cipher, register);
     // undici destroys the body it sends with the error if the request fails, e.g. because the
     // connection was refused. The pipeline handles that error, as undici reports it already, and
     // destroys the original body along with the recorder.
@@ -59,7 +60,7 @@ function recordBody(body: Body, headers: HttpHeaders, onStored: (body: StoredBod
     // it only differs from the sent bytes in the random multipart boundary.
     const multipart = new Response(body);
     const contentType = multipart.headers.get('content-type') ?? 'multipart/form-data';
-    const copy = new BodyRecorder(fs.createWriteStream('', { fd: file.fd }), (size) =>
+    const copy = new BodyRecorder(fs.createWriteStream('', { fd: file.fd }), cipher, (size) =>
       register(size, { ...headers, 'content-type': contentType })
     );
     if (multipart.body != null) {
@@ -71,7 +72,7 @@ function recordBody(body: Body, headers: HttpHeaders, onStored: (body: StoredBod
   }
 
   const bytes = typeof body === 'string' ? Buffer.from(body) : body;
-  fs.writeSync(file.fd, bytes);
+  fs.writeSync(file.fd, Buffer.concat([cipher.update(bytes), cipher.final()]));
   fs.closeSync(file.fd);
   register(bytes.byteLength);
   return body;

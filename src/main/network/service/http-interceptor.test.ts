@@ -1,9 +1,8 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import undici, { Dispatcher, FormData, MockAgent } from 'undici';
-import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
-import { text } from 'node:stream/consumers';
+import { buffer, text } from 'node:stream/consumers';
 import { HistoryService } from 'main/history/history-service';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { RequestMethod } from 'shim/objects/request-method';
@@ -55,7 +54,7 @@ async function send(
 }
 
 function readBody(id: string) {
-  return fs.readFileSync(ResponseBodyService.instance.getFilePath(id)!);
+  return buffer(ResponseBodyService.instance.openBody(id)!);
 }
 
 describe('httpInterceptor', () => {

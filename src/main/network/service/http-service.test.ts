@@ -16,6 +16,7 @@ import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { Readable } from 'node:stream';
+import { text as readText } from 'node:stream/consumers';
 
 const mockAgent = new MockAgent({ connections: 1 });
 const environmentService = EnvironmentService.instance;
@@ -63,7 +64,8 @@ describe('HttpService', () => {
 
     const filePath = responseBodyService.getFilePath(result.id);
     expect(filePath).toBeDefined();
-    const responseBody = fs.readFileSync(filePath!, 'utf8').toString();
+    expect(fs.readFileSync(filePath!, 'utf8')).not.toEqual(text); // encrypted on disk
+    const responseBody = await readText(responseBodyService.openBody(result.id)!);
     expect(responseBody).toEqual(text);
   });
 

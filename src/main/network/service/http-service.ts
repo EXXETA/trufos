@@ -76,8 +76,6 @@ export class HttpService {
   }
 
   private async doFetchAsync(request: TrufosRequest, signal?: AbortSignal) {
-    // Requests and responses are not logged as a whole as they may contain secrets. The
-    // httpInterceptor records them in the request history instead.
     logger.info(`Sending ${request.method} request ${request.id}`);
 
     // resolve variables (except in body, which is resolved stream-based during send)
@@ -149,7 +147,11 @@ export class HttpService {
     const bodyFile = fileSystemService.temporaryFile();
     if (responseData.body != null) {
       logger.debug('Writing response body to temporary file:', bodyFile.name);
-      await pipeline(responseData.body, fs.createWriteStream('', { fd: bodyFile.fd }));
+      await pipeline(
+        responseData.body,
+        responseBodyService.createCipher(bodyFile.name),
+        fs.createWriteStream('', { fd: bodyFile.fd })
+      );
       logger.debug('Successfully written response body');
     }
 

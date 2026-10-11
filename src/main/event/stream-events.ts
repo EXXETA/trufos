@@ -1,12 +1,13 @@
 import { ipcMain } from 'electron';
-import { createReadStream, ReadStream } from 'node:fs';
+import { createReadStream } from 'node:fs';
+import type { Readable } from 'node:stream';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { ResponseBodyService } from 'main/network/service/response-body-service';
 import { StreamInput, StringBufferEncoding } from 'shim/ipc-stream';
 
 let nextId = 0;
 
-const streams = new Map<number, ReadStream>();
+const streams = new Map<number, Readable>();
 
 const persistenceService = PersistenceService.instance;
 const responseBodyService = ResponseBodyService.instance;
@@ -17,8 +18,9 @@ ipcMain.handle(
     const { sender } = event;
     const id = nextId++;
 
-    let stream: ReadStream | undefined;
+    let stream: Readable | undefined;
     const streamOptions = maxBytes != null ? { encoding, end: maxBytes - 1 } : encoding;
+    const bodyOptions = { encoding, end: maxBytes != null ? maxBytes - 1 : undefined };
 
     if (typeof input === 'string') {
       stream = createReadStream(input, streamOptions);
@@ -28,23 +30,21 @@ ipcMain.handle(
         setImmediate(() => sender.send('stream-end', id));
         return id;
       }
-      const filePath = responseBodyService.getFilePath(input.id);
-      if (filePath == null) {
-        logger.error(`Response body file path not found for ID: ${input.id}`);
+      stream = responseBodyService.openBody(input.id, bodyOptions);
+      if (stream == null) {
+        logger.error(`Response body not found for ID: ${input.id}`);
         setImmediate(() => sender.send('stream-end', id));
         return id;
       }
-      stream = createReadStream(filePath, streamOptions);
     } else if (input.type === 'script') {
       stream = await persistenceService.loadScript(input.request, input.source);
     } else if (input.type === 'body') {
-      const filePath = responseBodyService.getFilePath(input.id);
-      if (filePath == null) {
+      stream = responseBodyService.openBody(input.id, bodyOptions);
+      if (stream == null) {
         logger.warn(`Body not found for ID: ${input.id}`);
         setImmediate(() => sender.send('stream-end', id));
         return id;
       }
-      stream = createReadStream(filePath, streamOptions);
     } else if (input.type === 'request') {
       stream = await persistenceService.loadTextBodyOfRequest(input, encoding);
     } else {
@@ -65,7 +65,7 @@ ipcMain.handle(
 );
 
 ipcMain.on('stream-close', (event, id: number) => {
-  streams.get(id)?.close();
+  streams.get(id)?.destroy();
   streams.delete(id);
   event.sender.send('stream-end', id, true);
 });
