@@ -8,6 +8,7 @@ import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
 import { RequestMethod } from 'shim/objects/request-method';
 import { Folder } from 'shim/objects/folder';
+import { MainProcessEvent } from 'shim/event-service';
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -238,7 +239,7 @@ describe('MainEventService', () => {
         outcome: { type: 'response', status: 200 },
       });
       expect(await eventService.getHistoryEntry(entry.id)).toMatchObject({ id: entry.id });
-      expect(webContentsSend).toHaveBeenCalledWith('history-changed', [
+      expect(webContentsSend).toHaveBeenCalledWith(MainProcessEvent.HistoryChanged, [
         expect.objectContaining({ requestId: request.id }),
       ]);
 
@@ -265,7 +266,7 @@ describe('MainEventService', () => {
 
       expect(saveCollectionSpy).not.toHaveBeenCalled();
       expect(webContentsSend).not.toHaveBeenCalledWith(
-        'collection-variables-updated',
+        MainProcessEvent.CollectionVariablesUpdated,
         expect.anything()
       );
     });
@@ -353,7 +354,7 @@ describe('MainEventService', () => {
       await Promise.resolve(); // flush microtask queue for the async .then() chain
 
       expect(saveCollectionSpy).toHaveBeenCalledWith(collection);
-      expect(webContentsSend).toHaveBeenCalledWith('collection-variables-updated', {
+      expect(webContentsSend).toHaveBeenCalledWith(MainProcessEvent.CollectionVariablesUpdated, {
         variables: collection.variables,
         environments: collection.environments,
       });

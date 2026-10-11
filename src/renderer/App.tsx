@@ -12,6 +12,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
 import { useHistoryStore } from '@/state/historyStore';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { useAppSettingsStore } from '@/state/appSettingsStore';
 import {
   selectIsCollectionRunnerOpen,
@@ -47,10 +48,16 @@ export const App = () => {
   useEffect(() => {
     // Entry points of the native application menu (Collection > ...).
     RendererEventService.instance
-      .on('show-collection-runner', () => useViewStore.getState().openCollectionRunner())
-      .on('show-collection-settings', () => useViewStore.getState().openCollectionSettings())
-      .on('show-app-settings', () => useViewStore.getState().openAppSettings())
-      .on('history-changed', (_event, payload) => useHistoryStore.getState().receive(payload));
+      .on(MainProcessEvent.ShowCollectionRunner, () =>
+        useViewStore.getState().openCollectionRunner()
+      )
+      .on(MainProcessEvent.ShowCollectionSettings, () =>
+        useViewStore.getState().openCollectionSettings()
+      )
+      .on(MainProcessEvent.ShowAppSettings, () => useViewStore.getState().openAppSettings())
+      .on(MainProcessEvent.HistoryChanged, (_event, payload) =>
+        useHistoryStore.getState().receive(payload)
+      );
 
     RendererEventService.instance
       .getAppSettings()
@@ -61,7 +68,7 @@ export const App = () => {
         if (settings) {
           useAppSettingsStore.getState().initialize(settings);
         }
-        window.electron.ipcRenderer.send('renderer-ready');
+        RendererEventService.instance.emit(RendererEvent.RendererReady);
       });
   }, []);
 

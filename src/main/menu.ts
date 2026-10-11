@@ -1,4 +1,6 @@
 import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell } from 'electron';
+import { MainProcessEvent } from 'shim/event-service';
+import { sendToRenderer } from 'main/event/send-to-renderer';
 import { MainEventService } from 'main/event/main-event-service';
 
 const REPOSITORY_URL = 'https://github.com/EXXETA/trufos';
@@ -38,7 +40,7 @@ export class MenuBuilder {
     return {
       label: 'Settings…',
       accelerator: 'CmdOrCtrl+,',
-      click: () => this.mainWindow.webContents.send('show-app-settings'),
+      click: () => sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowAppSettings),
     };
   }
 
@@ -68,14 +70,16 @@ export class MenuBuilder {
       {
         label: 'Run Collection',
         accelerator: 'CmdOrCtrl+Shift+R',
-        click: () => this.mainWindow.webContents.send('show-collection-runner'),
+        click: () =>
+          sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowCollectionRunner),
       },
       { type: 'separator' },
       {
         // CmdOrCtrl+, stays reserved for the general app settings.
         label: 'Settings…',
         accelerator: 'CmdOrCtrl+Shift+,',
-        click: () => this.mainWindow.webContents.send('show-collection-settings'),
+        click: () =>
+          sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowCollectionSettings),
       },
     ];
   }

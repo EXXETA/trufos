@@ -1,9 +1,8 @@
 import {
-  getDurationTextInSec,
   getHttpStatusColorClass,
   getHttpStatusText,
-  getSizeText,
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
+import { getDurationTextInSec, getSizeText } from '@/util/format-util';
 import { selectResponse, useResponseStore } from '@/state/responseStore';
 import { useCollectionStore } from '@/state/collectionStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';

@@ -1,5 +1,6 @@
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import type { BrowserWindow, MenuItemConstructorOptions } from 'electron';
+import { MainProcessEvent } from 'shim/event-service';
 
 const {
   appMock,
@@ -152,7 +153,7 @@ describe('MenuBuilder', () => {
       const settingsItem = items.find((item) => item.label === 'Settings…')!;
       expect(settingsItem.accelerator).toBe('CmdOrCtrl+,');
       (settingsItem.click as () => void)();
-      expect(sendMock).toHaveBeenCalledWith('show-app-settings');
+      expect(sendMock).toHaveBeenCalledWith(MainProcessEvent.ShowAppSettings);
     }
   );
 
@@ -196,12 +197,12 @@ describe('MenuBuilder', () => {
       const runItem = items.find((item) => item.label === 'Run Collection')!;
       expect(runItem.accelerator).toBe('CmdOrCtrl+Shift+R');
       (runItem.click as () => void)();
-      expect(sendMock).toHaveBeenCalledWith('show-collection-runner');
+      expect(sendMock).toHaveBeenCalledWith(MainProcessEvent.ShowCollectionRunner);
 
       const settingsItem = items.find((item) => item.label === 'Settings…')!;
       expect(settingsItem.accelerator).toBe('CmdOrCtrl+Shift+,');
       (settingsItem.click as () => void)();
-      expect(sendMock).toHaveBeenCalledWith('show-collection-settings');
+      expect(sendMock).toHaveBeenCalledWith(MainProcessEvent.ShowCollectionSettings);
     }
   );
 

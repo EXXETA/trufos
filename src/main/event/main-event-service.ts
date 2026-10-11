@@ -16,6 +16,8 @@ import type {
   ExportOptions,
   AppSettings,
 } from 'shim';
+import { MainProcessEvent } from 'shim/event-service';
+import { sendToRenderer } from './send-to-renderer';
 import type { ClientCertificate } from 'shim/objects/collection';
 import { SettingsService } from '../persistence/service/settings-service';
 import { PersistenceService } from '../persistence/service/persistence-service';
@@ -109,12 +111,19 @@ export class MainEventService implements IEventService {
       void persistenceService
         .saveCollection(environmentService.currentCollection)
         .then(() =>
-          this.window?.webContents.send('collection-variables-updated', { variables, environments })
+          sendToRenderer(this.window?.webContents, MainProcessEvent.CollectionVariablesUpdated, {
+            variables,
+            environments,
+          })
         )
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });
     HistoryService.instance.on('changed', () =>
-      this.window?.webContents.send('history-changed', HistoryService.instance.list())
+      sendToRenderer(
+        this.window?.webContents,
+        MainProcessEvent.HistoryChanged,
+        HistoryService.instance.list()
+      )
     );
     logger.debug('Registered event channels on backend');
   }

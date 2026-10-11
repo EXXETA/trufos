@@ -1,8 +1,8 @@
 import {
-  getDurationTextInSec,
   getHttpStatusColorClass,
   getHttpStatusText,
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
+import { getDurationTextInSec } from '@/util/format-util';
 import { HistoryOutcomeSummary } from 'shim/history';
 
 export interface OutcomeBadgeProps {

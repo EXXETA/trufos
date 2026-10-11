@@ -3,6 +3,7 @@ import { render, act, waitFor } from '@testing-library/react';
 import { CollectionStoreProvider } from './CollectionStoreProvider';
 import { useVariableStore } from '@/state/variableStore';
 import { useEnvironmentStore } from '@/state/environmentStore';
+import { MainProcessEvent } from 'shim/event-service';
 
 const listeners: Record<string, (...args: unknown[]) => void> = {};
 
@@ -59,13 +60,15 @@ describe('CollectionStoreProvider', () => {
       </CollectionStoreProvider>
     );
 
-    await waitFor(() => expect(listeners['collection-variables-updated']).toBeDefined());
+    await waitFor(() =>
+      expect(listeners[MainProcessEvent.CollectionVariablesUpdated]).toBeDefined()
+    );
 
     const testVariables = { apiKey: { value: 'test-123' } };
     const testEnvironments = { dev: { variables: { host: { value: 'localhost' } } } };
 
     act(() => {
-      listeners['collection-variables-updated'](
+      listeners[MainProcessEvent.CollectionVariablesUpdated](
         {}, // ipcRendererEvent (ignored)
         { variables: testVariables, environments: testEnvironments }
       );
@@ -82,7 +85,9 @@ describe('CollectionStoreProvider', () => {
       </CollectionStoreProvider>
     );
 
-    await waitFor(() => expect(listeners['collection-variables-updated']).toBeDefined());
+    await waitFor(() =>
+      expect(listeners[MainProcessEvent.CollectionVariablesUpdated]).toBeDefined()
+    );
 
     expect(useVariableStore.getState().variables).toEqual({});
     expect(useEnvironmentStore.getState().environments).toEqual({});

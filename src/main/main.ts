@@ -11,6 +11,8 @@ import { once } from 'node:events';
 import process from 'node:process';
 import { BodyStore } from 'main/network/service/body-store';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
+import { MainProcessEvent, RendererEvent } from 'shim/event-service';
+import { sendToRenderer } from 'main/event/send-to-renderer';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -71,7 +73,7 @@ const createWindow = async () => {
     new MenuBuilder(mainWindow).buildMenu();
 
     // show once the renderer has loaded and applied the saved theme
-    once(ipcMain, 'renderer-ready').then(() => mainWindow.show());
+    once(ipcMain, RendererEvent.RendererReady).then(() => mainWindow.show());
 
     // open links in default browser
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -85,10 +87,10 @@ const createWindow = async () => {
       if (!isClosing) {
         isClosing = true;
         event.preventDefault();
-        setImmediate(() => mainWindow.webContents.send('before-close'));
+        setImmediate(() => sendToRenderer(mainWindow.webContents, MainProcessEvent.BeforeClose));
 
         // wait for renderer to be ready to close, or give up after 30s
-        await once(ipcMain, 'ready-to-close', { signal: AbortSignal.timeout(30_000) });
+        await once(ipcMain, RendererEvent.ReadyToClose, { signal: AbortSignal.timeout(30_000) });
 
         // close app
         mainWindow.close();

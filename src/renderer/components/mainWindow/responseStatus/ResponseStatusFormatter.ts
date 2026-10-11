@@ -8,30 +8,12 @@ export function getHttpStatusColorClass(statusCode: number) {
   return 'neutral';
 }
 
-export function getDurationTextInSec(durationMs: number) {
-  return `${(durationMs / 1000).toFixed(2)} s`;
-}
-
 export function getHttpStatusText(statusCode: number) {
   if (!(statusCode in HTTP_STATUS_NAME)) {
     return statusCode.toString();
   }
   const statusKey = statusCode as keyof typeof HTTP_STATUS_NAME;
   return `${statusCode} ${HTTP_STATUS_NAME[statusKey]}`;
-}
-
-export function getSizeText(sizeInByte: number) {
-  const units = ['', 'K', 'M', 'G', 'T'];
-  let size = sizeInByte;
-
-  let i = 0;
-  for (; i < units.length && size >= 1e3; i++) {
-    size /= 1e3;
-  }
-
-  const sizeWithDigits = i == 0 ? size : size.toFixed(2);
-
-  return `${sizeWithDigits} ${units[i]}B`;
 }
 
 const HTTP_STATUS_NAME = {

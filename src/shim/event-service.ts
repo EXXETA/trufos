@@ -14,6 +14,56 @@ import { ScriptType } from './scripting';
 import { AppSettings } from './app-settings';
 import { HistoryEntry, HistoryEntrySummary } from './history';
 
+/**
+ * Fire-and-forget IPC events pushed from the main process to the renderer.
+ * Every `webContents.send()` call and its renderer-side listener must use this
+ * enum so event names stay unique and dead events are easy to spot.
+ */
+export enum MainProcessEvent {
+  /** The window is about to close; the renderer should flush unsaved state. */
+  BeforeClose = 'before-close',
+  /** The variables or environments of the current collection changed, see {@link CollectionVariablesUpdate}. */
+  CollectionVariablesUpdated = 'collection-variables-updated',
+  /** The request history changed. The payload is the new list of history entries, newest first. */
+  HistoryChanged = 'history-changed',
+  /** Opens the app settings modal (app menu). */
+  ShowAppSettings = 'show-app-settings',
+  /** Opens the collection runner view (Collection menu). */
+  ShowCollectionRunner = 'show-collection-runner',
+  /** Opens the collection settings modal (Collection menu). */
+  ShowCollectionSettings = 'show-collection-settings',
+}
+
+/**
+ * Fire-and-forget IPC events sent from the renderer to the main process.
+ */
+export enum RendererEvent {
+  /** The renderer finished initializing and the window can be shown. */
+  RendererReady = 'renderer-ready',
+  /** All unsaved state is flushed; the window may close now. */
+  ReadyToClose = 'ready-to-close',
+}
+
+/**
+ * The payload of every {@link MainProcessEvent}. Sender and listener are both typed from this map,
+ * so they cannot disagree. A type is no runtime guarantee though: listeners still validate payloads
+ * they take over into state.
+ */
+export interface MainProcessEventPayloads {
+  [MainProcessEvent.BeforeClose]: [];
+  [MainProcessEvent.CollectionVariablesUpdated]: [update: CollectionVariablesUpdate];
+  [MainProcessEvent.HistoryChanged]: [entries: HistoryEntrySummary[]];
+  [MainProcessEvent.ShowAppSettings]: [];
+  [MainProcessEvent.ShowCollectionRunner]: [];
+  [MainProcessEvent.ShowCollectionSettings]: [];
+}
+
+/** The payload of every {@link RendererEvent}, see {@link MainProcessEventPayloads}. */
+export interface RendererEventPayloads {
+  [RendererEvent.RendererReady]: [];
+  [RendererEvent.ReadyToClose]: [];
+}
+
 export type ImportStrategy = 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia';
 
 export interface ImportWarning {
@@ -29,7 +79,7 @@ export interface ImportResult {
 }
 
 /**
- * Payload of the `collection-variables-updated` event that the main process pushes to the renderer
+ * Payload of the {@link MainProcessEvent.CollectionVariablesUpdated} event that the main process pushes to the renderer
  * after a script changed collection or environment variables.
  */
 export interface CollectionVariablesUpdate {

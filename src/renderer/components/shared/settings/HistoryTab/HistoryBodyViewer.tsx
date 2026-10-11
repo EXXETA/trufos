@@ -7,7 +7,7 @@ import { formatReadOnlyEditor } from '@/lib/monaco/format';
 import { useBodyData, useMimeType } from '@/hooks/useBodyData';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { BODY_SIZE_LIMIT } from '@/lib/body';
-import { getSizeText } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
+import { getSizeText } from '@/util/format-util';
 import { IconButton } from '@/components/ui/icon-button';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { showError } from '@/error/errorHandler';
