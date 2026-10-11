@@ -38,7 +38,17 @@ function summary(id: string): HistoryEntrySummary {
 }
 
 function entry(id: string): HistoryEntry {
-  return { ...summary(id), scriptLogs: [] };
+  const { requestId, requestTitle, timestamp, method, url } = summary(id);
+  return {
+    id,
+    requestId,
+    requestTitle,
+    timestamp,
+    method,
+    url,
+    outcome: { type: 'error', message: 'failed' },
+    scriptLogs: [],
+  };
 }
 
 describe('historyStore', () => {
@@ -50,7 +60,7 @@ describe('historyStore', () => {
   it('should load the entries', async () => {
     getHistoryMock.mockResolvedValue([summary('a'), summary('b')]);
 
-    await useHistoryStore.getState().refresh();
+    await useHistoryStore.getState().load();
 
     expect(useHistoryStore.getState().entries.map((e) => e.id)).toEqual(['a', 'b']);
   });
@@ -59,7 +69,7 @@ describe('historyStore', () => {
     useHistoryStore.setState({ selectedId: 'gone', selectedEntry: entry('gone') });
     getHistoryMock.mockResolvedValue([summary('a')]);
 
-    await useHistoryStore.getState().refresh();
+    await useHistoryStore.getState().load();
 
     expect(useHistoryStore.getState().selectedId).toBeUndefined();
     expect(useHistoryStore.getState().selectedEntry).toBeUndefined();
@@ -68,7 +78,7 @@ describe('historyStore', () => {
   it('should reject malformed entries from the main process', async () => {
     getHistoryMock.mockResolvedValue([{ id: 'a' } as HistoryEntrySummary]);
 
-    await useHistoryStore.getState().refresh();
+    await useHistoryStore.getState().load();
 
     expect(showErrorMock).toHaveBeenCalledWith(
       'Could not load the request history',
@@ -106,5 +116,14 @@ describe('historyStore', () => {
     await useHistoryStore.getState().clear();
 
     expect(clearHistoryMock).toHaveBeenCalledOnce();
+  });
+
+  it('should take over the entries pushed by the main process', () => {
+    useHistoryStore.setState({ selectedId: 'gone', selectedEntry: entry('gone') });
+
+    useHistoryStore.getState().setEntries([summary('a')]);
+
+    expect(useHistoryStore.getState().entries.map((e) => e.id)).toEqual(['a']);
+    expect(useHistoryStore.getState().selectedId).toBeUndefined();
   });
 });

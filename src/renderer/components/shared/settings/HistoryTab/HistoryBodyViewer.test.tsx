@@ -102,4 +102,17 @@ describe('HistoryBodyViewer', () => {
 
     expect(disposeMock).toHaveBeenCalled();
   });
+
+  it('should close the stream if the viewer was closed before it opened', async () => {
+    let resolveOpen: (stream: unknown) => void = () => {};
+    openMock.mockReturnValue(new Promise((resolve) => (resolveOpen = resolve)));
+    const stream = { readAll: vi.fn(), close: vi.fn() };
+    const { unmount } = render(<HistoryBodyViewer body={{ id: 'body-1', size: 1 }} headers={{}} />);
+
+    unmount();
+    resolveOpen(stream);
+
+    await waitFor(() => expect(stream.close).toHaveBeenCalled());
+    expect(stream.readAll).not.toHaveBeenCalled();
+  });
 });

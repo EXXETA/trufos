@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import { createReadStream } from 'node:fs';
 import type { Readable } from 'node:stream';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { BodyStore } from 'main/network/service/body-store';
 import { StreamInput, StringBufferEncoding } from 'shim/ipc-stream';
 
 let nextId = 0;
@@ -10,7 +10,7 @@ let nextId = 0;
 const streams = new Map<number, Readable>();
 
 const persistenceService = PersistenceService.instance;
-const responseBodyService = ResponseBodyService.instance;
+const bodyStore = BodyStore.instance;
 
 ipcMain.handle(
   'stream-open',
@@ -19,32 +19,15 @@ ipcMain.handle(
     const id = nextId++;
 
     let stream: Readable | undefined;
-    const streamOptions = maxBytes != null ? { encoding, end: maxBytes - 1 } : encoding;
-    const bodyOptions = { encoding, end: maxBytes != null ? maxBytes - 1 : undefined };
+    const end = maxBytes != null ? maxBytes - 1 : undefined;
 
     if (typeof input === 'string') {
-      stream = createReadStream(input, streamOptions);
-    } else if (input.type === 'response') {
-      if (input.id == null) {
-        logger.debug('Response has no body, sending empty stream');
-        setImmediate(() => sender.send('stream-end', id));
-        return id;
-      }
-      stream = responseBodyService.openBody(input.id, bodyOptions);
-      if (stream == null) {
-        logger.error(`Response body not found for ID: ${input.id}`);
-        setImmediate(() => sender.send('stream-end', id));
-        return id;
-      }
+      stream = createReadStream(input, { encoding, end });
+    } else if (input.type === 'body') {
+      stream = bodyStore.openBody(input.id, { encoding, end });
+      if (stream == null) logger.warn(`Body not found for ID: ${input.id}`);
     } else if (input.type === 'script') {
       stream = await persistenceService.loadScript(input.request, input.source);
-    } else if (input.type === 'body') {
-      stream = responseBodyService.openBody(input.id, bodyOptions);
-      if (stream == null) {
-        logger.warn(`Body not found for ID: ${input.id}`);
-        setImmediate(() => sender.send('stream-end', id));
-        return id;
-      }
     } else if (input.type === 'request') {
       stream = await persistenceService.loadTextBodyOfRequest(input, encoding);
     } else {

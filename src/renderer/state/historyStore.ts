@@ -16,8 +16,13 @@ interface HistoryState {
 }
 
 interface HistoryActions {
-  /** Reloads the list, e.g. after the main process reported a change. */
-  refresh(): Promise<void>;
+  /** Loads the list, e.g. when the history is shown. */
+  load(): Promise<void>;
+  /**
+   * Takes over the list the main process pushes after every change.
+   * @param entries the entries, newest first
+   */
+  setEntries(entries: HistoryEntrySummary[]): void;
   select(id: string): Promise<void>;
   clear(): Promise<void>;
 }
@@ -26,19 +31,22 @@ export const useHistoryStore = create<HistoryState & HistoryActions>()(
   immer((set, get) => ({
     entries: [],
 
-    async refresh() {
+    async load() {
       try {
-        const entries = HistoryEntrySummary.array().parse(await eventService.getHistory());
-        set((state) => {
-          state.entries = entries;
-          if (!entries.some((entry) => entry.id === state.selectedId)) {
-            state.selectedId = undefined;
-            state.selectedEntry = undefined;
-          }
-        });
+        get().setEntries(HistoryEntrySummary.array().parse(await eventService.getHistory()));
       } catch (error) {
         showError('Could not load the request history', error);
       }
+    },
+
+    setEntries(entries) {
+      set((state) => {
+        state.entries = entries;
+        if (!entries.some((entry) => entry.id === state.selectedId)) {
+          state.selectedId = undefined;
+          state.selectedEntry = undefined;
+        }
+      });
     },
 
     async select(id) {

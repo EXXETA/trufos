@@ -57,14 +57,17 @@ const sentEntry: HistoryEntry = {
     headers: { authorization: 'Bearer secret', 'x-multi': ['a', 'b'] },
     body: { id: 'request-body', size: 14 },
   },
-  response: {
-    headers: { 'content-type': 'application/json' },
-    metaInfo: {
-      status: 201,
-      duration: 12,
-      size: { totalSizeInBytes: 20, headersSizeInBytes: 10, bodySizeInBytes: 10 },
+  outcome: {
+    type: 'response',
+    response: {
+      headers: { 'content-type': 'application/json' },
+      metaInfo: {
+        status: 201,
+        duration: 12,
+        size: { totalSizeInBytes: 20, headersSizeInBytes: 10, bodySizeInBytes: 10 },
+      },
+      body: { id: 'response-body', size: 10 },
     },
-    body: { id: 'response-body', size: 10 },
   },
   scriptLogs: [
     { script: ScriptType.PRE_REQUEST, level: 'info', args: ['token is', { value: 'abc' }] },
@@ -124,7 +127,12 @@ describe('HistoryTab', () => {
   });
 
   it('should show the error of a failed request', async () => {
-    getHistoryEntryMock.mockResolvedValue({ ...failed, scriptLogs: [] });
+    const { error, ...failedBase } = failed;
+    getHistoryEntryMock.mockResolvedValue({
+      ...failedBase,
+      outcome: { type: 'error', message: error! },
+      scriptLogs: [],
+    });
     render(<HistoryTab />);
     await userEvent.click(await screen.findByRole('button', { name: /Get Orders/ }));
 

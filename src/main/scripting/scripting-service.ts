@@ -1,8 +1,7 @@
 import { app } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { createContext, Script } from 'node:vm';
-import { GlobalScriptingApi, ScriptConsole, ScriptType, VariableMap, VariableObject } from 'shim';
-import fs from 'node:fs/promises';
+import { ScriptConsole, ScriptingContext, ScriptType, VariableMap, VariableObject } from 'shim';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { EventEmitter } from 'node:events';
 import { HistoryService } from 'main/history/history-service';
@@ -25,9 +24,9 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
   public static _instance: ScriptingService | null = null;
   private _variablesChanged = false;
 
-  private createApi(script?: ScriptType) {
+  private createApi(script: ScriptType) {
     // Arrow functions so the API methods keep this service as their `this`.
-    return Object.freeze<GlobalScriptingApi>({
+    return Object.freeze<ScriptingContext>({
       console: ScriptingService.createConsole(script),
 
       trufos: {
@@ -64,7 +63,7 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
    * Creates the console of a script. Its output only goes to the request history, never to the app
    * log, because scripts commonly log secrets like tokens.
    */
-  private static createConsole(script?: ScriptType): ScriptConsole {
+  private static createConsole(script: ScriptType): ScriptConsole {
     const log =
       (level: ScriptLog['level']) =>
       (...args: unknown[]) =>
@@ -103,24 +102,12 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
     return environment?.variables ?? {};
   }
 
-  public async executeScriptFromFile(filePath: string, type?: ScriptType): Promise<void> {
-    logger.info(`Executing script from file: ${filePath}`);
-    let code: string;
-    try {
-      code = await fs.readFile(filePath, 'utf-8');
-    } catch (err) {
-      logger.error('Failed to read script file:', err);
-      return;
-    }
-    this.executeScript(code, type);
-  }
-
   /**
    * Executes a user script.
    * @param code the source code of the script
    * @param type the type of the script, used to label its console output
    */
-  public executeScript(code: string, type?: ScriptType): void {
+  public executeScript(code: string, type: ScriptType): void {
     let script: Script;
     try {
       const now = getSteadyTimestamp();

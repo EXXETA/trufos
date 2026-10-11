@@ -22,11 +22,12 @@ export const HistoryTab = () => {
   const entries = useHistoryStore(selectHistoryEntries);
   const selectedId = useHistoryStore(selectSelectedHistoryId);
   const selectedEntry = useHistoryStore(selectSelectedHistoryEntry);
-  const { refresh, select, clear } = useHistoryActions();
+  const { load, select, clear } = useHistoryActions();
 
+  // later changes are pushed by the main process, see App
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void load();
+  }, [load]);
 
   return (
     <div className="flex h-full min-h-0">
@@ -97,11 +98,11 @@ const HistoryListItem = ({ entry, isSelected, onSelect }: HistoryListItemProps) 
       {entry.url}
     </span>
     <span className="flex gap-2 text-xs">
-      {entry.status != null ? (
+      {entry.status != null && (
         <span className={getHttpStatusColorClass(entry.status)}>{entry.status}</span>
-      ) : (
-        <span className="error truncate">{entry.error ?? 'No response'}</span>
       )}
+      {entry.error != null && <span className="error truncate">{entry.error}</span>}
+      {entry.aborted === true && <span className="text-text-secondary">Aborted</span>}
       <span className="text-text-secondary">{new Date(entry.timestamp).toLocaleTimeString()}</span>
     </span>
   </button>

@@ -11,7 +11,7 @@ import { AuthorizationType } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { TemplateReplaceStream, UnmatchedVariableError } from 'template-replace-stream';
-import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { BodyStore } from 'main/network/service/body-store';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
@@ -20,7 +20,7 @@ import { text as readText } from 'node:stream/consumers';
 
 const mockAgent = new MockAgent({ connections: 1 });
 const environmentService = EnvironmentService.instance;
-const responseBodyService = ResponseBodyService.instance;
+const responseBodyService = BodyStore.instance;
 const fileSystemService = FileSystemService.instance;
 
 describe('HttpService', () => {
@@ -62,9 +62,6 @@ describe('HttpService', () => {
     expect(result.metaInfo.duration).toBeGreaterThanOrEqual(0);
     expect(result.id).toBeDefined();
 
-    const filePath = responseBodyService.getFilePath(result.id);
-    expect(filePath).toBeDefined();
-    expect(fs.readFileSync(filePath!, 'utf8')).not.toEqual(text); // encrypted on disk
     const responseBody = await readText(responseBodyService.openBody(result.id)!);
     expect(responseBody).toEqual(text);
   });
@@ -121,9 +118,8 @@ describe('HttpService', () => {
     // Act
     const result = await httpService.fetchAsync(request);
 
-    // Assert: bodySizeInBytes must reflect the real file size, not the fake content-length
-    const filePath = responseBodyService.getFilePath(result.id);
-    const actualBodySize = fs.statSync(filePath!).size;
+    // Assert: bodySizeInBytes must reflect the real body size, not the fake content-length
+    const actualBodySize = (await readText(responseBodyService.openBody(result.id)!)).length;
     expect(result.metaInfo.size.bodySizeInBytes).toEqual(actualBodySize);
     expect(result.metaInfo.size.bodySizeInBytes).not.toEqual(5000);
   });

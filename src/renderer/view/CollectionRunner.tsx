@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
-import { useResponseData } from '@/components/mainWindow/bodyTabs/OutputTabs/PrettyRenderer';
+import { useBodyInput, useStreamData } from '@/hooks/useStreamData';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { HttpService } from '@/services/http/http-service';
 import { httpMethodColor } from '@/services/StyleHelper';
@@ -137,7 +137,7 @@ function formatHeaders(headers: TrufosResponse['headers']) {
 function ResponseBodyPreview({ response }: { response: TrufosResponse }) {
   const [body, setBody] = useState('');
 
-  useResponseData(response, 'utf-8', setBody);
+  useStreamData(useBodyInput(response.id), 'utf-8', setBody);
 
   return <pre className="text-xs break-words whitespace-pre-wrap">{body}</pre>;
 }

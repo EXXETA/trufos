@@ -1,9 +1,6 @@
-import { getToastForError } from '@/components/ui/use-toast';
-import { IpcPushStream } from '@/lib/ipc-stream';
 import { useResponseActions } from '@/state/responseStore';
-import { FC, useEffect, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { HttpHeaders } from 'shim/headers';
-import { StringBufferEncoding } from 'shim/ipc-stream';
 import { TrufosResponse } from 'shim/objects/response';
 
 export const RESPONSE_BODY_SIZE_LIMIT = 5 * 1024 * 1024; // 5 MB
@@ -45,36 +42,6 @@ export function getMimeType(response?: TrufosResponse) {
 
 export const useResponseMimeType = (headers: HttpHeaders) =>
   useMemo(() => getMimeTypeFromContentType(getContentTypeFromHeaders(headers)), [headers]);
-
-export const useResponseData = (
-  response: TrufosResponse,
-  encoding: StringBufferEncoding,
-  onChange: (data: string) => void,
-  maxBytes?: number
-) => {
-  useEffect(() => {
-    let canceled = false;
-    let stream: IpcPushStream | undefined;
-    IpcPushStream.open(response, encoding, maxBytes)
-      .then((s) => {
-        if (canceled) {
-          s.close();
-          return;
-        }
-        stream = s;
-        return s.readAll();
-      })
-      .then((content) => {
-        if (!canceled && content !== undefined) onChange(content);
-      })
-      .catch(getToastForError);
-
-    return () => {
-      canceled = true;
-      stream?.close();
-    };
-  }, [response, encoding, onChange, maxBytes]);
-};
 
 export const useResponseEditor = () => {
   const { setResponseEditor, formatResponseEditorText } = useResponseActions();

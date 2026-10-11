@@ -54,8 +54,6 @@ const config: ForgeConfig = {
         if (isInterfaceDeclaration(node) && node.name.text === 'GlobalScriptingApi') {
           const type = checker.getTypeAtLocation(node);
           for (const symbol of checker.getPropertiesOfType(type)) {
-            // The editor's default lib already declares the console global.
-            if (symbol.name === 'console') continue;
             const propType = checker.getTypeOfSymbolAtLocation(symbol, node);
             const propTypeStr = checker.typeToString(
               propType,

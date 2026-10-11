@@ -1,19 +1,11 @@
 import { calculateResponseSize } from './size-calculation';
-import { vi, describe, it, expect } from 'vitest';
-
-vi.mock('node:fs', () => ({
-  default: {
-    statSync: () => ({ size: 500 }),
-  },
-}));
+import { describe, it, expect } from 'vitest';
 
 describe('calculateResponseSize', () => {
-  it('uses actual file size over content-length header when file path is provided', () => {
-    // statSync is mocked to return 500, but content-length says 100
-    // the real file size must win to prevent the size limit check from being fooled
+  it('uses the actual body size over the content-length header when it is provided', () => {
+    // the real body size must win to prevent the size limit check from being fooled
     const headers = { 'content-length': '100', 'content-type': 'application/json' };
-    const filePath = 'path/to/file';
-    const result = calculateResponseSize(headers, filePath);
+    const result = calculateResponseSize(headers, 500);
     expect(result).toEqual({
       totalSizeInBytes: 553,
       headersSizeInBytes: 53,
@@ -21,7 +13,7 @@ describe('calculateResponseSize', () => {
     });
   });
 
-  it('calculates size correctly with valid content-length header and no file path', () => {
+  it('calculates size correctly with valid content-length header and no body size', () => {
     const headers = { 'content-length': '100', 'content-type': 'application/json' };
     const result = calculateResponseSize(headers);
     expect(result).toEqual({
@@ -31,10 +23,9 @@ describe('calculateResponseSize', () => {
     });
   });
 
-  it('calculates size correctly with no content-length header and valid file path', () => {
+  it('calculates size correctly with no content-length header and a body size', () => {
     const headers = { 'content-type': 'application/json' };
-    const filePath = 'path/to/file';
-    const result = calculateResponseSize(headers, filePath);
+    const result = calculateResponseSize(headers, 500);
     expect(result).toEqual({
       totalSizeInBytes: 532,
       headersSizeInBytes: 32,
@@ -42,7 +33,7 @@ describe('calculateResponseSize', () => {
     });
   });
 
-  it('calculates size correctly with no content-length header and no file path', () => {
+  it('calculates size correctly with no content-length header and no body size', () => {
     const headers = { 'content-type': 'application/json' };
     const result = calculateResponseSize(headers);
     expect(result).toEqual({

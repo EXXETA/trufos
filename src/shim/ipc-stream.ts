@@ -1,5 +1,4 @@
 import { TrufosRequest } from 'shim/objects/request';
-import { TrufosResponse } from 'shim/objects/response';
 import { ScriptType } from './scripting';
 
 /**
@@ -9,7 +8,6 @@ import { ScriptType } from './scripting';
 export type StreamInput =
   | string
   | TrufosRequest
-  | TrufosResponse
   | { type: 'script'; source: ScriptType; request: TrufosRequest }
   | { type: 'body'; id: string };
 

@@ -15,19 +15,20 @@ import { isBlankHeader, TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
 import process from 'node:process';
-import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { BodyStore } from 'main/network/service/body-store';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { ScriptType } from 'shim/scripting';
 import { text, buffer } from 'node:stream/consumers';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { mapRequestError } from 'main/network/service/request-error';
-import { httpInterceptor } from 'main/network/service/http-interceptor';
+import { HistoryService } from 'main/history/history-service';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
 const persistenceService = PersistenceService.instance;
-const responseBodyService = ResponseBodyService.instance;
+const bodyStore = BodyStore.instance;
 const scriptingService = ScriptingService.instance;
+const historyService = HistoryService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
 declare type DispatcherProvider = () => Promise<Dispatcher>;
@@ -76,6 +77,8 @@ export class HttpService {
   }
 
   private async doFetchAsync(request: TrufosRequest, signal?: AbortSignal) {
+    // Requests and responses are not logged as a whole as they may contain secrets. They are
+    // recorded in the request history instead.
     logger.info(`Sending ${request.method} request ${request.id}`);
 
     // resolve variables (except in body, which is resolved stream-based during send)
@@ -120,20 +123,25 @@ export class HttpService {
     await this.executeScript(request, ScriptType.PRE_REQUEST);
 
     const [body, size] = await this.readBody(request);
+    const sentHeaders = {
+      ['content-type']: this.getContentType(request.body),
+      ['authorization']: authorization,
+      ['content-length']: size?.toString(),
+      ['user-agent']: `Trufos/${app.getVersion()} (${process.platform} ${process.getSystemVersion()}; ${process.arch})`,
+      ...headers,
+    };
+    const sentBody = historyService.recordSentRequest(
+      { method: request.method, url, headers: sentHeaders },
+      body
+    );
 
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
-      dispatcher: (await this._dispatcherProvider()).compose(httpInterceptor),
+      dispatcher: await this._dispatcherProvider(),
       method: request.method,
-      headers: {
-        ['content-type']: this.getContentType(request.body),
-        ['authorization']: authorization,
-        ['content-length']: size?.toString(),
-        ['user-agent']: `Trufos/${app.getVersion()} (${process.platform} ${process.getSystemVersion()}; ${process.arch})`,
-        ...headers,
-      },
-      body,
+      headers: sentHeaders,
+      body: sentBody,
       signal,
     });
 
@@ -143,15 +151,16 @@ export class HttpService {
     // execute post-response script if it exists
     await this.executeScript(request, ScriptType.POST_RESPONSE);
 
-    // write the response body to a temporary file
-    const bodyFile = fileSystemService.temporaryFile();
+    // write the response body to an encrypted temporary file
+    let responseBodyId: string | undefined;
     if (responseData.body != null) {
-      logger.debug('Writing response body to temporary file:', bodyFile.name);
-      await pipeline(
-        responseData.body,
-        responseBodyService.createCipher(bodyFile.name),
-        fs.createWriteStream('', { fd: bodyFile.fd })
-      );
+      const { id, stream } = bodyStore.create(responseData.headers);
+      logger.debug('Writing response body', id);
+      await pipeline(responseData.body, stream).catch((error: unknown) => {
+        bodyStore.remove(id);
+        throw error;
+      });
+      responseBodyId = id;
       logger.debug('Successfully written response body');
     }
 
@@ -163,13 +172,11 @@ export class HttpService {
         duration: duration,
         size: calculateResponseSize(
           responseData.headers,
-          responseData.body != null ? (bodyFile.name ?? undefined) : undefined
+          responseBodyId != null ? bodyStore.getSize(responseBodyId) : undefined
         ),
       },
       headers: Object.freeze(responseData.headers),
-      id: (responseData.body != null
-        ? responseBodyService.register(bodyFile.name!, responseData.headers)
-        : undefined) as string,
+      id: responseBodyId as string,
     };
 
     logger.debug(`Returning response ${response.id}`);

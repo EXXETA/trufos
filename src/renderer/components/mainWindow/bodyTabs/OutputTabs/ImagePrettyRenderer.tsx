@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { getMimeType, useResponseData, type ResponseRenderer } from './PrettyRenderer';
+import { getMimeType, type ResponseRenderer } from './PrettyRenderer';
+import { useBodyInput, useStreamData } from '@/hooks/useStreamData';
 
 export const ImagePrettyRenderer: ResponseRenderer = ({ response }) => {
   const [data, setData] = useState<string>();
   const mimeType = useMemo(() => getMimeType(response), [response]);
 
-  useResponseData(response, 'base64', setData);
+  useStreamData(useBodyInput(response.id), 'base64', setData);
   const src = useMemo(
     () => (data == null ? undefined : `data:${mimeType};base64,${data}`),
     [data, mimeType]

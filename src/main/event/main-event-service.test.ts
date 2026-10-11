@@ -207,7 +207,22 @@ describe('MainEventService', () => {
       ({ EnvironmentService } = await import('../environment/service/environment-service.js'));
     });
 
+    it('keeps the latest response body of a request alive', async () => {
+      const { HttpService } = await import('../network/service/http-service.js');
+      const { LatestResponseBodies } = await import('../network/service/latest-response-bodies.js');
+      const response = makeResponse();
+      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(response);
+      const setLatest = vi.spyOn(LatestResponseBodies.instance, 'set');
+      const request = makeRequest();
+
+      await new MainEventService().sendRequest(request);
+
+      expect(setLatest).toHaveBeenCalledWith(request.id, response.id);
+    });
+
     it('records the request in the history', async () => {
+      const { HistoryService } = await import('../history/history-service.js');
+      HistoryService.instance.clear();
       const { HttpService } = await import('../network/service/http-service.js');
       vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(makeResponse());
       const webContentsSend = vi.fn();
@@ -220,7 +235,9 @@ describe('MainEventService', () => {
       const [entry] = await eventService.getHistory();
       expect(entry).toMatchObject({ requestId: request.id, status: 200 });
       expect(await eventService.getHistoryEntry(entry.id)).toMatchObject({ id: entry.id });
-      expect(webContentsSend).toHaveBeenCalledWith('history-changed');
+      expect(webContentsSend).toHaveBeenCalledWith('history-changed', [
+        expect.objectContaining({ requestId: request.id }),
+      ]);
 
       await eventService.clearHistory();
       expect(await eventService.getHistory()).toEqual([]);

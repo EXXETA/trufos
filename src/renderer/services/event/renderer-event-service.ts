@@ -34,7 +34,8 @@ export interface RendererEventService {
 
   on(event: 'show-app-settings', listener: () => void): this;
 
-  on(event: 'history-changed', listener: () => void): this;
+  /** The payload is the history list, which still has to be validated. */
+  on(event: 'history-changed', listener: (ipcEvent: unknown, entries: unknown) => void): this;
 
   /**
    * The first argument is the Electron IPC event, which this listener does not need; the payload is

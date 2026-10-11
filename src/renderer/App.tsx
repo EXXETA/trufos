@@ -11,6 +11,7 @@ import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/componen
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
 import { useHistoryStore } from '@/state/historyStore';
+import { HistoryEntrySummary } from 'shim/history';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useAppSettingsStore } from '@/state/appSettingsStore';
 import {
@@ -50,7 +51,14 @@ export const App = () => {
       .on('show-collection-runner', () => useViewStore.getState().openCollectionRunner())
       .on('show-collection-settings', () => useViewStore.getState().openCollectionSettings())
       .on('show-app-settings', () => useViewStore.getState().openAppSettings())
-      .on('history-changed', () => void useHistoryStore.getState().refresh());
+      .on('history-changed', (_event, payload) => {
+        const entries = HistoryEntrySummary.array().safeParse(payload);
+        if (entries.success) {
+          useHistoryStore.getState().setEntries(entries.data);
+        } else {
+          showError('Received an invalid request history', entries.error);
+        }
+      });
 
     RendererEventService.instance
       .getAppSettings()

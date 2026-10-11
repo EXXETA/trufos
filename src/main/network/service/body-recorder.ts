@@ -1,57 +1,29 @@
-import { Transform, TransformCallback } from 'node:stream';
-import type { WriteStream } from 'node:fs';
-import type { Cipheriv } from 'node:crypto';
+import { Transform, TransformCallback, Writable } from 'node:stream';
 
 /**
- * Passes a body stream through unchanged while copying it encrypted into a file, so the body that
- * was actually sent can be shown in the request history. Each chunk is only passed on once it was
- * written, so a slow disk applies backpressure instead of buffering the body in memory.
+ * Passes a body stream through unchanged while copying it, so the body that was actually sent can
+ * be shown in the request history. Each chunk is only passed on once the copy accepted it, so a
+ * slow copy applies backpressure instead of buffering the body in memory.
  */
 export class BodyRecorder extends Transform {
-  private bytes = 0;
-  private reported = false;
-
   /**
-   * @param file the file to copy the body into. It is closed when the body ended or failed.
-   * @param cipher the cipher the copy is encrypted with
-   * @param onRecorded called with the body size once the body was copied. If sending the body
-   * failed, it is called with the size of the part that was sent.
+   * @param copy the stream the body is copied to. It is ended with the body, and destroyed if
+   * sending the body failed.
    */
-  constructor(
-    private readonly file: WriteStream,
-    private readonly cipher: Cipheriv,
-    private readonly onRecorded: (size: number) => void
-  ) {
+  constructor(private readonly copy: Writable) {
     super();
   }
 
-  /** The number of bytes that passed through so far. */
-  get size(): number {
-    return this.bytes;
-  }
-
   _transform(chunk: Buffer | string, encoding: BufferEncoding, callback: TransformCallback): void {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
-    this.bytes += buffer.length;
-    this.file.write(this.cipher.update(buffer), (error) => callback(error ?? null, chunk));
+    this.copy.write(chunk, encoding, (error) => callback(error ?? null, chunk));
   }
 
   _flush(callback: TransformCallback): void {
-    this.file.end(this.cipher.final(), () => {
-      this.report();
-      callback();
-    });
+    this.copy.end(() => callback());
   }
 
   _destroy(error: Error | null, callback: (error?: Error | null) => void): void {
-    this.file.destroy();
-    this.report();
+    this.copy.destroy();
     callback(error);
-  }
-
-  private report() {
-    if (this.reported) return;
-    this.reported = true;
-    this.onRecorded(this.bytes);
   }
 }

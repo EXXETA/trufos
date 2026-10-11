@@ -3,7 +3,8 @@ import { editor } from 'monaco-editor';
 import { Download } from 'lucide-react';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { isFormattableLanguage, mimeTypeToLanguage } from '@/lib/monaco/language';
-import { IpcPushStream } from '@/lib/ipc-stream';
+import { formatReadOnlyEditor } from '@/lib/monaco/format';
+import { useBodyInput, useStreamData } from '@/hooks/useStreamData';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import {
   RESPONSE_BODY_SIZE_LIMIT,
@@ -32,30 +33,12 @@ export const HistoryBodyViewer = ({ body, headers }: HistoryBodyViewerProps) => 
   const isImage = mimeType?.startsWith('image/') === true;
   const isTruncated = body.size > RESPONSE_BODY_SIZE_LIMIT;
   const [content, setContent] = useState<string>();
-
-  useEffect(() => {
-    let canceled = false;
-    let stream: IpcPushStream | undefined;
-    setContent(undefined);
-    IpcPushStream.open(
-      { type: 'body', id: body.id },
-      isImage ? 'base64' : 'utf-8',
-      isTruncated ? RESPONSE_BODY_SIZE_LIMIT : undefined
-    )
-      .then((s) => {
-        stream = s;
-        return canceled ? undefined : s.readAll();
-      })
-      .then((data) => {
-        if (!canceled && data !== undefined) setContent(data);
-      })
-      .catch((error) => showError('Could not load the body', error));
-
-    return () => {
-      canceled = true;
-      stream?.close();
-    };
-  }, [body.id, isImage, isTruncated]);
+  useStreamData(
+    useBodyInput(body.id),
+    isImage ? 'base64' : 'utf-8',
+    setContent,
+    isTruncated ? RESPONSE_BODY_SIZE_LIMIT : undefined
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -110,11 +93,7 @@ const TextBody = ({ content, mimeType, format }: TextBodyProps) => {
     model.setValue(content ?? '');
     const instance = editorRef.current;
     if (content == null || instance == null || !format || !isFormattableLanguage(language)) return;
-    instance.updateOptions({ readOnly: false });
-    void instance
-      .getAction('editor.action.formatDocument')
-      ?.run()
-      .finally(() => instance.updateOptions({ readOnly: true }));
+    void formatReadOnlyEditor(instance);
   }, [model, content, format, language]);
 
   return (

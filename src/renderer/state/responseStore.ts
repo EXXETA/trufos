@@ -2,6 +2,7 @@ import { useActions } from '@/state/helper/util';
 import { editor } from 'monaco-editor';
 import { TrufosResponse } from 'shim/objects/response';
 import { create } from 'zustand';
+import { formatReadOnlyEditor } from '@/lib/monaco/format';
 import { immer } from 'zustand/middleware/immer';
 
 /** A map of requestId => response */
@@ -39,14 +40,7 @@ export const useResponseStore = create<ResponseState>()(
       responseEditorRef = responseEditor;
     },
     formatResponseEditorText: async () => {
-      if (!responseEditorRef) return;
-
-      try {
-        responseEditorRef.updateOptions({ readOnly: false });
-        await responseEditorRef.getAction('editor.action.formatDocument')?.run();
-      } finally {
-        responseEditorRef.updateOptions({ readOnly: true });
-      }
+      if (responseEditorRef) await formatReadOnlyEditor(responseEditorRef);
     },
   }))
 );

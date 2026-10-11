@@ -22,11 +22,12 @@ import { PersistenceService } from '../persistence/service/persistence-service';
 import { ImportService } from 'main/import/service/import-service';
 import { ExportService } from 'main/export/service/export-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
-import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { BodyStore } from 'main/network/service/body-store';
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { HistoryService } from 'main/history/history-service';
+import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 
 // register stream events
@@ -112,7 +113,9 @@ export class MainEventService implements IEventService {
         )
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });
-    HistoryService.instance.on('changed', () => this.window?.webContents.send('history-changed'));
+    HistoryService.instance.on('changed', () =>
+      this.window?.webContents.send('history-changed', HistoryService.instance.list())
+    );
     logger.debug('Registered event channels on backend');
   }
 
@@ -130,14 +133,11 @@ export class MainEventService implements IEventService {
   }
 
   async sendRequest(request: TrufosRequest, abortKey?: string): Promise<TrufosResponse | null> {
-    return await HistoryService.instance.record(request, async () => {
-      if (abortKey == null) {
-        return await HttpService.instance.fetchAsync(request);
-      }
+    // only a request sent with an abort key can be aborted, see abortRequest()
+    const abortController = new AbortController();
+    if (abortKey != null) this.abortControllers.set(abortKey, abortController);
 
-      const abortController = new AbortController();
-      this.abortControllers.set(abortKey, abortController);
-
+    const response = await HistoryService.instance.record(request, async () => {
       try {
         return await HttpService.instance.fetchAsync(request, abortController.signal);
       } catch (error) {
@@ -147,9 +147,13 @@ export class MainEventService implements IEventService {
         logger.debug('Request was aborted:', request.id);
         return null;
       } finally {
-        this.abortControllers.delete(abortKey);
+        if (abortKey != null) this.abortControllers.delete(abortKey);
       }
     });
+
+    // the response panel and the collection runner show the latest response of a request
+    if (response != null) LatestResponseBodies.instance.set(request.id, response.id);
+    return response;
   }
 
   async abortRequest(abortKey: string) {
@@ -286,13 +290,13 @@ export class MainEventService implements IEventService {
   }
 
   async downloadResponse(responseId: string): Promise<string | null> {
-    const entry = ResponseBodyService.instance.getEntry(responseId);
-    if (!entry) {
+    const headers = BodyStore.instance.getHeaders(responseId);
+    if (!headers) {
       logger.warn(`Response body not found for ID: ${responseId}`);
       return null;
     }
 
-    const defaultPath = getSuggestedFilename(entry.headers);
+    const defaultPath = getSuggestedFilename(headers);
     const { canceled, filePath: chosenPath } = await dialog.showSaveDialog(this.window!, {
       defaultPath,
     });
@@ -301,7 +305,7 @@ export class MainEventService implements IEventService {
       return null;
     }
 
-    return await ResponseBodyService.instance.downloadResponse(responseId, chosenPath);
+    return await BodyStore.instance.downloadResponse(responseId, chosenPath);
   }
 
   async getAppSettings(): Promise<AppSettings | undefined> {

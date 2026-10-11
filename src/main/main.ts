@@ -9,7 +9,7 @@ import quit from 'electron-squirrel-startup';
 import { SettingsService } from './persistence/service/settings-service';
 import { once } from 'node:events';
 import process from 'node:process';
-import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { BodyStore } from 'main/network/service/body-store';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -125,7 +125,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
-  ResponseBodyService.instance.shutdown();
+  BodyStore.instance.shutdown();
 });
 
 app.on('activate', async () => {

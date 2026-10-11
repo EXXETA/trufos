@@ -33,8 +33,9 @@ vi.mock('monaco-editor', () => ({
   editor: { getModels: () => [] },
 }));
 
-vi.mock('@/components/mainWindow/bodyTabs/OutputTabs/PrettyRenderer', () => ({
-  useResponseData: vi.fn(),
+vi.mock('@/hooks/useStreamData', () => ({
+  useStreamData: vi.fn(),
+  useBodyInput: vi.fn(),
 }));
 
 // react-resizable-panels registers document-level pointer handlers that call
