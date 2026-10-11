@@ -19,7 +19,13 @@ interface HistoryActions {
   /** Loads the list, e.g. when the history is shown. */
   load(): Promise<void>;
   /**
-   * Takes over the list the main process pushes after every change.
+   * Takes over a list received from the main process, e.g. the one it pushes after every change.
+   * This is the store's IPC boundary: an invalid list is reported instead of taken over.
+   * @param payload the entries as received via IPC
+   */
+  receive(payload: unknown): void;
+  /**
+   * Replaces the list.
    * @param entries the entries, newest first
    */
   setEntries(entries: HistoryEntrySummary[]): void;
@@ -33,9 +39,18 @@ export const useHistoryStore = create<HistoryState & HistoryActions>()(
 
     async load() {
       try {
-        get().setEntries(HistoryEntrySummary.array().parse(await eventService.getHistory()));
+        get().receive(await eventService.getHistory());
       } catch (error) {
         showError('Could not load the request history', error);
+      }
+    },
+
+    receive(payload) {
+      const result = HistoryEntrySummary.array().safeParse(payload);
+      if (result.success) {
+        get().setEntries(result.data);
+      } else {
+        showError('Received an invalid request history', result.error);
       }
     },
 

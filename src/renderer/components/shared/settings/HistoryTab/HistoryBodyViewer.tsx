@@ -4,12 +4,9 @@ import { Download } from 'lucide-react';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { isFormattableLanguage, mimeTypeToLanguage } from '@/lib/monaco/language';
 import { formatReadOnlyEditor } from '@/lib/monaco/format';
-import { useBodyInput, useStreamData } from '@/hooks/useStreamData';
+import { useBodyData, useMimeType } from '@/hooks/useBodyData';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import {
-  RESPONSE_BODY_SIZE_LIMIT,
-  useResponseMimeType,
-} from '@/components/mainWindow/bodyTabs/OutputTabs/PrettyRenderer';
+import { BODY_SIZE_LIMIT } from '@/lib/body';
 import { getSizeText } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
 import { IconButton } from '@/components/ui/icon-button';
 import { RendererEventService } from '@/services/event/renderer-event-service';
@@ -29,15 +26,15 @@ export interface HistoryBodyViewerProps {
  * are cut off like in the response panel; the full body can be downloaded.
  */
 export const HistoryBodyViewer = ({ body, headers }: HistoryBodyViewerProps) => {
-  const mimeType = useResponseMimeType(headers);
+  const mimeType = useMimeType(headers);
   const isImage = mimeType?.startsWith('image/') === true;
-  const isTruncated = body.size > RESPONSE_BODY_SIZE_LIMIT;
+  const isTruncated = body.size > BODY_SIZE_LIMIT;
   const [content, setContent] = useState<string>();
-  useStreamData(
-    useBodyInput(body.id),
+  useBodyData(
+    body.id,
     isImage ? 'base64' : 'utf-8',
     setContent,
-    isTruncated ? RESPONSE_BODY_SIZE_LIMIT : undefined
+    isTruncated ? BODY_SIZE_LIMIT : undefined
   );
 
   return (
@@ -45,7 +42,7 @@ export const HistoryBodyViewer = ({ body, headers }: HistoryBodyViewerProps) => 
       <div className="flex items-center justify-between gap-2">
         <span className="text-text-secondary text-xs">
           {mimeType ?? 'Unknown content type'} · {getSizeText(body.size)}
-          {isTruncated && ` · showing the first ${getSizeText(RESPONSE_BODY_SIZE_LIMIT)}`}
+          {isTruncated && ` · showing the first ${getSizeText(BODY_SIZE_LIMIT)}`}
         </span>
         <IconButton
           title="Save body"

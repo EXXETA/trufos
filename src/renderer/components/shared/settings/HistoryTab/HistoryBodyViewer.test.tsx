@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RESPONSE_BODY_SIZE_LIMIT } from '@/components/mainWindow/bodyTabs/OutputTabs/PrettyRenderer';
+import { BODY_SIZE_LIMIT } from '@/lib/body';
 
 const { openMock, downloadMock, setValueMock, disposeMock } = vi.hoisted(() => ({
   openMock: vi.fn(),
@@ -56,16 +56,10 @@ describe('HistoryBodyViewer', () => {
   it('should only load the first part of large bodies', async () => {
     mockStream('');
 
-    render(
-      <HistoryBodyViewer body={{ id: 'big', size: RESPONSE_BODY_SIZE_LIMIT + 1 }} headers={{}} />
-    );
+    render(<HistoryBodyViewer body={{ id: 'big', size: BODY_SIZE_LIMIT + 1 }} headers={{}} />);
 
     await waitFor(() =>
-      expect(openMock).toHaveBeenCalledWith(
-        { type: 'body', id: 'big' },
-        'utf-8',
-        RESPONSE_BODY_SIZE_LIMIT
-      )
+      expect(openMock).toHaveBeenCalledWith({ type: 'body', id: 'big' }, 'utf-8', BODY_SIZE_LIMIT)
     );
     screen.getByText(/showing the first/);
   });

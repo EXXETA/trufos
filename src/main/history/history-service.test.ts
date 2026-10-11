@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { buffer, text } from 'node:stream/consumers';
-import { FormData } from 'undici';
 import { BodyStore } from 'main/network/service/body-store';
+import { copyRequestBody } from 'main/network/service/request-body-copy';
 import { MAX_HISTORY_ENTRIES } from 'shim/history';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
@@ -65,10 +65,8 @@ describe('HistoryService', () => {
     // Act
     await history.record(request, async () => {
       history.recordScriptLog({ script: ScriptType.PRE_REQUEST, level: 'info', args: ['token'] });
-      const body = history.recordSentRequest(
-        { ...SENT, headers: { authorization: 'Bearer secret', 'content-length': undefined } },
-        Readable.from(['{"name":', '"Ada"}'])
-      );
+      const [body, copy] = copyRequestBody(Readable.from(['{"name":', '"Ada"}']), {});
+      history.recordSentRequest({ ...SENT, headers: { authorization: 'Bearer secret' } }, copy);
       await text(body as Readable);
       return response;
     });
@@ -82,8 +80,7 @@ describe('HistoryService', () => {
       timestamp: expect.any(Number),
       method: RequestMethod.GET,
       url: SENT.url,
-      status: 200,
-      duration: 12,
+      outcome: { type: 'response', status: 200, duration: 12 },
     });
     const entry = history.get(summary.id)!;
     expect(entry).toMatchObject({
@@ -94,7 +91,6 @@ describe('HistoryService', () => {
       outcome: { type: 'response', response: { body: { id: response.id, size: 2 } } },
       scriptLogs: [{ script: ScriptType.PRE_REQUEST, level: 'info', args: ['token'] }],
     });
-    expect(entry.request?.headers).not.toHaveProperty('content-length');
     expect((await readBody(entry.request!.body!.id)).toString()).toBe('{"name":"Ada"}');
     expect(changed).toHaveBeenCalledOnce();
   });
@@ -108,7 +104,7 @@ describe('HistoryService', () => {
     // Assert
     expect(history.list()[0]).toMatchObject({
       url: 'https://example.com/users',
-      error: 'connect ECONNREFUSED',
+      outcome: { type: 'error', message: 'connect ECONNREFUSED' },
     });
     expect(history.get(history.list()[0].id)?.outcome).toEqual({
       type: 'error',
@@ -121,21 +117,36 @@ describe('HistoryService', () => {
     await history.record(createRequest(), async () => null);
 
     // Assert
-    expect(history.list()[0].aborted).toBe(true);
+    expect(history.list()[0].outcome).toEqual({ type: 'aborted' });
     expect(history.get(history.list()[0].id)?.outcome).toEqual({ type: 'aborted' });
   });
 
-  it('should pass bodies through untouched outside of a recorded request', () => {
+  it('should discard the output and body copy of requests that are not recorded', () => {
     // Arrange
-    const body = Readable.from(['body']);
+    const remove = vi.spyOn(bodyStore, 'remove');
+    const [, copy] = copyRequestBody(Readable.from(['body']), {});
 
     // Act
     history.recordScriptLog({ script: ScriptType.PRE_REQUEST, level: 'info', args: ['lost'] });
-    const sent = history.recordSentRequest(SENT, body);
+    history.recordSentRequest(SENT, copy);
 
     // Assert
-    expect(sent).toBe(body);
+    expect(remove).toHaveBeenCalledWith(copy!.id);
     expect(history.list()).toEqual([]);
+  });
+
+  it('should store the entry instead of waiting for a body that is never sent', async () => {
+    // Act: e.g. undici rejected the request before sending its body
+    await expect(
+      history.record(createRequest(), async () => {
+        const [, copy] = copyRequestBody(Readable.from(['never sent']), {});
+        history.recordSentRequest(SENT, copy);
+        throw new Error('invalid header');
+      })
+    ).rejects.toThrow('invalid header');
+
+    // Assert
+    expect(history.get(history.list()[0].id)?.request?.body?.size).toBe(0);
   });
 
   it('should store script arguments that cannot be cloned as strings', async () => {
@@ -166,81 +177,6 @@ describe('HistoryService', () => {
     expect(history.list().map((entry) => entry.requestTitle)).toEqual(['second', 'first']);
   });
 
-  describe('request bodies', () => {
-    it('should copy binary bodies byte by byte', async () => {
-      // Arrange
-      const bytes = Buffer.from([0, 255, 1, 254]);
-
-      // Act
-      await history.record(createRequest(), async () => {
-        await buffer(history.recordSentRequest(SENT, Readable.from([bytes])) as Readable);
-        return null;
-      });
-
-      // Assert
-      const entry = history.get(history.list()[0].id)!;
-      expect(await readBody(entry.request!.body!.id)).toEqual(bytes);
-    });
-
-    it('should store form data as multipart body', async () => {
-      // Arrange
-      const form = new FormData();
-      form.append('name', 'Ada');
-      form.append('avatar', new File(['abc'], 'ada.png'));
-
-      // Act
-      await history.record(createRequest(), async () => {
-        expect(history.recordSentRequest(SENT, form)).toBe(form);
-        return null;
-      });
-
-      // Assert
-      const id = history.get(history.list()[0].id)!.request!.body!.id;
-      const body = (await readBody(id)).toString();
-      expect(body).toContain('name="name"\r\n\r\nAda');
-      expect(body).toContain('filename="ada.png"');
-      expect(bodyStore.getHeaders(id)?.['content-type']).toMatch(
-        /^multipart\/form-data; boundary=/
-      );
-    });
-
-    it('should store the sent part of a body that undici never read completely', async () => {
-      // Act: e.g. undici rejected the request before sending its body
-      await expect(
-        history.record(createRequest(), async () => {
-          history.recordSentRequest(SENT, Readable.from(['never sent']));
-          throw new Error('invalid header');
-        })
-      ).rejects.toThrow('invalid header');
-
-      // Assert: the entry is stored instead of waiting for the body forever
-      expect(history.get(history.list()[0].id)?.request?.body?.size).toBe(0);
-    });
-
-    it('should not throw an uncaught error if undici destroys the body of a failed request', async () => {
-      // Arrange
-      const uncaught = vi.fn();
-      process.on('uncaughtException', uncaught);
-      const source = Readable.from(['partial body']);
-
-      // Act: like undici on a refused connection, destroy the sent body with the error
-      await expect(
-        history.record(createRequest(), async () => {
-          const body = history.recordSentRequest(SENT, source) as Readable;
-          const error = new Error('connect ECONNREFUSED');
-          body.destroy(error);
-          throw error;
-        })
-      ).rejects.toThrow('connect ECONNREFUSED');
-      await vi.waitFor(() => expect(source.destroyed).toBe(true));
-      process.off('uncaughtException', uncaught);
-
-      // Assert
-      expect(uncaught).not.toHaveBeenCalled();
-      expect(history.get(history.list()[0].id)?.request?.body).toBeDefined();
-    });
-  });
-
   describe('body references', () => {
     let retain: MockInstance<BodyStore['retain']>;
     let release: MockInstance<BodyStore['release']>;
@@ -253,7 +189,9 @@ describe('HistoryService', () => {
     async function recordWithBodies() {
       const response = createResponse();
       await history.record(createRequest(), async () => {
-        await text(history.recordSentRequest(SENT, Readable.from(['body'])) as Readable);
+        const [body, copy] = copyRequestBody(Readable.from(['body']), {});
+        history.recordSentRequest(SENT, copy);
+        await text(body as Readable);
         return response;
       });
       const entry = history.get(history.list()[0].id)!;

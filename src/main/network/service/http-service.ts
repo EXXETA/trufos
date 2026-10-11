@@ -22,6 +22,7 @@ import { text, buffer } from 'node:stream/consumers';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { mapRequestError } from 'main/network/service/request-error';
 import { HistoryService } from 'main/history/history-service';
+import { copyRequestBody } from 'main/network/service/request-body-copy';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -123,16 +124,17 @@ export class HttpService {
     await this.executeScript(request, ScriptType.PRE_REQUEST);
 
     const [body, size] = await this.readBody(request);
-    const sentHeaders = {
+    const sentHeaders = withoutUnsetHeaders({
       ['content-type']: this.getContentType(request.body),
       ['authorization']: authorization,
       ['content-length']: size?.toString(),
       ['user-agent']: `Trufos/${app.getVersion()} (${process.platform} ${process.getSystemVersion()}; ${process.arch})`,
       ...headers,
-    };
-    const sentBody = historyService.recordSentRequest(
+    });
+    const [sentBody, bodyCopy] = copyRequestBody(body, sentHeaders);
+    historyService.recordSentRequest(
       { method: request.method, url, headers: sentHeaders },
-      body
+      bodyCopy
     );
 
     // measure duration of the request
@@ -288,4 +290,14 @@ export class HttpService {
       scriptingService.executeScript(script, type);
     }
   }
+}
+
+function withoutUnsetHeaders(
+  headers: Record<string, string | string[] | undefined>
+): Record<string, string | string[]> {
+  return Object.fromEntries(
+    Object.entries(headers).filter(
+      (entry): entry is [string, string | string[]] => entry[1] != null
+    )
+  );
 }

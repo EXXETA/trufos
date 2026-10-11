@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useResponseEditor, ResponseRenderer, getMimeType } from './PrettyRenderer';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
-import { useBodyInput, useStreamData } from '@/hooks/useStreamData';
+import { useBodyData } from '@/hooks/useBodyData';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { getResponseModel } from '@/lib/monaco/models';
 import { mimeTypeToLanguage } from '@/lib/monaco/language';
@@ -13,8 +13,8 @@ export const DefaultRenderer: ResponseRenderer = ({ response, maxBytes }) => {
   const language = useMemo(() => mimeTypeToLanguage(getMimeType(response)!), [response]);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
 
-  useStreamData(
-    useBodyInput(response.id),
+  useBodyData(
+    response.id,
     'utf-8',
     (content) => {
       if (selectedRequestId != null) getResponseModel(selectedRequestId).setValue(content);

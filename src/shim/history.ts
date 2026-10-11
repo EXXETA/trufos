@@ -66,6 +66,14 @@ export const HistoryEntry = z.object({
 });
 export type HistoryEntry = z.infer<typeof HistoryEntry>;
 
+/** The outcome as shown in the history list, without headers and bodies. */
+export const HistoryOutcomeSummary = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('response'), status: z.number(), duration: z.number() }),
+  z.object({ type: z.literal('error'), message: z.string() }),
+  z.object({ type: z.literal('aborted') }),
+]);
+export type HistoryOutcomeSummary = z.infer<typeof HistoryOutcomeSummary>;
+
 /** What is shown in the history list. Kept small so the list loads fast. */
 export const HistoryEntrySummary = HistoryEntry.pick({
   id: true,
@@ -75,35 +83,33 @@ export const HistoryEntrySummary = HistoryEntry.pick({
   method: true,
   url: true,
 }).extend({
-  status: z.number().optional(),
-  duration: z.number().optional(),
-  /** Set if the request failed. */
-  error: z.string().optional(),
-  /** Set if the user aborted the request. */
-  aborted: z.boolean().optional(),
+  outcome: HistoryOutcomeSummary,
 });
 export type HistoryEntrySummary = z.infer<typeof HistoryEntrySummary>;
 
 /**
- * Derives the list summary of an entry.
- * @param entry the entry, of which only the fields shown in the list are needed
+ * @param outcome the outcome of a request
+ * @returns the outcome as shown in the history list
  */
-export function summarizeHistoryEntry(
-  entry: Pick<
-    HistoryEntry,
-    'id' | 'requestId' | 'requestTitle' | 'timestamp' | 'method' | 'url' | 'outcome'
-  >
-): HistoryEntrySummary {
+export function summarizeHistoryOutcome(outcome: HistoryOutcome): HistoryOutcomeSummary {
+  if (outcome.type !== 'response') return outcome;
+  const { status, duration } = outcome.response.metaInfo;
+  return { type: 'response', status, duration };
+}
+
+/**
+ * Derives the list summary of an entry.
+ * @param entry the entry
+ */
+export function summarizeHistoryEntry(entry: HistoryEntry): HistoryEntrySummary {
   const { id, requestId, requestTitle, timestamp, method, url, outcome } = entry;
-  const base = { id, requestId, requestTitle, timestamp, method, url };
-  switch (outcome.type) {
-    case 'error':
-      return { ...base, error: outcome.message };
-    case 'aborted':
-      return { ...base, aborted: true };
-    case 'response': {
-      const { status, duration } = outcome.response.metaInfo;
-      return { ...base, status, duration };
-    }
-  }
+  return {
+    id,
+    requestId,
+    requestTitle,
+    timestamp,
+    method,
+    url,
+    outcome: summarizeHistoryOutcome(outcome),
+  };
 }

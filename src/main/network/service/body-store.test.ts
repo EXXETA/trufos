@@ -6,16 +6,18 @@ import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { text } from 'node:stream/consumers';
+import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { BodyStore } from './body-store';
 
 const store = BodyStore.instance;
 
 /** Creates a body and finds its file, which the store keeps private, in the temp directory. */
 function createBody(headers = {}) {
-  const before = new Set(fs.readdirSync(tmpdir()));
+  const directory = FileSystemService.instance.temporaryDirectory;
+  const before = new Set(fs.readdirSync(directory));
   const body = store.create(headers);
-  const [file] = fs.readdirSync(tmpdir()).filter((name) => !before.has(String(name)));
-  return { ...body, filePath: path.join(tmpdir(), String(file)) };
+  const [file] = fs.readdirSync(directory).filter((name) => !before.has(String(name)));
+  return { ...body, filePath: path.join(directory, String(file)) };
 }
 
 async function storeBody(content: string, headers = {}) {
@@ -100,12 +102,12 @@ describe('BodyStore', () => {
     await vi.waitFor(() => expect(fs.existsSync(filePath)).toBe(false));
   });
 
-  it('should delete all bodies on shutdown', async () => {
-    const filePaths = [(await storeBody('a')).filePath, (await storeBody('b')).filePath];
+  it('should forget all bodies on shutdown', async () => {
+    const ids = [(await storeBody('a')).id, (await storeBody('b')).id];
 
     store.shutdown();
 
-    expect(filePaths.map((filePath) => fs.existsSync(filePath))).toEqual([false, false]);
+    expect(ids.map((id) => store.getHeaders(id))).toEqual([undefined, undefined]);
   });
 
   it('should delete a body once its last owner released it', async () => {

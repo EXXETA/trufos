@@ -233,7 +233,10 @@ describe('MainEventService', () => {
       await eventService.sendRequest(request);
 
       const [entry] = await eventService.getHistory();
-      expect(entry).toMatchObject({ requestId: request.id, status: 200 });
+      expect(entry).toMatchObject({
+        requestId: request.id,
+        outcome: { type: 'response', status: 200 },
+      });
       expect(await eventService.getHistoryEntry(entry.id)).toMatchObject({ id: entry.id });
       expect(webContentsSend).toHaveBeenCalledWith('history-changed', [
         expect.objectContaining({ requestId: request.id }),

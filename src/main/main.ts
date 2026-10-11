@@ -10,6 +10,7 @@ import { SettingsService } from './persistence/service/settings-service';
 import { once } from 'node:events';
 import process from 'node:process';
 import { BodyStore } from 'main/network/service/body-store';
+import { FileSystemService } from 'main/filesystem/filesystem-service';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -126,6 +127,7 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   BodyStore.instance.shutdown();
+  FileSystemService.instance.deleteTemporaryFiles();
 });
 
 app.on('activate', async () => {

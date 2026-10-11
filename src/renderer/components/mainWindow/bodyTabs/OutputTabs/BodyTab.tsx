@@ -4,7 +4,8 @@ import { isFormattableLanguage, mimeTypeToLanguage } from '@/lib/monaco/language
 import { useResponseStore, selectResponse } from '@/state/responseStore';
 import { useCollectionStore, selectRequest } from '@/state/collectionStore';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
-import { getMimeType, RESPONSE_BODY_SIZE_LIMIT } from './PrettyRenderer';
+import { getMimeType } from './PrettyRenderer';
+import { BODY_SIZE_LIMIT } from '@/lib/body';
 import { ImagePrettyRenderer } from './ImagePrettyRenderer';
 import { TextualPrettyRenderer } from './TextualPrettyRenderer';
 import { DefaultRenderer } from './DefaultRenderer';
@@ -40,8 +41,8 @@ export const BodyTab = () => {
   const [loadFull, setLoadFull] = useStateDerived(response, () => false);
 
   const bodySize = response?.metaInfo.size.bodySizeInBytes ?? 0;
-  const isTooLarge = bodySize > RESPONSE_BODY_SIZE_LIMIT;
-  const maxBytes = isTooLarge && !loadFull ? RESPONSE_BODY_SIZE_LIMIT : undefined;
+  const isTooLarge = bodySize > BODY_SIZE_LIMIT;
+  const maxBytes = isTooLarge && !loadFull ? BODY_SIZE_LIMIT : undefined;
   const showLoadMoreBanner = isTooLarge && !loadFull;
 
   const outputTypes = useMemo(() => {
@@ -86,7 +87,7 @@ export const BodyTab = () => {
       {showLoadMoreBanner && (
         <div className="text-muted-foreground flex items-center justify-between px-6 pb-3 text-sm">
           <span>
-            Showing first {formatBytes(RESPONSE_BODY_SIZE_LIMIT)} of {formatBytes(bodySize)}
+            Showing first {formatBytes(BODY_SIZE_LIMIT)} of {formatBytes(bodySize)}
           </span>
           <Button variant="secondary" size="sm" onClick={() => setLoadFull(true)}>
             Load more

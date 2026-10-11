@@ -35,8 +35,7 @@ const sent: HistoryEntrySummary = {
   timestamp: 0,
   method: RequestMethod.POST,
   url: 'https://example.com/users',
-  status: 201,
-  duration: 12,
+  outcome: { type: 'response', status: 201, duration: 12 },
 };
 
 const failed: HistoryEntrySummary = {
@@ -46,7 +45,7 @@ const failed: HistoryEntrySummary = {
   timestamp: 0,
   method: RequestMethod.GET,
   url: 'https://unreachable.example.com/orders',
-  error: 'connect ECONNREFUSED',
+  outcome: { type: 'error', message: 'connect ECONNREFUSED' },
 };
 
 const sentEntry: HistoryEntry = {
@@ -127,10 +126,9 @@ describe('HistoryTab', () => {
   });
 
   it('should show the error of a failed request', async () => {
-    const { error, ...failedBase } = failed;
     getHistoryEntryMock.mockResolvedValue({
-      ...failedBase,
-      outcome: { type: 'error', message: error! },
+      ...failed,
+      outcome: { type: 'error', message: 'connect ECONNREFUSED' },
       scriptLogs: [],
     });
     render(<HistoryTab />);

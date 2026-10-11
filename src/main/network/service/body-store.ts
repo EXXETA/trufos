@@ -34,8 +34,8 @@ interface StoredBodyEntry {
  * secrets. Any file left behind, e.g. by a crash, can never be decrypted again.
  *
  * Owners of a body, like the request history, {@link retain} it while they need it and
- * {@link release} it afterwards. A body is deleted once its last owner released it, or when the
- * app closes.
+ * {@link release} it afterwards. A body is deleted once its last owner released it. All body files
+ * are temporary files of the session, so the ones left are deleted when the app quits.
  */
 export class BodyStore {
   public static readonly instance = new BodyStore();
@@ -167,8 +167,12 @@ export class BodyStore {
     logger.debug('Cleared all bodies');
   }
 
+  /**
+   * Forgets all bodies when the app quits. Their files are deleted together with all other
+   * temporary files of the session, see {@link FileSystemService.deleteTemporaryFiles}.
+   */
   public shutdown(): void {
-    this.clear();
+    this.bodies.clear();
     logger.debug('BodyStore shut down');
   }
 }

@@ -1,15 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
-import {
-  getDurationTextInSec,
-  getHttpStatusColorClass,
-  getHttpStatusText,
-} from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
 import { HttpHeaders } from 'shim/headers';
-import { HistoryEntry, ScriptLog, StoredBody, summarizeHistoryEntry } from 'shim/history';
+import { HistoryEntry, ScriptLog, StoredBody, summarizeHistoryOutcome } from 'shim/history';
 import { HistoryBodyViewer } from './HistoryBodyViewer';
+import { OutcomeBadge } from './OutcomeBadge';
 
 export interface HistoryEntryDetailProps {
   entry: HistoryEntry;
@@ -18,7 +14,7 @@ export interface HistoryEntryDetailProps {
 /** Shows one request history entry: the sent request, the received response and script output. */
 export const HistoryEntryDetail = ({ entry }: HistoryEntryDetailProps) => {
   const { request, outcome, scriptLogs } = entry;
-  const summary = summarizeHistoryEntry(entry);
+  const badge = <OutcomeBadge outcome={summarizeHistoryOutcome(outcome)} detailed />;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-4">
@@ -34,17 +30,8 @@ export const HistoryEntryDetail = ({ entry }: HistoryEntryDetailProps) => {
         <div className="text-text-secondary flex gap-3 text-xs">
           <span>{entry.requestTitle}</span>
           <span>{new Date(entry.timestamp).toLocaleString()}</span>
-          {summary.status != null && (
-            <span className={getHttpStatusColorClass(summary.status)}>
-              {getHttpStatusText(summary.status)}
-            </span>
-          )}
-          {summary.duration != null && <span>{getDurationTextInSec(summary.duration)}</span>}
+          {badge}
         </div>
-        {outcome.type === 'error' && <span className="error text-sm">{outcome.message}</span>}
-        {outcome.type === 'aborted' && (
-          <span className="text-text-secondary text-sm">The request was aborted.</span>
-        )}
       </div>
 
       <Tabs defaultValue="request" className="flex min-h-0 flex-1 flex-col bg-transparent">
@@ -66,9 +53,7 @@ export const HistoryEntryDetail = ({ entry }: HistoryEntryDetailProps) => {
           {outcome.type === 'response' ? (
             <Message headers={outcome.response.headers} body={outcome.response.body} />
           ) : (
-            <Placeholder>
-              {outcome.type === 'error' ? outcome.message : 'The request was aborted.'}
-            </Placeholder>
+            <Placeholder>{badge}</Placeholder>
           )}
         </TabsContent>
 

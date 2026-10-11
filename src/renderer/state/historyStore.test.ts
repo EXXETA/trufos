@@ -33,7 +33,7 @@ function summary(id: string): HistoryEntrySummary {
     timestamp: 0,
     method: RequestMethod.GET,
     url: 'https://example.com',
-    status: 200,
+    outcome: { type: 'response', status: 200, duration: 1 },
   };
 }
 
@@ -81,7 +81,7 @@ describe('historyStore', () => {
     await useHistoryStore.getState().load();
 
     expect(showErrorMock).toHaveBeenCalledWith(
-      'Could not load the request history',
+      'Received an invalid request history',
       expect.anything()
     );
     expect(useHistoryStore.getState().entries).toEqual([]);
@@ -116,6 +116,18 @@ describe('historyStore', () => {
     await useHistoryStore.getState().clear();
 
     expect(clearHistoryMock).toHaveBeenCalledOnce();
+  });
+
+  it('should validate entries received from the main process', () => {
+    useHistoryStore.getState().receive([summary('a')]);
+    expect(useHistoryStore.getState().entries.map((e) => e.id)).toEqual(['a']);
+
+    expect(() => useHistoryStore.getState().receive([{ id: 'b' }])).not.toThrow();
+    expect(showErrorMock).toHaveBeenCalledWith(
+      'Received an invalid request history',
+      expect.anything()
+    );
+    expect(useHistoryStore.getState().entries.map((e) => e.id)).toEqual(['a']);
   });
 
   it('should take over the entries pushed by the main process', () => {

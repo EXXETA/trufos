@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { getHttpStatusColorClass } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
 import {
@@ -12,6 +11,7 @@ import {
 } from '@/state/historyStore';
 import { HistoryEntrySummary } from 'shim/history';
 import { HistoryEntryDetail } from './HistoryEntryDetail';
+import { OutcomeBadge } from './OutcomeBadge';
 
 /**
  * The request history of the current session: every sent request with its response or error.
@@ -98,11 +98,7 @@ const HistoryListItem = ({ entry, isSelected, onSelect }: HistoryListItemProps) 
       {entry.url}
     </span>
     <span className="flex gap-2 text-xs">
-      {entry.status != null && (
-        <span className={getHttpStatusColorClass(entry.status)}>{entry.status}</span>
-      )}
-      {entry.error != null && <span className="error truncate">{entry.error}</span>}
-      {entry.aborted === true && <span className="text-text-secondary">Aborted</span>}
+      <OutcomeBadge outcome={entry.outcome} />
       <span className="text-text-secondary">{new Date(entry.timestamp).toLocaleTimeString()}</span>
     </span>
   </button>

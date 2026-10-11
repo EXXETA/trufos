@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BodyTab } from './BodyTab';
-import { RESPONSE_BODY_SIZE_LIMIT } from './PrettyRenderer';
+import { BODY_SIZE_LIMIT } from '@/lib/body';
 import { TrufosResponse } from 'shim/objects/response';
 
 vi.mock('@/lib/ipc-stream', () => ({
@@ -69,14 +69,14 @@ describe('BodyTab', () => {
   });
 
   it('renders content renderer immediately for small responses', () => {
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT - 1);
+    mockResponse = makeResponse(BODY_SIZE_LIMIT - 1);
     render(<BodyTab />);
 
     expect(screen.queryByTestId('default-renderer')).not.toBeNull();
   });
 
   it('renders content renderer immediately for large responses without blocking dialog', () => {
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
+    mockResponse = makeResponse(BODY_SIZE_LIMIT + 1);
     render(<BodyTab />);
 
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -84,30 +84,30 @@ describe('BodyTab', () => {
   });
 
   it('passes maxBytes to renderer when response exceeds size limit', () => {
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
+    mockResponse = makeResponse(BODY_SIZE_LIMIT + 1);
     render(<BodyTab />);
 
     expect(screen.getByTestId('default-renderer').getAttribute('data-max-bytes')).toBe(
-      String(RESPONSE_BODY_SIZE_LIMIT)
+      String(BODY_SIZE_LIMIT)
     );
   });
 
   it('passes no maxBytes to renderer when response is within size limit', () => {
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT - 1);
+    mockResponse = makeResponse(BODY_SIZE_LIMIT - 1);
     render(<BodyTab />);
 
     expect(screen.getByTestId('default-renderer').getAttribute('data-max-bytes')).toBe('undefined');
   });
 
   it('shows load more button when response exceeds size limit', () => {
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
+    mockResponse = makeResponse(BODY_SIZE_LIMIT + 1);
     render(<BodyTab />);
 
     expect(screen.getByRole('button', { name: /load more/i })).toBeTruthy();
   });
 
   it('does not show load more button when response is within size limit', () => {
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT - 1);
+    mockResponse = makeResponse(BODY_SIZE_LIMIT - 1);
     render(<BodyTab />);
 
     expect(screen.queryByRole('button', { name: /load more/i })).toBeNull();
@@ -115,7 +115,7 @@ describe('BodyTab', () => {
 
   it('removes maxBytes and load more button after load more is clicked', async () => {
     const user = userEvent.setup();
-    mockResponse = makeResponse(RESPONSE_BODY_SIZE_LIMIT + 1);
+    mockResponse = makeResponse(BODY_SIZE_LIMIT + 1);
     render(<BodyTab />);
 
     await user.click(screen.getByRole('button', { name: /load more/i }));

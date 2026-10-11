@@ -1,13 +1,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { pipeline, Readable } from 'node:stream';
-import { finished } from 'node:stream/promises';
 import { inspect } from 'node:util';
-import { FormData, Response } from 'undici';
 import { BodyStore } from 'main/network/service/body-store';
-import { BodyRecorder } from 'main/network/service/body-recorder';
-import type { HttpHeaders } from 'shim/headers';
+import type { BodyCopy } from 'main/network/service/request-body-copy';
 import {
   HistoryEntry,
   HistoryEntrySummary,
@@ -29,21 +25,11 @@ type HistoryServiceEvents = {
   changed: [];
 };
 
-/** The bodies `HttpService` sends. */
-type Body = Readable | FormData | undefined;
-
-/** A copy of a request body that is written while the body is sent. */
-interface BodyCopy {
-  id: string;
-  /** Settles once the copy was written completely, or was cancelled. */
-  done: Promise<void>;
-  /** Stops copying a body that is not sent anymore, e.g. because the request failed early. */
-  cancel(): void;
-}
-
 /** What is captured while a request runs, before its entry is stored. */
 interface InFlight {
-  request?: Omit<SentRequest, 'body'>;
+  request: TrufosRequest;
+  timestamp: number;
+  sent?: Omit<SentRequest, 'body'>;
   body?: BodyCopy;
   scriptLogs: ScriptLog[];
 }
@@ -75,15 +61,14 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
     request: TrufosRequest,
     send: () => Promise<TrufosResponse | null>
   ): Promise<TrufosResponse | null> {
-    const inFlight: InFlight = { scriptLogs: [] };
-    const timestamp = Date.now();
+    const inFlight: InFlight = { request, timestamp: Date.now(), scriptLogs: [] };
 
     let response: TrufosResponse | null;
     try {
       response = await this.context.run(inFlight, send);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await this.store(request, timestamp, inFlight, { type: 'error', message });
+      await this.store(inFlight, { type: 'error', message });
       throw error;
     }
 
@@ -91,28 +76,24 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
       response == null
         ? { type: 'aborted' }
         : { type: 'response', response: toReceivedResponse(response) };
-    await this.store(request, timestamp, inFlight, outcome);
+    await this.store(inFlight, outcome);
     return response;
   }
 
   /**
-   * Records the request that is currently recorded exactly as it is sent. Its body is copied while
-   * it is sent, so it is never held in memory.
-   * @param request the method, resolved URL and headers of the sent request
-   * @param body the body that is about to be sent
-   * @returns the body to send instead of the given one
+   * Records the request that is currently recorded exactly as it is sent.
+   * @param sent the method, resolved URL and headers of the sent request
+   * @param body the copy of the sent body, see `copyRequestBody`
    */
-  recordSentRequest(request: Omit<SentRequest, 'body'>, body: Body): Body {
+  recordSentRequest(sent: Omit<SentRequest, 'body'>, body?: BodyCopy): void {
     const inFlight = this.context.getStore();
-    if (inFlight == null) return body;
-
-    const headers = withoutUnsetHeaders(request.headers);
-    inFlight.request = { ...request, headers };
-    if (body == null) return body;
-
-    const [sentBody, copy] = copyBody(body, headers);
-    inFlight.body = copy;
-    return sentBody;
+    if (inFlight == null) {
+      // nothing is recorded, so nobody would ever release the copy
+      if (body != null) bodyStore.remove(body.id);
+      return;
+    }
+    inFlight.sent = sent;
+    inFlight.body = body;
   }
 
   /**
@@ -146,9 +127,7 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
 
   /** Stores the entry of a finished request once the copy of its body is complete. */
   private async store(
-    request: TrufosRequest,
-    timestamp: number,
-    { request: sent, body, scriptLogs }: InFlight,
+    { request, timestamp, sent, body, scriptLogs }: InFlight,
     outcome: HistoryOutcome
   ) {
     // the request is finished, so whatever of the body was not sent yet will never be sent
@@ -186,45 +165,6 @@ function forEachBody({ request, outcome }: HistoryEntry, callback: (id: string) 
   const responseBody = outcome.type === 'response' ? outcome.response.body?.id : undefined;
   if (requestBody != null) callback(requestBody);
   if (responseBody != null) callback(responseBody);
-}
-
-/** Copies a body into the {@link BodyStore} while it is sent. */
-function copyBody(body: NonNullable<Body>, headers: HttpHeaders): [Body, BodyCopy] {
-  if (body instanceof Readable) {
-    const copy = bodyStore.create(headers);
-    const recorder = new BodyRecorder(copy.stream);
-    // undici destroys the body it sends with the error if the request fails, e.g. because the
-    // connection was refused. The pipeline handles that error, as undici reports it already, and
-    // destroys the original body along with the recorder.
-    pipeline(body, recorder, () => {});
-    return [
-      recorder,
-      {
-        id: copy.id,
-        done: finished(copy.stream).catch(() => {}),
-        cancel: () => {
-          if (!recorder.writableFinished) recorder.destroy();
-        },
-      },
-    ];
-  }
-
-  // undici serializes form data internally, which cannot be observed from the outside. Serialize a
-  // copy the same way; it only differs from the sent bytes in the random multipart boundary. This
-  // serializes the form a second time, but HttpService already holds file fields in memory, so it
-  // costs no additional disk reads.
-  const multipart = new Response(body);
-  const contentType = multipart.headers.get('content-type') ?? 'multipart/form-data';
-  const copy = bodyStore.create({ ...headers, 'content-type': contentType });
-  const source = multipart.body != null ? Readable.fromWeb(multipart.body) : Readable.from([]);
-  pipeline(source, copy.stream, (error) => {
-    if (error != null) logger.warn('Could not record the form data body', error);
-  });
-  return [body, { id: copy.id, done: finished(copy.stream).catch(() => {}), cancel: () => {} }];
-}
-
-function withoutUnsetHeaders(headers: HttpHeaders): HttpHeaders {
-  return Object.fromEntries(Object.entries(headers).filter(([, value]) => value != null));
 }
 
 function toReceivedResponse({ headers, metaInfo, id }: TrufosResponse): ReceivedResponse {
