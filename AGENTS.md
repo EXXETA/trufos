@@ -122,7 +122,9 @@ for every pull request.
 
 - Run `yarn package` first: it produces the bundles the suite launches. If `yarn start` ran
   afterwards, the bundles are dev builds that point at the Vite dev server and the suite refuses
-  to start — re-run `yarn package`.
+  to start — re-run `yarn package`. The suite also refuses outdated bundles: `yarn package`
+  records a fingerprint of the bundle inputs (`tools/source-fingerprint.ts`), and any later change
+  to them requires another `yarn package`. Test files and mocks are not part of the fingerprint.
 - Every test launches a fresh app against a temporary `--user-data-dir`, so tests are isolated
   and nothing touches your real settings or collections.
 - Requests go to a per-worker local HTTP server (`e2e/fixtures/echo-server.ts`); tests must not
