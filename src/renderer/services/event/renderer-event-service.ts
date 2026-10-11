@@ -101,4 +101,5 @@ export class RendererEventService implements IEventService {
   setClientCertificate = createEventMethod('setClientCertificate');
   getAppSettings = createEventMethod('getAppSettings');
   saveAppSettings = createEventMethod('saveAppSettings');
+  openLogDirectory = createEventMethod('openLogDirectory');
 }

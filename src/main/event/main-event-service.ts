@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
 import type {
@@ -305,6 +305,13 @@ export class MainEventService implements IEventService {
 
   async saveAppSettings(settings: AppSettings): Promise<void> {
     await SettingsService.instance.updateSettings({ preferences: settings });
+  }
+
+  async openLogDirectory(): Promise<void> {
+    const error = await shell.openPath(app.getPath('logs'));
+    if (error !== '') {
+      throw new Error(`Could not open log directory: ${error}`);
+    }
   }
 
   updateApp() {

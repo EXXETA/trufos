@@ -6,6 +6,9 @@ import {
   useAppSettingsStore,
 } from '@/state/appSettingsStore';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { RendererEventService } from '@/services/event/renderer-event-service';
+import { showError } from '@/error/errorHandler';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: TrufosTheme.Light, label: 'Light' },
@@ -21,6 +24,11 @@ export interface AppSettingsModalProps {
 export const AppSettingsModal = ({ isOpen, onClose }: AppSettingsModalProps) => {
   const theme = useAppSettingsStore(selectThemePreference);
   const { updateSettings } = useAppSettingsActions();
+
+  const openLogDirectory = () =>
+    RendererEventService.instance
+      .openLogDirectory()
+      .catch((error) => showError('Could not open the logs folder', error));
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -48,6 +56,17 @@ export const AppSettingsModal = ({ isOpen, onClose }: AppSettingsModalProps) => 
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-(--text-primary)">Logs</span>
+            <span className="text-sm text-(--text-secondary)">
+              The app log helps with troubleshooting. It never contains requests, responses or
+              secrets.
+            </span>
+            <Button variant="secondary" size="sm" className="w-fit" onClick={openLogDirectory}>
+              Open Logs Folder
+            </Button>
           </div>
         </div>
       </DialogContent>

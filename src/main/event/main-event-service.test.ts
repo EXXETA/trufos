@@ -15,6 +15,9 @@ vi.mock('electron', () => ({
   app: {
     getPath: vi.fn().mockReturnValue(''),
   },
+  shell: {
+    openPath: vi.fn(),
+  },
 }));
 
 vi.mock('./stream-events', () => ({}));
@@ -326,6 +329,28 @@ describe('MainEventService', () => {
       await expect(
         eventService.resolveVariablesInString('{{ missing }}/users')
       ).resolves.toBeNull();
+    });
+  });
+
+  describe('openLogDirectory', () => {
+    it('should open the log directory in the file manager', async () => {
+      const { app, shell } = await import('electron');
+      vi.mocked(app.getPath).mockReturnValueOnce('/logs');
+      vi.mocked(shell.openPath).mockResolvedValueOnce('');
+      const eventService = new MainEventService();
+
+      await eventService.openLogDirectory();
+
+      expect(app.getPath).toHaveBeenCalledWith('logs');
+      expect(shell.openPath).toHaveBeenCalledWith('/logs');
+    });
+
+    it('should throw when the directory could not be opened', async () => {
+      const { shell } = await import('electron');
+      vi.mocked(shell.openPath).mockResolvedValueOnce('Failed to open path');
+      const eventService = new MainEventService();
+
+      await expect(eventService.openLogDirectory()).rejects.toThrow('Failed to open path');
     });
   });
 });

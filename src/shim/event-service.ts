@@ -306,4 +306,9 @@ export interface IEventService {
    * @param settings The new application settings.
    */
   saveAppSettings(settings: AppSettings): Promise<void>;
+
+  /**
+   * Opens the directory containing the application log files in the OS file manager.
+   */
+  openLogDirectory(): Promise<void>;
 }

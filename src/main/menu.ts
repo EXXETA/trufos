@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell } from 'electron';
+import { MainEventService } from 'main/event/main-event-service';
 
 const REPOSITORY_URL = 'https://github.com/EXXETA/trufos';
 const DOCUMENTATION_URL = `${REPOSITORY_URL}#readme`;
@@ -88,6 +89,14 @@ export class MenuBuilder {
       {
         label: 'Report an Issue',
         click: () => shell.openExternal(REPORT_ISSUE_URL),
+      },
+      { type: 'separator' },
+      {
+        label: 'Open Logs Folder',
+        click: () =>
+          MainEventService.instance
+            .openLogDirectory()
+            .catch((error) => logger.error('Failed to open log directory', error)),
       },
     ];
   }
