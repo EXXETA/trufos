@@ -12,6 +12,7 @@ import {
 } from './objects';
 import { ScriptType } from './scripting';
 import { AppSettings } from './app-settings';
+import { HistoryEntry, HistoryEntrySummary } from './history';
 
 export type ImportStrategy = 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia';
 
@@ -311,4 +312,22 @@ export interface IEventService {
    * Opens the directory containing the application log files in the OS file manager.
    */
   openLogDirectory(): Promise<void>;
+
+  /**
+   * Lists the request history of the current session, newest first.
+   */
+  getHistory(): Promise<HistoryEntrySummary[]>;
+
+  /**
+   * Returns a request history entry with headers, body references and script output.
+   * @param id The ID of the history entry.
+   * @returns The entry, or `undefined` if it was evicted or cleared.
+   */
+  getHistoryEntry(id: string): Promise<HistoryEntry | undefined>;
+
+  /**
+   * Clears the request history and deletes its stored bodies. The latest response of each request
+   * is kept, as it is still shown in the response panel.
+   */
+  clearHistory(): Promise<void>;
 }

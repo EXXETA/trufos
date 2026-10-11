@@ -102,4 +102,7 @@ export class RendererEventService implements IEventService {
   getAppSettings = createEventMethod('getAppSettings');
   saveAppSettings = createEventMethod('saveAppSettings');
   openLogDirectory = createEventMethod('openLogDirectory');
+  getHistory = createEventMethod('getHistory');
+  getHistoryEntry = createEventMethod('getHistoryEntry');
+  clearHistory = createEventMethod('clearHistory');
 }

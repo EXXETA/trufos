@@ -26,6 +26,8 @@ import { ResponseBodyService } from 'main/network/service/response-body-service'
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
 import { DisplayableError } from 'shim/error/DisplayableError';
+import { HistoryService } from 'main/history/history-service';
+import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 
 // register stream events
 import './stream-events';
@@ -110,6 +112,7 @@ export class MainEventService implements IEventService {
         )
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });
+    HistoryService.instance.on('changed', () => this.window?.webContents.send('history-changed'));
     logger.debug('Registered event channels on backend');
   }
 
@@ -127,24 +130,26 @@ export class MainEventService implements IEventService {
   }
 
   async sendRequest(request: TrufosRequest, abortKey?: string): Promise<TrufosResponse | null> {
-    if (abortKey == null) {
-      return await HttpService.instance.fetchAsync(request);
-    }
+    return await HistoryService.instance.record(request, async () => {
+      if (abortKey == null) {
+        return await HttpService.instance.fetchAsync(request);
+      }
 
-    const abortController = new AbortController();
-    this.abortControllers.set(abortKey, abortController);
+      const abortController = new AbortController();
+      this.abortControllers.set(abortKey, abortController);
 
-    try {
-      return await HttpService.instance.fetchAsync(request, abortController.signal);
-    } catch (error) {
-      // An aborted request simply has no response. This is the outcome the caller asked for, so it
-      // is reported as one instead of as the platform's abort error.
-      if (!abortController.signal.aborted) throw error;
-      logger.debug('Request was aborted:', request.id);
-      return null;
-    } finally {
-      this.abortControllers.delete(abortKey);
-    }
+      try {
+        return await HttpService.instance.fetchAsync(request, abortController.signal);
+      } catch (error) {
+        // An aborted request simply has no response. This is the outcome the caller asked for, so
+        // it is reported as one instead of as the platform's abort error.
+        if (!abortController.signal.aborted) throw error;
+        logger.debug('Request was aborted:', request.id);
+        return null;
+      } finally {
+        this.abortControllers.delete(abortKey);
+      }
+    });
   }
 
   async abortRequest(abortKey: string) {
@@ -305,6 +310,18 @@ export class MainEventService implements IEventService {
 
   async saveAppSettings(settings: AppSettings): Promise<void> {
     await SettingsService.instance.updateSettings({ preferences: settings });
+  }
+
+  async getHistory(): Promise<HistoryEntrySummary[]> {
+    return HistoryService.instance.list();
+  }
+
+  async getHistoryEntry(id: string): Promise<HistoryEntry | undefined> {
+    return HistoryService.instance.get(id);
+  }
+
+  async clearHistory(): Promise<void> {
+    HistoryService.instance.clear();
   }
 
   async openLogDirectory(): Promise<void> {

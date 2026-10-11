@@ -5,6 +5,7 @@ import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { TrufosResponse } from 'shim/objects/response';
 import { RequestMethod } from 'shim/objects/request-method';
 import { Folder } from 'shim/objects/folder';
 
@@ -50,10 +51,12 @@ describe('MainEventService', () => {
     ({ PersistenceService } = await import('../persistence/service/persistence-service'));
 
     // Every test builds its own MainEventService, and each one subscribes to the shared
-    // ScriptingService. Lift the cap so those accumulating subscriptions are not mistaken for a
-    // listener leak once the suite grows past Node's default of ten.
+    // ScriptingService and HistoryService. Lift the cap so those accumulating subscriptions are
+    // not mistaken for a listener leak once the suite grows past Node's default of ten.
     const { ScriptingService } = await import('../scripting/scripting-service.js');
     ScriptingService.instance.setMaxListeners(0);
+    const { HistoryService } = await import('../history/history-service.js');
+    HistoryService.instance.setMaxListeners(0);
   });
 
   it('should register event functions on the backend', async () => {
@@ -189,8 +192,38 @@ describe('MainEventService', () => {
       lastModified: Date.now(),
     });
 
+    const makeResponse = (): TrufosResponse => ({
+      type: 'response',
+      id: randomUUID(),
+      headers: {},
+      metaInfo: {
+        status: 200,
+        duration: 1,
+        size: { totalSizeInBytes: 0, headersSizeInBytes: 0, bodySizeInBytes: 0 },
+      },
+    });
+
     beforeEach(async () => {
       ({ EnvironmentService } = await import('../environment/service/environment-service.js'));
+    });
+
+    it('records the request in the history', async () => {
+      const { HttpService } = await import('../network/service/http-service.js');
+      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(makeResponse());
+      const webContentsSend = vi.fn();
+      const eventService = new MainEventService();
+      eventService.window = { webContents: { send: webContentsSend } } as never;
+      const request = makeRequest();
+
+      await eventService.sendRequest(request);
+
+      const [entry] = await eventService.getHistory();
+      expect(entry).toMatchObject({ requestId: request.id, status: 200 });
+      expect(await eventService.getHistoryEntry(entry.id)).toMatchObject({ id: entry.id });
+      expect(webContentsSend).toHaveBeenCalledWith('history-changed');
+
+      await eventService.clearHistory();
+      expect(await eventService.getHistory()).toEqual([]);
     });
 
     it('does not persist or push when script does not change variables', async () => {
@@ -198,7 +231,7 @@ describe('MainEventService', () => {
       vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
 
       const { HttpService } = await import('../network/service/http-service.js');
-      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue({} as never);
+      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(makeResponse());
 
       const saveCollectionSpy = vi
         .spyOn(PersistenceService.instance, 'saveCollection')
@@ -211,7 +244,10 @@ describe('MainEventService', () => {
       await eventService.sendRequest(makeRequest());
 
       expect(saveCollectionSpy).not.toHaveBeenCalled();
-      expect(webContentsSend).not.toHaveBeenCalled();
+      expect(webContentsSend).not.toHaveBeenCalledWith(
+        'collection-variables-updated',
+        expect.anything()
+      );
     });
 
     it('passes an abort signal for keyed requests and aborts it by key', async () => {

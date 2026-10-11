@@ -37,6 +37,14 @@ ipcMain.handle(
       stream = createReadStream(filePath, streamOptions);
     } else if (input.type === 'script') {
       stream = await persistenceService.loadScript(input.request, input.source);
+    } else if (input.type === 'body') {
+      const filePath = responseBodyService.getFilePath(input.id);
+      if (filePath == null) {
+        logger.warn(`Body not found for ID: ${input.id}`);
+        setImmediate(() => sender.send('stream-end', id));
+        return id;
+      }
+      stream = createReadStream(filePath, streamOptions);
     } else if (input.type === 'request') {
       stream = await persistenceService.loadTextBodyOfRequest(input, encoding);
     } else {

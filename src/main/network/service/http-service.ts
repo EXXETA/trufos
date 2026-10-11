@@ -21,6 +21,7 @@ import { ScriptType } from 'shim/scripting';
 import { text, buffer } from 'node:stream/consumers';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { mapRequestError } from 'main/network/service/request-error';
+import { httpInterceptor } from 'main/network/service/http-interceptor';
 
 const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
@@ -75,7 +76,8 @@ export class HttpService {
   }
 
   private async doFetchAsync(request: TrufosRequest, signal?: AbortSignal) {
-    // Requests and responses are not logged as a whole as they may contain secrets.
+    // Requests and responses are not logged as a whole as they may contain secrets. The
+    // httpInterceptor records them in the request history instead.
     logger.info(`Sending ${request.method} request ${request.id}`);
 
     // resolve variables (except in body, which is resolved stream-based during send)
@@ -124,7 +126,7 @@ export class HttpService {
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
-      dispatcher: await this._dispatcherProvider(),
+      dispatcher: (await this._dispatcherProvider()).compose(httpInterceptor),
       method: request.method,
       headers: {
         ['content-type']: this.getContentType(request.body),
