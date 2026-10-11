@@ -120,6 +120,9 @@ The `e2e/` directory holds a Playwright suite that drives the real Electron app 
 preload, renderer and IPC — through the production bundles in `.vite/build/`. CI runs it on Linux
 for every pull request.
 
+- **Agents must not run the e2e suite (`yarn e2e`, `yarn e2e:ui`) or `yarn package` for it on
+  their own.** Only run them when a developer explicitly asks for it. Writing or updating specs
+  is fine; leave executing them to the developer or CI.
 - Run `yarn package` first: it produces the bundles the suite launches. If `yarn start` ran
   afterwards, the bundles are dev builds that point at the Vite dev server and the suite refuses
   to start — re-run `yarn package`. The suite also refuses outdated bundles: `yarn package`
