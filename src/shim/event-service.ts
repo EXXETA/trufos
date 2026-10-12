@@ -207,6 +207,12 @@ export interface IEventService {
   setClientCertificate(clientCertificate: ClientCertificate | null): Promise<void>;
 
   /**
+   * Rename the current collection. Its directory keeps its name.
+   * @param title The new title.
+   */
+  renameCollection(title: string): Promise<void>;
+
+  /**
    * Replace all existing environment variables with the given ones.
    * @param environmentVariables
    */
@@ -294,12 +300,12 @@ export interface IEventService {
   ): Promise<void>;
 
   /**
-   * Rename the given collection, folder, or request to the new title.
-   * This updates the title and the directory name if necessary.
+   * Rename the given folder or request to the new title. Use {@link renameCollection} for the
+   * current collection. This updates the title and the directory name if necessary.
    * @param object The object to rename.
    * @param newTitle The new title.
    */
-  rename(object: TrufosObject, newTitle: string): Promise<void>;
+  rename(object: Folder | TrufosRequest, newTitle: string): Promise<void>;
 
   /**
    * Moves a child object from one parent to another on the file system.

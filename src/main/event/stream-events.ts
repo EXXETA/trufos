@@ -39,10 +39,17 @@ ipcMain.handle(
       return id;
     }
 
+    // the renderer can't close the stream anymore once it's gone
+    const destroyStream = () => stream.destroy();
     streams.set(id, stream);
+    sender.once('destroyed', destroyStream);
     stream.on('data', (chunk) => sender.send('stream-data', id, chunk));
     stream.on('end', () => sender.send('stream-end', id, false));
     stream.on('error', (error) => sender.send('stream-error', id, error));
+    stream.on('close', () => {
+      streams.delete(id);
+      sender.off('destroyed', destroyStream);
+    });
     return id;
   }
 );

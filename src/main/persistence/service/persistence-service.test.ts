@@ -276,6 +276,34 @@ describe('PersistenceService', () => {
     expect(info.title).toBe('Same $Title$');
   });
 
+  it('rename() should keep the draft changes of a request out of its saved state', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    const draft: TrufosRequest = {
+      ...request,
+      draft: true,
+      url: { base: 'https://draft.example.com', query: [] },
+    };
+    await persistenceService.saveRequest(draft, 'draft body');
+
+    // Act
+    await persistenceService.rename(draft, 'renamed');
+
+    // Assert
+    const requestDirPath = path.join(collection.dirPath, sanitizeTitle('renamed'));
+    const infoFileName = persistenceService.getInfoFileName('request');
+    const saved = JSON.parse(await readFile(path.join(requestDirPath, infoFileName), 'utf-8'));
+    const drafted = JSON.parse(
+      await readFile(path.join(requestDirPath, DRAFT_DIR_NAME, infoFileName), 'utf-8')
+    );
+    expect(saved.title).toBe('renamed');
+    expect(saved.url.base).toBe(request.url.base);
+    expect(drafted.title).toBe('renamed');
+    expect(drafted.url.base).toBe('https://draft.example.com');
+  });
+
   it('rename() should append a number if target directory already exists', async () => {
     // Arrange
     const folderA = getExampleFolder(collection.id);
@@ -923,6 +951,30 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, request.title, DRAFT_DIR_NAME))).toBe(false);
   });
 
+  it('createCollection() should reject a directory that is not empty', async () => {
+    // Arrange
+    await writeFile(path.join(collection.dirPath, 'unrelated.txt'), 'content');
+
+    // Act & Assert
+    await expect(
+      persistenceService.createCollection(collection.dirPath, 'collection')
+    ).rejects.toThrow('Directory is not empty');
+  });
+
+  it('createCollection() should create a collection in a directory that does not exist yet', async () => {
+    // Arrange
+    const dirPath = path.join(collection.dirPath, 'new-collection');
+
+    // Act
+    const created = await persistenceService.createCollection(dirPath, 'collection');
+
+    // Assert
+    expect(created.dirPath).toBe(dirPath);
+    expect(await exists(path.join(dirPath, persistenceService.getInfoFileName('collection')))).toBe(
+      true
+    );
+  });
+
   it('delete() should delete the directory of a trufos object', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
@@ -1174,6 +1226,43 @@ describe('PersistenceService', () => {
     await expect(persistenceService.loadCollection(collection.dirPath)).rejects.toThrow(
       'Failed to load request info file'
     );
+  });
+
+  it('loadCollection() should fail if a request info file is missing request fields', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    request.title = 'incomplete';
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    const infoFilePath = path.join(
+      collection.dirPath,
+      sanitizeTitle(request.title),
+      persistenceService.getInfoFileName(request.type)
+    );
+    const { url: _url, ...incomplete } = JSON.parse(await readFile(infoFilePath, 'utf8'));
+    await writeFile(infoFilePath, JSON.stringify(incomplete));
+
+    // Act & Assert
+    await expect(persistenceService.loadCollection(collection.dirPath)).rejects.toThrow(
+      'Failed to load request info file'
+    );
+  });
+
+  it('loadCollection() should strip unknown properties from info files', async () => {
+    // Arrange
+    const infoFilePath = path.join(
+      collection.dirPath,
+      persistenceService.getInfoFileName(collection.type)
+    );
+    await persistenceService.saveCollection(collection);
+    const info = JSON.parse(await readFile(infoFilePath, 'utf8'));
+    await writeFile(infoFilePath, JSON.stringify({ ...info, unknownProperty: true }));
+
+    // Act
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+
+    // Assert
+    expect(loaded).not.toHaveProperty('unknownProperty');
   });
 
   it('reorderItem() should reorder items within same parent', async () => {

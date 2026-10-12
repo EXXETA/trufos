@@ -228,6 +228,11 @@ export class MainEventService implements IEventService {
     await persistenceService.saveCollection(environmentService.currentCollection);
   }
 
+  async renameCollection(title: string) {
+    environmentService.setCollectionTitle(title);
+    await persistenceService.saveCollection(environmentService.currentCollection);
+  }
+
   async selectEnvironment(key?: string) {
     environmentService.currentEnvironmentKey = key;
   }
@@ -297,7 +302,7 @@ export class MainEventService implements IEventService {
     return await persistenceService.reorderItem(parent, childId, newIndex);
   }
 
-  async rename(object: TrufosObject, newTitle: string): Promise<void> {
+  async rename(object: Folder | TrufosRequest, newTitle: string): Promise<void> {
     await persistenceService.rename(object, newTitle);
   }
 

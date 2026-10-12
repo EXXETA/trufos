@@ -412,6 +412,26 @@ describe('MainEventService', () => {
     });
   });
 
+  describe('renameCollection', () => {
+    it('should rename the collection held by main so later saves keep the new title', async () => {
+      const { EnvironmentService } = await import('../environment/service/environment-service.js');
+      // @ts-expect-error Collection object missing optional required fields
+      const current: Collection = { id: randomUUID(), type: 'collection', title: 'Old' };
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(current);
+      const saveSpy = vi
+        .spyOn(PersistenceService.instance, 'saveCollection')
+        .mockResolvedValue(undefined);
+      const eventService = new MainEventService();
+
+      await eventService.renameCollection('New');
+      await eventService.setCollectionVariables({});
+
+      expect(current.title).toBe('New');
+      expect(saveSpy).toHaveBeenCalledTimes(2);
+      expect(saveSpy).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'New' }));
+    });
+  });
+
   describe('openLogDirectory', () => {
     it('should open the log directory in the file manager', async () => {
       const { app, shell } = await import('electron');

@@ -90,6 +90,7 @@ export class RendererEventService implements IEventService {
   saveScript = createEventMethod('saveScript');
   downloadBody = createEventMethod('downloadBody');
   setClientCertificate = createEventMethod('setClientCertificate');
+  renameCollection = createEventMethod('renameCollection');
   getAppSettings = createEventMethod('getAppSettings');
   saveAppSettings = createEventMethod('saveAppSettings');
   openLogDirectory = createEventMethod('openLogDirectory');
