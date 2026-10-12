@@ -1,7 +1,7 @@
 import './logging/logger';
 
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
-import { EnvironmentService } from 'main/environment/service/environment-service';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { MainEventService } from 'main/event/main-event-service';
 import { MenuBuilder } from 'main/menu';
 import path from 'node:path';
@@ -34,7 +34,7 @@ process.on('unhandledRejection', showError);
 const createWindow = async () => {
   try {
     const settingsService = SettingsService.instance;
-    const environmentService = EnvironmentService.instance;
+    const collectionState = CollectionStateService.instance;
     const mainEventService = MainEventService.instance;
 
     // initialize services in correct order
@@ -51,7 +51,7 @@ const createWindow = async () => {
 
     if (!safeStorage.isEncryptionAvailable()) throw new Error('Safe storage is not available');
     await settingsService.init();
-    await environmentService.init();
+    await collectionState.init();
     mainEventService.updateApp(); // check for updates in the background
 
     // create the browser window
@@ -91,6 +91,9 @@ const createWindow = async () => {
 
         // wait for renderer to be ready to close, or give up after 30s
         await once(ipcMain, RendererEvent.ReadyToClose, { signal: AbortSignal.timeout(30_000) });
+
+        // write the changes the renderer flushed, and any still debounced, before quitting
+        await collectionState.flush();
 
         // close app
         mainWindow.close();

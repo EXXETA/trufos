@@ -19,6 +19,9 @@ import { Readable } from 'node:stream';
 import { text as readText } from 'node:stream/consumers';
 import type { RequestRecorder } from 'main/network/service/request-recorder';
 import { ScriptType } from 'shim/scripting';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
+import { normalizeCollection } from 'shim/collection-model';
+import { freeze } from 'immer';
 
 const mockAgent = new MockAgent({ connections: 1 });
 const recorder = { sent: vi.fn(), scriptLog: vi.fn() } satisfies RequestRecorder;
@@ -36,9 +39,19 @@ describe('HttpService', () => {
     vi.clearAllMocks();
     // @ts-expect-error loadScript mock returns null but type expects ReadStream | null
     vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
-    vi.spyOn(environmentService, 'currentCollection', 'get').mockReturnValue({
-      clientCertificate: null,
-    } as never);
+    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(
+      normalizeCollection({
+        id: randomUUID(),
+        type: 'collection',
+        title: 'Collection',
+        dirPath: '/collection',
+        isDefault: false,
+        lastModified: 0,
+        variables: {},
+        environments: {},
+        children: [],
+      })
+    );
   });
 
   it('fetchAsync() should make an HTTP call and return the body on read', async () => {
@@ -148,8 +161,8 @@ describe('HttpService', () => {
     const httpService = setupMockHttpService(url, null);
     const expectedAuthHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
-    // Act
-    await httpService.fetchAsync(request, recorder);
+    // Act: requests come from the model of the open collection, which is frozen
+    await httpService.fetchAsync(freeze(request, true), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();

@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import { createReadStream } from 'node:fs';
 import type { Readable } from 'node:stream';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { BodyStore } from 'main/network/service/body-store';
 import { StreamInput, StringBufferEncoding } from 'shim/ipc-stream';
 
@@ -11,6 +12,18 @@ const streams = new Map<number, Readable>();
 
 const persistenceService = PersistenceService.instance;
 const bodyStore = BodyStore.instance;
+const collectionState = CollectionStateService.instance;
+
+/**
+ * Returns the request of the open collection with the given ID, logging if there is none. Pending
+ * writes are awaited first, so the files of the request are up to date.
+ */
+async function getRequest(requestId: string) {
+  await collectionState.flush();
+  const request = collectionState.model.requests.get(requestId);
+  if (request == null) logger.warn(`Request not found for ID: ${requestId}`);
+  return request;
+}
 
 ipcMain.handle(
   'stream-open',
@@ -27,9 +40,13 @@ ipcMain.handle(
       stream = bodyStore.openBody(input.id, { encoding, end });
       if (stream == null) logger.warn(`Body not found for ID: ${input.id}`);
     } else if (input.type === 'script') {
-      stream = await persistenceService.loadScript(input.request, input.source);
-    } else if (input.type === 'request') {
-      stream = await persistenceService.loadTextBodyOfRequest(input, encoding);
+      const request = await getRequest(input.requestId);
+      if (request != null) stream = await persistenceService.loadScript(request, input.source);
+    } else if (input.type === 'request-body') {
+      const request = await getRequest(input.requestId);
+      if (request != null) {
+        stream = await persistenceService.loadTextBodyOfRequest(request, encoding);
+      }
     } else {
       logger.error('Invalid stream input of type', typeof input);
     }

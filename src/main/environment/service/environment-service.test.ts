@@ -1,12 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { freeze } from 'immer';
 import { EnvironmentService } from './environment-service';
 import { UnmatchedVariableError } from 'template-replace-stream';
-import { Collection, CollectionBase } from 'shim/objects/collection';
-import { VariableMap, VariableObject } from 'shim/objects/variables';
-import { PersistenceService } from 'main/persistence/service/persistence-service';
+import { Collection } from 'shim/objects/collection';
+import { VariableObject } from 'shim/objects/variables';
 import { randomUUID } from 'node:crypto';
 import { getSystemVariables } from './system-variable';
-import { SettingsObject, SettingsService } from 'main/persistence/service/settings-service';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
+import { CollectionModel, normalizeCollection } from 'shim/collection-model';
 import {
   AuthorizationType,
   BasicAuthorizationInformation,
@@ -19,8 +20,14 @@ const environmentService = EnvironmentService.instance;
 const environmentKey = 'test';
 const variableKey = 'var1';
 const variableValue = 'some-value';
-const collection: Partial<Collection> = {
+const collection: Collection = {
   id: randomUUID(),
+  type: 'collection',
+  title: 'Collection',
+  dirPath: '/collection',
+  isDefault: false,
+  lastModified: 0,
+  children: [],
   environments: {
     [environmentKey]: {
       variables: {
@@ -34,9 +41,15 @@ const collection: Partial<Collection> = {
 };
 
 describe('EnvironmentService', () => {
+  let model: CollectionModel;
+
   beforeEach(() => {
-    environmentService.changeCollection(structuredClone(collection as Collection));
-    environmentService.currentEnvironmentKey = environmentKey;
+    model = normalizeCollection(structuredClone(collection), [], environmentKey);
+    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockImplementation(() => model);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('currentEnvironment getter should return the currently selected environment', () => {
@@ -44,64 +57,16 @@ describe('EnvironmentService', () => {
     let currentEnvironment = environmentService.currentEnvironment;
 
     // Assert
-    // @ts-expect-error collection is Partial<Collection>, environments may be undefined
     expect(currentEnvironment).toEqual(collection.environments[environmentKey]);
 
     // Arrange
-    environmentService.currentEnvironmentKey = undefined;
+    model.selectedEnvironmentKey = undefined;
 
     // Act
     currentEnvironment = environmentService.currentEnvironment;
 
     // Assert
     expect(currentEnvironment).toBeUndefined();
-  });
-
-  it('setCollectionVariables() should override all existing collection variables', () => {
-    // Arrange
-    const newVariables: VariableMap = { newVar: { value: 'new-value' } };
-
-    // Assert
-    expect(environmentService.currentCollection.variables).toEqual(collection.variables);
-
-    // Act
-    environmentService.setCollectionVariables(newVariables);
-
-    // Assert
-    expect(environmentService.currentCollection.variables).toEqual(newVariables);
-  });
-
-  it('changeCollection() should load the new collection from PersistenceService', async () => {
-    // Arrange
-    const newCollection: Partial<Collection> = { id: randomUUID(), dirPath: '/some/path' };
-    const loadCollectionSpy = vi
-      .spyOn(PersistenceService.instance, 'loadCollection')
-      .mockResolvedValueOnce(newCollection as Collection);
-
-    // Act
-    // @ts-expect-error newCollection is Partial<Collection>, dirPath may be undefined
-    const result = await environmentService.changeCollection(newCollection.dirPath);
-
-    // Assert
-    expect(loadCollectionSpy).toHaveBeenCalledWith(newCollection.dirPath);
-    expect(result).toEqual(newCollection as Collection);
-  });
-
-  it('changeCollection() should only announce a change to another collection', async () => {
-    // Arrange
-    const first = { ...collection, dirPath: '/first' } as Collection;
-    const second = { ...collection, dirPath: '/second' } as Collection;
-    await environmentService.changeCollection(first);
-    const changed = vi.fn();
-    environmentService.on('collection-changed', changed);
-
-    // Act: reloading the current collection, then changing to another one
-    await environmentService.changeCollection(structuredClone(first));
-    await environmentService.changeCollection(second);
-
-    // Assert
-    expect(changed).toHaveBeenCalledOnce();
-    environmentService.off('collection-changed', changed);
   });
 
   it('getVariables() should return all currently available variables', () => {
@@ -113,9 +78,7 @@ describe('EnvironmentService', () => {
 
     // Assert
     expect(variables).toEqual([
-      // @ts-expect-error collection is Partial<Collection>, environments may be undefined
       ...Object.entries(collection.environments[environmentKey].variables),
-      // @ts-expect-error collection is Partial<Collection>, variables may be undefined
       ...Object.entries(collection.variables),
       ...systemVariables,
     ]);
@@ -126,9 +89,8 @@ describe('EnvironmentService', () => {
     const [key, systemVariable] = getSystemVariables()[0];
     const collectionVariable: VariableObject = { value: randomUUID() };
     const environmentVariable: VariableObject = { value: randomUUID() };
-    environmentService.currentCollection.variables[key] = collectionVariable;
-    // @ts-expect-error currentEnvironment may be undefined
-    environmentService.currentEnvironment.variables[key] = environmentVariable;
+    model.collection.variables[key] = collectionVariable;
+    environmentService.currentEnvironment!.variables[key] = environmentVariable;
 
     // Act
     let result = environmentService.getVariable(key);
@@ -137,8 +99,7 @@ describe('EnvironmentService', () => {
     expect(result).toEqual(environmentVariable);
 
     // Arrange
-    // @ts-expect-error currentEnvironment may be undefined
-    delete environmentService.currentEnvironment.variables[key];
+    delete environmentService.currentEnvironment!.variables[key];
 
     // Act
     result = environmentService.getVariable(key);
@@ -147,63 +108,13 @@ describe('EnvironmentService', () => {
     expect(result).toEqual(collectionVariable);
 
     // Arrange
-    delete environmentService.currentCollection.variables[key];
+    delete model.collection.variables[key];
 
     // Act
     result = environmentService.getVariable(key);
 
     // Assert
     expect(result).toEqual(systemVariable);
-  });
-
-  it('should load the configured collection from SettingsService', async () => {
-    // Arrange
-    const getSettingsSpy = vi.spyOn(SettingsService.instance, 'settings', 'get');
-    const collectionPath = '/path/to/collection';
-    const settings: SettingsObject = { collections: [collectionPath], currentCollectionIndex: 0 };
-    getSettingsSpy.mockReturnValueOnce(settings);
-    const loadCollectionSpy = vi
-      .spyOn(PersistenceService.instance, 'loadCollection')
-      .mockResolvedValueOnce(collection as Collection);
-
-    // Act
-    await environmentService.init();
-
-    // Assert
-    expect(getSettingsSpy).toHaveBeenCalled();
-    expect(loadCollectionSpy).toHaveBeenCalledWith(collectionPath);
-    expect(environmentService.currentCollection).toEqual(collection);
-  });
-
-  it('listCollections() should return all collections that are currently open', async () => {
-    // Arrange
-    const getSettingsSpy = vi.spyOn(SettingsService.instance, 'settings', 'get');
-    const collections: CollectionBase[] = [
-      { id: randomUUID(), dirPath: '/path/to/collection1', title: 'Collection 1' },
-      { id: randomUUID(), dirPath: '/path/to/collection2', title: 'Collection 2' },
-    ];
-    const settings: SettingsObject = {
-      collections: collections.map((collection) => collection.dirPath),
-      currentCollectionIndex: 0,
-    };
-    getSettingsSpy.mockReturnValueOnce(settings);
-    const loadCollectionSpy = vi
-      .spyOn(PersistenceService.instance, 'loadCollection')
-      .mockImplementation(async (dirPath: string) => {
-        const collection = collections.find((collection) => collection.dirPath === dirPath);
-        if (!collection) {
-          throw new Error(`Collection not found at ${dirPath}`);
-        }
-        return collection as Collection;
-      });
-
-    // Act
-    const result = await environmentService.listCollections();
-
-    // Assert
-    expect(getSettingsSpy).toHaveBeenCalled();
-    expect(loadCollectionSpy).toHaveBeenCalledTimes(settings.collections.length);
-    expect(result).toEqual(collections);
   });
 
   it('setVariablesInString() should replace all variable placeholders with their values', async () => {
@@ -227,7 +138,7 @@ describe('EnvironmentService', () => {
 
   it('getAuthorizationHeader() should return undefined for INHERIT when collection has no auth configured', async () => {
     // Arrange
-    environmentService.currentCollection.auth = undefined;
+    delete model.collection.auth;
     const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
 
     // Act
@@ -244,7 +155,7 @@ describe('EnvironmentService', () => {
       username: 'inherit-user',
       password: 'inherit-pass',
     };
-    environmentService.currentCollection.auth = collectionAuth;
+    model.collection.auth = collectionAuth;
     const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
     const expected = `Basic ${Buffer.from(`${collectionAuth.username}:${collectionAuth.password}`).toString('base64')}`;
 
@@ -257,10 +168,8 @@ describe('EnvironmentService', () => {
 
   it('getAuthorizationHeader() should substitute variables for Basic auth credentials', async () => {
     // Arrange
-    // @ts-expect-error currentEnvironment may be undefined
-    environmentService.currentEnvironment.variables.varUser = { value: 'user1' };
-    // @ts-expect-error currentEnvironment may be undefined
-    environmentService.currentEnvironment.variables.varPass = { value: 'pass1' };
+    environmentService.currentEnvironment!.variables.varUser = { value: 'user1' };
+    environmentService.currentEnvironment!.variables.varPass = { value: 'pass1' };
     const auth: BasicAuthorizationInformation = {
       type: AuthorizationType.BASIC,
       username: '{{ varUser }}',
@@ -275,10 +184,23 @@ describe('EnvironmentService', () => {
     expect(result).toBe(expected);
   });
 
+  it('getAuthorizationHeader() should not modify the frozen collection auth', async () => {
+    // Arrange
+    model.collection.auth = { type: AuthorizationType.BEARER, token: '{{ var1 }}' };
+    model = freeze(model, true);
+    const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
+
+    // Act
+    const result = await environmentService.getAuthorizationHeader(auth);
+
+    // Assert
+    expect(result).toBe(`Bearer ${variableValue}`);
+    expect(model.collection.auth).toEqual({ type: AuthorizationType.BEARER, token: '{{ var1 }}' });
+  });
+
   it('getAuthorizationHeader() should substitute variables inside Bearer token', async () => {
     // Arrange
-    // @ts-expect-error currentEnvironment may be undefined
-    environmentService.currentEnvironment.variables.varToken = { value: 'abc123' };
+    environmentService.currentEnvironment!.variables.varToken = { value: 'abc123' };
     const auth: BearerAuthorizationInformation = {
       type: AuthorizationType.BEARER,
       token: 'prefix-{{ varToken }}-suffix',

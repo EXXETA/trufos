@@ -1,69 +1,28 @@
-import { EventEmitter } from 'node:events';
 import { Readable } from 'node:stream';
 import { TemplateReplaceStream } from 'template-replace-stream';
-import { Initializable } from 'main/shared/initializable';
-import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { ClientCertificate, Collection, CollectionBase } from 'shim/objects/collection';
-import { VariableMap } from 'shim/objects/variables';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
+import { VariableObject } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
-import { SettingsService } from 'main/persistence/service/settings-service';
 import { AuthorizationInformation, AuthorizationType } from 'shim/objects';
 import { createAuthStrategy } from 'main/network/authentication/auth-strategy-factory';
 import { AuthRequestContext } from 'main/network/authentication/auth-strategy';
-import { EnvironmentMap } from 'shim/objects/environment';
+import { EnvironmentObject } from 'shim/objects/environment';
 
-const persistenceService = PersistenceService.instance;
-const settingsService = SettingsService.instance;
-
-/** Event signatures emitted by the {@link EnvironmentService}. */
-type EnvironmentServiceEvents = {
-  /** Another collection became the current one. Reloading the current one does not count. */
-  'collection-changed': [];
-};
+const collectionState = CollectionStateService.instance;
 
 /**
- * The environment service is responsible for managing the current collection and
- * the system, collection, and request variables (the ones that can be used in the
- * request body, headers, etc.).
+ * The environment service resolves the system, collection, and environment variables (the ones
+ * that can be used in the request body, headers, etc.) and the authorization of the open
+ * collection, see {@link CollectionStateService}.
  */
-export class EnvironmentService
-  extends EventEmitter<EnvironmentServiceEvents>
-  implements Initializable
-{
+export class EnvironmentService {
   public static readonly instance: EnvironmentService = new EnvironmentService();
 
-  /** The current collection that is being used. */
-  public get currentCollection() {
-    return this._currentCollection;
-  }
-
-  /** The key of the current environment in the current collection. */
-  public currentEnvironmentKey?: string;
-
   /** The currently selected environment in the current collection. */
-  public get currentEnvironment() {
-    if (this.currentEnvironmentKey == null) return;
-    return this.currentCollection.environments[this.currentEnvironmentKey];
-  }
-
-  private _currentCollection!: Collection;
-
-  /**
-   * Initializes the environment service by loading the last used collection. If that fails, the
-   * default collection is loaded instead.
-   */
-  public async init() {
-    const { settings } = settingsService;
-    await persistenceService.createDefaultCollectionIfNotExists();
-
-    const collectionDir = settings.collections[settings.currentCollectionIndex];
-    try {
-      await this.changeCollection(collectionDir);
-    } catch (e) {
-      logger.error(`Failed to load collection at ${collectionDir}:`, e);
-      logger.info('Loading default collection instead.');
-      await this.changeCollection(SettingsService.DEFAULT_COLLECTION_DIR);
-    }
+  public get currentEnvironment(): EnvironmentObject | undefined {
+    const { collection, selectedEnvironmentKey } = collectionState.model;
+    if (selectedEnvironmentKey == null) return;
+    return collection.environments[selectedEnvironmentKey];
   }
 
   /**
@@ -72,7 +31,7 @@ export class EnvironmentService
    * @param stream The stream to replace the variables in.
    * @returns The stream with the variables replaced.
    */
-  public setVariablesInStream(stream: Readable) {
+  public setVariablesInStream(stream: Readable): Readable {
     return stream.pipe(new TemplateReplaceStream(this.getVariableValue.bind(this)));
   }
 
@@ -91,116 +50,12 @@ export class EnvironmentService
   }
 
   /**
-   * Replace all variables in the current collection with the given variables.
-   * @param variables The variables of the Collection to set.
-   */
-  public setCollectionVariables(variables: VariableMap) {
-    logger.secret?.debug('Setting collection variables:', variables);
-    this.currentCollection.variables = variables;
-  }
-
-  public setEnvironmentVariables(environmentVariables: EnvironmentMap) {
-    logger.secret?.debug('Setting environment variables:', environmentVariables);
-    this.currentCollection.environments = environmentVariables;
-  }
-
-  public setClientCertificate(clientCertificate: ClientCertificate | null) {
-    this.currentCollection.clientCertificate = clientCertificate ?? undefined;
-  }
-
-  public setCollectionTitle(title: string) {
-    this.currentCollection.title = title;
-  }
-
-  /**
-   * Loads the given collection and sets it as the current collection.
-   *
-   * @param collection The collection to select or the path to the collection.
-   */
-  public async changeCollection(collection: Collection | string) {
-    const previousDirPath = this._currentCollection?.dirPath;
-
-    // load collection
-    this._currentCollection =
-      typeof collection === 'string'
-        ? await persistenceService.loadCollection(collection)
-        : collection;
-
-    // add collection to the list of open collections if it is not already there
-    const path = this.currentCollection.dirPath;
-    const settings = settingsService.modifiableSettings;
-    const collectionIndex = settings.collections.indexOf(path);
-    if (collectionIndex === -1) {
-      settings.currentCollectionIndex = settings.collections.push(path) - 1;
-    } else {
-      settings.currentCollectionIndex = collectionIndex;
-    }
-
-    // save settings and return the current collection
-    await settingsService.setSettings(settings);
-    if (path !== previousDirPath) this.emit('collection-changed');
-    return this.currentCollection;
-  }
-
-  /**
-   * Closes the collection at the specified path.
-   * @param path The path of the collection to close. If not specified, the current collection is closed.
-   */
-  public async closeCollection(path?: string) {
-    path ??= this.currentCollection.dirPath;
-    logger.info('Closing collection at', path);
-
-    // do not close the default collection
-    const settings = settingsService.modifiableSettings;
-    if (path === SettingsService.DEFAULT_COLLECTION_DIR || settings.collections.length <= 1) {
-      logger.warn('Cannot close the default collection.');
-      return this.currentCollection;
-    }
-
-    // change the current collection if the collection to close is the current one
-    if (path === this.currentCollection.dirPath) {
-      await this.changeCollection(SettingsService.DEFAULT_COLLECTION_DIR);
-    }
-
-    // remove the collection from the list of open collections
-    settings.collections = settings.collections.filter((collectionPath) => collectionPath !== path);
-    await settingsService.setSettings(settings);
-
-    // return the current collection (after closing the specified collection)
-    return this.currentCollection;
-  }
-
-  /**
-   * Lists all collections that are currently open. This includes the default collection.
-   * Closes any collections that fail to load.
-   */
-  public async listCollections() {
-    const collections: CollectionBase[] = [];
-
-    for (const dirPath of settingsService.settings.collections) {
-      try {
-        const collection = await persistenceService.loadCollection(dirPath, false);
-        collections.push({
-          id: collection.id,
-          title: collection.title,
-          dirPath,
-        });
-      } catch (e) {
-        logger.error(`Failed to load collection at ${dirPath}:`, e);
-        await this.closeCollection(dirPath).catch(logger.error);
-      }
-    }
-
-    return collections;
-  }
-
-  /**
    * Returns all variables for the current state (e.g. collection variables). This also includes
    * system variables.
    */
-  public getVariables() {
+  public getVariables(): [string, VariableObject][] {
     return Object.entries(this.currentEnvironment?.variables ?? {})
-      .concat(Object.entries(this.currentCollection.variables))
+      .concat(Object.entries(collectionState.model.collection.variables))
       .concat(getSystemVariables());
   }
 
@@ -213,10 +68,10 @@ export class EnvironmentService
    * @param key The key of the variable.
    * @returns The value of the variable if it exists, otherwise undefined.
    */
-  public getVariable(key: string) {
+  public getVariable(key: string): VariableObject {
     return (
       this.currentEnvironment?.variables[key] ??
-      this.currentCollection.variables[key] ??
+      collectionState.model.collection.variables[key] ??
       getSystemVariable(key)
     );
   }
@@ -260,11 +115,11 @@ export class EnvironmentService
     if (auth == null) {
       return;
     } else if (auth.type === AuthorizationType.INHERIT) {
-      return this.getAuthorizationHeader(this.currentCollection.auth, context);
+      return this.getAuthorizationHeader(collectionState.model.collection.auth, context);
     } else {
-      return await createAuthStrategy(await this.setVariablesRecursive(auth)).getAuthHeader(
-        context
-      );
+      // the auth comes from the model, which is frozen, so the variables are set on a copy
+      const resolved = await this.setVariablesRecursive(structuredClone(auth));
+      return await createAuthStrategy(resolved).getAuthHeader(context);
     }
   }
 }

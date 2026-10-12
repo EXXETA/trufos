@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
@@ -46,7 +47,7 @@ export class HttpService {
   }
 
   private async buildDefaultDispatcher(): Promise<Dispatcher> {
-    const cert = environmentService.currentCollection.clientCertificate;
+    const cert = CollectionStateService.instance.model.collection.clientCertificate;
     if (cert == null) {
       return new Agent({ connect: { rejectUnauthorized: false } }); // allow self-signed certificates
     }
@@ -288,7 +289,7 @@ export class HttpService {
     const stream = await persistenceService.loadScript(request, type);
     if (stream != null) {
       const script = await text(stream);
-      scriptingService.executeScript(script, type, log);
+      await scriptingService.executeScript(script, type, log);
     }
   }
 }

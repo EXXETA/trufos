@@ -72,20 +72,23 @@ describe('ZIP export round-trip', () => {
 
     await fs.mkdir(collection.dirPath, { recursive: true });
     await persistenceService.saveCollection(collection, true);
-    await persistenceService.saveRequest(folderRequest, '{"hello":"world"}');
+    await persistenceService.saveRequestInfo(folderRequest);
+    await persistenceService.writeTextBody(folderRequest, '{"hello":"world"}');
     await persistenceService.saveScript(folderRequest, ScriptType.PRE_REQUEST, 'pre();');
     await persistenceService.saveScript(folderRequest, ScriptType.POST_RESPONSE, 'post();');
-    await persistenceService.reorderItem(collection, rootRequest.id, 0); // custom order
+    await persistenceService.saveOrder(collection.id, [
+      rootRequest.id,
+      ...collection.children.map((child) => child.id).filter((id) => id !== rootRequest.id),
+    ]); // custom order
 
     // capture the canonical saved model BEFORE adding a draft overlay: loadCollection() merges
     // drafts into the model, while the export is saved-only by design
     const source = await persistenceService.loadCollection(collection.dirPath);
 
     // a draft overlay that must not survive the round trip
-    await persistenceService.saveRequest(
-      { ...rootRequest, draft: true, title: 'draft title' },
-      'draft body'
-    );
+    const draft = { ...rootRequest, draft: true, title: 'draft title' };
+    await persistenceService.saveRequestInfo(draft);
+    await persistenceService.writeTextBody(draft, 'draft body');
 
     // Act: export -> unzip -> load
     const targetPath = path.join(

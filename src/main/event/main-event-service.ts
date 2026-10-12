@@ -2,14 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
 import type {
-  Collection,
-  TrufosObject,
-  Folder,
-  TrufosRequest,
   TrufosResponse,
-  VariableMap,
-  EnvironmentMap,
-  ScriptType,
   IEventService,
   ImportStrategy,
   ExportStrategy,
@@ -17,13 +10,13 @@ import type {
   AppSettings,
 } from 'shim';
 import { MainProcessEvent } from 'shim/event-service';
+import type { CollectionModel } from 'shim/collection-model';
+import type { CollectionBase } from 'shim/objects/collection';
 import { sendToRenderer } from './send-to-renderer';
-import type { ClientCertificate } from 'shim/objects/collection';
 import { SettingsService } from '../persistence/service/settings-service';
-import { PersistenceService } from '../persistence/service/persistence-service';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { ImportService } from 'main/import/service/import-service';
 import { ExportService } from 'main/export/service/export-service';
-import { ScriptingService } from 'main/scripting/scripting-service';
 import { BodyStore } from 'main/network/service/body-store';
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
@@ -35,7 +28,7 @@ import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 // register stream events
 import './stream-events';
 
-const persistenceService = PersistenceService.instance;
+const collectionState = CollectionStateService.instance;
 const environmentService = EnvironmentService.instance;
 const importService = ImportService.instance;
 const exportService = ExportService.instance;
@@ -106,49 +99,46 @@ export class MainEventService implements IEventService {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
       registerEvent(this, propertyName as keyof MainEventService);
     }
-    ScriptingService.instance.on('variables-changed', () => {
-      const { variables, environments } = environmentService.currentCollection;
-      void persistenceService
-        .saveCollection(environmentService.currentCollection)
-        .then(() =>
-          sendToRenderer(this.window?.webContents, MainProcessEvent.CollectionVariablesUpdated, {
-            variables,
-            environments,
-          })
-        )
-        .catch((err) => logger.error('Failed to persist variable changes', err));
-    });
+    // the renderer replicates the open collection from these events
+    collectionState.on('changed', (event) =>
+      sendToRenderer(this.window?.webContents, MainProcessEvent.CollectionStateChanged, event)
+    );
     // the renderer shows the history of the current collection
     const pushHistory = () =>
       sendToRenderer(
         this.window?.webContents,
         MainProcessEvent.HistoryChanged,
-        HistoryService.instance.list(environmentService.currentCollection.dirPath)
+        HistoryService.instance.list(collectionState.model.collection.dirPath)
       );
     HistoryService.instance.on('changed', pushHistory);
-    environmentService.on('collection-changed', pushHistory);
+    collectionState.on('collection-changed', pushHistory);
     logger.debug('Registered event channels on backend');
   }
 
-  async loadCollection(force?: boolean) {
-    if (force) {
-      return await environmentService.changeCollection(
-        environmentService.currentCollection.dirPath
-      );
-    }
-    return environmentService.currentCollection;
+  async getCollectionState(): Promise<CollectionModel> {
+    return collectionState.model;
   }
 
-  async listCollections() {
-    return await environmentService.listCollections();
+  async dispatch(envelope: unknown): Promise<void> {
+    await collectionState.dispatch(envelope);
   }
 
-  async sendRequest(request: TrufosRequest, abortKey?: string): Promise<TrufosResponse | null> {
+  async listCollections(): Promise<CollectionBase[]> {
+    return await collectionState.listCollections();
+  }
+
+  async sendRequest(requestId: string, abortKey?: string): Promise<TrufosResponse | null> {
+    // the request is sent as it is on disk, including its body and scripts
+    await collectionState.flush();
+    const { model } = collectionState;
+    const request = model.requests.get(requestId);
+    if (request == null) throw new Error(`Request ${requestId} does not exist`);
+
     // only a request sent with an abort key can be aborted, see abortRequest()
     const abortController = new AbortController();
     if (abortKey != null) this.abortControllers.set(abortKey, abortController);
 
-    const { dirPath } = environmentService.currentCollection;
+    const { dirPath } = model.collection;
     const response = await HistoryService.instance.record(request, dirPath, async (recorder) => {
       try {
         return await HttpService.instance.fetchAsync(request, recorder, abortController.signal);
@@ -173,32 +163,8 @@ export class MainEventService implements IEventService {
     this.abortControllers.delete(abortKey);
   }
 
-  async saveRequest(request: TrufosRequest, textBody?: string) {
-    return await persistenceService.saveRequest(request, textBody);
-  }
-
-  async saveScript(request: TrufosRequest, type: ScriptType, script: string) {
-    return await persistenceService.saveScript(request, type, script);
-  }
-
-  async copyRequest(request: TrufosRequest): Promise<TrufosRequest> {
-    return await persistenceService.copyRequest(request);
-  }
-
-  async saveChanges(request: TrufosRequest) {
-    return await persistenceService.saveChanges(request);
-  }
-
-  async discardChanges(request: TrufosRequest) {
-    return await persistenceService.discardChanges(request);
-  }
-
   async getAppVersion() {
     return app.getVersion();
-  }
-
-  async deleteObject(object: TrufosObject) {
-    await persistenceService.delete(object);
   }
 
   async getActiveEnvironmentVariables() {
@@ -213,50 +179,16 @@ export class MainEventService implements IEventService {
     return await environmentService.setVariablesInString(string, true).catch(() => null);
   }
 
-  async setCollectionVariables(variables: VariableMap) {
-    environmentService.setCollectionVariables(variables);
-    await persistenceService.saveCollection(environmentService.currentCollection);
+  async openCollection(dirPath: string): Promise<void> {
+    await collectionState.load(dirPath);
   }
 
-  async setEnvironmentVariables(environmentVariables: EnvironmentMap) {
-    environmentService.setEnvironmentVariables(environmentVariables);
-    await persistenceService.saveCollection(environmentService.currentCollection);
+  async createCollection(dirPath: string, title: string): Promise<void> {
+    await collectionState.createCollection(dirPath, title);
   }
 
-  async setClientCertificate(clientCertificate: ClientCertificate | null) {
-    environmentService.setClientCertificate(clientCertificate);
-    await persistenceService.saveCollection(environmentService.currentCollection);
-  }
-
-  async renameCollection(title: string) {
-    environmentService.setCollectionTitle(title);
-    await persistenceService.saveCollection(environmentService.currentCollection);
-  }
-
-  async selectEnvironment(key?: string) {
-    environmentService.currentEnvironmentKey = key;
-  }
-
-  async saveFolder(folder: Folder) {
-    await persistenceService.saveFolder(folder);
-  }
-
-  async copyFolder(folder: Folder): Promise<Folder> {
-    return await persistenceService.copyFolder(folder);
-  }
-
-  async openCollection(dirPath: string) {
-    return await environmentService.changeCollection(dirPath);
-  }
-
-  async createCollection(dirPath: string, title: string) {
-    return await environmentService.changeCollection(
-      await persistenceService.createCollection(dirPath, title)
-    );
-  }
-
-  async closeCollection(dirPath?: string) {
-    return await environmentService.closeCollection(dirPath);
+  async closeCollection(dirPath?: string): Promise<void> {
+    await collectionState.closeCollection(dirPath);
   }
 
   async showOpenDialog(options: Electron.OpenDialogOptions) {
@@ -283,27 +215,6 @@ export class MainEventService implements IEventService {
     options?: ExportOptions
   ) {
     await exportService.exportCollection(dirPath, targetPath, strategy, options);
-  }
-
-  async moveItem(
-    child: Folder | TrufosRequest,
-    oldParent: Folder | Collection,
-    newParent: Folder | Collection,
-    position?: number
-  ) {
-    await persistenceService.moveChild(child, oldParent, newParent, position);
-  }
-
-  async reorderItem<T extends Folder | Collection>(
-    parent: T,
-    childId: string,
-    newIndex: number
-  ): Promise<T> {
-    return await persistenceService.reorderItem(parent, childId, newIndex);
-  }
-
-  async rename(object: Folder | TrufosRequest, newTitle: string): Promise<void> {
-    await persistenceService.rename(object, newTitle);
   }
 
   async downloadBody(bodyId: string): Promise<string | null> {
@@ -334,7 +245,7 @@ export class MainEventService implements IEventService {
   }
 
   async getHistory(): Promise<HistoryEntrySummary[]> {
-    return HistoryService.instance.list(environmentService.currentCollection.dirPath);
+    return HistoryService.instance.list(collectionState.model.collection.dirPath);
   }
 
   async getHistoryEntry(id: string): Promise<HistoryEntry | undefined> {
@@ -342,7 +253,7 @@ export class MainEventService implements IEventService {
   }
 
   async clearHistory(): Promise<void> {
-    HistoryService.instance.clear(environmentService.currentCollection.dirPath);
+    HistoryService.instance.clear(collectionState.model.collection.dirPath);
   }
 
   async openLogDirectory(): Promise<void> {

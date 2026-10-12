@@ -88,10 +88,14 @@ describe('PersistenceService.walkCollection()', () => {
     collection.children.push(folder, rootRequest);
 
     await persistenceService.saveCollection(collection, true);
-    await persistenceService.saveRequest(folderRequest, 'hello body');
+    await persistenceService.saveRequestInfo(folderRequest);
+    await persistenceService.writeTextBody(folderRequest, 'hello body');
     await persistenceService.saveScript(folderRequest, ScriptType.PRE_REQUEST, 'console.log(1)');
     // move the root request before the folder to create a custom order
-    await persistenceService.reorderItem(collection, rootRequest.id, 0);
+    await persistenceService.saveOrder(collection.id, [
+      rootRequest.id,
+      ...collection.children.map((child) => child.id).filter((id) => id !== rootRequest.id),
+    ]);
 
     // Act
     const snapshot = await persistenceService.walkCollection(collection.dirPath);
@@ -151,11 +155,11 @@ describe('PersistenceService.walkCollection()', () => {
     const request = getExampleRequest(collection.id, 'saved title');
     collection.children.push(request);
     await persistenceService.saveCollection(collection, true);
-    await persistenceService.saveRequest(request, 'saved body');
-    await persistenceService.saveRequest(
-      { ...request, draft: true, title: 'draft title' },
-      'draft body'
-    );
+    await persistenceService.saveRequestInfo(request);
+    await persistenceService.writeTextBody(request, 'saved body');
+    const draft = { ...request, draft: true, title: 'draft title' };
+    await persistenceService.saveRequestInfo(draft);
+    await persistenceService.writeTextBody(draft, 'draft body');
 
     // Act
     const snapshot = await persistenceService.walkCollection(collection.dirPath);
@@ -176,7 +180,8 @@ describe('PersistenceService.walkCollection()', () => {
       ...getExampleRequest(collection.id, 'draft only'),
       draft: true,
     };
-    await persistenceService.saveRequest(draftOnly, 'never committed');
+    await persistenceService.saveRequestInfo(draftOnly);
+    await persistenceService.writeTextBody(draftOnly, 'never committed');
 
     // Act
     const snapshot = await persistenceService.walkCollection(collection.dirPath);

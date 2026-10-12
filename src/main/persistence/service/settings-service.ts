@@ -59,7 +59,7 @@ const MIGRATORS = {
 
 /**
  * A service that handles the global settings of the application. These settings are not specific to
- * a collection. For that, see {@link EnvironmentService} which has the currently opened collection.
+ * a collection. For that, see {@link CollectionStateService} which has the currently opened collection.
  */
 export class SettingsService implements Initializable {
   public static readonly DEFAULT_COLLECTION_DIR = path.join(USER_DATA_DIR, 'default-collection');

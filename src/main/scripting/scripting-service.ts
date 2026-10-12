@@ -1,49 +1,54 @@
 import { app } from 'electron';
-import { EnvironmentService } from 'main/environment/service/environment-service';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { createContext, Script } from 'node:vm';
 import { ScriptConsole, ScriptingContext, ScriptType, VariableMap, VariableObject } from 'shim';
+import { EnvironmentMap } from 'shim/objects/environment';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
-import { EventEmitter } from 'node:events';
 import type { ScriptLogger } from 'main/network/service/request-recorder';
 import { ScriptLog } from 'shim/history';
 
-const environmentService = EnvironmentService.instance;
+const collectionState = CollectionStateService.instance;
 
 const SCRIPT_TIMEOUT_SECONDS = 5;
 
-/** Event signatures emitted by the {@link ScriptingService}. */
-type ScriptingServiceEvents = {
-  'variables-changed': [];
-};
+/**
+ * The variables a script works on. It is a mutable copy of the variables of the open collection,
+ * so reads within a script see its own writes.
+ */
+interface ScriptVariables {
+  variables: VariableMap;
+  environments: EnvironmentMap;
+  selectedEnvironmentKey?: string;
+  variablesChanged: boolean;
+  environmentsChanged: boolean;
+}
 
 /**
  * Service for executing user-provided scripts in an isolated VM context.
  * Scripts run in a Node.js vm context with access to the scripting API.
  */
-export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
+export class ScriptingService {
   public static _instance: ScriptingService | null = null;
-  private _variablesChanged = false;
 
-  private createApi(script: ScriptType, log: ScriptLogger) {
-    // Arrow functions so the API methods keep this service as their `this`.
+  private createApi(script: ScriptType, log: ScriptLogger, state: ScriptVariables) {
     return Object.freeze<ScriptingContext>({
       console: ScriptingService.createConsole(script, log),
 
-      trufos: {
+      trufos: Object.freeze({
         version: app.getVersion(),
 
         getCollectionVariable: (name: string) => {
-          return ScriptingService.getVariable(environmentService.currentCollection.variables, name);
+          return ScriptingService.getVariable(state.variables, name);
         },
 
         setCollectionVariable: (name: string, value: string | VariableObject) => {
-          ScriptingService.setVariable(environmentService.currentCollection.variables, name, value);
-          this._variablesChanged = true;
+          ScriptingService.setVariable(state.variables, name, value);
+          state.variablesChanged = true;
         },
 
         getEnvironmentVariable: (name: string, environment?: string) => {
-          const variables = ScriptingService.getEnvironmentVariables(environment);
-          return ScriptingService.getVariable(variables, name);
+          const variables = ScriptingService.getEnvironmentVariables(state, environment);
+          return ScriptingService.getVariable(variables ?? {}, name);
         },
 
         setEnvironmentVariable: (
@@ -51,11 +56,12 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
           value: string | VariableObject,
           environment?: string
         ) => {
-          const variables = ScriptingService.getEnvironmentVariables(environment);
-          ScriptingService.setVariable(variables, name, value);
-          this._variablesChanged = true;
+          const variables = ScriptingService.getEnvironmentVariables(state, environment);
+          // like reading, writing to an environment that does not exist has no effect
+          ScriptingService.setVariable(variables ?? {}, name, value);
+          if (variables != null) state.environmentsChanged = true;
         },
-      },
+      }),
     });
   }
 
@@ -77,7 +83,7 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
     });
   }
 
-  public static get instance() {
+  public static get instance(): ScriptingService {
     if (!ScriptingService._instance) {
       ScriptingService._instance = new ScriptingService();
     }
@@ -94,21 +100,19 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
     map[name] = { ...(map[name] ?? {}), ...value };
   }
 
-  private static getEnvironmentVariables(name?: string) {
-    const environment =
-      name == null
-        ? environmentService.currentEnvironment
-        : environmentService.currentCollection.environments[name];
-    return environment?.variables ?? {};
+  private static getEnvironmentVariables(state: ScriptVariables, name?: string) {
+    name ??= state.selectedEnvironmentKey;
+    return name == null ? undefined : state.environments[name]?.variables;
   }
 
   /**
-   * Executes a user script.
+   * Executes a user script. Variables the script changes are applied to the open collection
+   * afterwards.
    * @param code the source code of the script
    * @param type the type of the script, used to label its console output
    * @param log receives the console output and errors of the script
    */
-  public executeScript(code: string, type: ScriptType, log: ScriptLogger): void {
+  public async executeScript(code: string, type: ScriptType, log: ScriptLogger): Promise<void> {
     let script: Script;
     try {
       const now = getSteadyTimestamp();
@@ -119,9 +123,20 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
       log({ script: type, level: 'error', args: [err] });
       return;
     }
-    this._variablesChanged = false;
+
+    // the model is frozen, so the script works on a copy
+    const { collection, selectedEnvironmentKey } = collectionState.model;
+    const state: ScriptVariables = {
+      ...structuredClone({
+        variables: collection.variables,
+        environments: collection.environments,
+      }),
+      selectedEnvironmentKey,
+      variablesChanged: false,
+      environmentsChanged: false,
+    };
     try {
-      const context = createContext(this.createApi(type, log), {
+      const context = createContext(this.createApi(type, log, state), {
         name: 'Trufos Scripting Context',
       });
       const now = getSteadyTimestamp();
@@ -131,8 +146,17 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
       logger.info(`Script execution failed with ${errorName(err)}`);
       log({ script: type, level: 'error', args: [err] });
     }
-    if (this._variablesChanged) {
-      this.emit('variables-changed');
+
+    try {
+      if (state.variablesChanged) {
+        await collectionState.apply({ type: 'setVariables', variables: state.variables });
+      }
+      if (state.environmentsChanged) {
+        await collectionState.apply({ type: 'setEnvironments', environments: state.environments });
+      }
+    } catch (err) {
+      logger.error('Failed to apply the variables changed by a script:', err);
+      log({ script: type, level: 'error', args: [err] });
     }
   }
 }

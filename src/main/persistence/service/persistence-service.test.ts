@@ -9,11 +9,18 @@ import { RequestBodyType, TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/object
 import { RequestMethod } from 'shim/objects/request-method';
 import { VariableMap, VariableObject } from 'shim/objects/variables';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { freeze } from 'immer';
 import { generateDefaultCollection } from './default-collection';
 import { sanitizeTitle } from 'shim/string';
 import { CollectionInfoFile, RequestInfoFile, GIT_IGNORE_FILE_NAME } from './info-files/latest';
 import { PersistenceService } from './persistence-service';
-import { DRAFT_DIR_NAME, ORDER_FILE_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
+import {
+  DRAFT_DIR_NAME,
+  getScriptFileName,
+  ORDER_FILE_NAME,
+  SECRETS_FILE_NAME,
+} from 'main/persistence/constants';
+import { ScriptType } from 'shim/scripting';
 
 const persistenceService = PersistenceService.instance;
 
@@ -140,57 +147,6 @@ describe('PersistenceService', () => {
     expect(saveCollectionSpy).toHaveBeenCalledWith(defaultCollection, true);
   });
 
-  it('moveChild() should move the directory from the old parent to the new parent', async () => {
-    // Arrange
-    const folder = getExampleFolder(collection.id);
-    collection.children.push(folder);
-    const request = getExampleRequest(folder.id);
-    folder.children.push(request);
-
-    await persistenceService.saveCollection(collection, true);
-
-    // Assert
-    expect(await exists(path.join(collection.dirPath, folder.title))).toBe(true);
-    expect(await exists(path.join(collection.dirPath, folder.title, request.title))).toBe(true);
-
-    // Act
-    await persistenceService.moveChild(request, folder, collection);
-
-    // Assert
-    expect(await exists(path.join(collection.dirPath, request.title))).toBe(true);
-    expect(await exists(path.join(collection.dirPath, folder.title, request.title))).toBe(false);
-  });
-
-  it('moveChild() should not move onto a sibling directory with the same name', async () => {
-    // Arrange: the folder already holds a request whose directory name the moved request would get
-    const folder = getExampleFolder(collection.id);
-    const request = getExampleRequest(collection.id);
-    const sibling = getExampleRequest(folder.id);
-    collection.children.push(folder, request);
-    folder.children.push(sibling);
-    await persistenceService.saveCollection(collection, true);
-
-    // Act
-    await persistenceService.moveChild(request, collection, folder);
-
-    // Assert: both requests exist side by side, the moved one with a suffixed directory name
-    const folderDirPath = path.join(collection.dirPath, folder.title);
-    expect(await exists(path.join(folderDirPath, sibling.title))).toBe(true);
-    expect(await exists(path.join(folderDirPath, `${request.title}-2`))).toBe(true);
-
-    // Assert: the request stays saveable at its new location
-    await persistenceService.saveRequest(request);
-    expect(
-      await exists(
-        path.join(
-          folderDirPath,
-          `${request.title}-2`,
-          persistenceService.getInfoFileName('request')
-        )
-      )
-    ).toBe(true);
-  });
-
   it('rename() should rename the directory of a folder', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
@@ -203,10 +159,11 @@ describe('PersistenceService', () => {
     expect(await exists(oldDirPath)).toBe(true);
 
     // Act
-    await persistenceService.rename(folder, randomUUID());
+    const title = randomUUID();
+    await persistenceService.rename(freeze(folder, true), title);
 
     // Assert
-    const newDirPath = path.join(collection.dirPath, folder.title);
+    const newDirPath = path.join(collection.dirPath, title);
     expect(await exists(newDirPath)).toBe(true);
     expect(await exists(oldDirPath)).toBe(false);
   });
@@ -276,34 +233,6 @@ describe('PersistenceService', () => {
     expect(info.title).toBe('Same $Title$');
   });
 
-  it('rename() should keep the draft changes of a request out of its saved state', async () => {
-    // Arrange
-    const request = getExampleRequest(collection.id);
-    collection.children.push(request);
-    await persistenceService.saveCollection(collection, true);
-    const draft: TrufosRequest = {
-      ...request,
-      draft: true,
-      url: { base: 'https://draft.example.com', query: [] },
-    };
-    await persistenceService.saveRequest(draft, 'draft body');
-
-    // Act
-    await persistenceService.rename(draft, 'renamed');
-
-    // Assert
-    const requestDirPath = path.join(collection.dirPath, sanitizeTitle('renamed'));
-    const infoFileName = persistenceService.getInfoFileName('request');
-    const saved = JSON.parse(await readFile(path.join(requestDirPath, infoFileName), 'utf-8'));
-    const drafted = JSON.parse(
-      await readFile(path.join(requestDirPath, DRAFT_DIR_NAME, infoFileName), 'utf-8')
-    );
-    expect(saved.title).toBe('renamed');
-    expect(saved.url.base).toBe(request.url.base);
-    expect(drafted.title).toBe('renamed');
-    expect(drafted.url.base).toBe('https://draft.example.com');
-  });
-
   it('rename() should append a number if target directory already exists', async () => {
     // Arrange
     const folderA = getExampleFolder(collection.id);
@@ -319,71 +248,6 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(await exists(expectedDirPath)).toBe(true);
-  });
-
-  it('saveRequest() should prefer the given text body over an inline one', async () => {
-    // Arrange: a collection imported by an older version has its body inline and no body file
-    const request = getExampleRequest(collection.id);
-    request.body = { type: RequestBodyType.TEXT, mimeType: 'application/json', text: 'inline' };
-    collection.children.push(request);
-    await persistenceService.saveCollection(collection);
-
-    // Act: the editor saves the text that the user actually typed
-    await persistenceService.saveRequest(request, 'edited');
-
-    // Assert
-    const dirPath = path.join(collection.dirPath, request.title);
-    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('edited');
-    // saving reads the request, it does not rewrite it — the caller keeps the object it passed
-    expect(request.body).toEqual({
-      type: RequestBodyType.TEXT,
-      mimeType: 'application/json',
-      text: 'inline',
-    });
-    // the info file never repeats the text: the outdated inline body cannot resurrect from disk
-    const info = JSON.parse(
-      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
-    ) as RequestInfoFile;
-    expect(info.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
-  });
-
-  it('saveRequest() should save the metadata of the request', async () => {
-    // Arrange
-    const request = getExampleRequest(collection.id);
-    collection.children.push(request);
-
-    await persistenceService.saveCollection(collection, true);
-    const oldInfo = JSON.parse(
-      await readFile(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        ),
-        'utf-8'
-      )
-    ) as RequestInfoFile;
-    request.method = RequestMethod.PUT;
-
-    // Assert
-    expect(oldInfo.method).not.toBe(request.method);
-
-    // Act
-    await persistenceService.saveRequest(request);
-
-    // Assert
-    const newInfo = JSON.parse(
-      await readFile(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        ),
-        'utf-8'
-      )
-    ) as RequestInfoFile;
-    expect(newInfo.method).toBe(request.method);
-    expect(newInfo).not.toEqual(oldInfo);
   });
 
   it('saveCollection() should save the metadata of the collection', async () => {
@@ -532,72 +396,6 @@ describe('PersistenceService', () => {
     expect(await exists(gitignorePath)).toBe(false);
   });
 
-  it('saveRequest() should find an unused directory name', async () => {
-    // Arrange requests
-    const firstRequest = { ...getExampleRequest(collection.id), title: 'A B' };
-    const secondRequest = { ...getExampleRequest(collection.id), title: 'A-B' };
-    const thirdRequest = { ...getExampleRequest(collection.id), title: 'a b' };
-    const expectedFirstDirPath = path.join(collection.dirPath, 'a-b');
-    const expectedSecondDirPath = path.join(collection.dirPath, 'a-b-2');
-    const expectedThirdDirPath = path.join(collection.dirPath, 'a-b-3');
-
-    expect(await exists(expectedFirstDirPath)).toBe(false);
-    expect(await exists(expectedSecondDirPath)).toBe(false);
-    expect(await exists(expectedThirdDirPath)).toBe(false);
-
-    await persistenceService.saveCollection(collection, true);
-
-    // Act
-    collection.children.push(firstRequest);
-    await persistenceService.saveRequest(firstRequest);
-
-    // Assert
-    expect(await exists(expectedFirstDirPath)).toBe(true);
-    expect(await exists(expectedSecondDirPath)).toBe(false);
-    expect(await exists(expectedThirdDirPath)).toBe(false);
-
-    // Act
-    collection.children.push(secondRequest);
-    await persistenceService.saveRequest(secondRequest);
-
-    // Assert
-    expect(await exists(expectedFirstDirPath)).toBe(true);
-    expect(await exists(expectedSecondDirPath)).toBe(true);
-    expect(await exists(expectedThirdDirPath)).toBe(false);
-
-    // Act
-    collection.children.push(thirdRequest);
-    await persistenceService.saveRequest(thirdRequest);
-
-    // Assert
-    expect(await exists(expectedFirstDirPath)).toBe(true);
-    expect(await exists(expectedSecondDirPath)).toBe(true);
-    expect(await exists(expectedThirdDirPath)).toBe(true);
-  });
-
-  it('saveRequest() should shorten directory names of very long titles', async () => {
-    // Arrange: titles as long as e.g. an OpenAPI operation summary containing the whole endpoint
-    // documentation. Both share a prefix, so their shortened directory names collide.
-    const longTitle = `Takes native app file from request and creates new appstore application. ${'x'.repeat(300)}`;
-    const firstRequest = { ...getExampleRequest(collection.id), title: longTitle };
-    const secondRequest = { ...getExampleRequest(collection.id), title: longTitle };
-    await persistenceService.saveCollection(collection, true);
-
-    // Act
-    collection.children.push(firstRequest, secondRequest);
-    await persistenceService.saveRequest(firstRequest);
-    await persistenceService.saveRequest(secondRequest);
-
-    // Assert
-    const dirNames = (await fs.readdir(collection.dirPath, { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
-    expect(dirNames).toHaveLength(2);
-    for (const dirName of dirNames) {
-      expect(Buffer.byteLength(dirName)).toBeLessThanOrEqual(255);
-    }
-  });
-
   it('saveFolder() should save the metadata of the folder', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
@@ -619,118 +417,6 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(await exists(folderInfoFilePath)).toBe(true);
-  });
-
-  it('copyFolder() should copy the folder and its children recursively', async () => {
-    // Arrange
-    const folder = getExampleFolderWithChildren(collection.id);
-    const copiedFolderTitle = `${folder.title}-copy`;
-    collection.children.push(folder);
-
-    const folderInfoFilePath = path.join(
-      collection.dirPath,
-      copiedFolderTitle,
-      persistenceService.getInfoFileName(folder.type)
-    );
-    const childRequestFilePath = path.join(
-      collection.dirPath,
-      copiedFolderTitle,
-      folder.children[1].title,
-      persistenceService.getInfoFileName('request')
-    );
-    const childFolderInfoFilePath = path.join(
-      collection.dirPath,
-      copiedFolderTitle,
-      folder.children[0].title,
-      persistenceService.getInfoFileName('folder')
-    );
-    const childFolderRequestInfoFilePath = path.join(
-      collection.dirPath,
-      copiedFolderTitle,
-      folder.children[0].title,
-      (folder.children[0] as Folder).children[0].title,
-      persistenceService.getInfoFileName('request')
-    );
-
-    await persistenceService.saveCollection(collection, true);
-
-    // Assert
-    expect(await exists(folderInfoFilePath)).toBe(false);
-    expect(await exists(childRequestFilePath)).toBe(false);
-    expect(await exists(childFolderInfoFilePath)).toBe(false);
-    expect(await exists(childFolderRequestInfoFilePath)).toBe(false);
-
-    // Act
-    const copiedFolder = await persistenceService.copyFolder(folder);
-
-    // Assert
-    expect(copiedFolder.title).toBe(`${folder.title} (Copy)`);
-    expect(copiedFolder.id).not.toBe(folder.id);
-    expect(copiedFolder.parentId).toBe(collection.id);
-
-    expect(await exists(folderInfoFilePath)).toBe(true);
-    expect(await exists(childRequestFilePath)).toBe(true);
-    expect(await exists(childFolderInfoFilePath)).toBe(true);
-    expect(await exists(childFolderRequestInfoFilePath)).toBe(true);
-  });
-
-  it('copyRequest() should copy the request and its text body', async () => {
-    // Arrange
-    const textBody = 'example request body';
-    const request = getExampleRequest(collection.id);
-    const copiedRequestTitle = `${request.title}-copy`;
-
-    collection.children.push(request);
-
-    const requestInfoFilePath = path.join(
-      collection.dirPath,
-      request.title,
-      persistenceService.getInfoFileName(request.type)
-    );
-    const copiedRequestInfoFilePath = path.join(
-      collection.dirPath,
-      copiedRequestTitle,
-      persistenceService.getInfoFileName(request.type)
-    );
-    const requestTextBodyFilePath = path.join(
-      collection.dirPath,
-      request.title,
-      TEXT_BODY_FILE_NAME
-    );
-    const copiedRequestTextBodyFilePath = path.join(
-      collection.dirPath,
-      copiedRequestTitle,
-      TEXT_BODY_FILE_NAME
-    );
-
-    await persistenceService.saveCollection(collection, true);
-    await persistenceService.saveRequest(request, textBody);
-
-    // Assert
-    expect(await exists(requestInfoFilePath)).toBe(true);
-    expect(await exists(requestTextBodyFilePath)).toBe(true);
-    expect(await exists(copiedRequestInfoFilePath)).toBe(false);
-    expect(await exists(copiedRequestTextBodyFilePath)).toBe(false);
-
-    // Act
-    const copiedRequest = await persistenceService.copyRequest(request);
-
-    // Assert
-    expect(copiedRequest.title).toBe(`${request.title} (Copy)`);
-    expect(copiedRequest.id).not.toBe(request.id);
-    expect(copiedRequest.parentId).toBe(collection.id);
-    expect(copiedRequest.draft).toBe(false);
-
-    expect(await exists(copiedRequestInfoFilePath)).toBe(true);
-    expect(await exists(copiedRequestTextBodyFilePath)).toBe(true);
-
-    // Verify the text body content is the same
-    const originalTextBodyStream = await persistenceService.loadTextBodyOfRequest(request);
-    const copiedTextBodyStream = await persistenceService.loadTextBodyOfRequest(copiedRequest);
-    // @ts-expect-error streamToString argument may not match expected type
-    expect(await streamToString(originalTextBodyStream)).toBe(textBody);
-    // @ts-expect-error streamToString argument may not match expected type
-    expect(await streamToString(copiedTextBodyStream)).toBe(textBody);
   });
 
   it('saveCollection() with recursive flag should save the collection and its children', async () => {
@@ -766,191 +452,6 @@ describe('PersistenceService', () => {
     ).toBe(true);
   });
 
-  it('saveChanges() should overwrite the request metadata with its draft metadata', async () => {
-    // Arrange
-    const request = getExampleRequest(collection.id);
-    collection.children.push(request);
-
-    await persistenceService.saveCollection(collection, true);
-
-    request.draft = true;
-    request.method = RequestMethod.POST;
-
-    await persistenceService.saveRequest(request);
-    let originalInfo = JSON.parse(
-      await readFile(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        ),
-        'utf-8'
-      )
-    ) as RequestInfoFile;
-    const draftInfo = JSON.parse(
-      await readFile(
-        path.join(
-          collection.dirPath,
-          request.title,
-          DRAFT_DIR_NAME,
-          persistenceService.getInfoFileName(request.type)
-        ),
-        'utf-8'
-      )
-    ) as RequestInfoFile;
-
-    // Assert
-    expect(
-      await exists(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        )
-      )
-    ).toBe(true);
-    expect(
-      await exists(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        )
-      )
-    ).toBe(true);
-    expect(originalInfo).not.toEqual(draftInfo);
-
-    // Act
-    await persistenceService.saveChanges(request);
-
-    // Assert
-    expect(
-      await exists(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        )
-      )
-    ).toBe(true);
-    expect(
-      await exists(
-        path.join(
-          collection.dirPath,
-          request.title,
-          DRAFT_DIR_NAME,
-          persistenceService.getInfoFileName(request.type)
-        )
-      )
-    ).toBe(false);
-    originalInfo = JSON.parse(
-      await readFile(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        ),
-        'utf-8'
-      )
-    ) as RequestInfoFile;
-    expect(originalInfo).toEqual(draftInfo);
-  });
-
-  it('discardChanges() should delete the draft metadata and keep the original', async () => {
-    // Arrange
-    const request = getExampleRequest(collection.id);
-    collection.children.push(request);
-
-    await persistenceService.saveCollection(collection, true);
-
-    request.draft = true;
-    request.method = RequestMethod.POST;
-
-    await persistenceService.saveRequest(request);
-    const oldInfo = JSON.parse(
-      await readFile(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        ),
-        'utf-8'
-      )
-    ) as RequestInfoFile;
-
-    // Assert
-    expect(
-      await exists(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        )
-      )
-    ).toBe(true);
-    expect(
-      await exists(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        )
-      )
-    ).toBe(true);
-
-    // Act
-    await persistenceService.discardChanges(request);
-
-    // Assert
-    expect(
-      await exists(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        )
-      )
-    ).toBe(true);
-    expect(
-      await exists(
-        path.join(
-          collection.dirPath,
-          request.title,
-          DRAFT_DIR_NAME,
-          persistenceService.getInfoFileName(request.type)
-        )
-      )
-    ).toBe(false);
-    const newInfo = JSON.parse(
-      await readFile(
-        path.join(
-          collection.dirPath,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        ),
-        'utf-8'
-      )
-    ) as RequestInfoFile;
-    expect(oldInfo).toEqual(newInfo);
-  });
-
-  it('discardChanges() should not throw when request.draft is true but .draft directory is missing', async () => {
-    // Arrange
-    const request = getExampleRequest(collection.id);
-    collection.children.push(request);
-
-    await persistenceService.saveCollection(collection, true);
-
-    // Simulate a stale in-memory draft flag with no .draft directory on disk
-    request.draft = true;
-
-    // Act & Assert — should not throw
-    const result = await persistenceService.discardChanges(request);
-
-    expect(result!.draft).toBe(false);
-    expect(await exists(path.join(collection.dirPath, request.title, DRAFT_DIR_NAME))).toBe(false);
-  });
-
   it('createCollection() should reject a directory that is not empty', async () => {
     // Arrange
     await writeFile(path.join(collection.dirPath, 'unrelated.txt'), 'content');
@@ -975,23 +476,6 @@ describe('PersistenceService', () => {
     );
   });
 
-  it('delete() should delete the directory of a trufos object', async () => {
-    // Arrange
-    const folder = getExampleFolder(collection.id);
-    collection.children.push(folder);
-
-    await persistenceService.saveCollection(collection, true);
-
-    // Assert
-    expect(await exists(path.join(collection.dirPath, folder.title))).toBe(true);
-
-    // Act
-    await persistenceService.delete(folder);
-
-    // Assert
-    expect(await exists(path.join(collection.dirPath, folder.title))).toBe(false);
-  });
-
   it('loadTextBodyOfRequest() should load the text body of a request', async () => {
     // Arrange
     const textBody = 'text body';
@@ -999,7 +483,8 @@ describe('PersistenceService', () => {
     collection.children.push(request);
 
     await persistenceService.saveCollection(collection, true);
-    await persistenceService.saveRequest(request, textBody);
+    await persistenceService.saveRequestInfo(request);
+    await persistenceService.writeTextBody(request, textBody);
 
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(
@@ -1026,7 +511,8 @@ describe('PersistenceService', () => {
     collection.children.push(request);
 
     await persistenceService.saveCollection(collection, true);
-    await persistenceService.saveRequest(request, textBody);
+    await persistenceService.saveRequestInfo(request);
+    await persistenceService.writeTextBody(request, textBody);
 
     // Act
     const result =
@@ -1047,7 +533,8 @@ describe('PersistenceService', () => {
     collection.children.push(request);
 
     await persistenceService.saveCollection(collection, true);
-    await persistenceService.saveRequest(request, textBody);
+    await persistenceService.saveRequestInfo(request);
+    await persistenceService.writeTextBody(request, textBody);
 
     // Assert
     expect(await exists(path.join(collection.dirPath, request.title, TEXT_BODY_FILE_NAME))).toBe(
@@ -1143,7 +630,12 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollection(collection, true);
 
     // Reorder so folder2 comes first
-    await persistenceService.reorderItem(collection, folder2.id, 0);
+    await persistenceService.saveOrder(collection.id, [
+      folder2.id,
+      folder1.id,
+      request1.id,
+      request2.id,
+    ]);
 
     // Act
     const loaded = await persistenceService.loadCollection(collection.dirPath);
@@ -1196,7 +688,7 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollection(collection, true);
 
     // move the last request to the front
-    await persistenceService.reorderItem(folder, requests[2].id, 0);
+    await persistenceService.saveOrder(folder.id, [requests[2].id, requests[0].id, requests[1].id]);
 
     // Act
     const loaded = await persistenceService.loadCollection(collection.dirPath);
@@ -1265,165 +757,64 @@ describe('PersistenceService', () => {
     expect(loaded).not.toHaveProperty('unknownProperty');
   });
 
-  it('reorderItem() should reorder items within same parent', async () => {
+  it('move() should move the directory and keep the paths of all descendants', async () => {
     // Arrange
-    const request1 = getExampleRequest(collection.id);
-    request1.title = 'Request1';
-    const request2 = getExampleRequest(collection.id);
-    request2.title = 'Request2';
-    collection.children.push(request1, request2);
+    const target = getExampleFolder(collection.id);
+    target.title = 'Target';
+    const folder = getExampleFolderWithChildren(collection.id);
+    collection.children.push(target, folder);
     await persistenceService.saveCollection(collection, true);
+    const grandChild = (folder.children[0] as Folder).children[0] as TrufosRequest;
 
-    // Act - move request2 to position 0
-    await persistenceService.reorderItem(collection, request2.id, 0);
+    // Act
+    await persistenceService.move(folder.id, target.id);
 
     // Assert
-    expect(collection.children.map((c) => c.title)).toEqual(['Request2', 'Request1']);
+    const movedDirPath = path.join(collection.dirPath, 'target', folder.title);
+    expect(await exists(path.join(collection.dirPath, folder.title))).toBe(false);
+    expect(await exists(movedDirPath)).toBe(true);
 
-    // Verify persisted to filesystem
-    const loaded = await persistenceService.loadCollection(collection.dirPath);
-    expect(loaded.children.map((c) => c.title)).toEqual(['Request2', 'Request1']);
+    // Assert: a descendant is still written to its new directory
+    await persistenceService.writeTextBody(freeze(grandChild, true), 'moved');
+    expect(
+      await readFile(
+        path.join(movedDirPath, folder.children[0].title, grandChild.title, TEXT_BODY_FILE_NAME),
+        'utf-8'
+      )
+    ).toBe('moved');
   });
 
-  it('moveChild() should move item to different parent', async () => {
-    // Arrange
+  it('move() should not move onto a sibling directory with the same name', async () => {
+    // Arrange: the folder already holds a request whose directory name the moved request would get
     const folder = getExampleFolder(collection.id);
-    folder.title = 'Folder';
     const request = getExampleRequest(collection.id);
-    request.title = 'Request';
+    const sibling = getExampleRequest(folder.id);
     collection.children.push(folder, request);
+    folder.children.push(sibling);
     await persistenceService.saveCollection(collection, true);
 
-    // Act - move request into folder
-    await persistenceService.moveChild(request, collection, folder, 0);
+    // Act
+    await persistenceService.move(request.id, folder.id);
 
-    // Assert
-    expect(collection.children.map((c) => c.title)).toEqual(['Folder']);
-    expect(folder.children.map((c) => c.title)).toEqual(['Request']);
+    // Assert: both requests exist side by side, the moved one with a suffixed directory name
+    const folderDirPath = path.join(collection.dirPath, folder.title);
+    expect(await exists(path.join(folderDirPath, sibling.title))).toBe(true);
+    expect(await exists(path.join(folderDirPath, `${request.title}-2`))).toBe(true);
 
-    // Verify persisted to filesystem
-    const loaded = await persistenceService.loadCollection(collection.dirPath);
-    const loadedFolder = loaded.children[0] as Folder;
-    expect(loadedFolder.children.map((c) => c.title)).toEqual(['Request']);
+    // Assert: the request stays saveable at its new location
+    await persistenceService.saveRequestInfo(request);
+    expect(
+      await exists(
+        path.join(
+          folderDirPath,
+          `${request.title}-2`,
+          persistenceService.getInfoFileName('request')
+        )
+      )
+    ).toBe(true);
   });
 
-  it('moveChild() should move folder into another folder', async () => {
-    // Arrange
-    const folder1 = getExampleFolder(collection.id);
-    folder1.title = 'Folder1';
-    const folder2 = getExampleFolder(collection.id);
-    folder2.title = 'Folder2';
-    collection.children.push(folder1, folder2);
-    await persistenceService.saveCollection(collection, true);
-
-    // Act - move folder2 into folder1
-    await persistenceService.moveChild(folder2, collection, folder1, 0);
-
-    // Assert
-    expect(collection.children.map((c) => c.title)).toEqual(['Folder1']);
-    expect(folder1.children.map((c) => c.title)).toEqual(['Folder2']);
-
-    // Verify persisted to filesystem
-    const loaded = await persistenceService.loadCollection(collection.dirPath);
-    const loadedFolder1 = loaded.children[0] as Folder;
-    expect(loadedFolder1.children.map((c) => c.title)).toEqual(['Folder2']);
-  });
-
-  it('moveChild() should move item between folders', async () => {
-    // Arrange
-    const folder1 = getExampleFolder(collection.id);
-    folder1.title = 'Folder1';
-    const folder2 = getExampleFolder(collection.id);
-    folder2.title = 'Folder2';
-    const request1 = getExampleRequest(folder1.id);
-    request1.title = 'Request1';
-    const request2 = getExampleRequest(folder1.id);
-    request2.title = 'Request2';
-    folder1.children.push(request1, request2);
-    collection.children.push(folder1, folder2);
-    await persistenceService.saveCollection(collection, true);
-
-    // Act - move request2 from folder1 to folder2
-    await persistenceService.moveChild(request2, folder1, folder2, 0);
-
-    // Assert
-    expect(folder1.children.map((c) => c.title)).toEqual(['Request1']);
-    expect(folder2.children.map((c) => c.title)).toEqual(['Request2']);
-
-    // Verify persisted to filesystem
-    const loaded = await persistenceService.loadCollection(collection.dirPath);
-    const loadedFolder1 = loaded.children.find((c) => c.title === 'Folder1') as Folder;
-    const loadedFolder2 = loaded.children.find((c) => c.title === 'Folder2') as Folder;
-    expect(loadedFolder1.children.map((c) => c.title)).toEqual(['Request1']);
-    expect(loadedFolder2.children.map((c) => c.title)).toEqual(['Request2']);
-  });
-
-  it('moveChild() should handle moving item to specific index in new parent', async () => {
-    // Arrange
-    const folder = getExampleFolder(collection.id);
-    const request1 = getExampleRequest(folder.id);
-    request1.title = 'Request1';
-    const request2 = getExampleRequest(folder.id);
-    request2.title = 'Request2';
-    folder.children.push(request1, request2);
-    const request3 = getExampleRequest(collection.id);
-    request3.title = 'Request3';
-    collection.children.push(folder, request3);
-    await persistenceService.saveCollection(collection, true);
-
-    // Act - move request3 into folder at index 1 (between request1 and request2)
-    await persistenceService.moveChild(request3, collection, folder, 1);
-
-    // Assert
-    expect(folder.children.map((c) => c.title)).toEqual(['Request1', 'Request3', 'Request2']);
-  });
-
-  it('reorderItem() should persist reordering to a non-zero position in a 3+ item list (#957)', async () => {
-    // Arrange - mixed folders and requests, no order.json exists yet
-    const folder1 = getExampleFolder(collection.id);
-    folder1.title = 'Folder1';
-    const folder2 = getExampleFolder(collection.id);
-    folder2.title = 'Folder2';
-    const request1 = getExampleRequest(collection.id);
-    request1.title = 'Req1';
-    const request2 = getExampleRequest(collection.id);
-    request2.title = 'Req2';
-    collection.children.push(folder1, folder2, request1, request2);
-    await persistenceService.saveCollection(collection, true);
-
-    // Act - move Folder1 to a middle position (index 2)
-    await persistenceService.reorderItem(collection, folder1.id, 2);
-
-    // Assert - in-memory order updated
-    expect(collection.children.map((c) => c.title)).toEqual(['Folder2', 'Req1', 'Folder1', 'Req2']);
-
-    // Verify the manual order round-trips across a reload
-    const loaded = await persistenceService.loadCollection(collection.dirPath);
-    expect(loaded.children.map((c) => c.title)).toEqual(['Folder2', 'Req1', 'Folder1', 'Req2']);
-  });
-
-  it('reorderItem() should write a complete order.json containing every sibling (#957)', async () => {
-    // Arrange - three items, no order.json exists yet
-    const request1 = getExampleRequest(collection.id);
-    request1.title = 'Req1';
-    const request2 = getExampleRequest(collection.id);
-    request2.title = 'Req2';
-    const request3 = getExampleRequest(collection.id);
-    request3.title = 'Req3';
-    collection.children.push(request1, request2, request3);
-    await persistenceService.saveCollection(collection, true);
-
-    // Act - move Req3 to the middle
-    await persistenceService.reorderItem(collection, request3.id, 1);
-
-    // Assert - order.json lists all three siblings in the new order
-    const order = JSON.parse(
-      await readFile(path.join(collection.dirPath, ORDER_FILE_NAME), 'utf-8')
-    );
-    expect(order).toEqual([request1.id, request3.id, request2.id]);
-  });
-
-  it('moveChild() to a middle position keeps both parents complete after reload (#957)', async () => {
+  it('move() and saveOrder() should keep both parents complete after reload (#957)', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);
     folder.title = 'Folder';
@@ -1440,12 +831,368 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollection(collection, true);
 
     // Act - move Req3 from the collection into the folder between Req1 and Req2
-    await persistenceService.moveChild(request3, collection, folder, 1);
+    await persistenceService.move(request3.id, folder.id);
+    await persistenceService.saveOrder(collection.id, [folder.id, request4.id]);
+    await persistenceService.saveOrder(folder.id, [request1.id, request3.id, request2.id]);
 
-    // Verify both parents keep their full, correct order across a reload
+    // Assert
     const loaded = await persistenceService.loadCollection(collection.dirPath);
     expect(loaded.children.map((c) => c.title)).toEqual(['Folder', 'Req4']);
     const loadedFolder = loaded.children.find((c) => c.title === 'Folder') as Folder;
     expect(loadedFolder.children.map((c) => c.title)).toEqual(['Req1', 'Req3', 'Req2']);
+  });
+
+  it('saveOrder() should write the given child IDs to order.json', async () => {
+    // Arrange
+    const folder = getExampleFolder(collection.id);
+    collection.children.push(folder);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act
+    await persistenceService.saveOrder(folder.id, ['b', 'a']);
+
+    // Assert
+    const order = JSON.parse(
+      await readFile(path.join(collection.dirPath, folder.title, ORDER_FILE_NAME), 'utf-8')
+    );
+    expect(order).toEqual(['b', 'a']);
+  });
+
+  it('rename() should keep the draft changes of a request out of its saved state', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    const draft: TrufosRequest = {
+      ...request,
+      draft: true,
+      url: { base: 'https://draft.example.com', query: [] },
+    };
+    await persistenceService.createDraft(draft);
+
+    // Act
+    await persistenceService.rename(freeze(draft, true), 'renamed');
+
+    // Assert
+    const requestDirPath = path.join(collection.dirPath, sanitizeTitle('renamed'));
+    const infoFileName = persistenceService.getInfoFileName('request');
+    const saved = JSON.parse(await readFile(path.join(requestDirPath, infoFileName), 'utf-8'));
+    const drafted = JSON.parse(
+      await readFile(path.join(requestDirPath, DRAFT_DIR_NAME, infoFileName), 'utf-8')
+    );
+    expect(saved.title).toBe('renamed');
+    expect(saved.url.base).toBe(request.url.base);
+    expect(drafted.title).toBe('renamed');
+    expect(drafted.url.base).toBe('https://draft.example.com');
+  });
+
+  it('rename() should keep the directory if only the suffix of a taken name would change', async () => {
+    // Arrange: "folder-2" exists because "folder" was taken
+    const first = getExampleFolder(collection.id);
+    const second = getExampleFolder(collection.id);
+    collection.children.push(first, second);
+    await persistenceService.saveCollection(collection, true);
+    const secondDirPath = path.join(collection.dirPath, 'folder-2');
+    expect(await exists(secondDirPath)).toBe(true);
+
+    // Act
+    await persistenceService.rename(second, 'Folder');
+
+    // Assert
+    expect(await exists(secondDirPath)).toBe(true);
+    expect(await exists(path.join(collection.dirPath, 'folder-3'))).toBe(false);
+  });
+
+  it('saveRequestInfo() should save the metadata of the request without touching its body', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.writeTextBody(request, 'body');
+    const changed = freeze({ ...request, method: RequestMethod.PUT }, true);
+
+    // Act
+    await persistenceService.saveRequestInfo(changed);
+
+    // Assert
+    const dirPath = path.join(collection.dirPath, request.title);
+    const info = JSON.parse(
+      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
+    ) as RequestInfoFile;
+    expect(info.method).toBe(RequestMethod.PUT);
+    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('body');
+  });
+
+  it('saveRequestInfo() should write a draft into the draft directory', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act
+    await persistenceService.saveRequestInfo({ ...request, draft: true, title: 'draft' });
+
+    // Assert
+    const dirPath = path.join(collection.dirPath, request.title);
+    const infoFileName = persistenceService.getInfoFileName('request');
+    const saved = JSON.parse(await readFile(path.join(dirPath, infoFileName), 'utf-8'));
+    const draft = JSON.parse(
+      await readFile(path.join(dirPath, DRAFT_DIR_NAME, infoFileName), 'utf-8')
+    );
+    expect(saved.title).toBe(request.title);
+    expect(draft.title).toBe('draft');
+  });
+
+  it('saveRequestInfo() should find an unused directory name', async () => {
+    // Arrange requests
+    const firstRequest = { ...getExampleRequest(collection.id), title: 'A B' };
+    const secondRequest = { ...getExampleRequest(collection.id), title: 'A-B' };
+    const thirdRequest = { ...getExampleRequest(collection.id), title: 'a b' };
+    await persistenceService.saveCollection(collection, true);
+
+    // Act
+    await persistenceService.saveRequestInfo(firstRequest);
+    await persistenceService.saveRequestInfo(secondRequest);
+    await persistenceService.saveRequestInfo(thirdRequest);
+
+    // Assert
+    expect(await exists(path.join(collection.dirPath, 'a-b'))).toBe(true);
+    expect(await exists(path.join(collection.dirPath, 'a-b-2'))).toBe(true);
+    expect(await exists(path.join(collection.dirPath, 'a-b-3'))).toBe(true);
+  });
+
+  it('saveRequestInfo() should shorten directory names of very long titles', async () => {
+    // Arrange: titles as long as e.g. an OpenAPI operation summary containing the whole endpoint
+    // documentation. Both share a prefix, so their shortened directory names collide.
+    const longTitle = `Takes native app file from request and creates new appstore application. ${'x'.repeat(300)}`;
+    const firstRequest = { ...getExampleRequest(collection.id), title: longTitle };
+    const secondRequest = { ...getExampleRequest(collection.id), title: longTitle };
+    await persistenceService.saveCollection(collection, true);
+
+    // Act
+    await persistenceService.saveRequestInfo(firstRequest);
+    await persistenceService.saveRequestInfo(secondRequest);
+
+    // Assert
+    const dirNames = (await fs.readdir(collection.dirPath, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    expect(dirNames).toHaveLength(2);
+    for (const dirName of dirNames) {
+      expect(Buffer.byteLength(dirName)).toBeLessThanOrEqual(255);
+    }
+  });
+
+  it('createDraft() should copy the saved body and scripts into the draft directory', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.writeTextBody(request, 'saved body');
+    await persistenceService.saveScript(request, ScriptType.PRE_REQUEST, 'saved script');
+    const draft = freeze({ ...request, draft: true, method: RequestMethod.POST }, true);
+
+    // Act
+    await persistenceService.createDraft(draft);
+
+    // Assert
+    const draftDirPath = path.join(collection.dirPath, request.title, DRAFT_DIR_NAME);
+    expect(await readFile(path.join(draftDirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe(
+      'saved body'
+    );
+    expect(
+      await readFile(path.join(draftDirPath, getScriptFileName(ScriptType.PRE_REQUEST)), 'utf-8')
+    ).toBe('saved script');
+    expect(await exists(path.join(draftDirPath, getScriptFileName(ScriptType.POST_RESPONSE)))).toBe(
+      false
+    );
+    const info = JSON.parse(
+      await readFile(
+        path.join(draftDirPath, persistenceService.getInfoFileName('request')),
+        'utf-8'
+      )
+    ) as RequestInfoFile;
+    expect(info.method).toBe(RequestMethod.POST);
+  });
+
+  it('writeTextBody() and saveScript() should write into the draft directory of a draft', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.writeTextBody(request, 'saved');
+    const draft = freeze({ ...request, draft: true }, true);
+    await persistenceService.createDraft(draft);
+
+    // Act
+    await persistenceService.writeTextBody(draft, 'draft');
+    await persistenceService.saveScript(draft, ScriptType.POST_RESPONSE, 'script');
+
+    // Assert
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('saved');
+    expect(await readFile(path.join(dirPath, DRAFT_DIR_NAME, TEXT_BODY_FILE_NAME), 'utf-8')).toBe(
+      'draft'
+    );
+    expect(await streamToString((await persistenceService.loadTextBodyOfRequest(draft))!)).toBe(
+      'draft'
+    );
+    expect(
+      await streamToString((await persistenceService.loadScript(draft, ScriptType.POST_RESPONSE))!)
+    ).toBe('script');
+    expect(await persistenceService.loadScript(request, ScriptType.POST_RESPONSE)).toBeUndefined();
+  });
+
+  it('copyRequestFiles() should copy the body and scripts of the current state of the source', async () => {
+    // Arrange: the source has a draft with a changed body
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.writeTextBody(request, 'saved');
+    const draft = freeze({ ...request, draft: true }, true);
+    await persistenceService.createDraft(draft);
+    await persistenceService.writeTextBody(draft, 'draft');
+    await persistenceService.saveScript(draft, ScriptType.PRE_REQUEST, 'script');
+    const copy = freeze({ ...request, id: randomUUID(), title: 'copy', draft: false }, true);
+    await persistenceService.saveRequestInfo(copy);
+
+    // Act
+    await persistenceService.copyRequestFiles(draft, copy);
+
+    // Assert
+    const copyDirPath = path.join(collection.dirPath, 'copy');
+    expect(await readFile(path.join(copyDirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('draft');
+    expect(
+      await readFile(path.join(copyDirPath, getScriptFileName(ScriptType.PRE_REQUEST)), 'utf-8')
+    ).toBe('script');
+    expect(await exists(path.join(copyDirPath, DRAFT_DIR_NAME))).toBe(false);
+  });
+
+  it('saveChanges() should overwrite the request with its draft', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.writeTextBody(request, 'saved');
+    const draft = freeze({ ...request, draft: true, method: RequestMethod.POST }, true);
+    await persistenceService.createDraft(draft);
+    await persistenceService.writeTextBody(draft, 'draft');
+
+    // Act
+    await persistenceService.saveChanges(freeze({ ...draft, draft: false }, true));
+
+    // Assert
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect(await exists(path.join(dirPath, DRAFT_DIR_NAME))).toBe(false);
+    const info = JSON.parse(
+      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
+    ) as RequestInfoFile;
+    expect(info.method).toBe(RequestMethod.POST);
+    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('draft');
+  });
+
+  it('discardChanges() should delete the draft and keep the saved state', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    const draft = freeze({ ...request, draft: true, method: RequestMethod.POST }, true);
+    await persistenceService.createDraft(draft);
+
+    // Act
+    await persistenceService.discardChanges(draft);
+
+    // Assert
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect(await exists(path.join(dirPath, DRAFT_DIR_NAME))).toBe(false);
+    const saved = await persistenceService.loadSavedRequest(request.id, collection.id);
+    expect(saved?.method).toBe(RequestMethod.GET);
+  });
+
+  it('discardChanges() should delete a request that was never saved', async () => {
+    // Arrange
+    await persistenceService.saveCollection(collection, true);
+    const request = freeze({ ...getExampleRequest(collection.id), draft: true }, true);
+    await persistenceService.saveRequestInfo(request);
+    await persistenceService.writeTextBody(request, '');
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect(await exists(path.join(dirPath, DRAFT_DIR_NAME))).toBe(true);
+
+    // Act
+    await persistenceService.discardChanges(request);
+
+    // Assert: the directory is gone and its name is free again
+    expect(await exists(dirPath)).toBe(false);
+    await persistenceService.saveRequestInfo({ ...getExampleRequest(collection.id) });
+    expect(await exists(dirPath)).toBe(true);
+  });
+
+  it('discardChanges() should not throw when the draft directory is missing', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act & Assert
+    await persistenceService.discardChanges({ ...request, draft: true });
+    expect(await exists(path.join(collection.dirPath, request.title))).toBe(true);
+  });
+
+  it('loadSavedRequest() should load the saved state of a request with a draft', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.createDraft({ ...request, draft: true, method: RequestMethod.POST });
+
+    // Act
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+    const saved = await persistenceService.loadSavedRequest(request.id, collection.id);
+
+    // Assert
+    expect(loaded.children[0]).toMatchObject({ draft: true, method: RequestMethod.POST });
+    expect(saved).toMatchObject({ id: request.id, draft: false, method: RequestMethod.GET });
+  });
+
+  it('loadSavedRequest() should return undefined for a request that was never saved', async () => {
+    // Arrange
+    await persistenceService.saveCollection(collection, true);
+    const request = { ...getExampleRequest(collection.id), draft: true };
+    await persistenceService.saveRequestInfo(request);
+
+    // Act & Assert
+    expect(await persistenceService.loadSavedRequest(request.id, collection.id)).toBeUndefined();
+  });
+
+  it('deleteNode() should delete the directory of a folder and forget its descendants', async () => {
+    // Arrange
+    const folder = getExampleFolderWithChildren(collection.id);
+    collection.children.push(folder);
+    await persistenceService.saveCollection(collection, true);
+    const child = folder.children[1] as TrufosRequest;
+
+    // Act
+    await persistenceService.deleteNode(folder.id);
+
+    // Assert
+    expect(await exists(path.join(collection.dirPath, folder.title))).toBe(false);
+    await expect(persistenceService.saveRequestInfo(child)).rejects.toThrow();
+  });
+
+  it('saveCollectionInfo() should save a collection without children', async () => {
+    // Arrange
+    const { children: _, ...info } = collection;
+
+    // Act
+    await persistenceService.saveCollectionInfo(freeze({ ...info, title: 'renamed' }, true));
+
+    // Assert
+    const saved = JSON.parse(
+      await readFile(
+        path.join(collection.dirPath, persistenceService.getInfoFileName('collection')),
+        'utf-8'
+      )
+    ) as CollectionInfoFile;
+    expect(saved.title).toBe('renamed');
   });
 });
