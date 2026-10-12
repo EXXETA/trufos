@@ -1,6 +1,7 @@
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
+import { computeSourceFingerprint, readSourceFingerprint } from '../../tools/source-fingerprint';
 
 const REPOSITORY_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -30,7 +31,8 @@ export interface AppUnderTest {
  * The bundles are the real production ones, so the main process, preload and renderer under test
  * are exactly what gets packaged.
  *
- * @throws if the bundles have not been built yet.
+ * @throws if the bundles have not been built yet, are a development build, or are older than the
+ * sources.
  */
 export async function resolveAppUnderTest(): Promise<AppUnderTest> {
   const mainBundle = path.join(REPOSITORY_ROOT, await readMainEntry());
@@ -44,6 +46,7 @@ export async function resolveAppUnderTest(): Promise<AppUnderTest> {
   }
 
   await assertProductionBundle(mainBundle);
+  await assertUpToDateBundle();
 
   return { executablePath: await resolveElectronBinary(), entry: REPOSITORY_ROOT };
 }
@@ -65,6 +68,35 @@ async function assertProductionBundle(mainBundle: string): Promise<void> {
     throw new Error(
       `${mainBundle} is a development build left behind by \`yarn start\` — it loads the renderer ` +
         'from the Vite dev server instead of the built files. Run `yarn package` to rebuild it.'
+    );
+  }
+}
+
+/**
+ * Rejects bundles that were built from other sources than the current ones, e.g. because the code
+ * was changed after the last `yarn package`. Otherwise the suite would silently test old code.
+ *
+ * `yarn package` records a fingerprint of the bundle inputs (see `tools/source-fingerprint.ts`).
+ * If the fingerprint cannot be computed here, e.g. because git is unavailable, the check fails
+ * open with a warning rather than blocking the suite.
+ */
+async function assertUpToDateBundle(): Promise<void> {
+  let current: string;
+  try {
+    current = computeSourceFingerprint(REPOSITORY_ROOT);
+  } catch (error) {
+    console.warn('Could not check whether the bundles are up to date:', error);
+    return;
+  }
+
+  const packaged = await readSourceFingerprint(REPOSITORY_ROOT);
+  if (packaged !== current) {
+    throw new Error(
+      packaged == null
+        ? 'The bundles were not built by `yarn package`, so it is unknown which sources they ' +
+            'contain. Run `yarn package` before the e2e suite.'
+        : 'The sources changed since the last `yarn package`, so the bundles are outdated. ' +
+            'Run `yarn package` to rebuild them.'
     );
   }
 }

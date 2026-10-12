@@ -1,17 +1,23 @@
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import type { BrowserWindow, MenuItemConstructorOptions } from 'electron';
+import { MainProcessEvent } from 'shim/event-service';
 
-const { appMock, buildFromTemplateMock, setApplicationMenuMock, openExternalMock } = vi.hoisted(
-  () => ({
-    appMock: { isPackaged: false, name: 'Trufos' },
-    buildFromTemplateMock: vi.fn((template: MenuItemConstructorOptions[]) => ({
-      template,
-      popup: vi.fn(),
-    })),
-    setApplicationMenuMock: vi.fn(),
-    openExternalMock: vi.fn(),
-  })
-);
+const {
+  appMock,
+  buildFromTemplateMock,
+  setApplicationMenuMock,
+  openExternalMock,
+  openLogDirectoryMock,
+} = vi.hoisted(() => ({
+  appMock: { isPackaged: false, name: 'Trufos' },
+  buildFromTemplateMock: vi.fn((template: MenuItemConstructorOptions[]) => ({
+    template,
+    popup: vi.fn(),
+  })),
+  setApplicationMenuMock: vi.fn(),
+  openExternalMock: vi.fn(),
+  openLogDirectoryMock: vi.fn(() => Promise.resolve()),
+}));
 
 vi.mock('electron', () => ({
   app: appMock,
@@ -22,6 +28,10 @@ vi.mock('electron', () => ({
   shell: {
     openExternal: (url: string) => openExternalMock(url),
   },
+}));
+
+vi.mock('main/event/main-event-service', () => ({
+  MainEventService: { instance: { openLogDirectory: openLogDirectoryMock } },
 }));
 
 import { MenuBuilder } from './menu';
@@ -143,7 +153,7 @@ describe('MenuBuilder', () => {
       const settingsItem = items.find((item) => item.label === 'Settings…')!;
       expect(settingsItem.accelerator).toBe('CmdOrCtrl+,');
       (settingsItem.click as () => void)();
-      expect(sendMock).toHaveBeenCalledWith('show-app-settings');
+      expect(sendMock).toHaveBeenCalledWith(MainProcessEvent.ShowAppSettings);
     }
   );
 
@@ -163,7 +173,22 @@ describe('MenuBuilder', () => {
   );
 
   it.each(['darwin', 'win32'] as const)(
-    'opens the collection runner and settings from the Collection menu on %s',
+    'opens the log directory from the Help menu on %s in release builds',
+    (platform) => {
+      appMock.isPackaged = true;
+      const help = buildTemplate(platform).find((item) => item.role === 'help')!;
+      const openLogs = (help.submenu as MenuItemConstructorOptions[]).find(
+        (item) => item.label === 'Open Logs Folder'
+      )!;
+
+      (openLogs.click as () => void)();
+
+      expect(openLogDirectoryMock).toHaveBeenCalledOnce();
+    }
+  );
+
+  it.each(['darwin', 'win32'] as const)(
+    'opens the collection runner, history and settings from the Collection menu on %s',
     (platform) => {
       const template = buildTemplate(platform);
       const collectionMenu = template.find((item) => item.label?.includes('Collection'))!;
@@ -172,12 +197,17 @@ describe('MenuBuilder', () => {
       const runItem = items.find((item) => item.label === 'Run Collection')!;
       expect(runItem.accelerator).toBe('CmdOrCtrl+Shift+R');
       (runItem.click as () => void)();
-      expect(sendMock).toHaveBeenCalledWith('show-collection-runner');
+      expect(sendMock).toHaveBeenCalledWith(MainProcessEvent.ShowCollectionRunner);
+
+      const historyItem = items.find((item) => item.label === 'History')!;
+      expect(historyItem.accelerator).toBe('CmdOrCtrl+Shift+H');
+      (historyItem.click as () => void)();
+      expect(sendMock).toHaveBeenCalledWith(MainProcessEvent.ShowHistory);
 
       const settingsItem = items.find((item) => item.label === 'Settings…')!;
       expect(settingsItem.accelerator).toBe('CmdOrCtrl+Shift+,');
       (settingsItem.click as () => void)();
-      expect(sendMock).toHaveBeenCalledWith('show-collection-settings');
+      expect(sendMock).toHaveBeenCalledWith(MainProcessEvent.ShowCollectionSettings);
     }
   );
 
@@ -187,7 +217,7 @@ describe('MenuBuilder', () => {
     const items = help.submenu as MenuItemConstructorOptions[];
 
     for (const item of items) {
-      (item.click as () => void)();
+      (item.click as (() => void) | undefined)?.();
     }
 
     expect(openExternalMock).toHaveBeenCalledWith('https://github.com/EXXETA/trufos#readme');

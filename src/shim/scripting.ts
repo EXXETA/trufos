@@ -8,6 +8,16 @@ export enum ScriptType {
   POST_RESPONSE = 'post-response',
 }
 
+/**
+ * The console available in scripts. Its output is shown with the request in the request history
+ * (sidebar → History → Console tab) and never written to the app log.
+ */
+export type ScriptConsole = Pick<Console, 'log' | 'info' | 'debug' | 'warn' | 'error'>;
+
+/**
+ * The globals scripts can use beyond the standard ones. The script editor gets its type
+ * declarations generated from this interface (see `forge.config.ts`).
+ */
 export interface GlobalScriptingApi {
   readonly trufos: {
     /** The current version of the app. */
@@ -67,4 +77,13 @@ export interface GlobalScriptingApi {
       environment?: string
     ): void;
   };
+}
+
+/**
+ * The context scripts run in: the scripting API plus a console. The script editor already knows
+ * the console, so it is not part of {@link GlobalScriptingApi}.
+ */
+export interface ScriptingContext extends GlobalScriptingApi {
+  /** Prints to the request history entry of the request the script runs for. */
+  readonly console: ScriptConsole;
 }

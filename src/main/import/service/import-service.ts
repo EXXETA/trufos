@@ -79,7 +79,7 @@ export class ImportService {
       throw error;
     }
 
-    logger.info('Successfully imported collection:', collection);
+    logger.info('Successfully imported collection', collection.id);
     return { collection, warnings };
   }
 

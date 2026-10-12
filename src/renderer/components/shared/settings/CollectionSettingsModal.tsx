@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TabbedDialog } from '@/components/shared/TabbedDialog';
 import { GeneralEditor } from '@/components/shared/settings/GeneralTab/GeneralEditor';
 import {
   VariableEditor,
@@ -7,7 +7,6 @@ import {
 import { EnvironmentEditor } from '@/components/shared/settings/EnvironmentTab/EnvironmentEditor';
 import { CertificateEditor } from '@/components/shared/settings/TlsTab/CertificateEditor';
 import { ExportEditor } from '@/components/shared/settings/ExportTab/ExportEditor';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { selectVariables, useVariableActions, useVariableStore } from '@/state/variableStore';
@@ -105,107 +104,70 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex h-[80vh] max-w-4xl flex-col p-0 lg:max-w-5xl">
-        <div className="flex h-full flex-col overflow-hidden rounded-lg">
-          {/* Header - Fixed */}
-          <div className="bg-background-secondary shrink-0 px-4 pt-4">
-            <DialogHeader>
-              <DialogTitle className="font-bold">Collection Settings</DialogTitle>
-            </DialogHeader>
-          </div>
-
-          {/* Tabs - Takes remaining space */}
-          <Tabs
-            defaultValue="general"
-            className="bg-background-primary flex min-h-0 flex-1 flex-col rounded-none"
-          >
-            <div className="bg-background-secondary shrink-0 px-4 py-4">
-              <TabsList className="bg-transparent">
-                <TabsTrigger value="general" className="px-4 py-2.5 font-light!">
-                  General
-                </TabsTrigger>
-                <TabsTrigger value="variables" className="px-4 py-2.5 font-light!">
-                  Variables
-                </TabsTrigger>
-                <TabsTrigger value="environments" className="px-4 py-2.5 font-light!">
-                  Environments
-                </TabsTrigger>
-                <TabsTrigger value="tls" className="px-4 py-2.5 font-light!">
-                  mTLS
-                </TabsTrigger>
-                <TabsTrigger value="export" className="px-4 py-2.5 font-light!">
-                  Export
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent
-              value="general"
-              className="bg-background-primary m-0 min-h-0 flex-1 overflow-y-auto rounded-none p-0"
-            >
-              <div className="h-full overflow-y-auto p-4">
-                <GeneralEditor
-                  name={draft.title}
-                  onNameChange={(title) => update({ title })}
-                  onCloseCollection={onClose}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent
-              value="variables"
-              className="bg-background-primary m-0 min-h-0 flex-1 rounded-none p-0"
-            >
-              <div className="h-full overflow-y-auto p-4">
-                <VariableEditor
-                  variables={draft.variables}
-                  onVariablesChange={(variables) => update({ variables })}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent
-              value="environments"
-              className="bg-background-primary m-0 min-h-0 flex-1 rounded-none p-0"
-            >
-              <EnvironmentEditor
-                environments={draft.environments}
-                selectedEnvironment={draft.selectedEnvironment ?? null}
-                onEnvironmentsChange={(environments) => update({ environments })}
-                onEnvironmentSelect={(key) => update({ selectedEnvironment: key ?? undefined })}
+    <TabbedDialog
+      title="Collection Settings"
+      isOpen={isOpen}
+      onClose={onClose}
+      tabs={[
+        {
+          value: 'general',
+          label: 'General',
+          content: (
+            <div className="h-full overflow-y-auto p-4">
+              <GeneralEditor
+                name={draft.title}
+                onNameChange={(title) => update({ title })}
+                onCloseCollection={onClose}
               />
-            </TabsContent>
-
-            <TabsContent
-              value="tls"
-              className="bg-background-primary m-0 min-h-0 flex-1 overflow-y-auto rounded-none p-0"
-            >
-              <CertificateEditor
-                certificate={draft.clientCertificate}
-                onCertificateChange={(clientCertificate) => update({ clientCertificate })}
-              />
-            </TabsContent>
-
-            <TabsContent
-              value="export"
-              className="bg-background-primary m-0 min-h-0 flex-1 overflow-y-auto rounded-none p-0"
-            >
-              <ExportEditor />
-            </TabsContent>
-
-            {/* Actions - Fixed, below the active tab content */}
-            <div className="flex shrink-0 justify-end gap-2 p-4">
-              <Button onClick={onClose} variant="outline">
-                <span className="leading-4 font-bold">Cancel</span>
-              </Button>
-              <Button onClick={save} disabled={!canSave} className="h-10 px-5">
-                <span className="leading-4 font-bold">Save</span>
-              </Button>
             </div>
-          </Tabs>
-        </div>
-      </DialogContent>
-    </Dialog>
+          ),
+        },
+        {
+          value: 'variables',
+          label: 'Variables',
+          content: (
+            <div className="h-full overflow-y-auto p-4">
+              <VariableEditor
+                variables={draft.variables}
+                onVariablesChange={(variables) => update({ variables })}
+              />
+            </div>
+          ),
+        },
+        {
+          value: 'environments',
+          label: 'Environments',
+          content: (
+            <EnvironmentEditor
+              environments={draft.environments}
+              selectedEnvironment={draft.selectedEnvironment ?? null}
+              onEnvironmentsChange={(environments) => update({ environments })}
+              onEnvironmentSelect={(key) => update({ selectedEnvironment: key ?? undefined })}
+            />
+          ),
+        },
+        {
+          value: 'tls',
+          label: 'mTLS',
+          content: (
+            <CertificateEditor
+              certificate={draft.clientCertificate}
+              onCertificateChange={(clientCertificate) => update({ clientCertificate })}
+            />
+          ),
+        },
+        { value: 'export', label: 'Export', content: <ExportEditor /> },
+      ]}
+      footer={
+        <>
+          <Button onClick={onClose} variant="outline">
+            <span className="leading-4 font-bold">Cancel</span>
+          </Button>
+          <Button onClick={save} disabled={!canSave} className="h-10 px-5">
+            <span className="leading-4 font-bold">Save</span>
+          </Button>
+        </>
+      }
+    />
   );
 };

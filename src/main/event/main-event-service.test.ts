@@ -5,8 +5,10 @@ import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { TrufosResponse } from 'shim/objects/response';
 import { RequestMethod } from 'shim/objects/request-method';
 import { Folder } from 'shim/objects/folder';
+import { MainProcessEvent } from 'shim/event-service';
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -14,6 +16,9 @@ vi.mock('electron', () => ({
   },
   app: {
     getPath: vi.fn().mockReturnValue(''),
+  },
+  shell: {
+    openPath: vi.fn(),
   },
 }));
 
@@ -47,10 +52,14 @@ describe('MainEventService', () => {
     ({ PersistenceService } = await import('../persistence/service/persistence-service'));
 
     // Every test builds its own MainEventService, and each one subscribes to the shared
-    // ScriptingService. Lift the cap so those accumulating subscriptions are not mistaken for a
-    // listener leak once the suite grows past Node's default of ten.
+    // ScriptingService, HistoryService and EnvironmentService. Lift the cap so those accumulating subscriptions are
+    // not mistaken for a listener leak once the suite grows past Node's default of ten.
     const { ScriptingService } = await import('../scripting/scripting-service.js');
     ScriptingService.instance.setMaxListeners(0);
+    const { HistoryService } = await import('../history/history-service.js');
+    HistoryService.instance.setMaxListeners(0);
+    const { EnvironmentService } = await import('../environment/service/environment-service.js');
+    EnvironmentService.instance.setMaxListeners(0);
   });
 
   it('should register event functions on the backend', async () => {
@@ -186,8 +195,75 @@ describe('MainEventService', () => {
       lastModified: Date.now(),
     });
 
+    const makeResponse = (): TrufosResponse => ({
+      type: 'response',
+      body: { id: randomUUID(), size: 0 },
+      headers: {},
+      metaInfo: {
+        status: 200,
+        duration: 1,
+        size: { totalSizeInBytes: 0, headersSizeInBytes: 0, bodySizeInBytes: 0 },
+      },
+    });
+
     beforeEach(async () => {
       ({ EnvironmentService } = await import('../environment/service/environment-service.js'));
+      // a collection is always loaded before requests can be sent
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(
+        makeCollection()
+      );
+    });
+
+    it('keeps the latest response body of a request alive', async () => {
+      const { HttpService } = await import('../network/service/http-service.js');
+      const { LatestResponseBodies } = await import('../network/service/latest-response-bodies.js');
+      const response = makeResponse();
+      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(response);
+      const setLatest = vi.spyOn(LatestResponseBodies.instance, 'set');
+      const request = makeRequest();
+
+      await new MainEventService().sendRequest(request);
+
+      expect(setLatest).toHaveBeenCalledWith(request.id, response.body!.id);
+    });
+
+    it('records the request in the history', async () => {
+      const { HistoryService } = await import('../history/history-service.js');
+      HistoryService.instance.clear(EnvironmentService.instance.currentCollection.dirPath);
+      const { HttpService } = await import('../network/service/http-service.js');
+      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(makeResponse());
+      const webContentsSend = vi.fn();
+      const eventService = new MainEventService();
+      eventService.window = { webContents: { send: webContentsSend } } as never;
+      const request = makeRequest();
+
+      await eventService.sendRequest(request);
+
+      const [entry] = await eventService.getHistory();
+      expect(entry).toMatchObject({
+        requestId: request.id,
+        outcome: { type: 'response', status: 200 },
+      });
+      expect(await eventService.getHistoryEntry(entry.id)).toMatchObject({ id: entry.id });
+      expect(webContentsSend).toHaveBeenCalledWith(MainProcessEvent.HistoryChanged, [
+        expect.objectContaining({ requestId: request.id }),
+      ]);
+
+      await eventService.clearHistory();
+      expect(await eventService.getHistory()).toEqual([]);
+    });
+
+    it('pushes the history of the new collection when the collection changes', () => {
+      const webContentsSend = vi.fn();
+      const eventService = new MainEventService();
+      eventService.window = { webContents: { send: webContentsSend } } as never;
+
+      EnvironmentService.instance.emit('collection-changed');
+
+      expect(webContentsSend).toHaveBeenCalledWith(
+        MainProcessEvent.HistoryChanged,
+        expect.any(Array)
+      );
     });
 
     it('does not persist or push when script does not change variables', async () => {
@@ -195,7 +271,7 @@ describe('MainEventService', () => {
       vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
 
       const { HttpService } = await import('../network/service/http-service.js');
-      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue({} as never);
+      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(makeResponse());
 
       const saveCollectionSpy = vi
         .spyOn(PersistenceService.instance, 'saveCollection')
@@ -208,7 +284,10 @@ describe('MainEventService', () => {
       await eventService.sendRequest(makeRequest());
 
       expect(saveCollectionSpy).not.toHaveBeenCalled();
-      expect(webContentsSend).not.toHaveBeenCalled();
+      expect(webContentsSend).not.toHaveBeenCalledWith(
+        MainProcessEvent.CollectionVariablesUpdated,
+        expect.anything()
+      );
     });
 
     it('passes an abort signal for keyed requests and aborts it by key', async () => {
@@ -217,12 +296,14 @@ describe('MainEventService', () => {
 
       const { HttpService } = await import('../network/service/http-service.js');
       let signal: AbortSignal | undefined;
-      vi.mocked(HttpService.instance.fetchAsync).mockImplementation((_request, abortSignal) => {
-        signal = abortSignal;
-        return new Promise((_, reject) => {
-          abortSignal?.addEventListener('abort', () => reject(new Error('aborted')));
-        });
-      });
+      vi.mocked(HttpService.instance.fetchAsync).mockImplementation(
+        (_request, _recorder, abortSignal) => {
+          signal = abortSignal;
+          return new Promise((_, reject) => {
+            abortSignal?.addEventListener('abort', () => reject(new Error('aborted')));
+          });
+        }
+      );
 
       const eventService = new MainEventService();
       const requestPromise = eventService
@@ -242,16 +323,18 @@ describe('MainEventService', () => {
 
       const { HttpService } = await import('../network/service/http-service.js');
       let signal: AbortSignal | undefined;
-      vi.mocked(HttpService.instance.fetchAsync).mockImplementation((_request, abortSignal) => {
-        signal = abortSignal;
-        return new Promise((_, reject) => {
-          // What undici actually rejects with on abort: a DOMException, whose read-only properties
-          // break both logging and IPC serialization.
-          abortSignal?.addEventListener('abort', () =>
-            reject(new DOMException('This operation was aborted', 'AbortError'))
-          );
-        });
-      });
+      vi.mocked(HttpService.instance.fetchAsync).mockImplementation(
+        (_request, _recorder, abortSignal) => {
+          signal = abortSignal;
+          return new Promise((_, reject) => {
+            // What undici actually rejects with on abort: a DOMException, whose read-only properties
+            // break both logging and IPC serialization.
+            abortSignal?.addEventListener('abort', () =>
+              reject(new DOMException('This operation was aborted', 'AbortError'))
+            );
+          });
+        }
+      );
 
       const eventService = new MainEventService();
       const requestPromise = eventService.sendRequest(makeRequest(), 'runner-request-2');
@@ -294,7 +377,7 @@ describe('MainEventService', () => {
       await Promise.resolve(); // flush microtask queue for the async .then() chain
 
       expect(saveCollectionSpy).toHaveBeenCalledWith(collection);
-      expect(webContentsSend).toHaveBeenCalledWith('collection-variables-updated', {
+      expect(webContentsSend).toHaveBeenCalledWith(MainProcessEvent.CollectionVariablesUpdated, {
         variables: collection.variables,
         environments: collection.environments,
       });
@@ -326,6 +409,28 @@ describe('MainEventService', () => {
       await expect(
         eventService.resolveVariablesInString('{{ missing }}/users')
       ).resolves.toBeNull();
+    });
+  });
+
+  describe('openLogDirectory', () => {
+    it('should open the log directory in the file manager', async () => {
+      const { app, shell } = await import('electron');
+      vi.mocked(app.getPath).mockReturnValueOnce('/logs');
+      vi.mocked(shell.openPath).mockResolvedValueOnce('');
+      const eventService = new MainEventService();
+
+      await eventService.openLogDirectory();
+
+      expect(app.getPath).toHaveBeenCalledWith('logs');
+      expect(shell.openPath).toHaveBeenCalledWith('/logs');
+    });
+
+    it('should throw when the directory could not be opened', async () => {
+      const { shell } = await import('electron');
+      vi.mocked(shell.openPath).mockResolvedValueOnce('Failed to open path');
+      const eventService = new MainEventService();
+
+      await expect(eventService.openLogDirectory()).rejects.toThrow('Failed to open path');
     });
   });
 });

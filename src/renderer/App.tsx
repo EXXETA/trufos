@@ -10,7 +10,9 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
+import { useHistoryStore } from '@/state/historyStore';
 import { RendererEventService } from '@/services/event/renderer-event-service';
+import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { useAppSettingsStore } from '@/state/appSettingsStore';
 import {
   selectIsCollectionRunnerOpen,
@@ -46,9 +48,19 @@ export const App = () => {
   useEffect(() => {
     // Entry points of the native application menu (Collection > ...).
     RendererEventService.instance
-      .on('show-collection-runner', () => useViewStore.getState().openCollectionRunner())
-      .on('show-collection-settings', () => useViewStore.getState().openCollectionSettings())
-      .on('show-app-settings', () => useViewStore.getState().openAppSettings());
+      .on(MainProcessEvent.ShowCollectionRunner, () =>
+        useViewStore.getState().openCollectionRunner()
+      )
+      .on(MainProcessEvent.ShowCollectionSettings, () =>
+        useViewStore.getState().openCollectionSettings()
+      )
+      .on(MainProcessEvent.ShowAppSettings, () => useViewStore.getState().openAppSettings())
+      .on(MainProcessEvent.ShowHistory, () => useViewStore.getState().setSidebarView('history'))
+      .on(MainProcessEvent.HistoryChanged, (_event, payload) =>
+        useHistoryStore.getState().receive(payload)
+      );
+    // later changes, e.g. when the collection changes, are pushed by the main process
+    void useHistoryStore.getState().load();
 
     RendererEventService.instance
       .getAppSettings()
@@ -59,7 +71,7 @@ export const App = () => {
         if (settings) {
           useAppSettingsStore.getState().initialize(settings);
         }
-        window.electron.ipcRenderer.send('renderer-ready');
+        RendererEventService.instance.emit(RendererEvent.RendererReady);
       });
   }, []);
 

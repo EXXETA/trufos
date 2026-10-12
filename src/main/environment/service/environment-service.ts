@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import { Readable } from 'node:stream';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { Initializable } from 'main/shared/initializable';
@@ -14,12 +15,21 @@ import { EnvironmentMap } from 'shim/objects/environment';
 const persistenceService = PersistenceService.instance;
 const settingsService = SettingsService.instance;
 
+/** Event signatures emitted by the {@link EnvironmentService}. */
+type EnvironmentServiceEvents = {
+  /** Another collection became the current one. Reloading the current one does not count. */
+  'collection-changed': [];
+};
+
 /**
  * The environment service is responsible for managing the current collection and
  * the system, collection, and request variables (the ones that can be used in the
  * request body, headers, etc.).
  */
-export class EnvironmentService implements Initializable {
+export class EnvironmentService
+  extends EventEmitter<EnvironmentServiceEvents>
+  implements Initializable
+{
   public static readonly instance: EnvironmentService = new EnvironmentService();
 
   /** The current collection that is being used. */
@@ -104,6 +114,8 @@ export class EnvironmentService implements Initializable {
    * @param collection The collection to select or the path to the collection.
    */
   public async changeCollection(collection: Collection | string) {
+    const previousDirPath = this._currentCollection?.dirPath;
+
     // load collection
     this._currentCollection =
       typeof collection === 'string'
@@ -122,6 +134,7 @@ export class EnvironmentService implements Initializable {
 
     // save settings and return the current collection
     await settingsService.setSettings(settings);
+    if (path !== previousDirPath) this.emit('collection-changed');
     return this.currentCollection;
   }
 

@@ -1,31 +1,50 @@
 import { useState } from 'react';
+import { editor } from 'monaco-editor';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { HeadersTable } from '@/components/shared/HeadersTable';
 import { ResponseStatus } from '@/components/mainWindow/responseStatus/ResponseStatus';
 import { selectResponse, useResponseStore } from '@/state/responseStore';
 import { selectRequest, useCollectionStore } from '@/state/collectionStore';
+import { getResponseModel } from '@/lib/monaco/models';
 import { BodyTab } from './OutputTabs/BodyTab';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
+import { ReceivedResponse } from 'shim/objects/response';
 
 interface OutputTabsProps {
   className: string;
 }
 
-type OutputTabValue = 'body' | 'header';
-
+/** Shows the latest response of the selected request. */
 export function OutputTabs({ className }: OutputTabsProps) {
-  const [selectedTab, setSelectedTab] = useState<OutputTabValue>('body');
-
   const requestId = useCollectionStore((state) => selectRequest(state)?.id);
   const response = useResponseStore((state) => selectResponse(state, requestId));
+
+  if (requestId == null || response == null) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-center">
+        <span>Send a request to get a response :)</span>
+      </div>
+    );
+  }
+
+  return (
+    <ResponseTabs className={className} response={response} model={getResponseModel(requestId)} />
+  );
+}
+
+type OutputTabValue = 'body' | 'header';
+
+export interface ResponseTabsProps {
+  className: string;
+  response: ReceivedResponse;
+  /** The model textual bodies are shown in. */
+  model: editor.ITextModel;
+}
+
+/** Shows a response: its body, its headers and its status. */
+export function ResponseTabs({ className, response, model }: ResponseTabsProps) {
+  const [selectedTab, setSelectedTab] = useState<OutputTabValue>('body');
 
   useHotkeys([
     {
@@ -37,14 +56,6 @@ export function OutputTabs({ className }: OutputTabsProps) {
       handler: () => setSelectedTab('header'),
     },
   ]);
-
-  if (response == null) {
-    return (
-      <div className="flex h-full w-full items-center justify-center text-center">
-        <span>Send a request to get a response :)</span>
-      </div>
-    );
-  }
 
   return (
     <Tabs
@@ -58,31 +69,16 @@ export function OutputTabs({ className }: OutputTabsProps) {
           <TabsTrigger value="body">Response Body</TabsTrigger>
           <TabsTrigger value="header">Headers</TabsTrigger>
         </div>
-        <ResponseStatus />
+        <ResponseStatus metaInfo={response.metaInfo} />
       </TabsList>
 
       <TabsContent value="body" className="flex h-full min-h-0 flex-col">
-        <BodyTab />
+        <BodyTab body={response.body} headers={response.headers} model={model} />
       </TabsContent>
 
       <TabsContent value="header" className="p-4">
         <div className="h-0">
-          <Table className="w-full table-auto">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-auto">Key</TableHead>
-                <TableHead className="w-full">Value</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Object.entries(response.headers).map(([key, value]) => (
-                <TableRow key={key}>
-                  <TableCell className="w-1/3">{key}</TableCell>
-                  <TableCell>{Array.isArray(value) ? value.join(', ') : value}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <HeadersTable headers={response.headers} aria-label="Response headers" />
         </div>
       </TabsContent>
     </Tabs>

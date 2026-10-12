@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { HttpService } from 'main/network/service/http-service';
 import type {
@@ -16,16 +16,21 @@ import type {
   ExportOptions,
   AppSettings,
 } from 'shim';
+import { MainProcessEvent } from 'shim/event-service';
+import { sendToRenderer } from './send-to-renderer';
 import type { ClientCertificate } from 'shim/objects/collection';
 import { SettingsService } from '../persistence/service/settings-service';
 import { PersistenceService } from '../persistence/service/persistence-service';
 import { ImportService } from 'main/import/service/import-service';
 import { ExportService } from 'main/export/service/export-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
-import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { BodyStore } from 'main/network/service/body-store';
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
 import { DisplayableError } from 'shim/error/DisplayableError';
+import { HistoryService } from 'main/history/history-service';
+import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
+import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 
 // register stream events
 import './stream-events';
@@ -106,10 +111,22 @@ export class MainEventService implements IEventService {
       void persistenceService
         .saveCollection(environmentService.currentCollection)
         .then(() =>
-          this.window?.webContents.send('collection-variables-updated', { variables, environments })
+          sendToRenderer(this.window?.webContents, MainProcessEvent.CollectionVariablesUpdated, {
+            variables,
+            environments,
+          })
         )
         .catch((err) => logger.error('Failed to persist variable changes', err));
     });
+    // the renderer shows the history of the current collection
+    const pushHistory = () =>
+      sendToRenderer(
+        this.window?.webContents,
+        MainProcessEvent.HistoryChanged,
+        HistoryService.instance.list(environmentService.currentCollection.dirPath)
+      );
+    HistoryService.instance.on('changed', pushHistory);
+    environmentService.on('collection-changed', pushHistory);
     logger.debug('Registered event channels on backend');
   }
 
@@ -127,24 +144,28 @@ export class MainEventService implements IEventService {
   }
 
   async sendRequest(request: TrufosRequest, abortKey?: string): Promise<TrufosResponse | null> {
-    if (abortKey == null) {
-      return await HttpService.instance.fetchAsync(request);
-    }
-
+    // only a request sent with an abort key can be aborted, see abortRequest()
     const abortController = new AbortController();
-    this.abortControllers.set(abortKey, abortController);
+    if (abortKey != null) this.abortControllers.set(abortKey, abortController);
 
-    try {
-      return await HttpService.instance.fetchAsync(request, abortController.signal);
-    } catch (error) {
-      // An aborted request simply has no response. This is the outcome the caller asked for, so it
-      // is reported as one instead of as the platform's abort error.
-      if (!abortController.signal.aborted) throw error;
-      logger.debug('Request was aborted:', request.id);
-      return null;
-    } finally {
-      this.abortControllers.delete(abortKey);
-    }
+    const { dirPath } = environmentService.currentCollection;
+    const response = await HistoryService.instance.record(request, dirPath, async (recorder) => {
+      try {
+        return await HttpService.instance.fetchAsync(request, recorder, abortController.signal);
+      } catch (error) {
+        // An aborted request simply has no response. This is the outcome the caller asked for, so
+        // it is reported as one instead of as the platform's abort error.
+        if (!abortController.signal.aborted) throw error;
+        logger.debug('Request was aborted:', request.id);
+        return null;
+      } finally {
+        if (abortKey != null) this.abortControllers.delete(abortKey);
+      }
+    });
+
+    // the response panel and the collection runner show the latest response of a request
+    if (response != null) LatestResponseBodies.instance.set(request.id, response.body?.id);
+    return response;
   }
 
   async abortRequest(abortKey: string) {
@@ -280,14 +301,14 @@ export class MainEventService implements IEventService {
     await persistenceService.rename(object, newTitle);
   }
 
-  async downloadResponse(responseId: string): Promise<string | null> {
-    const entry = ResponseBodyService.instance.getEntry(responseId);
-    if (!entry) {
-      logger.warn(`Response body not found for ID: ${responseId}`);
+  async downloadBody(bodyId: string): Promise<string | null> {
+    const headers = BodyStore.instance.getHeaders(bodyId);
+    if (!headers) {
+      logger.warn(`Body not found for ID: ${bodyId}`);
       return null;
     }
 
-    const defaultPath = getSuggestedFilename(entry.headers);
+    const defaultPath = getSuggestedFilename(headers);
     const { canceled, filePath: chosenPath } = await dialog.showSaveDialog(this.window!, {
       defaultPath,
     });
@@ -296,7 +317,7 @@ export class MainEventService implements IEventService {
       return null;
     }
 
-    return await ResponseBodyService.instance.downloadResponse(responseId, chosenPath);
+    return await BodyStore.instance.saveTo(bodyId, chosenPath);
   }
 
   async getAppSettings(): Promise<AppSettings | undefined> {
@@ -305,6 +326,25 @@ export class MainEventService implements IEventService {
 
   async saveAppSettings(settings: AppSettings): Promise<void> {
     await SettingsService.instance.updateSettings({ preferences: settings });
+  }
+
+  async getHistory(): Promise<HistoryEntrySummary[]> {
+    return HistoryService.instance.list(environmentService.currentCollection.dirPath);
+  }
+
+  async getHistoryEntry(id: string): Promise<HistoryEntry | undefined> {
+    return HistoryService.instance.get(id);
+  }
+
+  async clearHistory(): Promise<void> {
+    HistoryService.instance.clear(environmentService.currentCollection.dirPath);
+  }
+
+  async openLogDirectory(): Promise<void> {
+    const error = await shell.openPath(app.getPath('logs'));
+    if (error !== '') {
+      throw new Error(`Could not open log directory: ${error}`);
+    }
   }
 
   updateApp() {

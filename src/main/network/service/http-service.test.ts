@@ -11,15 +11,19 @@ import { AuthorizationType } from 'shim/objects';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { TemplateReplaceStream, UnmatchedVariableError } from 'template-replace-stream';
-import { ResponseBodyService } from 'main/network/service/response-body-service';
+import { BodyStore } from 'main/network/service/body-store';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { Readable } from 'node:stream';
+import { text as readText } from 'node:stream/consumers';
+import type { RequestRecorder } from 'main/network/service/request-recorder';
+import { ScriptType } from 'shim/scripting';
 
 const mockAgent = new MockAgent({ connections: 1 });
+const recorder = { sent: vi.fn(), scriptLog: vi.fn() } satisfies RequestRecorder;
 const environmentService = EnvironmentService.instance;
-const responseBodyService = ResponseBodyService.instance;
+const responseBodyService = BodyStore.instance;
 const fileSystemService = FileSystemService.instance;
 
 describe('HttpService', () => {
@@ -29,6 +33,7 @@ describe('HttpService', () => {
   });
 
   beforeEach(() => {
+    vi.clearAllMocks();
     // @ts-expect-error loadScript mock returns null but type expects ReadStream | null
     vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
     vi.spyOn(environmentService, 'currentCollection', 'get').mockReturnValue({
@@ -54,16 +59,14 @@ describe('HttpService', () => {
     };
 
     // Act
-    const result = await httpService.fetchAsync(request);
+    const result = await httpService.fetchAsync(request, recorder);
 
     // Assert
     expect(result.metaInfo.status).toEqual(200);
     expect(result.metaInfo.duration).toBeGreaterThanOrEqual(0);
-    expect(result.id).toBeDefined();
+    expect(result.body).toEqual({ id: expect.any(String), size: text.length });
 
-    const filePath = responseBodyService.getFilePath(result.id);
-    expect(filePath).toBeDefined();
-    const responseBody = fs.readFileSync(filePath!, 'utf8').toString();
+    const responseBody = await readText(responseBodyService.openBody(result.body!.id)!);
     expect(responseBody).toEqual(text);
   });
 
@@ -85,7 +88,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    const result = await httpService.fetchAsync(request);
+    const result = await httpService.fetchAsync(request, recorder);
 
     // Assert
     expect(result.metaInfo.status).toEqual(200);
@@ -117,11 +120,10 @@ describe('HttpService', () => {
     };
 
     // Act
-    const result = await httpService.fetchAsync(request);
+    const result = await httpService.fetchAsync(request, recorder);
 
-    // Assert: bodySizeInBytes must reflect the real file size, not the fake content-length
-    const filePath = responseBodyService.getFilePath(result.id);
-    const actualBodySize = fs.statSync(filePath!).size;
+    // Assert: bodySizeInBytes must reflect the real body size, not the fake content-length
+    const actualBodySize = (await readText(responseBodyService.openBody(result.body!.id)!)).length;
     expect(result.metaInfo.size.bodySizeInBytes).toEqual(actualBodySize);
     expect(result.metaInfo.size.bodySizeInBytes).not.toEqual(5000);
   });
@@ -147,7 +149,7 @@ describe('HttpService', () => {
     const expectedAuthHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -177,7 +179,7 @@ describe('HttpService', () => {
     const httpService = setupMockHttpService(url, null);
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -218,7 +220,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -248,7 +250,7 @@ describe('HttpService', () => {
     };
 
     // Act & Assert
-    await expect(httpService.fetchAsync(request)).rejects.toMatchObject({
+    await expect(httpService.fetchAsync(request, recorder)).rejects.toMatchObject({
       name: DisplayableError.name,
       title: 'Undefined Variable',
       description: expect.stringContaining('baseUrl'),
@@ -287,7 +289,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -331,7 +333,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -364,7 +366,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -408,7 +410,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -459,7 +461,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     // @ts-expect-error getCallHistory() return type may not have lastCall
@@ -516,7 +518,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     // @ts-expect-error getCallHistory() return type may not have lastCall
@@ -554,12 +556,82 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(request);
+    await httpService.fetchAsync(request, recorder);
 
     // Assert
     expect(executeSpy).toHaveBeenCalledTimes(2);
     expect(executeSpy.mock.calls[0]?.[0]).toEqual(preScript);
     expect(executeSpy.mock.calls[1]?.[0]).toEqual(postScript);
+    expect(recorder.scriptLog).toHaveBeenCalledWith(
+      expect.objectContaining({ script: ScriptType.PRE_REQUEST, args: ['pre'] })
+    );
+    expect(recorder.scriptLog).toHaveBeenCalledWith(
+      expect.objectContaining({ script: ScriptType.POST_RESPONSE, args: ['post'] })
+    );
+  });
+
+  it('fetchAsync() should report the request exactly as it is sent to the recorder', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/recorded');
+    const httpService = setupMockHttpService(url, 'OK');
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Recorded Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [{ key: 'x-trace', value: 'abc', isActive: true }],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
+      body: null,
+      auth: { type: AuthorizationType.BASIC, username: 'user', password: 'secret' },
+    };
+
+    // Act
+    await httpService.fetchAsync(request, recorder);
+
+    // Assert
+    expect(recorder.sent).toHaveBeenCalledWith(
+      {
+        method: RequestMethod.GET,
+        url: url.toString(),
+        headers: expect.objectContaining({
+          'x-trace': ['abc'],
+          authorization: expect.stringMatching(/^Basic /),
+        }),
+      },
+      undefined
+    );
+  });
+
+  it('fetchAsync() should never write the request or response to the app log', async () => {
+    // Arrange
+    const password = 'app-log-secret';
+    const url = new URL('https://example.com/api/redacted');
+    const httpService = setupMockHttpService(url, 'OK', { 'set-cookie': 'session=app-log-cookie' });
+    const spies = (['info', 'debug', 'warn', 'error'] as const).map((level) =>
+      vi.spyOn(logger, level)
+    );
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      title: 'Redacted Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      // @ts-expect-error body: null is not in RequestBody union but used in tests
+      body: null,
+      auth: { type: AuthorizationType.BASIC, username: 'user', password },
+    };
+
+    // Act
+    await httpService.fetchAsync(request, recorder);
+
+    // Assert
+    const logged = spies.flatMap((spy) => spy.mock.calls.flat()).map(String);
+    expect(logged.some((arg) => arg.includes(password))).toBe(false);
+    expect(logged.some((arg) => arg.includes('app-log-cookie'))).toBe(false);
   });
 });
 

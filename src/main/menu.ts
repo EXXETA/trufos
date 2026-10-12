@@ -1,4 +1,7 @@
 import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell } from 'electron';
+import { MainProcessEvent } from 'shim/event-service';
+import { sendToRenderer } from 'main/event/send-to-renderer';
+import { MainEventService } from 'main/event/main-event-service';
 
 const REPOSITORY_URL = 'https://github.com/EXXETA/trufos';
 const DOCUMENTATION_URL = `${REPOSITORY_URL}#readme`;
@@ -37,7 +40,7 @@ export class MenuBuilder {
     return {
       label: 'Settings…',
       accelerator: 'CmdOrCtrl+,',
-      click: () => this.mainWindow.webContents.send('show-app-settings'),
+      click: () => sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowAppSettings),
     };
   }
 
@@ -67,14 +70,21 @@ export class MenuBuilder {
       {
         label: 'Run Collection',
         accelerator: 'CmdOrCtrl+Shift+R',
-        click: () => this.mainWindow.webContents.send('show-collection-runner'),
+        click: () =>
+          sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowCollectionRunner),
+      },
+      {
+        label: 'History',
+        accelerator: 'CmdOrCtrl+Shift+H',
+        click: () => sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowHistory),
       },
       { type: 'separator' },
       {
         // CmdOrCtrl+, stays reserved for the general app settings.
         label: 'Settings…',
         accelerator: 'CmdOrCtrl+Shift+,',
-        click: () => this.mainWindow.webContents.send('show-collection-settings'),
+        click: () =>
+          sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowCollectionSettings),
       },
     ];
   }
@@ -88,6 +98,14 @@ export class MenuBuilder {
       {
         label: 'Report an Issue',
         click: () => shell.openExternal(REPORT_ISSUE_URL),
+      },
+      { type: 'separator' },
+      {
+        label: 'Open Logs Folder',
+        click: () =>
+          MainEventService.instance
+            .openLogDirectory()
+            .catch((error) => logger.error('Failed to open log directory', error)),
       },
     ];
   }

@@ -12,6 +12,63 @@ import {
 } from './objects';
 import { ScriptType } from './scripting';
 import { AppSettings } from './app-settings';
+import { HistoryEntry, HistoryEntrySummary } from './history';
+
+/**
+ * Fire-and-forget IPC events pushed from the main process to the renderer.
+ * Every `webContents.send()` call and its renderer-side listener must use this
+ * enum so event names stay unique and dead events are easy to spot.
+ */
+export enum MainProcessEvent {
+  /** The window is about to close; the renderer should flush unsaved state. */
+  BeforeClose = 'before-close',
+  /** The variables or environments of the current collection changed, see {@link CollectionVariablesUpdate}. */
+  CollectionVariablesUpdated = 'collection-variables-updated',
+  /**
+   * The request history changed. The payload is the new history of the current collection, newest
+   * first.
+   */
+  HistoryChanged = 'history-changed',
+  /** Opens the app settings modal (app menu). */
+  ShowAppSettings = 'show-app-settings',
+  /** Opens the collection runner view (Collection menu). */
+  ShowCollectionRunner = 'show-collection-runner',
+  /** Opens the collection settings modal (Collection menu). */
+  ShowCollectionSettings = 'show-collection-settings',
+  /** Shows the request history in the sidebar (Collection menu). */
+  ShowHistory = 'show-history',
+}
+
+/**
+ * Fire-and-forget IPC events sent from the renderer to the main process.
+ */
+export enum RendererEvent {
+  /** The renderer finished initializing and the window can be shown. */
+  RendererReady = 'renderer-ready',
+  /** All unsaved state is flushed; the window may close now. */
+  ReadyToClose = 'ready-to-close',
+}
+
+/**
+ * The payload of every {@link MainProcessEvent}. Sender and listener are both typed from this map,
+ * so they cannot disagree. A type is no runtime guarantee though: listeners still validate payloads
+ * they take over into state.
+ */
+export interface MainProcessEventPayloads {
+  [MainProcessEvent.BeforeClose]: [];
+  [MainProcessEvent.CollectionVariablesUpdated]: [update: CollectionVariablesUpdate];
+  [MainProcessEvent.HistoryChanged]: [entries: HistoryEntrySummary[]];
+  [MainProcessEvent.ShowAppSettings]: [];
+  [MainProcessEvent.ShowCollectionRunner]: [];
+  [MainProcessEvent.ShowCollectionSettings]: [];
+  [MainProcessEvent.ShowHistory]: [];
+}
+
+/** The payload of every {@link RendererEvent}, see {@link MainProcessEventPayloads}. */
+export interface RendererEventPayloads {
+  [RendererEvent.RendererReady]: [];
+  [RendererEvent.ReadyToClose]: [];
+}
 
 export type ImportStrategy = 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia';
 
@@ -28,7 +85,7 @@ export interface ImportResult {
 }
 
 /**
- * Payload of the `collection-variables-updated` event that the main process pushes to the renderer
+ * Payload of the {@link MainProcessEvent.CollectionVariablesUpdated} event that the main process pushes to the renderer
  * after a script changed collection or environment variables.
  */
 export interface CollectionVariablesUpdate {
@@ -286,15 +343,14 @@ export interface IEventService {
   saveScript(request: TrufosRequest, type: ScriptType, script: string): Promise<void>;
 
   /**
-   * Save a response body to disk. Opens a native save dialog with a suggested filename
-   * derived from the Content-Disposition or Content-Type header, then copies the
-   * response body temp file to the chosen path. The response body never enters the
-   * renderer process.
+   * Save a request or response body to disk. Opens a native save dialog with a suggested filename
+   * derived from the Content-Disposition or Content-Type header, then saves the decrypted body to
+   * the chosen path. The body never enters the renderer process.
    *
-   * @param responseId The ID of the response body to save.
+   * @param bodyId The ID of the body to save.
    * @returns The saved file path, or null if the user cancelled or the body is unavailable.
    */
-  downloadResponse(responseId: string): Promise<string | null>;
+  downloadBody(bodyId: string): Promise<string | null>;
 
   /**
    * Returns the persisted application settings.
@@ -306,4 +362,27 @@ export interface IEventService {
    * @param settings The new application settings.
    */
   saveAppSettings(settings: AppSettings): Promise<void>;
+
+  /**
+   * Opens the directory containing the application log files in the OS file manager.
+   */
+  openLogDirectory(): Promise<void>;
+
+  /**
+   * Lists the request history of the current collection in this session, newest first.
+   */
+  getHistory(): Promise<HistoryEntrySummary[]>;
+
+  /**
+   * Returns a request history entry with headers, body references and script output.
+   * @param id The ID of the history entry.
+   * @returns The entry, or `undefined` if it was evicted or cleared.
+   */
+  getHistoryEntry(id: string): Promise<HistoryEntry | undefined>;
+
+  /**
+   * Clears the request history of the current collection and deletes its stored bodies. The latest
+   * response of each request is kept, as it is still shown in the response panel.
+   */
+  clearHistory(): Promise<void>;
 }

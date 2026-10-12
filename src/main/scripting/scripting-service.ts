@@ -1,10 +1,11 @@
 import { app } from 'electron';
 import { EnvironmentService } from 'main/environment/service/environment-service';
 import { createContext, Script } from 'node:vm';
-import { GlobalScriptingApi, VariableMap, VariableObject } from 'shim';
-import fs from 'node:fs/promises';
+import { ScriptConsole, ScriptingContext, ScriptType, VariableMap, VariableObject } from 'shim';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { EventEmitter } from 'node:events';
+import type { ScriptLogger } from 'main/network/service/request-recorder';
+import { ScriptLog } from 'shim/history';
 
 const environmentService = EnvironmentService.instance;
 
@@ -23,9 +24,11 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
   public static _instance: ScriptingService | null = null;
   private _variablesChanged = false;
 
-  private get api() {
+  private createApi(script: ScriptType, log: ScriptLogger) {
     // Arrow functions so the API methods keep this service as their `this`.
-    return Object.freeze<GlobalScriptingApi>({
+    return Object.freeze<ScriptingContext>({
+      console: ScriptingService.createConsole(script, log),
+
       trufos: {
         version: app.getVersion(),
 
@@ -56,6 +59,24 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
     });
   }
 
+  /**
+   * Creates the console of a script. Its output only goes to the given logger, e.g. the request
+   * history, never to the app log, because scripts commonly log secrets like tokens.
+   */
+  private static createConsole(script: ScriptType, log: ScriptLogger): ScriptConsole {
+    const forLevel =
+      (level: ScriptLog['level']) =>
+      (...args: unknown[]) =>
+        log({ script, level, args });
+    return Object.freeze({
+      log: forLevel('info'),
+      info: forLevel('info'),
+      debug: forLevel('debug'),
+      warn: forLevel('warn'),
+      error: forLevel('error'),
+    });
+  }
+
   public static get instance() {
     if (!ScriptingService._instance) {
       ScriptingService._instance = new ScriptingService();
@@ -81,41 +102,46 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
     return environment?.variables ?? {};
   }
 
-  public async executeScriptFromFile(filePath: string) {
-    logger.info(`Executing script from file: ${filePath}`);
-    let code: string;
-    try {
-      code = await fs.readFile(filePath, 'utf-8');
-    } catch (err) {
-      logger.error('Failed to read script file:', err);
-      return;
-    }
-    this.executeScript(code);
-  }
-
-  public executeScript(code: string) {
+  /**
+   * Executes a user script.
+   * @param code the source code of the script
+   * @param type the type of the script, used to label its console output
+   * @param log receives the console output and errors of the script
+   */
+  public executeScript(code: string, type: ScriptType, log: ScriptLogger): void {
     let script: Script;
     try {
       const now = getSteadyTimestamp();
       script = new Script(code);
       logger.debug(`Script compiled successfully after ${getDurationStringFromNow(now)}`);
     } catch (err) {
-      // TODO: Show error to user instead of just logging it.
-      logger.info('Script compilation error', err);
+      logger.info(`Script compilation failed with ${errorName(err)}`);
+      log({ script: type, level: 'error', args: [err] });
       return;
     }
     this._variablesChanged = false;
     try {
-      const context = createContext(this.api, { name: 'Trufos Scripting Context' });
+      const context = createContext(this.createApi(type, log), {
+        name: 'Trufos Scripting Context',
+      });
       const now = getSteadyTimestamp();
       script.runInContext(context, { timeout: SCRIPT_TIMEOUT_SECONDS * 1000 });
       logger.debug(`Script executed successfully after ${getDurationStringFromNow(now)}`);
     } catch (err) {
-      // TODO: Show error to user instead of just logging it.
-      logger.info('Script execution error', err);
+      logger.info(`Script execution failed with ${errorName(err)}`);
+      log({ script: type, level: 'error', args: [err] });
     }
     if (this._variablesChanged) {
       this.emit('variables-changed');
     }
   }
+}
+
+/**
+ * The app log only gets the error type: the message may contain values used by the script. Errors
+ * thrown by the script come from the VM's realm, so `instanceof Error` does not work for them.
+ */
+function errorName(error: unknown) {
+  if (typeof error === 'object' && error != null && 'name' in error) return String(error.name);
+  return typeof error;
 }

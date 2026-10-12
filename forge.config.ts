@@ -10,6 +10,7 @@ import { createProgram, forEachChild, isInterfaceDeclaration, TypeFormatFlags } 
 import { resolve } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { name as packageName } from './package.json';
+import { computeSourceFingerprint, writeSourceFingerprint } from './tools/source-fingerprint';
 
 let osxNotarize: ForgePackagerOptions['osxNotarize'];
 let osxSign: ForgePackagerOptions['osxSign'];
@@ -32,6 +33,12 @@ if (process.env.APPLE_API_KEY && process.env.APPLE_API_KEY_ID && process.env.APP
     optionsForFile: () => ({ hardenedRuntime: false }),
   };
 }
+
+/**
+ * Fingerprint of the sources, taken before the bundles are built so that edits made while
+ * packaging still count as changes. Recorded once packaging succeeded, see `postPackage`.
+ */
+let sourceFingerprint: string | undefined;
 
 const config: ForgeConfig = {
   hooks: {
@@ -63,6 +70,16 @@ const config: ForgeConfig = {
       const out = `// Auto-generated from src/shim/scripting.ts – do not edit manually\n${declarations.join('\n')}\n`;
       await writeFile(resolve('src/renderer/assets/trufos-scripting-api.d.ts'), out);
       console.log('[generateAssets] Generated trufos-scripting-api.d.ts');
+
+      try {
+        sourceFingerprint = computeSourceFingerprint(resolve('.'));
+      } catch (error) {
+        console.warn('[generateAssets] Could not fingerprint the sources:', error);
+      }
+    },
+    // Lets the end-to-end suite detect bundles that are older than the sources.
+    postPackage: async () => {
+      if (sourceFingerprint != null) await writeSourceFingerprint(resolve('.'), sourceFingerprint);
     },
   },
   packagerConfig: {

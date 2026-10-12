@@ -1,22 +1,16 @@
 import {
-  getDurationTextInSec,
   getHttpStatusColorClass,
   getHttpStatusText,
-  getSizeText,
 } from '@/components/mainWindow/responseStatus/ResponseStatusFormatter';
-import { selectResponse, useResponseStore } from '@/state/responseStore';
-import { useCollectionStore } from '@/state/collectionStore';
+import { getDurationTextInSec, getSizeText } from '@/util/format-util';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { MetaInfo } from 'shim/objects/response';
 
-export function ResponseStatus() {
-  const requestId = useCollectionStore((state) => state.selectedRequestId);
-  const response = useResponseStore((state) => selectResponse(state, requestId));
+export interface ResponseStatusProps {
+  metaInfo: MetaInfo;
+}
 
-  if (response?.metaInfo == null) {
-    return <span></span>;
-  }
-  const { metaInfo } = response;
-
+export function ResponseStatus({ metaInfo }: ResponseStatusProps) {
   const statusText = getHttpStatusText(metaInfo.status);
   const statusColorClass = getHttpStatusColorClass(metaInfo.status);
   const durationText = getDurationTextInSec(metaInfo.duration);

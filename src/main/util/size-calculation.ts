@@ -1,18 +1,17 @@
 import { IncomingHttpHeaders } from 'undici/types/header';
 import { ResponseSize } from 'shim/objects/response';
-import fs from 'node:fs';
 
 /**
  * Calculate the size of the response in bytes.
  * @param headers response headers
- * @param filePath path to the response body file
+ * @param bodySize the actual size of the response body in bytes, if it was stored
  */
 export function calculateResponseSize(
   headers: IncomingHttpHeaders,
-  filePath?: string
+  bodySize?: number
 ): ResponseSize {
   const headersSizeInBytes = calculateHeadersSize(headers);
-  const bodySizeInBytes = calculateBodySize(headers, filePath);
+  const bodySizeInBytes = calculateBodySize(headers, bodySize);
   const totalSizeInBytes = bodySizeInBytes + headersSizeInBytes;
   return { totalSizeInBytes, headersSizeInBytes, bodySizeInBytes };
 }
@@ -36,9 +35,9 @@ function calculateHeadersSize(headers: IncomingHttpHeaders) {
   }, 0);
 }
 
-function calculateBodySize(headers: IncomingHttpHeaders, filePath?: string) {
-  if (filePath != null) {
-    return fs.statSync(filePath).size;
+function calculateBodySize(headers: IncomingHttpHeaders, bodySize?: number) {
+  if (bodySize != null) {
+    return bodySize;
   }
 
   const contentLength = headers['content-length'];

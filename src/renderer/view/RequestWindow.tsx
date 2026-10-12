@@ -6,11 +6,16 @@ import { MouseEvent, useCallback, useEffect, useRef } from 'react';
 import { registerGetRequest } from '@/lib/monaco/models';
 import { setRequestTextBody, setScriptContent } from '@/state/helper/collectionUtil';
 import { ScriptType } from 'shim/scripting';
+import { selectSidebarView, useViewStore } from '@/state/viewStore';
+import { selectSelectedHistoryId, useHistoryStore } from '@/state/historyStore';
+import { HistoryEntryView } from '@/components/history/HistoryEntryView';
 
 export function RequestWindow() {
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const requests = useCollectionStore((state) => state.requests);
   const { addNewRequest } = useCollectionActions();
+  const sidebarView = useViewStore(selectSidebarView);
+  const selectedHistoryId = useHistoryStore(selectSelectedHistoryId);
 
   // Register the getRequest callback once so onWillDisposeModel can resolve requests.
   const requestsRef = useRef(requests);
@@ -38,6 +43,11 @@ export function RequestWindow() {
     },
     [addNewRequest]
   );
+
+  // the selected history entry is shown while the sidebar lists the history
+  if (sidebarView === 'history' && selectedHistoryId != null) {
+    return <HistoryEntryView />;
+  }
 
   if (selectedRequestId == null) {
     return (

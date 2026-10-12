@@ -11,7 +11,6 @@ vi.mock('electron');
 vi.mock('node:fs');
 vi.mock('node:fs/promises');
 vi.mock('node:process');
-vi.mock('tmp');
 
 beforeEach(() => {
   vi.clearAllMocks();

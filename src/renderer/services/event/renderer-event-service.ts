@@ -1,6 +1,12 @@
 import { MainProcessError } from '@/error/MainProcessError';
 import { DisplayableError } from 'shim/error/DisplayableError';
-import { CollectionVariablesUpdate, IEventService } from 'shim/event-service';
+import {
+  IEventService,
+  MainProcessEvent,
+  MainProcessEventPayloads,
+  RendererEvent,
+  RendererEventPayloads,
+} from 'shim/event-service';
 
 /**
  * Creates a method that sends an IPC event to the main process and returns the result. If the
@@ -24,45 +30,30 @@ function createEventMethod<T extends keyof IEventService>(methodName: T) {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-export interface RendererEventService {
-  on(event: 'before-close', listener: () => void): this;
-
-  on(event: 'show-collection-runner', listener: () => void): this;
-
-  on(event: 'show-collection-settings', listener: () => void): this;
-
-  on(event: 'show-app-settings', listener: () => void): this;
-
-  /**
-   * The first argument is the Electron IPC event, which this listener does not need; the payload is
-   * the second argument.
-   */
-  on(
-    event: 'collection-variables-updated',
-    listener: (ipcEvent: unknown, payload: CollectionVariablesUpdate) => void
-  ): this;
-
-  emit(event: 'ready-to-close'): this;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class RendererEventService implements IEventService {
   public static readonly instance = new RendererEventService();
 
   /**
-   * Implementation signature for the typed `on()` overloads declared above. `never[]` makes every
-   * overload's listener assignable here; the cast at the call bridges those heterogeneous listener
-   * shapes onto Electron's single channel signature.
+   * Listens to an event pushed by the main process.
+   * @param event the event
+   * @param listener receives the Electron IPC event, which most listeners do not need, followed by
+   * the payload, see {@link MainProcessEventPayloads}
    */
-  on(event: string, listener: (...args: never[]) => void) {
-    type IpcListener = Parameters<typeof window.electron.ipcRenderer.on>[1];
-    window.electron.ipcRenderer.on(event, listener as IpcListener);
+  on<E extends MainProcessEvent>(
+    event: E,
+    listener: (ipcEvent: unknown, ...payload: MainProcessEventPayloads[E]) => void
+  ): this {
+    window.electron.ipcRenderer.on(event, listener);
     return this;
   }
 
-  emit(event: string, ...args: unknown[]) {
-    window.electron.ipcRenderer.send(event, ...args);
+  /**
+   * Sends an event to the main process.
+   * @param event the event
+   * @param payload the payload of the event, see {@link RendererEventPayloads}
+   */
+  emit<E extends RendererEvent>(event: E, ...payload: RendererEventPayloads[E]): this {
+    window.electron.ipcRenderer.send(event, ...payload);
     return this;
   }
 
@@ -97,8 +88,12 @@ export class RendererEventService implements IEventService {
   reorderItem = createEventMethod('reorderItem');
   updateApp = createEventMethod('updateApp');
   saveScript = createEventMethod('saveScript');
-  downloadResponse = createEventMethod('downloadResponse');
+  downloadBody = createEventMethod('downloadBody');
   setClientCertificate = createEventMethod('setClientCertificate');
   getAppSettings = createEventMethod('getAppSettings');
   saveAppSettings = createEventMethod('saveAppSettings');
+  openLogDirectory = createEventMethod('openLogDirectory');
+  getHistory = createEventMethod('getHistory');
+  getHistoryEntry = createEventMethod('getHistoryEntry');
+  clearHistory = createEventMethod('clearHistory');
 }
