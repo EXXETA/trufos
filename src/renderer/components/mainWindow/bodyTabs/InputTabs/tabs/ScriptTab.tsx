@@ -5,7 +5,6 @@ import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleS
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { Divider } from '@/components/shared/Divider';
 import { getScriptModel } from '@/lib/monaco/models';
-import { useEffect } from 'react';
 
 const SCRIPT_TYPE_OPTIONS: [ScriptType, string][] = [
   [ScriptType.PRE_REQUEST, 'Pre-Request'],
@@ -15,17 +14,7 @@ const SCRIPT_TYPE_OPTIONS: [ScriptType, string][] = [
 export function ScriptTab() {
   const scriptType = useCollectionStore((state) => state.currentScriptType);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
-  const { setCurrentScriptType, setDraftFlag } = useCollectionActions();
-
-  useEffect(() => {
-    if (selectedRequestId == null) return;
-    const model = getScriptModel(selectedRequestId, scriptType);
-    const disposable = model.onDidChangeContent((e) => {
-      if (e.isFlush) return;
-      setDraftFlag();
-    });
-    return () => disposable.dispose();
-  }, [selectedRequestId, scriptType]);
+  const { setCurrentScriptType } = useCollectionActions();
 
   if (selectedRequestId == null) return null;
 

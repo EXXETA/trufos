@@ -1,44 +1,50 @@
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { getBodyModel, getScriptModel } from '@/lib/monaco/models';
-import { Folder } from 'shim/objects/folder';
+import { FolderInfo } from 'shim/collection-model';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
 
-export async function setRequestTextBody(requestId: string, request?: TrufosRequest) {
+/**
+ * Loads the text body of a request into its editor model. Replacing the whole content counts as a
+ * flush, so it is not sent back to the main process as an edit.
+ * @param requestId the ID of the request
+ * @param request the request. The model is cleared if it is undefined or has no text body.
+ */
+export async function setRequestTextBody(
+  requestId: string,
+  request?: TrufosRequest
+): Promise<void> {
   const model = getBodyModel(requestId);
   if (request?.body?.type === RequestBodyType.TEXT) {
-    const stream = await IpcPushStream.open(request, 'utf-8');
+    const stream = await IpcPushStream.open({ type: 'request-body', requestId }, 'utf-8');
     model.setValue(await stream.readAll());
   } else {
     model.setValue('');
   }
 }
 
+/**
+ * Loads a script of a request into its editor model, see {@link setRequestTextBody}.
+ * @param requestId the ID of the request
+ * @param request the request. The model is cleared if it is undefined.
+ * @param scriptType the script to load
+ */
 export async function setScriptContent(
   requestId: string,
   request?: TrufosRequest,
   scriptType?: ScriptType
-) {
+): Promise<void> {
   if (scriptType == null) return;
   const model = getScriptModel(requestId, scriptType);
   if (request != null) {
     const stream = await IpcPushStream.open(
-      { type: 'script', source: scriptType, request },
+      { type: 'script', source: scriptType, requestId },
       'utf-8'
     );
     model.setValue(await stream.readAll());
   } else {
     model.setValue('');
   }
-}
-
-export function isRequestInAParentFolder(requestId: string, folder: Folder): boolean {
-  return folder.children.some((child) => {
-    if (child.type === 'folder') {
-      return isRequestInAParentFolder(requestId, child);
-    }
-    return child.id === requestId;
-  });
 }
 
 /**
@@ -50,7 +56,7 @@ export function hasSelectedAncestor(
   itemId: string,
   selectedIds: Set<string>,
   requests: Map<TrufosRequest['id'], TrufosRequest>,
-  folders: Map<Folder['id'], Folder>
+  folders: Map<FolderInfo['id'], FolderInfo>
 ): boolean {
   let parentId = requests.get(itemId)?.parentId ?? folders.get(itemId)?.parentId;
 
@@ -71,29 +77,29 @@ export function hasSelectedAncestor(
  * (also-selected) descendants.
  */
 export function getTopLevelSelectedItems(
-  selectedIds: Set<TrufosRequest['id'] | Folder['id']>,
+  selectedIds: Set<TrufosRequest['id'] | FolderInfo['id']>,
   requests: Map<TrufosRequest['id'], TrufosRequest>,
-  folders: Map<Folder['id'], Folder>
-): (TrufosRequest | Folder)[] {
+  folders: Map<FolderInfo['id'], FolderInfo>
+): (TrufosRequest | FolderInfo)[] {
   return [...selectedIds]
     .filter((id) => !hasSelectedAncestor(id, selectedIds, requests, folders))
     .map((id) => requests.get(id) ?? folders.get(id))
-    .filter((item): item is TrufosRequest | Folder => item != null);
+    .filter((item): item is TrufosRequest | FolderInfo => item != null);
 }
 
 /**
- * Returns the insertion index that places `movingId` directly after `afterId` among `children`,
+ * Returns the insertion index that places `movingId` directly after `afterId` among `childIds`,
  * matching `moveItem`'s index semantics: for a same-parent move the item is spliced out before
  * being re-inserted, so the index is computed with `movingId` filtered out; for a cross-parent
- * move `movingId` isn't in `children` and the filter is a no-op. Returns 0 if `afterId` is not
- * among `children`.
+ * move `movingId` isn't in `childIds` and the filter is a no-op. Returns 0 if `afterId` is not
+ * among `childIds`.
  */
 export function getIndexAfter(
-  children: { id: string }[],
+  childIds: readonly string[],
   movingId: string,
   afterId: string
 ): number {
-  return children.filter((child) => child.id !== movingId).findIndex((c) => c.id === afterId) + 1;
+  return childIds.filter((id) => id !== movingId).indexOf(afterId) + 1;
 }
 
 /**
@@ -105,7 +111,7 @@ export function isWithinGroup(
   targetParentId: string,
   groupIds: Set<string>,
   requests: Map<TrufosRequest['id'], TrufosRequest>,
-  folders: Map<Folder['id'], Folder>
+  folders: Map<FolderInfo['id'], FolderInfo>
 ): boolean {
   return (
     groupIds.has(targetParentId) || hasSelectedAncestor(targetParentId, groupIds, requests, folders)

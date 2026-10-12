@@ -10,19 +10,16 @@ vi.mock('@/services/event/renderer-event-service', () => ({
   },
 }));
 
-const variableState = { variables: {} as Record<string, unknown> };
-vi.mock('@/state/variableStore', () => ({
-  useVariableStore: (selector: (state: typeof variableState) => unknown) => selector(variableState),
-  selectVariables: (state: typeof variableState) => state.variables,
-}));
-
-const environmentState = {
-  environments: {} as Record<string, { variables: Record<string, unknown> }>,
-  selectedEnvironment: undefined as string | undefined,
+const collectionState = {
+  collection: {
+    variables: {} as Record<string, unknown>,
+    environments: {} as Record<string, { variables: Record<string, unknown> }>,
+  },
+  selectedEnvironmentKey: undefined as string | undefined,
 };
-vi.mock('@/state/environmentStore', () => ({
-  useEnvironmentStore: (selector: (state: typeof environmentState) => unknown) =>
-    selector(environmentState),
+vi.mock('@/state/collectionStore', () => ({
+  useCollectionStore: (selector: (state: typeof collectionState) => unknown) =>
+    selector(collectionState),
 }));
 
 import { useResolvedString } from './useResolvedString';
@@ -30,9 +27,9 @@ import { useResolvedString } from './useResolvedString';
 describe('useResolvedString', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    variableState.variables = {};
-    environmentState.environments = {};
-    environmentState.selectedEnvironment = undefined;
+    collectionState.collection.variables = {};
+    collectionState.collection.environments = {};
+    collectionState.selectedEnvironmentKey = undefined;
   });
 
   it('should return the resolved string', async () => {
@@ -96,7 +93,7 @@ describe('useResolvedString', () => {
     await waitFor(() => expect(result.current).toBe('first'));
 
     // Act
-    variableState.variables = { baseUrl: { value: 'https://example.com' } };
+    collectionState.collection.variables = { baseUrl: { value: 'https://example.com' } };
     resolveVariablesInString.mockResolvedValue('second');
     rerender();
 
@@ -106,14 +103,14 @@ describe('useResolvedString', () => {
 
   it('should resolve again when another environment is selected', async () => {
     // Arrange
-    environmentState.environments = { dev: { variables: {} }, prod: { variables: {} } };
-    environmentState.selectedEnvironment = 'dev';
+    collectionState.collection.environments = { dev: { variables: {} }, prod: { variables: {} } };
+    collectionState.selectedEnvironmentKey = 'dev';
     resolveVariablesInString.mockResolvedValue('first');
     const { result, rerender } = renderHook(() => useResolvedString('{{ baseUrl }}'));
     await waitFor(() => expect(result.current).toBe('first'));
 
     // Act
-    environmentState.selectedEnvironment = 'prod';
+    collectionState.selectedEnvironmentKey = 'prod';
     resolveVariablesInString.mockResolvedValue('second');
     rerender();
 

@@ -3,65 +3,50 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { CommandPalette } from './CommandPalette';
 import { RequestMethod } from 'shim/objects/request-method';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { TrufosRequest } from 'shim/objects/request';
+import { CollectionModel, normalizeCollection } from 'shim/collection-model';
 import { Folder } from 'shim/objects/folder';
+import {
+  makeCollection,
+  makeFolder as makeTestFolder,
+  makeRequest as makeTestRequest,
+} from '@/__mocks__/fake-collection-main';
 
 const setSelectedRequestMock = vi.fn();
 const discardChangesMock = vi.fn();
+const selectEnvironmentMock = vi.fn().mockResolvedValue(undefined);
 const sendRequestMock = vi.fn();
 const saveRequestMock = vi.fn();
 const requestCreateItemMock = vi.fn();
 
 const makeRequest = (id: string, parentId: string, title: string, method: RequestMethod) =>
-  ({
-    id,
-    parentId,
-    type: 'request',
-    title,
-    lastModified: 0,
-    url: { base: 'http://localhost', query: [] },
-    method,
-    headers: [],
-    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-    draft: false,
-  }) as unknown as TrufosRequest;
+  makeTestRequest(id, parentId, { title, method });
 
-const makeFolder = (id: string, title: string, children: TrufosRequest[]) =>
-  ({
-    id,
-    parentId: 'col-1',
-    type: 'folder',
-    title,
-    lastModified: 0,
-    children,
-  }) as unknown as Folder;
+const makeFolder = (id: string, title: string, children: TrufosRequest[]): Folder => ({
+  ...makeTestFolder(id, 'col-1', children),
+  title,
+});
 
-// Mutable so each describe block can install its own fixture — CommandPalette now reads both
-// `collection` and `folders` from the store.
-let mockCollection: unknown;
-let mockFolders: Map<string, Folder>;
-// Mutable so tests can toggle presence/`draft` state for the hotkey-guard assertions below — was
-// a hardcoded `() => undefined` before.
+/** Builds the collection store state for a collection with the given children. */
+const makeModel = (children: (Folder | TrufosRequest)[] = []): CollectionModel =>
+  normalizeCollection(makeCollection('col-1', children, { title: 'Test Collection' }));
+
+// Mutable so each describe block can install its own fixture.
+let mockModel: CollectionModel;
+// Mutable so tests can toggle presence/`draft` state for the hotkey-guard assertions below.
 let mockCurrentRequest: TrufosRequest | undefined;
 
 vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: <T,>(selector: (state: unknown) => T) =>
-    selector({ collection: mockCollection, folders: mockFolders, selectedRequestId: undefined }),
+    selector({ ...mockModel, selectedRequestId: undefined }),
   useCollectionActions: () => ({
     setSelectedRequest: setSelectedRequestMock,
     updateRequest: vi.fn(),
     discardChanges: discardChangesMock,
+    selectEnvironment: selectEnvironmentMock,
     addNewFolder: vi.fn(),
   }),
   selectRequest: () => mockCurrentRequest,
-}));
-
-vi.mock('@/state/environmentStore', () => ({
-  useEnvironmentStore: <T,>(selector: (state: unknown) => T) =>
-    selector({ environments: {}, selectedEnvironment: undefined }),
-  useEnvironmentActions: () => ({ selectEnvironment: vi.fn() }),
-  selectEnvironments: (state: { environments: unknown }) => state.environments,
-  selectSelectedEnvironment: (state: { selectedEnvironment: unknown }) => state.selectedEnvironment,
 }));
 
 vi.mock('@/state/responseStore', () => ({
@@ -93,16 +78,7 @@ describe('CommandPalette nested request title collision (cmdk value fix)', () =>
 
   beforeEach(() => {
     setSelectedRequestMock.mockClear();
-    mockCollection = {
-      id: 'col-1',
-      title: 'Test Collection',
-      type: 'collection',
-      children: [folderUsers, folderPosts],
-    };
-    mockFolders = new Map([
-      ['folder-users', folderUsers],
-      ['folder-posts', folderPosts],
-    ]);
+    mockModel = makeModel([folderUsers, folderPosts]);
   });
 
   it('selects the correct request when navigating to a nested request whose title collides with another', async () => {
@@ -136,29 +112,22 @@ describe('CommandPalette nested request title collision (cmdk value fix)', () =>
   });
 });
 
-describe('CommandPalette nested folder state staleness (folders Map fix)', () => {
-  // Simulates the exact post-`updateRequest` divergence confirmed via a real Immer test:
-  // `collection.children`'s embedded tree still holds the OLD child (immer never touches
-  // `state.collection` when a mutation only goes through `state.folders.get(parentId)`), while
-  // the separate `folders` Map holds the NEW, correctly-updated child. A restart resyncs both
-  // from the same source, which is why this only reproduces mid-session.
-  const staleExport = makeRequest('req-export', 'folder-reports', 'Export', RequestMethod.GET);
-  const freshExport = makeRequest('req-export', 'folder-reports', 'Export', RequestMethod.DELETE);
-  const staleFolderInTree = makeFolder('folder-reports', 'Reports', [staleExport]);
-  const freshFolderInMap = makeFolder('folder-reports', 'Reports', [freshExport]);
-
+describe('CommandPalette request state', () => {
+  // The palette reads nested requests from the `requests` Map via `childIds`, so it shows a
+  // request's current (e.g. edited) state.
   beforeEach(() => {
     setSelectedRequestMock.mockClear();
-    mockCollection = {
-      id: 'col-1',
-      title: 'Test Collection',
-      type: 'collection',
-      children: [staleFolderInTree],
-    };
-    mockFolders = new Map([['folder-reports', freshFolderInMap]]);
+    const model = makeModel([
+      makeFolder('folder-reports', 'Reports', [
+        makeRequest('req-export', 'folder-reports', 'Export', RequestMethod.GET),
+      ]),
+    ]);
+    const edited = { ...model.requests.get('req-export')!, method: RequestMethod.DELETE };
+    model.requests.set('req-export', edited);
+    mockModel = model;
   });
 
-  it('shows the fresh method from the folders Map, not the stale embedded tree', async () => {
+  it('shows the current method of a nested request', async () => {
     render(<CommandPalette open={true} onClose={vi.fn()} />);
 
     const user = userEvent.setup();
@@ -166,6 +135,32 @@ describe('CommandPalette nested folder state staleness (folders Map fix)', () =>
 
     expect(screen.getByText('DELETE')).toBeDefined();
     expect(screen.queryByText('GET')).toBeNull();
+  });
+});
+
+describe('CommandPalette environments', () => {
+  beforeEach(() => {
+    selectEnvironmentMock.mockClear().mockResolvedValue(undefined);
+    mockModel = normalizeCollection(
+      makeCollection('col-1', [], {
+        environments: { dev: { variables: {} }, prod: { variables: {} } },
+      }),
+      [],
+      'dev'
+    );
+  });
+
+  it('lists the environments, marks the selected one and selects another', async () => {
+    const onClose = vi.fn();
+    render(<CommandPalette open={true} onClose={onClose} />);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('tab', { name: /environments/i }));
+    expect(screen.getByText('active')).toBeDefined();
+    await user.click(screen.getByText('prod'));
+
+    expect(selectEnvironmentMock).toHaveBeenCalledWith('prod');
+    expect(onClose).toHaveBeenCalled();
   });
 });
 
@@ -181,8 +176,7 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open', () => {
     discardChangesMock.mockClear();
     sendRequestMock.mockClear().mockResolvedValue(undefined);
     saveRequestMock.mockClear().mockResolvedValue(undefined);
-    mockCollection = { id: 'col-1', title: 'Test Collection', type: 'collection', children: [] };
-    mockFolders = new Map();
+    mockModel = makeModel();
     mockCurrentRequest = undefined;
   });
 
@@ -256,17 +250,6 @@ describe('CommandPalette owns Send/Save/New-request hotkeys while open', () => {
 
     expect(requestCreateItemMock).toHaveBeenCalledWith({ type: 'request', parentId: 'col-1' });
     expect(onClose).toHaveBeenCalled();
-  });
-
-  it('mod+n does nothing when there is no collection loaded', () => {
-    mockCollection = null;
-    const onClose = vi.fn();
-    render(<CommandPalette open={true} onClose={onClose} />);
-
-    dispatchKeyDown({ key: 'n', metaKey: true });
-
-    expect(requestCreateItemMock).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('closes immediately on mod+enter without waiting for sendRequest to resolve', () => {
@@ -344,8 +327,7 @@ describe('CommandPalette tab-strip cycling via keyboard', () => {
   const activeTabName = () => screen.getByRole('tab', { selected: true }).textContent ?? '';
 
   beforeEach(() => {
-    mockCollection = { id: 'col-1', title: 'Test Collection', type: 'collection', children: [] };
-    mockFolders = new Map();
+    mockModel = makeModel();
     mockCurrentRequest = undefined;
   });
 

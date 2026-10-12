@@ -1,7 +1,5 @@
 import { editor, Uri } from 'monaco-editor';
-import { TrufosRequest } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
-import { RendererEventService } from '@/services/event/renderer-event-service';
 
 // URI scheme:
 //   trufos://requests/{requestId}/body
@@ -11,24 +9,48 @@ import { RendererEventService } from '@/services/event/renderer-event-service';
 
 const SCHEME = 'trufos';
 
+/** How long to wait after the last keystroke before an edit is sent to the main process. */
+export const MODEL_EDIT_DEBOUNCE_MS = 500;
+
 export interface RequestModels {
   body: editor.ITextModel;
   scripts: Map<ScriptType, editor.ITextModel>;
   response: editor.ITextModel;
 }
 
+/**
+ * Sends the content of the editor models to the main process. The models own the text body and
+ * the scripts of a request, so this is the only way they are persisted.
+ */
+export interface ModelPersistence {
+  /** Replaces the text body of a request. */
+  setTextBody(requestId: string, text: string): Promise<void>;
+  /** Replaces a script of a request. */
+  setScript(requestId: string, scriptType: ScriptType, text: string): Promise<void>;
+  /** Turns the request into a draft if it is none yet, so the change is visible at once. */
+  markDraft(requestId: string): Promise<void>;
+}
+
+/** An edit that waits for its debounce timer. */
+interface PendingEdit {
+  timer: ReturnType<typeof setTimeout>;
+  /** Sends the current content of the model. Must read it synchronously. */
+  send: () => Promise<void>;
+}
+
 const registry = new Map<string, RequestModels>();
 
-/** Callback registered externally (option B) to resolve a request by ID. */
-let getRequest: ((id: string) => TrufosRequest | undefined) | null = null;
+/** Pending edits by request ID, then by model (`body` or a script type). */
+const pendingEdits = new Map<string, Map<string, PendingEdit>>();
+
+let persistence: ModelPersistence | undefined;
 
 /**
- * Register the function used by onWillDisposeModel to look up a TrufosRequest
- * by its ID. Should be called once during app initialisation (e.g. from
- * CollectionStoreProvider or RequestWindow).
+ * Registers how the content of the editor models is persisted. Called once by the collection
+ * store provider.
  */
-export function registerGetRequest(fn: (id: string) => TrufosRequest | undefined) {
-  getRequest = fn;
+export function registerModelPersistence(value: ModelPersistence | undefined): void {
+  persistence = value;
 }
 
 // ── URI helpers ─────────────────────────────────────────────────────────────
@@ -45,34 +67,25 @@ export function responseUri(requestId: string): Uri {
   return Uri.from({ scheme: SCHEME, path: `/requests/${requestId}/response` });
 }
 
-/** Parse a model URI and return its metadata, or null if it is not a trufos model. */
-function parseModelUri(
-  uri: Uri
-): { requestId: string; kind: 'body' | 'script' | 'response'; scriptType?: ScriptType } | null {
-  if (uri.scheme !== SCHEME) return null;
-  // path: /requests/{id}/body|response  or  /requests/{id}/script/{type}
-  const match = uri.path.match(/^\/requests\/([^/]+)\/(body|response|script\/([^/]+))$/);
-  if (!match) return null;
-  const requestId = match[1];
-  if (match[2] === 'body') return { requestId, kind: 'body' };
-  if (match[2] === 'response') return { requestId, kind: 'response' };
-  return { requestId, kind: 'script', scriptType: match[3] as ScriptType };
-}
-
 // ── Registry API ─────────────────────────────────────────────────────────────
 
 export function createModelsForRequest(requestId: string): RequestModels {
   if (registry.has(requestId)) {
     return registry.get(requestId)!;
   }
+  const body = editor.createModel('', undefined, bodyUri(requestId));
+  trackEdits(requestId, 'body', body, (text) => persistence?.setTextBody(requestId, text));
+
+  const scripts = new Map<ScriptType, editor.ITextModel>();
+  for (const type of Object.values(ScriptType)) {
+    const model = editor.createModel('', 'javascript', scriptUri(requestId, type));
+    trackEdits(requestId, type, model, (text) => persistence?.setScript(requestId, type, text));
+    scripts.set(type, model);
+  }
+
   const models: RequestModels = {
-    body: editor.createModel('', undefined, bodyUri(requestId)),
-    scripts: new Map(
-      Object.values(ScriptType).map((type) => [
-        type,
-        editor.createModel('', 'javascript', scriptUri(requestId, type)),
-      ])
-    ),
+    body,
+    scripts,
     response: editor.createModel('', undefined, responseUri(requestId)),
   };
   registry.set(requestId, models);
@@ -95,67 +108,90 @@ export function getResponseModel(requestId: string): editor.ITextModel {
   return registry.get(requestId)!.response;
 }
 
-/** Requests whose models are currently being disposed without persisting their content. */
-const discardedRequestIds = new Set<string>();
-
 /**
- * Disposes all models of the given request.
+ * Disposes all models of the given request. Pending edits are dropped, so call
+ * {@link flushModelEdits} first to keep them.
  * @param requestId the ID of the request
- * @param save whether to persist the body and script content first. Pass `false` for a request
- * that no longer exists, e.g. after it was deleted, as saving would recreate it on disk.
  */
-export function disposeModelsForRequest(requestId: string, save = true): void {
+export function disposeModelsForRequest(requestId: string): void {
   const models = registry.get(requestId);
+  cancelModelEdits(requestId);
   if (!models) return;
-  if (!save) discardedRequestIds.add(requestId);
   try {
-    // Dispose each model — this triggers onWillDisposeModel for body & script,
-    // which handles persisting their content.
     models.body.dispose();
     for (const scriptModel of models.scripts.values()) {
       scriptModel.dispose();
     }
     models.response.dispose();
   } finally {
-    discardedRequestIds.delete(requestId);
     registry.delete(requestId);
   }
 }
 
-// ── Save helper used by MainTopBar and CollectionStoreProvider ───────────────
-
-const eventService = RendererEventService.instance;
+// ── Edits ────────────────────────────────────────────────────────────────────
 
 /**
- * Given a live model (from editor.getModels()), save its content if it is a
- * body or script model. Response models are skipped (read-only display).
- * Returns a Promise that resolves when the save is complete (or immediately for
- * non-saveable models).
+ * Sends the pending edits of the given request, or of all requests, right away instead of waiting
+ * for their debounce timers. The content is read synchronously, so the models may be disposed as
+ * soon as this returns.
+ * @returns a promise that resolves when main applied the edits
  */
-export async function saveModelContent(model: editor.ITextModel): Promise<void> {
-  const parsed = parseModelUri(model.uri);
-  if (!parsed || !getRequest) return;
-  const request = getRequest(parsed.requestId);
-  if (!request) return;
-
-  if (parsed.kind === 'body') {
-    await eventService.saveRequest(request, model.getValue());
-  } else if (parsed.kind === 'script' && parsed.scriptType != null) {
-    await eventService.saveScript(request, parsed.scriptType, model.getValue());
+export function flushModelEdits(requestId?: string): Promise<void> {
+  const requestIds = requestId == null ? [...pendingEdits.keys()] : [requestId];
+  const sent: Promise<void>[] = [];
+  for (const id of requestIds) {
+    for (const edit of pendingEdits.get(id)?.values() ?? []) {
+      clearTimeout(edit.timer);
+      sent.push(edit.send());
+    }
+    pendingEdits.delete(id);
   }
+  return Promise.all(sent).then(() => undefined);
 }
 
-// ── onWillDisposeModel — save content when a model is about to be disposed ───
-
-editor.onWillDisposeModel((model) => {
-  const parsed = parseModelUri(model.uri);
-  if (!parsed || !getRequest || discardedRequestIds.has(parsed.requestId)) return;
-  const request = getRequest(parsed.requestId);
-  if (!request) return;
-
-  if (parsed.kind === 'body') {
-    void eventService.saveRequest(request, model.getValue());
-  } else if (parsed.kind === 'script' && parsed.scriptType != null) {
-    void eventService.saveScript(request, parsed.scriptType, model.getValue());
+/**
+ * Drops the pending edits of the given request, e.g. because it is deleted or its changes are
+ * discarded.
+ */
+export function cancelModelEdits(requestId: string): void {
+  for (const edit of pendingEdits.get(requestId)?.values() ?? []) {
+    clearTimeout(edit.timer);
   }
-});
+  pendingEdits.delete(requestId);
+}
+
+/** Schedules a debounced edit whenever the user changes the content of the model. */
+function trackEdits(
+  requestId: string,
+  key: string,
+  model: editor.ITextModel,
+  persist: (text: string) => Promise<void> | undefined
+) {
+  // the listener is disposed together with the model
+  model.onDidChangeContent((event) => {
+    // a flush replaces the whole content, i.e. the content was loaded and not edited
+    if (event.isFlush) return;
+
+    let edits = pendingEdits.get(requestId);
+    if (edits == null) {
+      pendingEdits.set(requestId, (edits = new Map()));
+      persistence?.markDraft(requestId).catch(logError);
+    }
+
+    const send = async () => {
+      await persist(model.getValue());
+    };
+    clearTimeout(edits.get(key)?.timer);
+    const timer = setTimeout(() => {
+      const current = pendingEdits.get(requestId);
+      current?.delete(key);
+      if (current?.size === 0) pendingEdits.delete(requestId);
+      send().catch(logError);
+    }, MODEL_EDIT_DEBOUNCE_MS);
+    edits.set(key, { timer, send });
+  });
+}
+
+function logError(error: unknown) {
+  console.error('Could not persist an editor change:', error);
+}

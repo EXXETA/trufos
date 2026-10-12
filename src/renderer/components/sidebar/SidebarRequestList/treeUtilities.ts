@@ -1,23 +1,30 @@
 import { arrayMove } from '@dnd-kit/sortable';
-import { Folder } from 'shim/objects/folder';
+import type { CollectionModel, FolderInfo } from 'shim/collection-model';
 import { TrufosRequest } from 'shim/objects/request';
+
+/** The parts of the collection that describe its tree. */
+export type CollectionTree = Pick<CollectionModel, 'childIds' | 'folders' | 'requests'>;
+
+/** A node of the {@link CollectionTree}. */
+export type TreeNode = TrufosRequest | FolderInfo;
 
 /**
  * Returns the most recent save timestamp for an item.
  * For folders, recursively returns the max timestamp of all descendants.
  */
-export function getMaxTimestamp(
-  item: TrufosRequest | Folder,
-  requests: Map<string, TrufosRequest>,
-  folders: Map<string, Folder>
-): number {
-  if (item.type === 'request') return requests.get(item.id)?.lastModified ?? item.lastModified;
-  const folder = folders.get(item.id);
-  if (!folder || folder.children.length === 0) return item.lastModified;
+export function getMaxTimestamp(item: TreeNode, tree: CollectionTree): number {
+  if (item.type === 'request') return tree.requests.get(item.id)?.lastModified ?? item.lastModified;
   return Math.max(
     item.lastModified,
-    ...folder.children.map((child) => getMaxTimestamp(child, requests, folders))
+    ...getChildren(tree, item.id).map((child) => getMaxTimestamp(child, tree))
   );
+}
+
+/** Returns the children of the collection or of a folder, in order. */
+export function getChildren(tree: CollectionTree, parentId: string): TreeNode[] {
+  return (tree.childIds.get(parentId) ?? [])
+    .map((id) => tree.requests.get(id) ?? tree.folders.get(id))
+    .filter((child) => child != null);
 }
 
 export enum SortMode {
@@ -46,19 +53,24 @@ export interface FlattenedItem {
 export const INDENTATION_WIDTH = 20;
 
 /**
- * Convert a nested tree of children into a flat list.
+ * Convert the tree below the given parent into a flat list.
  * Only open folders have their children included.
  *
- * Uses the `folders` Map as the source of truth for folder children,
- * because immer may not propagate Map mutations back into the tree references.
+ * @param tree the collection tree
+ * @param parentId the collection or folder whose descendants to list
+ * @param openFolders the IDs of the open folders
+ * @param compare sorts the children of each parent. They keep their order if not given.
+ * @param depth the depth of the children of the parent
  */
 export function flattenTree(
-  children: (TrufosRequest | Folder)[],
-  openFolders: Set<string>,
+  tree: CollectionTree,
   parentId: string,
-  folders: Map<Folder['id'], Folder>,
+  openFolders: Set<string>,
+  compare?: ((a: TreeNode, b: TreeNode) => number) | null,
   depth = 0
 ): FlattenedItem[] {
+  const children = getChildren(tree, parentId);
+  if (compare != null) children.sort(compare);
   return children.flatMap((child) => {
     const item: FlattenedItem = {
       id: child.id,
@@ -68,9 +80,7 @@ export function flattenTree(
     };
 
     if (child.type === 'folder' && openFolders.has(child.id)) {
-      // Read children from the Map (always up-to-date after moveItem)
-      const folderChildren = folders.get(child.id)?.children ?? [];
-      return [item, ...flattenTree(folderChildren, openFolders, child.id, folders, depth + 1)];
+      return [item, ...flattenTree(tree, child.id, openFolders, compare, depth + 1)];
     }
 
     return [item];

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { editor } from 'monaco-editor';
 import { ChevronDown, ChevronRight, Loader2, Play, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,18 +17,12 @@ import { FolderIcon, SmallArrow } from '@/components/icons';
 import { HttpService } from '@/services/http/http-service';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
-import { saveModelContent } from '@/lib/monaco/models';
+import { flushModelEdits } from '@/lib/monaco/models';
 import { cn } from '@/lib/utils';
-import { useCollectionStore } from '@/state/collectionStore';
-import {
-  selectEnvironments,
-  selectSelectedEnvironment,
-  useEnvironmentActions,
-  useEnvironmentStore,
-} from '@/state/environmentStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { CollectionTree, getChildren } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 import { useResponseActions } from '@/state/responseStore';
 import { showError } from '@/error/errorHandler';
-import type { Folder } from 'shim/objects/folder';
 import type { TrufosRequest } from 'shim/objects/request';
 import type { TrufosResponse } from 'shim/objects/response';
 
@@ -76,47 +69,42 @@ interface CollectionRunnerProps {
   onClose: () => void;
 }
 
-function collectRequestIds(folder: Folder, folders: Map<string, Folder>): string[] {
-  return folder.children.flatMap((child) => {
-    if (child.type === 'request') return child.id;
-    const currentFolder = folders.get(child.id) ?? child;
-    return collectRequestIds(currentFolder, folders);
-  });
+function collectRequestIds(tree: CollectionTree, folderId: string): string[] {
+  return getChildren(tree, folderId).flatMap((child) =>
+    child.type === 'request' ? child.id : collectRequestIds(tree, child.id)
+  );
 }
 
 function buildRunnerItems(
-  children: Array<Folder | TrufosRequest>,
-  folders: Map<string, Folder>,
-  requests: Map<string, TrufosRequest>,
+  tree: CollectionTree,
+  parentId: string,
   depth = 0,
   ancestors: string[] = []
 ): RunnerItem[] {
-  return children.flatMap((child): RunnerItem[] => {
+  return getChildren(tree, parentId).flatMap((child): RunnerItem[] => {
     if (child.type === 'request') {
-      const request = requests.get(child.id) ?? child;
       return [
         {
           type: 'request',
-          id: request.id,
-          title: request.title || request.url.base,
+          id: child.id,
+          title: child.title || child.url.base,
           depth,
           ancestors,
-          request,
+          request: child,
         },
       ];
     }
 
-    const folder = folders.get(child.id) ?? child;
     return [
       {
         type: 'folder',
-        id: folder.id,
-        title: folder.title,
+        id: child.id,
+        title: child.title,
         depth,
         ancestors,
-        requestIds: collectRequestIds(folder, folders),
+        requestIds: collectRequestIds(tree, child.id),
       },
-      ...buildRunnerItems(folder.children, folders, requests, depth + 1, [...ancestors, folder.id]),
+      ...buildRunnerItems(tree, child.id, depth + 1, [...ancestors, child.id]),
     ];
   });
 }
@@ -225,10 +213,11 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   const collection = useCollectionStore((state) => state.collection);
   const requests = useCollectionStore((state) => state.requests);
   const folders = useCollectionStore((state) => state.folders);
+  const childIds = useCollectionStore((state) => state.childIds);
   const { addResponse } = useResponseActions();
-  const environments = useEnvironmentStore(selectEnvironments);
-  const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
-  const { selectEnvironment } = useEnvironmentActions();
+  const environments = collection.environments;
+  const selectedEnvironment = useCollectionStore((state) => state.selectedEnvironmentKey);
+  const { selectEnvironment } = useCollectionActions();
 
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(
     () => new Set(requests.keys())
@@ -295,8 +284,8 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   }, [requests]);
 
   const items = useMemo(
-    () => buildRunnerItems(collection?.children ?? [], folders, requests),
-    [collection?.children, folders, requests]
+    () => buildRunnerItems({ childIds, folders, requests }, collection.id),
+    [childIds, folders, requests, collection.id]
   );
 
   // Items inside a collapsed folder are hidden from the checklist but stay selected.
@@ -391,7 +380,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     const startedAt = performance.now();
     runStartRef.current = startedAt;
     try {
-      await Promise.all(editor.getModels().map(saveModelContent));
+      await flushModelEdits();
 
       for (const request of requestsToRun) {
         if (signal.aborted) return;
@@ -400,7 +389,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
         const requestStartedAt = performance.now();
         try {
           // No response means this request was aborted, i.e. the run was invalidated.
-          const response = await httpService.sendRequest(request, signal);
+          const response = await httpService.sendRequest(request.id, signal);
           if (response == null || signal.aborted) return;
           addResponse(request.id, response);
           const state = isSuccessfulStatus(response.metaInfo.status) ? 'passed' : 'failed';
@@ -450,7 +439,9 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
             <Select
               value={selectedEnvironment ?? NO_ENVIRONMENT}
               onValueChange={(value) =>
-                void selectEnvironment(value === NO_ENVIRONMENT ? undefined : value)
+                void selectEnvironment(value === NO_ENVIRONMENT ? undefined : value).catch(
+                  showError
+                )
               }
               disabled={isRunning}
             >

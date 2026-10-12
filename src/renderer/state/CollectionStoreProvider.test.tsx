@@ -1,95 +1,116 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import { CollectionStoreProvider } from './CollectionStoreProvider';
-import { useVariableStore } from '@/state/variableStore';
-import { useEnvironmentStore } from '@/state/environmentStore';
-import { MainProcessEvent } from 'shim/event-service';
+import { useCollectionStore } from '@/state/collectionStore';
+import { MainProcessEvent, RendererEvent } from 'shim/event-service';
+import { FakeCollectionMain, makeModel } from '@/__mocks__/fake-collection-main';
 
-const listeners: Record<string, (...args: unknown[]) => void> = {};
+const { listeners, eventService, models } = vi.hoisted(() => {
+  const listeners = new Map<string, (...args: unknown[]) => unknown>();
+  return {
+    listeners,
+    eventService: {
+      on: vi.fn(),
+      removeListener: vi.fn(),
+      emit: vi.fn(),
+      getCollectionState: vi.fn(),
+      dispatch: vi.fn(),
+    },
+    models: {
+      flushModelEdits: vi.fn(),
+      registerModelPersistence: vi.fn(),
+      cancelModelEdits: vi.fn(),
+      createModelsForRequest: vi.fn(),
+      disposeModelsForRequest: vi.fn(),
+    },
+  };
+});
 
 vi.mock('@/services/event/renderer-event-service', () => ({
-  RendererEventService: {
-    instance: {
-      on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-        listeners[event] = listener;
-      }),
-      emit: vi.fn(),
-      selectEnvironment: vi.fn().mockResolvedValue(undefined),
-      loadCollection: vi.fn().mockResolvedValue({
-        id: 'col-1',
-        type: 'collection',
-        title: 'Test',
-        dirPath: '/test',
-        children: [],
-        variables: {},
-        environments: {},
-        lastModified: 0,
-        isDefault: false,
-      }),
-    },
-  },
+  RendererEventService: { instance: eventService },
 }));
+
+vi.mock('@/lib/monaco/models', () => models);
 
 vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: vi.fn() },
-}));
-
-vi.mock('@/lib/monaco/models', () => ({
-  REQUEST_MODEL: { getValue: vi.fn() },
-  SCRIPT_MODEL: { getValue: vi.fn() },
 }));
 
 vi.mock('@/error/errorHandler', () => ({
   showError: vi.fn(),
 }));
 
-vi.mock('@/state/helper/collectionUtil', () => ({
-  isRequestInAParentFolder: vi.fn(() => false),
-}));
+let main: FakeCollectionMain;
 
 beforeEach(() => {
-  useVariableStore.getState().initialize({});
-  useEnvironmentStore.getState().initialize({});
+  vi.clearAllMocks();
+  listeners.clear();
+  main = new FakeCollectionMain(makeModel());
+  main.onEvent((event) => listeners.get(MainProcessEvent.CollectionStateChanged)?.({}, event));
+  eventService.on.mockImplementation((event: string, listener: (...args: unknown[]) => void) => {
+    listeners.set(event, listener);
+    return eventService;
+  });
+  eventService.removeListener.mockImplementation((event: string) => {
+    listeners.delete(event);
+    return eventService;
+  });
+  eventService.getCollectionState.mockImplementation(main.getCollectionState);
+  eventService.dispatch.mockImplementation(main.dispatch);
+  models.flushModelEdits.mockResolvedValue(undefined);
 });
 
+const Title = () => <span>{useCollectionStore((state) => state.collection.title)}</span>;
+
+const renderProvider = () =>
+  render(
+    <CollectionStoreProvider>
+      <Title />
+    </CollectionStoreProvider>
+  );
+
 describe('CollectionStoreProvider', () => {
-  it('updates variableStore and environmentStore when collection-variables-updated is received', async () => {
-    render(
-      <CollectionStoreProvider>
-        <div />
-      </CollectionStoreProvider>
-    );
+  it('renders the children once the collection state is loaded', async () => {
+    renderProvider();
 
-    await waitFor(() =>
-      expect(listeners[MainProcessEvent.CollectionVariablesUpdated]).toBeDefined()
-    );
-
-    const testVariables = { apiKey: { value: 'test-123' } };
-    const testEnvironments = { dev: { variables: { host: { value: 'localhost' } } } };
-
-    act(() => {
-      listeners[MainProcessEvent.CollectionVariablesUpdated](
-        {}, // ipcRendererEvent (ignored)
-        { variables: testVariables, environments: testEnvironments }
-      );
-    });
-
-    expect(useVariableStore.getState().variables).toEqual(testVariables);
-    expect(useEnvironmentStore.getState().environments).toEqual(testEnvironments);
+    expect(await screen.findByText('Test')).toBeDefined();
+    expect(models.registerModelPersistence).toHaveBeenCalledWith(expect.any(Object));
   });
 
-  it('does not update stores when event is not fired', async () => {
-    render(
-      <CollectionStoreProvider>
-        <div />
-      </CollectionStoreProvider>
+  it('applies collection state changes broadcast by main', async () => {
+    renderProvider();
+    await screen.findByText('Test');
+
+    await act(() =>
+      main.dispatch({
+        commandId: 'foreign',
+        timestamp: 1,
+        command: { type: 'renameCollection', title: 'Renamed' },
+      })
     );
 
-    await waitFor(() =>
-      expect(listeners[MainProcessEvent.CollectionVariablesUpdated]).toBeDefined()
-    );
+    expect(screen.getByText('Renamed')).toBeDefined();
+  });
 
-    expect(useVariableStore.getState().variables).toEqual({});
-    expect(useEnvironmentStore.getState().environments).toEqual({});
+  it('flushes editor changes before the window closes', async () => {
+    renderProvider();
+    await screen.findByText('Test');
+
+    await act(async () => {
+      await listeners.get(MainProcessEvent.BeforeClose)?.({});
+    });
+
+    expect(models.flushModelEdits).toHaveBeenCalledOnce();
+    expect(eventService.emit).toHaveBeenCalledWith(RendererEvent.ReadyToClose);
+  });
+
+  it('removes its listeners on unmount', async () => {
+    const { unmount } = renderProvider();
+    await screen.findByText('Test');
+
+    unmount();
+
+    await waitFor(() => expect(listeners.size).toBe(0));
+    expect(models.registerModelPersistence).toHaveBeenLastCalledWith(undefined);
   });
 });

@@ -9,13 +9,6 @@ import { CertificateEditor } from '@/components/shared/settings/TlsTab/Certifica
 import { ExportEditor } from '@/components/shared/settings/ExportTab/ExportEditor';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
-import { selectVariables, useVariableActions, useVariableStore } from '@/state/variableStore';
-import {
-  selectEnvironments,
-  selectSelectedEnvironment,
-  useEnvironmentActions,
-  useEnvironmentStore,
-} from '@/state/environmentStore';
 import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { deepEqual } from '@/util/object-util';
@@ -29,9 +22,8 @@ export interface CollectionSettingsModalProps {
 }
 
 /**
- * A single working copy of the editable collection state. The underlying data lives across three
- * stores (collection / variables / environments), but the modal edits one composed draft and commits
- * it back on save. Variables are kept in array form so in-progress/empty/duplicate keys are preserved
+ * A single working copy of the editable collection state. The modal edits one composed draft and
+ * commits it back on save. Variables are kept in array form so in-progress/empty/duplicate keys are preserved
  * while editing; they are converted to a map only at commit time.
  */
 type CollectionDraft = {
@@ -43,15 +35,19 @@ type CollectionDraft = {
 };
 
 export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsModalProps) => {
-  const { setVariables } = useVariableActions();
-  const { setEnvironments, selectEnvironment } = useEnvironmentActions();
-  const { setClientCertificate, renameCollection } = useCollectionActions();
+  const {
+    setVariables,
+    setEnvironments,
+    selectEnvironment,
+    setClientCertificate,
+    renameCollection,
+  } = useCollectionActions();
 
-  const variables = useVariableStore(selectVariables);
-  const environments = useEnvironmentStore(selectEnvironments);
-  const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
-  const storedCertificate = useCollectionStore((s) => s.collection?.clientCertificate ?? null);
-  const collectionTitle = useCollectionStore((s) => s.collection?.title ?? '');
+  const variables = useCollectionStore((s) => s.collection.variables);
+  const environments = useCollectionStore((s) => s.collection.environments);
+  const selectedEnvironment = useCollectionStore((s) => s.selectedEnvironmentKey);
+  const storedCertificate = useCollectionStore((s) => s.collection.clientCertificate ?? null);
+  const collectionTitle = useCollectionStore((s) => s.collection.title);
 
   const buildDraft = (): CollectionDraft => ({
     title: collectionTitle,
@@ -88,7 +84,7 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
   }, [isOpen]);
 
   const save = async () => {
-    // overwrite the generic slices wholesale through their existing store setters.
+    // overwrite the collection settings wholesale through the store actions.
     await setVariables(variableArrayToMap(draft.variables));
     await setEnvironments(draft.environments);
     await selectEnvironment(draft.selectedEnvironment);

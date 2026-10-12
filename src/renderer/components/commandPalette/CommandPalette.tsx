@@ -15,7 +15,7 @@ import {
   SquareMousePointer,
   HardDrive,
 } from 'lucide-react';
-import { Folder } from 'shim/objects/folder';
+import { FolderInfo } from 'shim/collection-model';
 import { TrufosRequest } from 'shim/objects/request';
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -29,14 +29,14 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import {
-  selectEnvironments,
-  selectSelectedEnvironment,
-  useEnvironmentActions,
-  useEnvironmentStore,
-} from '@/state/environmentStore';
+  CollectionState,
+  selectRequest,
+  useCollectionActions,
+  useCollectionStore,
+} from '@/state/collectionStore';
 import { useViewActions } from '@/state/viewStore';
+import { showError } from '@/error/errorHandler';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { Divider } from '@/components/shared/Divider';
 import {
@@ -70,17 +70,12 @@ interface ActionItem {
 }
 
 /**
- * Walk collection children depth-first, flattening nested folders into a single group per folder.
- *
- * Reads folder children from the `folders` Map (always up-to-date after `updateRequest`/
- * `moveItem`/etc.), not the folder object's own embedded `children` — immer may not propagate
- * Map mutations back into the tree references (same defect and same fix as
- * `treeUtilities.ts`'s `flattenTree`).
+ * Walk the collection depth-first, flattening nested folders into a single group per folder.
  */
 const buildRequestGroups = (
-  children: (Folder | TrufosRequest)[],
-  folders: Map<Folder['id'], Folder>,
-  folder: Folder | null = null
+  state: Pick<CollectionState, 'childIds' | 'folders' | 'requests'>,
+  parentId: string,
+  folder: FolderInfo | null = null
 ): RequestGroup[] => {
   const group: RequestGroup = {
     id: folder?.id ?? null,
@@ -89,12 +84,13 @@ const buildRequestGroups = (
   };
   const subGroups: RequestGroup[] = [];
 
-  for (const child of children) {
-    if (child.type === 'request') {
-      group.requests.push(child);
-    } else {
-      const liveFolder = folders.get(child.id) ?? child;
-      subGroups.push(...buildRequestGroups(liveFolder.children, folders, liveFolder));
+  for (const childId of state.childIds.get(parentId) ?? []) {
+    const request = state.requests.get(childId);
+    const childFolder = state.folders.get(childId);
+    if (request != null) {
+      group.requests.push(request);
+    } else if (childFolder != null) {
+      subGroups.push(...buildRequestGroups(state, childId, childFolder));
     }
   }
 
@@ -116,14 +112,15 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   const collection = useCollectionStore((s) => s.collection);
   const folders = useCollectionStore((s) => s.folders);
-  const requestGroups = collection ? buildRequestGroups(collection.children, folders) : [];
+  const requests = useCollectionStore((s) => s.requests);
+  const childIds = useCollectionStore((s) => s.childIds);
+  const requestGroups = buildRequestGroups({ childIds, folders, requests }, collection.id);
   const allRequests = requestGroups.flatMap((group) => group.requests);
   const currentRequest = useCollectionStore(selectRequest);
-  const { setSelectedRequest, discardChanges } = useCollectionActions();
+  const { setSelectedRequest, discardChanges, selectEnvironment } = useCollectionActions();
 
-  const environments = useEnvironmentStore(selectEnvironments);
-  const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
-  const { selectEnvironment } = useEnvironmentActions();
+  const environments = collection.environments;
+  const selectedEnvironment = useCollectionStore((s) => s.selectedEnvironmentKey);
 
   const { openCollectionSettings, openAppSettings, requestCreateItem } = useViewActions();
 
@@ -178,7 +175,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     <CommandItem
       key={key}
       value={key}
-      onSelect={() => runAndClose(() => selectEnvironment(key))}
+      onSelect={() => runAndClose(() => void selectEnvironment(key).catch(showError))}
       className="data-[selected='true']:bg-divider"
     >
       <HardDrive className="shrink-0" />

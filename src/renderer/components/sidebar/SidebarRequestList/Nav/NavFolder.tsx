@@ -1,4 +1,4 @@
-import { Folder } from 'shim/objects/folder';
+import { FolderInfo } from 'shim/collection-model';
 import { SidebarGroup, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { FolderDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/FolderDropdown';
 import { selectFolder, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
@@ -12,7 +12,7 @@ import { InlineRename } from '@/components/shared/InlineRename';
 import type { CreatingItem, ItemClickHandler } from '@/components/sidebar/SidebarRequestList/types';
 
 interface NavFolderProps {
-  folderId: Folder['id'];
+  folderId: FolderInfo['id'];
   depth?: number;
   onCreateItem?: (item: CreatingItem) => void;
   onItemClick: ItemClickHandler;

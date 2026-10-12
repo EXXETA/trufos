@@ -19,7 +19,6 @@ import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
 import type { ImportStrategy, ImportWarning } from 'shim/event-service';
 import { showError } from '@/error/errorHandler';
-import { Collection } from 'shim/objects/collection';
 import { toast } from '@/components/ui/sonner';
 
 const eventService = RendererEventService.instance;
@@ -142,9 +141,9 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   const doImport = useCallback(async () => {
     try {
       setIsImporting(true);
-      let collection: Collection;
+      let dirPath: string;
       if (strategy === 'Trufos') {
-        collection = await eventService.openCollection(srcEntry!.path);
+        dirPath = srcEntry!.path;
       } else {
         const result = await eventService.importCollection(
           srcEntry!.path,
@@ -152,10 +151,10 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
           strategy,
           title!
         );
-        collection = result.collection;
+        dirPath = result.collection.dirPath;
         showImportWarnings(result.warnings);
       }
-      await changeCollection(collection);
+      await changeCollection(dirPath);
       onClose?.();
     } catch (e) {
       showError(e);

@@ -9,7 +9,6 @@ let mockScriptType = ScriptType.PRE_REQUEST;
 vi.mock('@/state/collectionStore', () => ({
   useCollectionActions: () => ({
     setCurrentScriptType: setCurrentScriptTypeMock,
-    setDraftFlag: vi.fn(),
   }),
   useCollectionStore: (
     selector: (state: {

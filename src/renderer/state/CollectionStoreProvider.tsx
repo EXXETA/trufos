@@ -1,62 +1,80 @@
-import { useEffect, useRef, useState, FC, PropsWithChildren } from 'react';
+import { useEffect, useState, FC, PropsWithChildren } from 'react';
 import { Loader2 } from 'lucide-react';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { MainProcessEvent, RendererEvent } from 'shim/event-service';
+import { MainProcessEvent, MainProcessEventPayloads, RendererEvent } from 'shim/event-service';
 import {
+  CollectionStore,
   createCollectionStore,
+  createModelPersistence,
   CollectionStoreProvider as StoreProvider,
 } from '@/state/collectionStore';
-import { saveModelContent } from '@/lib/monaco/models';
-import { editor } from 'monaco-editor';
+import { CollectionReplica } from '@/state/collection-replica';
+import { flushModelEdits, registerModelPersistence } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
-import { useVariableStore } from '@/state/variableStore';
-import { useEnvironmentStore } from '@/state/environmentStore';
 
 const rendererEventService = RendererEventService.instance;
 
+type Listener<E extends MainProcessEvent> = (
+  ipcEvent: unknown,
+  ...payload: MainProcessEventPayloads[E]
+) => void;
+
 export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => {
-  const storeRef = useRef<ReturnType<typeof createCollectionStore> | null>(null);
-  const [ready, setReady] = useState(false);
+  const [store, setStore] = useState<CollectionStore | null>(null);
 
   useEffect(() => {
+    let replica: CollectionReplica | undefined;
+    let disposed = false;
+
+    // Registered before the snapshot is fetched: earlier changes are part of the snapshot
+    const onStateChanged: Listener<MainProcessEvent.CollectionStateChanged> = (_, event) => {
+      if (!disposed) replica?.receive(event);
+    };
+
+    // Send all pending editor changes to main before the window closes
+    const onBeforeClose: Listener<MainProcessEvent.BeforeClose> = async () => {
+      try {
+        console.info('Saving all editor changes before close');
+        await flushModelEdits();
+      } catch (error) {
+        console.error('Error while saving editor changes before closing:', error);
+      } finally {
+        rendererEventService.emit(RendererEvent.ReadyToClose);
+      }
+    };
+
+    rendererEventService
+      .on(MainProcessEvent.CollectionStateChanged, onStateChanged)
+      .on(MainProcessEvent.BeforeClose, onBeforeClose);
+
     const initializeStore = async () => {
       try {
-        const collection = await rendererEventService.loadCollection();
-
-        // Create store with loaded collection
-        storeRef.current = createCollectionStore(collection);
-
-        // Sync variables changed by scripts back to the frontend stores
-        rendererEventService.on(
-          MainProcessEvent.CollectionVariablesUpdated,
-          (_ipcEvent, { variables, environments }) => {
-            useVariableStore.getState().initialize(variables);
-            useEnvironmentStore.getState().initialize(environments);
-          }
+        const snapshot = await rendererEventService.getCollectionState();
+        if (disposed) return;
+        replica = new CollectionReplica(
+          snapshot,
+          (envelope) => rendererEventService.dispatch(envelope),
+          () => rendererEventService.getCollectionState()
         );
-
-        // Set up before-close handler: flush all active editor models to disk
-        rendererEventService.on(MainProcessEvent.BeforeClose, async () => {
-          try {
-            console.info('Saving all active editor models before close');
-            await Promise.all(editor.getModels().map(saveModelContent));
-          } catch (error) {
-            console.error('Error while saving models before closing:', error);
-          } finally {
-            rendererEventService.emit(RendererEvent.ReadyToClose);
-          }
-        });
-
-        setReady(true);
+        registerModelPersistence(createModelPersistence(replica));
+        setStore(createCollectionStore(replica));
       } catch (error) {
         showError("Couldn't load collection store", error);
       }
     };
 
-    initializeStore();
+    void initializeStore();
+
+    return () => {
+      disposed = true;
+      registerModelPersistence(undefined);
+      rendererEventService
+        .removeListener(MainProcessEvent.CollectionStateChanged, onStateChanged)
+        .removeListener(MainProcessEvent.BeforeClose, onBeforeClose);
+    };
   }, []);
 
-  if (!ready || !storeRef.current) {
+  if (store == null) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
@@ -64,5 +82,5 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
     );
   }
 
-  return <StoreProvider value={storeRef.current}>{children}</StoreProvider>;
+  return <StoreProvider value={store}>{children}</StoreProvider>;
 };

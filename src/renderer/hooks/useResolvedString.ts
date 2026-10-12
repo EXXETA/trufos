@@ -1,6 +1,5 @@
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { useEnvironmentStore } from '@/state/environmentStore';
-import { selectVariables, useVariableStore } from '@/state/variableStore';
+import { useCollectionStore } from '@/state/collectionStore';
 import { useEffect, useState } from 'react';
 
 const eventService = RendererEventService.instance;
@@ -13,10 +12,10 @@ const eventService = RendererEventService.instance;
  * @returns The resolved string, null if it references a variable that is not defined, or undefined
  * while the resolution is still pending.
  */
-export function useResolvedString(string: string) {
-  const collectionVariables = useVariableStore(selectVariables);
-  const environmentVariables = useEnvironmentStore(
-    (state) => state.environments[state.selectedEnvironment ?? '']?.variables
+export function useResolvedString(string: string): string | null | undefined {
+  const collectionVariables = useCollectionStore((state) => state.collection.variables);
+  const environmentVariables = useCollectionStore(
+    (state) => state.collection.environments[state.selectedEnvironmentKey ?? '']?.variables
   );
   const [resolvedString, setResolvedString] = useState<string | null>();
 

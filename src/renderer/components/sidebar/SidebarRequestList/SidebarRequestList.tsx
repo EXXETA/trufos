@@ -21,12 +21,13 @@ import {
   getMaxTimestamp,
   getRangeSelection,
   SortMode,
+  TreeNode,
 } from './treeUtilities';
 import { getTopLevelSelectedItems, isWithinGroup } from '@/state/helper/collectionUtil';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
-import { Folder } from 'shim/objects/folder';
+import { FolderInfo } from 'shim/collection-model';
 import { TrufosRequest } from 'shim/objects/request';
 import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
 import { BulkActionBar } from '@/components/sidebar/SidebarRequestList/BulkActionBar';
@@ -40,7 +41,7 @@ interface SidebarRequestListProps {
   onCreateItem: (item: CreatingItem) => void;
 }
 
-const DragOverlayFolder = ({ folder }: { folder: Folder }) => {
+const DragOverlayFolder = ({ folder }: { folder: FolderInfo }) => {
   return (
     <div
       className={cn(
@@ -111,8 +112,8 @@ const DragOverlayContent = ({ itemId, groupCount }: { itemId: string; groupCount
 };
 
 export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarRequestListProps) => {
-  const children = useCollectionStore((state) => state.collection!.children);
-  const collectionId = useCollectionStore((state) => state.collection!.id);
+  const collectionId = useCollectionStore((state) => state.collection.id);
+  const childIds = useCollectionStore((state) => state.childIds);
   const openFolders = useCollectionStore((state) => state.openFolders);
   const folders = useCollectionStore((state) => state.folders);
   const requests = useCollectionStore((state) => state.requests);
@@ -144,39 +145,21 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   );
   const activeSensors = sortMode === SortMode.DEFAULT ? sensors : [];
 
-  const sortFn = useMemo(():
-    ((a: TrufosRequest | Folder, b: TrufosRequest | Folder) => number) | null => {
+  const sortFn = useMemo((): ((a: TreeNode, b: TreeNode) => number) | null => {
+    const tree = { childIds, requests, folders };
     if (sortMode === SortMode.AZ_ASC) return (a, b) => a.title.localeCompare(b.title);
     if (sortMode === SortMode.AZ_DESC) return (a, b) => b.title.localeCompare(a.title);
     if (sortMode === SortMode.TIME_DESC)
-      return (a, b) =>
-        getMaxTimestamp(b, requests, folders) - getMaxTimestamp(a, requests, folders);
+      return (a, b) => getMaxTimestamp(b, tree) - getMaxTimestamp(a, tree);
     if (sortMode === SortMode.TIME_ASC)
-      return (a, b) =>
-        getMaxTimestamp(a, requests, folders) - getMaxTimestamp(b, requests, folders);
+      return (a, b) => getMaxTimestamp(a, tree) - getMaxTimestamp(b, tree);
     return null;
-  }, [sortMode, requests, folders]);
-
-  const sortedChildren = useMemo(
-    () => (sortFn ? children.toSorted(sortFn) : children),
-    [children, sortFn]
-  );
-
-  const sortedFolders = useMemo(() => {
-    if (!sortFn) return folders;
-    const result = new Map<string, Folder>();
-    folders.forEach((folder, id) => {
-      result.set(id, { ...folder, children: [...folder.children].sort(sortFn) });
-    });
-    return result;
-  }, [folders, sortFn]);
+  }, [sortMode, childIds, requests, folders]);
 
   // Flatten the tree for a single SortableContext.
-  // We pass the folders Map so flattenTree reads up-to-date children
-  // (immer may not propagate Map mutations into tree references).
   const flattenedItems = useMemo(
-    () => flattenTree(sortedChildren, openFolders, collectionId, sortedFolders),
-    [sortedChildren, openFolders, collectionId, sortedFolders]
+    () => flattenTree({ childIds, requests, folders }, collectionId, openFolders, sortFn),
+    [childIds, requests, folders, collectionId, openFolders, sortFn]
   );
 
   const visibleRequestIds = useMemo(

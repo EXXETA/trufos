@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ScriptType } from 'shim/scripting';
-import { Folder } from 'shim/objects/folder';
+import { FolderInfo } from 'shim/collection-model';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import {
   getIndexAfter,
@@ -60,7 +60,7 @@ describe('setScriptContent', () => {
 
     // Assert
     expect(openMock).toHaveBeenCalledWith(
-      { type: 'script', source: ScriptType.PRE_REQUEST, request: mockRequest },
+      { type: 'script', source: ScriptType.PRE_REQUEST, requestId: REQUEST_ID },
       'utf-8'
     );
     expect(setValueMock).toHaveBeenCalledWith('trufos.setCollectionVariable("key", "value");');
@@ -93,7 +93,7 @@ describe('setScriptContent', () => {
 
     // Assert
     expect(openMock).toHaveBeenCalledWith(
-      { type: 'script', source: ScriptType.POST_RESPONSE, request: mockRequest },
+      { type: 'script', source: ScriptType.POST_RESPONSE, requestId: REQUEST_ID },
       'utf-8'
     );
   });
@@ -102,8 +102,13 @@ describe('setScriptContent', () => {
 const makeReq = (id: string, parentId: string): TrufosRequest =>
   ({ id, parentId, type: 'request', title: id }) as unknown as TrufosRequest;
 
-const makeFolder = (id: string, parentId: string): Folder =>
-  ({ id, parentId, type: 'folder', title: id, children: [] }) as unknown as Folder;
+const makeFolder = (id: string, parentId: string): FolderInfo => ({
+  id,
+  parentId,
+  type: 'folder',
+  title: id,
+  lastModified: 0,
+});
 
 const COL_ID = 'col-1';
 
@@ -111,7 +116,7 @@ describe('hasSelectedAncestor', () => {
   it('returns false when the item has no selected ancestor', () => {
     const req = makeReq('req-1', COL_ID);
     const requests = new Map([['req-1', req]]);
-    const folders = new Map<string, Folder>();
+    const folders = new Map<string, FolderInfo>();
 
     expect(hasSelectedAncestor('req-1', new Set(), requests, folders)).toBe(false);
   });
@@ -160,7 +165,7 @@ describe('getTopLevelSelectedItems', () => {
       ['req-1', req1],
       ['req-2', req2],
     ]);
-    const folders = new Map<string, Folder>();
+    const folders = new Map<string, FolderInfo>();
 
     const result = getTopLevelSelectedItems(new Set(['req-1', 'req-2']), requests, folders);
 
@@ -191,7 +196,7 @@ describe('getTopLevelSelectedItems', () => {
 });
 
 describe('getIndexAfter', () => {
-  const ids = (...list: string[]): { id: string }[] => list.map((id) => ({ id }));
+  const ids = (...list: string[]): string[] => list;
 
   it('returns the index right after the anchor when the moving item is in a different parent', () => {
     expect(getIndexAfter(ids('p', 'a', 'q'), 'x', 'a')).toBe(2);

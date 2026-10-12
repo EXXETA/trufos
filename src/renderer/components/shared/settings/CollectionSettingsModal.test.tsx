@@ -3,27 +3,27 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { CollectionSettingsModal } from './CollectionSettingsModal';
 
-vi.mock('@/state/variableStore', () => ({
-  selectVariables: (s: { variables: object }) => s.variables,
-  useVariableActions: () => ({ setVariables: vi.fn() }),
-  useVariableStore: (selector: (s: { variables: object }) => unknown) =>
-    selector({ variables: {} }),
-}));
-
-vi.mock('@/state/environmentStore', () => ({
-  selectEnvironments: (s: { environments: object }) => s.environments,
-  selectSelectedEnvironment: (s: { selectedEnvironment?: string }) => s.selectedEnvironment,
-  useEnvironmentActions: () => ({ setEnvironments: vi.fn(), selectEnvironment: vi.fn() }),
-  useEnvironmentStore: (selector: (s: { environments: object }) => unknown) =>
-    selector({ environments: {} }),
-}));
-
-vi.mock('@/state/collectionStore', () => ({
-  useCollectionActions: () => ({ setClientCertificate: vi.fn(), renameCollection: vi.fn() }),
-  useCollectionStore: (
-    selector: (s: { collection: { title: string; clientCertificate: null } }) => unknown
-  ) => selector({ collection: { title: 'My Collection', clientCertificate: null } }),
-}));
+vi.mock('@/state/collectionStore', () => {
+  const state = {
+    collection: {
+      title: 'My Collection',
+      clientCertificate: null,
+      variables: {},
+      environments: {},
+    },
+    selectedEnvironmentKey: undefined,
+  };
+  return {
+    useCollectionActions: () => ({
+      setVariables: vi.fn(),
+      setEnvironments: vi.fn(),
+      selectEnvironment: vi.fn(),
+      setClientCertificate: vi.fn(),
+      renameCollection: vi.fn(),
+    }),
+    useCollectionStore: (selector: (s: typeof state) => unknown) => selector(state),
+  };
+});
 
 vi.mock('@/components/shared/settings/GeneralTab/GeneralEditor', () => ({
   GeneralEditor: ({

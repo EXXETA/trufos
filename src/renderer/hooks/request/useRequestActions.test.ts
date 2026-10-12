@@ -2,39 +2,23 @@ import { act, renderHook } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useSendRequest, useSaveRequest } from './useRequestActions';
 
-const {
-  mockSendRequest,
-  mockSaveChanges,
-  mockSaveModelContent,
-  mockAddResponse,
-  mockUpdateRequest,
-  mockShowError,
-} = vi.hoisted(() => ({
-  mockSendRequest: vi.fn(),
-  mockSaveChanges: vi.fn(),
-  mockSaveModelContent: vi.fn(),
-  mockAddResponse: vi.fn(),
-  mockUpdateRequest: vi.fn(),
-  mockShowError: vi.fn(),
-}));
+const { mockSendRequest, mockSaveRequest, mockFlushModelEdits, mockAddResponse, mockShowError } =
+  vi.hoisted(() => ({
+    mockSendRequest: vi.fn(),
+    mockSaveRequest: vi.fn(),
+    mockFlushModelEdits: vi.fn(),
+    mockAddResponse: vi.fn(),
+    mockShowError: vi.fn(),
+  }));
 
 let mockCurrentRequest: { id: string; draft?: boolean } | undefined;
-let mockModels: unknown[] = [];
-
-vi.mock('monaco-editor', () => ({
-  editor: { getModels: () => mockModels },
-}));
 
 vi.mock('@/lib/monaco/models', () => ({
-  saveModelContent: mockSaveModelContent,
+  flushModelEdits: mockFlushModelEdits,
 }));
 
 vi.mock('@/services/http/http-service', () => ({
   HttpService: { instance: { sendRequest: mockSendRequest } },
-}));
-
-vi.mock('@/services/event/renderer-event-service', () => ({
-  RendererEventService: { instance: { saveChanges: mockSaveChanges } },
 }));
 
 vi.mock('@/error/errorHandler', () => ({
@@ -43,7 +27,7 @@ vi.mock('@/error/errorHandler', () => ({
 
 vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: <T>(selector: (state: unknown) => T) => selector({}),
-  useCollectionActions: () => ({ updateRequest: mockUpdateRequest }),
+  useCollectionActions: () => ({ saveRequest: mockSaveRequest }),
   selectRequest: () => mockCurrentRequest,
 }));
 
@@ -54,9 +38,8 @@ vi.mock('@/state/responseStore', () => ({
 describe('useSendRequest', () => {
   beforeEach(() => {
     mockCurrentRequest = { id: 'req-1' };
-    mockModels = [];
     mockSendRequest.mockClear();
-    mockSaveModelContent.mockClear().mockResolvedValue(undefined);
+    mockFlushModelEdits.mockClear().mockResolvedValue(undefined);
     mockAddResponse.mockClear();
     mockShowError.mockClear();
   });
@@ -86,8 +69,8 @@ describe('useSendRequest', () => {
     expect(a.result.current.isSending).toBe(true);
     expect(b.result.current.isSending).toBe(true);
 
-    // Flush the microtask queue so the hook's internal `await Promise.all([])` (flushing zero
-    // Monaco models) resolves and execution reaches `httpService.sendRequest` — only then is
+    // Flush the microtask queue so the hook's internal `await flushModelEdits()` resolves and
+    // execution reaches `httpService.sendRequest` — only then is
     // `resolveSend` actually assigned by the mocked implementation above.
     await act(async () => {
       await Promise.resolve();
@@ -145,16 +128,15 @@ describe('useSendRequest', () => {
     // Hold the hook inside the Monaco flush that precedes the send. The button already reads
     // "Cancel" at this point, so a cancel here has to take effect — the HTTP service turns the
     // aborted signal into a request that never leaves the renderer.
-    mockModels = [{}];
     let finishFlush!: () => void;
-    mockSaveModelContent.mockReturnValue(
+    mockFlushModelEdits.mockReturnValue(
       new Promise<void>((resolve) => {
         finishFlush = resolve;
       })
     );
 
     let abortedWhenSent: boolean | undefined;
-    mockSendRequest.mockImplementation((_request: unknown, signal: AbortSignal) => {
+    mockSendRequest.mockImplementation((_requestId: string, signal: AbortSignal) => {
       abortedWhenSent = signal.aborted;
       return Promise.resolve(null);
     });
@@ -221,6 +203,22 @@ describe('useSendRequest', () => {
     });
   });
 
+  it('flushes the editor changes before sending the request by its ID', async () => {
+    const { result } = renderHook(() => useSendRequest());
+    const response = { id: 'res-1' };
+    mockSendRequest.mockResolvedValue(response);
+
+    await act(async () => {
+      await result.current.sendRequest();
+    });
+
+    expect(mockFlushModelEdits.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSendRequest.mock.invocationCallOrder[0]
+    );
+    expect(mockSendRequest).toHaveBeenCalledWith('req-1', expect.any(AbortSignal));
+    expect(mockAddResponse).toHaveBeenCalledWith('req-1', response);
+  });
+
   it('ignores a cancel when nothing is in flight', () => {
     const { result } = renderHook(() => useSendRequest());
 
@@ -232,8 +230,18 @@ describe('useSendRequest', () => {
 describe('useSaveRequest', () => {
   beforeEach(() => {
     mockCurrentRequest = { id: 'req-1', draft: true };
-    mockSaveChanges.mockClear();
-    mockUpdateRequest.mockClear();
+    mockSaveRequest.mockClear();
+  });
+
+  it('saves the selected request through the store', async () => {
+    mockSaveRequest.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useSaveRequest());
+
+    await act(async () => {
+      await result.current.saveRequest();
+    });
+
+    expect(mockSaveRequest).toHaveBeenCalledWith('req-1');
   });
 
   it('shares isSaving across every hook instance, not just the caller that triggered it', async () => {
@@ -241,7 +249,7 @@ describe('useSaveRequest', () => {
     const b = renderHook(() => useSaveRequest());
 
     let resolveSave!: (value: unknown) => void;
-    mockSaveChanges.mockImplementation(
+    mockSaveRequest.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveSave = resolve;
@@ -259,14 +267,13 @@ describe('useSaveRequest', () => {
     expect(a.result.current.isSaving).toBe(true);
     expect(b.result.current.isSaving).toBe(true);
 
-    // Flush the microtask queue so the hook's internal `await Promise.all([])` (flushing zero
-    // Monaco models) resolves and execution reaches `eventService.saveChanges` — only then is
+    // Flush the microtask queue so execution reaches the store's `saveRequest` — only then is
     // `resolveSave` actually assigned by the mocked implementation above.
     await act(async () => {
       await Promise.resolve();
     });
 
-    resolveSave({ id: 'req-1' });
+    resolveSave(undefined);
     await act(async () => {
       await savePromise;
     });

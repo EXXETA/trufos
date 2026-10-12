@@ -1,37 +1,40 @@
-import { ClientCertificate, Collection } from 'shim/objects/collection';
-import { Folder } from 'shim/objects/folder';
+import { FolderInfo, RequestChanges } from 'shim/collection-model';
+import { AuthorizationInformation, AuthorizationInformationNoInherit } from 'shim/objects/auth';
+import { ClientCertificate } from 'shim/objects/collection';
+import { EnvironmentMap } from 'shim/objects/environment';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { FormDataBody, RequestBody, TrufosRequest } from 'shim/objects/request';
+import { VariableMap } from 'shim/objects/variables';
 import { ScriptType } from 'shim/scripting';
 import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 
 type FormDataField = FormDataBody['fields'][number];
 
+/**
+ * The actions of the collection store. Every change to the collection is sent to the main process
+ * as a command; the store shows it at once and is corrected by the patches main broadcasts.
+ */
 export interface CollectionStateActions {
-  initialize(collection: Collection): void;
+  /**
+   * Open the collection in the given directory. Unsaved editor changes are sent to main first. The
+   * store is updated by the snapshot main broadcasts.
+   * @param dirPath the directory path of the collection to open
+   */
+  changeCollection(dirPath: string): Promise<void>;
 
   /**
-   * Change the current collection to the given collection. Will save any unsaved changes
-   * @param collection the collection or collection directory path to open
+   * Create a new request that was never saved, and select it.
+   * @param title the title of the request. A random one if not given.
+   * @param parentId the folder to create it in. Defaults to the collection.
    */
-  changeCollection(collection: Collection | string): Promise<void>;
-
   addNewRequest(title?: string, parentId?: string): Promise<void>;
 
   /**
-   * Replace the current request with the updated request
-   * @param request The new request content
-   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
+   * Change the currently selected request. This creates a draft.
+   * @param changes The properties to change
    */
-  updateRequest(request: TrufosRequest, overwrite: true): void;
-
-  /**
-   * Merge the current request with the updated request. This will also set the draft flag on the request
-   * @param request The properties to update
-   * @param overwrite DEFAULT: `false`. If true, the request will be replaced with the updated request instead of merging it
-   */
-  updateRequest(request: Partial<TrufosRequest>, overwrite?: false): void;
+  updateRequest(changes: RequestChanges): void;
 
   /**
    * Set the request body of the currently selected request
@@ -59,20 +62,20 @@ export interface CollectionStateActions {
    * Toggle a request or folder's membership in the sidebar's multi-selection.
    * @param id the request or folder id
    */
-  toggleItemSelected(id: TrufosRequest['id'] | Folder['id']): void;
+  toggleItemSelected(id: TrufosRequest['id'] | FolderInfo['id']): void;
 
   /**
    * Replace the sidebar's multi-selection with the given ids.
    * @param ids the request/folder ids to select
    */
-  setSelection(ids: Iterable<TrufosRequest['id'] | Folder['id']>): void;
+  setSelection(ids: Iterable<TrufosRequest['id'] | FolderInfo['id']>): void;
 
   /**
    * Union the given ids into the sidebar's existing multi-selection, without removing any
    * currently-selected id.
    * @param ids the request/folder ids to add to the selection
    */
-  addToSelection(ids: Iterable<TrufosRequest['id'] | Folder['id']>): void;
+  addToSelection(ids: Iterable<TrufosRequest['id'] | FolderInfo['id']>): void;
 
   /**
    * Clear the sidebar's multi-selection.
@@ -93,7 +96,17 @@ export interface CollectionStateActions {
 
   deleteRequest(id: TrufosRequest['id']): Promise<void>;
 
+  /**
+   * Discard the draft of the currently selected request. A request that was never saved is
+   * deleted.
+   */
   discardChanges(): Promise<void>;
+
+  /**
+   * Save the draft of the given request. Unsaved editor changes are sent to main first.
+   * @param id the request id
+   */
+  saveRequest(id: TrufosRequest['id']): Promise<void>;
 
   /**
    * Rename the request title
@@ -107,7 +120,7 @@ export interface CollectionStateActions {
    *
    * @param id The id of the request to copy.
    */
-  copyRequest(id: TrufosRequest['id']): void;
+  copyRequest(id: TrufosRequest['id']): Promise<void>;
 
   /**
    * Add a new header to the currently selected request
@@ -167,11 +180,6 @@ export interface CollectionStateActions {
   deleteFormDataField(index: number): void;
 
   /**
-   * Set the draft flag on the currently selected request
-   */
-  setDraftFlag(): void;
-
-  /**
    * Add a new folder to the collection
    * @param title
    * @param parentId
@@ -189,43 +197,68 @@ export interface CollectionStateActions {
    * @param id the folder id
    * @param title the new title of the folder
    */
-  renameFolder(id: Folder['id'], title: string): Promise<void>;
+  renameFolder(id: FolderInfo['id'], title: string): Promise<void>;
 
   /**
    * Copy a folder with all its children.
    *
    * @param id The id of the folder to copy.
    */
-  copyFolder(id: Folder['id']): void;
+  copyFolder(id: FolderInfo['id']): Promise<void>;
 
   /** For functionality of the sidebar */
   /**
    * needed for rerendering of th sidebar
    * @param id the folder id
    */
-  isFolderOpen(id: Folder['id']): boolean;
+  isFolderOpen(id: FolderInfo['id']): boolean;
 
   /**
    * must be set manually that the rendering of the sidebar open the folders correctly
    * @param id the folder id
    */
-  setFolderOpen(id: Folder['id']): void;
+  setFolderOpen(id: FolderInfo['id']): void;
 
   /**
    * needed for rerendering of the sidebar
    * @param id the folder id
    */
-  setFolderClose(id: Folder['id']): void;
+  setFolderClose(id: FolderInfo['id']): void;
 
   /**
-   * Update the authorization information of the given object.
-   * @param object The object for which the authorization information should be updated.
+   * Update the authorization information of the given request. If the type or the OAuth method
+   * changes, the authorization is replaced by a complete default for the new type or method.
+   * @param request The request for which the authorization information should be updated.
    * @param updatedFields The fields to update in the authorization information. If null, the authorization information will be cleared.
    */
-  updateAuthorization<T extends Collection | TrufosRequest>(
-    object: T,
-    updatedFields?: Partial<T['auth']> | null
+  updateAuthorization(
+    request: TrufosRequest,
+    updatedFields?: Partial<AuthorizationInformation> | null
   ): void;
+
+  /**
+   * Set or remove the authorization of the current collection.
+   * @param auth the authorization, or undefined to remove it
+   */
+  setCollectionAuth(auth?: AuthorizationInformationNoInherit): Promise<void>;
+
+  /**
+   * Replace the variables of the current collection.
+   * @param variables The new variables
+   */
+  setVariables(variables: VariableMap): Promise<void>;
+
+  /**
+   * Replace the environments of the current collection.
+   * @param environments The new environments
+   */
+  setEnvironments(environments: EnvironmentMap): Promise<void>;
+
+  /**
+   * Select the environment whose variables are used. Not persisted.
+   * @param key the environment key, or undefined to select none
+   */
+  selectEnvironment(key?: string): Promise<void>;
 
   /**
    * Rename the currently opened collection.
@@ -236,9 +269,8 @@ export interface CollectionStateActions {
 
   /**
    * Close the currently opened collection.
-   * This will clear the current collection from memory
-   * and reset related state in the application, but will not
-   * delete the collection from the file system.
+   * This removes it from the list of recent collections and opens another one, but does not
+   * delete it from the file system. The store is updated by the snapshot main broadcasts.
    *
    * @param dirPath Optional path of the collection to close.
    */
@@ -263,7 +295,7 @@ export interface CollectionStateActions {
   moveItemsAfter(afterId: string, ids: string[]): Promise<void>;
 
   /**
-   * Update the client certificate of the current collection and persist it to the backend.
+   * Update the client certificate of the current collection.
    * @param certificate The certificate to set, or null to clear it.
    */
   setClientCertificate(certificate: ClientCertificate | null): Promise<void>;

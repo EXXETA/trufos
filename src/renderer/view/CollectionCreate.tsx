@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { useCollectionActions } from '@/state/collectionStore';
+import { flushModelEdits } from '@/lib/monaco/models';
 import { Plus } from 'lucide-react';
 import {
   Dialog,
@@ -41,8 +41,6 @@ export const CollectionCreate: React.FC<{
   open?: boolean;
   loadCollections: () => void;
 }> = ({ onClose, open = true, loadCollections }) => {
-  const { changeCollection } = useCollectionActions();
-
   const [targetEntry, setTargetEntry] = useState<DroppedEntryInfo>();
   const [title, setTitle] = useState<string>('');
 
@@ -50,9 +48,10 @@ export const CollectionCreate: React.FC<{
 
   const createCollection = async () => {
     try {
-      await changeCollection(await eventService.createCollection(targetEntry!.path, title));
-
       console.info('Creating collection at', targetEntry!.path);
+      // the new collection is opened, so the editor changes must reach the current one first
+      await flushModelEdits();
+      await eventService.createCollection(targetEntry!.path, title);
 
       await loadCollections();
     } catch (e) {

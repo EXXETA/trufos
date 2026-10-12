@@ -1,7 +1,7 @@
 import { REQUEST_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
 import { Language } from '@/lib/monaco/language';
 import { cn } from '@/lib/utils';
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useCollectionStore } from '@/state/collectionStore';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { useEffect } from 'react';
 import { getBodyModel } from '@/lib/monaco/models';
@@ -15,19 +15,7 @@ interface BodyTabTextInputProps {
 }
 
 export default function BodyTabTextInput({ language, className, onMount }: BodyTabTextInputProps) {
-  const { setDraftFlag } = useCollectionActions();
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
-
-  // Listen for content changes on the current request's body model and mark draft.
-  useEffect(() => {
-    if (selectedRequestId == null) return;
-    const model = getBodyModel(selectedRequestId);
-    const disposable = model.onDidChangeContent((e) => {
-      if (e.isFlush) return;
-      setDraftFlag();
-    });
-    return () => disposable.dispose();
-  }, [selectedRequestId]);
 
   // Keep the model's language in sync with the language prop.
   useEffect(() => {

@@ -4,19 +4,19 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { CollectionRunner } from './CollectionRunner';
 import { RequestMethod } from 'shim/objects/request-method';
 import type { Folder } from 'shim/objects/folder';
+import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
 import { RequestBodyType, type TrufosRequest } from 'shim/objects/request';
 import type { TrufosResponse } from 'shim/objects/response';
 
 const sendRequestMock =
-  vi.fn<(request: TrufosRequest, signal?: AbortSignal) => Promise<TrufosResponse | null>>();
+  vi.fn<(requestId: string, signal?: AbortSignal) => Promise<TrufosResponse | null>>();
 const addResponseMock = vi.fn();
 const showErrorMock = vi.fn();
 
 vi.mock('@/services/http/http-service', () => ({
   HttpService: {
     instance: {
-      sendRequest: (request: TrufosRequest, signal?: AbortSignal) =>
-        sendRequestMock(request, signal),
+      sendRequest: (requestId: string, signal?: AbortSignal) => sendRequestMock(requestId, signal),
     },
   },
 }));
@@ -26,11 +26,7 @@ vi.mock('@/state/responseStore', () => ({
 }));
 
 vi.mock('@/lib/monaco/models', () => ({
-  saveModelContent: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('monaco-editor', () => ({
-  editor: { getModels: () => [] },
+  flushModelEdits: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/hooks/useBodyData', () => ({
@@ -50,33 +46,24 @@ vi.mock('@/error/errorHandler', () => ({
   showError: (...args: unknown[]) => showErrorMock(...args),
 }));
 
-interface MockEnvironmentState {
-  environments: Record<string, { variables: Record<string, unknown> }>;
-  selectedEnvironment?: string;
-}
-
-let mockEnvironmentState: MockEnvironmentState;
-const selectEnvironmentMock = vi.fn();
-
-vi.mock('@/state/environmentStore', () => ({
-  useEnvironmentStore: <T,>(selector: (state: MockEnvironmentState) => T) =>
-    selector(mockEnvironmentState),
-  selectEnvironments: (state: MockEnvironmentState) => state.environments,
-  selectSelectedEnvironment: (state: MockEnvironmentState) => state.selectedEnvironment,
-  useEnvironmentActions: () => ({ selectEnvironment: selectEnvironmentMock }),
-}));
-
 interface MockState {
-  collection: { id: string; title: string; children: Array<Folder | TrufosRequest> };
+  collection: Pick<CollectionInfo, 'id' | 'title' | 'environments'>;
+  selectedEnvironmentKey?: string;
   requests: Map<string, TrufosRequest>;
-  folders: Map<string, Folder>;
+  folders: Map<string, FolderInfo>;
+  childIds: Map<string, string[]>;
 }
 
 let mockState: MockState;
+const selectEnvironmentMock = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: <T,>(selector: (state: MockState) => T) => selector(mockState),
+  useCollectionActions: () => ({ selectEnvironment: selectEnvironmentMock }),
 }));
+
+/** The nested tree the tests describe the collection with. */
+type TreeItem = Folder | TrufosRequest;
 
 function makeRequest(
   id: string,
@@ -97,7 +84,7 @@ function makeRequest(
   };
 }
 
-function makeFolder(id: string, title: string, children: Array<Folder | TrufosRequest>): Folder {
+function makeFolder(id: string, title: string, children: TreeItem[]): Folder {
   return { id, parentId: 'col-1', type: 'folder', lastModified: 0, title, children };
 }
 
@@ -114,20 +101,40 @@ function makeResponse(status: number, duration = 100): TrufosResponse {
   };
 }
 
-function setupCollection(children: Array<Folder | TrufosRequest>) {
+/** The children the current mock collection was set up with. */
+let mockChildren: TreeItem[];
+
+function setupCollection(children: TreeItem[]) {
   const requests = new Map<string, TrufosRequest>();
-  const folders = new Map<string, Folder>();
-  const walk = (items: Array<Folder | TrufosRequest>) => {
+  const folders = new Map<string, FolderInfo>();
+  const childIds = new Map<string, string[]>();
+  const walk = (parentId: string, items: TreeItem[]) => {
+    childIds.set(
+      parentId,
+      items.map((item) => item.id)
+    );
     for (const item of items) {
       if (item.type === 'request') requests.set(item.id, item);
       else {
-        folders.set(item.id, item);
-        walk(item.children);
+        const { children: grandChildren, ...folder } = item;
+        folders.set(item.id, folder);
+        walk(item.id, grandChildren);
       }
     }
   };
-  walk(children);
-  mockState = { collection: { id: 'col-1', title: 'My Collection', children }, requests, folders };
+  walk('col-1', children);
+  mockChildren = children;
+  mockState = {
+    collection: {
+      id: 'col-1',
+      title: 'My Collection',
+      environments: { dev: { variables: {} }, prod: { variables: {} } },
+    },
+    selectedEnvironmentKey: 'dev',
+    requests,
+    folders,
+    childIds,
+  };
 }
 
 function renderRunner(props: Partial<Parameters<typeof CollectionRunner>[0]> = {}) {
@@ -149,11 +156,7 @@ beforeEach(() => {
   sendRequestMock.mockReset();
   addResponseMock.mockClear();
   showErrorMock.mockClear();
-  selectEnvironmentMock.mockClear();
-  mockEnvironmentState = {
-    environments: { dev: { variables: {} }, prod: { variables: {} } },
-    selectedEnvironment: 'dev',
-  };
+  selectEnvironmentMock.mockClear().mockResolvedValue(undefined);
   setupCollection([
     makeRequest('req-1', 'Login', RequestMethod.POST),
     makeFolder('folder-1', 'Orders', [
@@ -259,10 +262,7 @@ describe('CollectionRunner selection', () => {
   it('keeps the selection when a new request is added and auto-selects it', () => {
     const { rerender } = renderRunner();
 
-    setupCollection([
-      ...mockState.collection.children,
-      makeRequest('req-5', 'New Request', RequestMethod.PUT),
-    ]);
+    setupCollection([...mockChildren, makeRequest('req-5', 'New Request', RequestMethod.PUT)]);
     rerender(<CollectionRunner open onClose={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: /run 5 requests/i })).toBeDefined();
@@ -288,7 +288,7 @@ describe('CollectionRunner execution', () => {
 
     await waitFor(() => expect(screen.getAllByText('Passed')).toHaveLength(4));
     expect(sendRequestMock).toHaveBeenCalledTimes(4);
-    expect(sendRequestMock.mock.calls.map(([request]) => request.id)).toEqual([
+    expect(sendRequestMock.mock.calls.map(([requestId]) => requestId)).toEqual([
       'req-1',
       'req-2',
       'req-3',
@@ -356,7 +356,7 @@ describe('CollectionRunner execution', () => {
     await user.click(screen.getByRole('button', { name: /run 2 requests/i }));
 
     await waitFor(() => expect(screen.getAllByText('Passed')).toHaveLength(2));
-    expect(sendRequestMock.mock.calls.map(([request]) => request.id)).toEqual(['req-1', 'req-4']);
+    expect(sendRequestMock.mock.calls.map(([requestId]) => requestId)).toEqual(['req-1', 'req-4']);
   });
 
   it('stops after the first failure when the toggle is active', async () => {
@@ -510,7 +510,7 @@ describe('CollectionRunner environment selection', () => {
   });
 
   it('shows a placeholder when no environment is selected', () => {
-    mockEnvironmentState.selectedEnvironment = undefined;
+    mockState.selectedEnvironmentKey = undefined;
     renderRunner();
 
     const dropdown = screen.getByRole('combobox', { name: /select environment/i });

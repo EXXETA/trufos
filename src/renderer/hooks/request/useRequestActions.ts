@@ -1,15 +1,12 @@
 import { useCallback } from 'react';
 import { create } from 'zustand';
-import { editor } from 'monaco-editor';
-import { saveModelContent } from '@/lib/monaco/models';
+import { flushModelEdits } from '@/lib/monaco/models';
 import { HttpService } from '@/services/http/http-service';
-import { RendererEventService } from '@/services/event/renderer-event-service';
 import { showError } from '@/error/errorHandler';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
 
 const httpService = HttpService.instance;
-const eventService = RendererEventService.instance;
 
 /**
  * The one in-flight operation per kind, shared across every caller of `useSendRequest`/
@@ -24,7 +21,7 @@ const useInFlightStore = create<{ activeSend: AbortController | null; isSaving: 
 }));
 
 /**
- * Shared send-request side effect: flushes every open Monaco editor model, sends the currently
+ * Shared send-request side effect: sends all pending editor changes to main, sends the currently
  * selected request via the HTTP service, and stores the response. No-ops when there is no selected
  * request or a send is already in flight. Never throws — errors are caught and shown as a toast.
  *
@@ -32,7 +29,11 @@ const useInFlightStore = create<{ activeSend: AbortController | null; isSaving: 
  * state), so any UI reading it reflects whether the current request is being sent right now,
  * regardless of which component triggered the send. `cancelRequest` aborts that same send.
  */
-export function useSendRequest() {
+export function useSendRequest(): {
+  sendRequest: () => Promise<void>;
+  cancelRequest: () => void;
+  isSending: boolean;
+} {
   const isSending = useInFlightStore((state) => state.activeSend != null);
   const request = useCollectionStore(selectRequest);
   const { addResponse } = useResponseActions();
@@ -46,10 +47,10 @@ export function useSendRequest() {
     try {
       // Cancelling during this flush aborts the signal before the request goes out, so the send
       // below returns null without ever reaching the main process.
-      await Promise.all(editor.getModels().map(saveModelContent));
+      await flushModelEdits();
 
       // No response means the user cancelled, so there is nothing to store.
-      const response = await httpService.sendRequest(request, abortController.signal);
+      const response = await httpService.sendRequest(request.id, abortController.signal);
       if (response != null) addResponse(request.id, response);
     } catch (error) {
       showError(error);
@@ -64,33 +65,31 @@ export function useSendRequest() {
 }
 
 /**
- * Shared save-request side effect: flushes every open Monaco editor model, persists the currently
- * selected request via the event service, and syncs the store with the saved result. No-ops when
- * there is no selected request. Never throws — errors are caught and shown as a toast.
+ * Shared save-request side effect: sends the pending editor changes of the currently selected
+ * request to main and saves its draft. No-ops when there is no selected request. Never throws —
+ * errors are caught and shown as a toast.
  *
  * `isSaving` is a single fact shared across every caller of this hook (not a per-caller local
  * state), so any UI reading it reflects whether the current request is being saved right now,
  * regardless of which component triggered the save.
  */
-export function useSaveRequest() {
+export function useSaveRequest(): { saveRequest: () => Promise<void>; isSaving: boolean } {
   const isSaving = useInFlightStore((state) => state.isSaving);
   const request = useCollectionStore(selectRequest);
-  const { updateRequest } = useCollectionActions();
+  const { saveRequest: save } = useCollectionActions();
 
   const saveRequest = useCallback(async () => {
     if (request == null) return;
 
     try {
       useInFlightStore.setState({ isSaving: true });
-      await Promise.all(editor.getModels().map(saveModelContent));
-
-      updateRequest(await eventService.saveChanges(request), true);
+      await save(request.id);
     } catch (error) {
       showError(error);
     } finally {
       useInFlightStore.setState({ isSaving: false });
     }
-  }, [request, updateRequest]);
+  }, [request, save]);
 
   return { saveRequest, isSaving };
 }
