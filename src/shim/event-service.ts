@@ -1,16 +1,5 @@
-import {
-  Folder,
-  TrufosRequest,
-  TrufosResponse,
-  TrufosObject,
-  Collection,
-  CollectionBase,
-  VariableMap,
-  VariableObject,
-  EnvironmentMap,
-  ClientCertificate,
-} from './objects';
-import { ScriptType } from './scripting';
+import { TrufosResponse, Collection, CollectionBase, VariableObject } from './objects';
+import type { CollectionModel, CollectionStateEvent, CommandEnvelope } from './collection-model';
 import { AppSettings } from './app-settings';
 import { HistoryEntry, HistoryEntrySummary } from './history';
 
@@ -22,8 +11,8 @@ import { HistoryEntry, HistoryEntrySummary } from './history';
 export enum MainProcessEvent {
   /** The window is about to close; the renderer should flush unsaved state. */
   BeforeClose = 'before-close',
-  /** The variables or environments of the current collection changed, see {@link CollectionVariablesUpdate}. */
-  CollectionVariablesUpdated = 'collection-variables-updated',
+  /** The state of the open collection changed, see {@link CollectionStateEvent}. */
+  CollectionStateChanged = 'collection-state-changed',
   /**
    * The request history changed. The payload is the new history of the current collection, newest
    * first.
@@ -56,7 +45,7 @@ export enum RendererEvent {
  */
 export interface MainProcessEventPayloads {
   [MainProcessEvent.BeforeClose]: [];
-  [MainProcessEvent.CollectionVariablesUpdated]: [update: CollectionVariablesUpdate];
+  [MainProcessEvent.CollectionStateChanged]: [event: CollectionStateEvent];
   [MainProcessEvent.HistoryChanged]: [entries: HistoryEntrySummary[]];
   [MainProcessEvent.ShowAppSettings]: [];
   [MainProcessEvent.ShowCollectionRunner]: [];
@@ -84,15 +73,6 @@ export interface ImportResult {
   warnings: ImportWarning[];
 }
 
-/**
- * Payload of the {@link MainProcessEvent.CollectionVariablesUpdated} event that the main process pushes to the renderer
- * after a script changed collection or environment variables.
- */
-export interface CollectionVariablesUpdate {
-  variables: VariableMap;
-  environments: EnvironmentMap;
-}
-
 export type ExportStrategy = 'Zip';
 
 export interface ExportOptions {
@@ -107,10 +87,18 @@ export interface ExportOptions {
 
 export interface IEventService {
   /**
-   * (Re)load the last opened collection.
-   * @param force If true, the collection is reloaded even if it is already loaded.
+   * Returns the complete state of the open collection. Afterwards, the state is kept up to date
+   * with {@link MainProcessEvent.CollectionStateChanged} events.
    */
-  loadCollection(force?: boolean): Promise<Collection>;
+  getCollectionState(): Promise<CollectionModel>;
+
+  /**
+   * Applies a command to the open collection and persists the change. The resulting patches are
+   * broadcast as {@link MainProcessEvent.CollectionStateChanged} before this resolves.
+   * @param envelope The command to apply.
+   * @throws if the command is invalid or cannot be applied
+   */
+  dispatch(envelope: CommandEnvelope): Promise<void>;
 
   /**
    * Lists all recently opened collections.
@@ -118,58 +106,18 @@ export interface IEventService {
   listCollections(): Promise<CollectionBase[]>;
 
   /**
-   * Send an HTTP request.
-   * @param request The request to send.
+   * Send a request of the open collection in its current state, including unsaved changes.
+   * @param requestId The ID of the request to send.
    * @param abortKey Key under which the request can be aborted via {@link abortRequest}.
    * @returns The response, or `null` if the request was aborted before one arrived.
    */
-  sendRequest(request: TrufosRequest, abortKey?: string): Promise<TrufosResponse | null>;
+  sendRequest(requestId: string, abortKey?: string): Promise<TrufosResponse | null>;
 
   /**
    * Abort an in-flight HTTP request started with the given abort key.
    * @param abortKey The key passed to sendRequest.
    */
   abortRequest(abortKey: string): void;
-
-  /**
-   * Saves the request to the file system. The draft flag is respected. If a
-   * body is provided, it is saved as well.
-   *
-   * This does not override the actual trufos object if the given object is a draft.
-   * Use {@link saveChanges} to save changes to the actual object.
-   *
-   * @param request The request to save.
-   * @param textBody OPTIONAL: The text body of the request.
-   */
-  saveRequest(request: TrufosRequest, textBody?: string): Promise<TrufosRequest>;
-
-  /**
-   * Copies the given request and returns the copied request.
-   * If the request has a non-draft request body, it is copied as well.
-   *
-   * @param request The request to copy.
-   */
-  copyRequest(request: TrufosRequest): Promise<TrufosRequest>;
-
-  /**
-   * Save changes of the given trufos request to the file system.
-   * @param request The request to save.
-   * @returns The saved request.
-   */
-  saveChanges(request: TrufosRequest): Promise<TrufosRequest>;
-
-  /**
-   * Discard changes of the given trufos request.
-   * @param request The request to discard changes of.
-   * @returns The request with discarded changes, i.e. the persisted non-draft version.
-   */
-  discardChanges(request: TrufosRequest): Promise<TrufosRequest | null>;
-
-  /**
-   * Delete the given trufos object and its children.
-   * @param object The object to delete.
-   */
-  deleteObject(object: TrufosObject): Promise<void>;
 
   /**
    * @returns The version of the app
@@ -195,68 +143,24 @@ export interface IEventService {
   resolveVariablesInString(string: string): Promise<string | null>;
 
   /**
-   * Replace all existing collection variables with the given ones.
-   * @param variables The variables of the Collection to set.
-   */
-  setCollectionVariables(variables: VariableMap): void;
-
-  /**
-   * Set or clear the client certificate for the current collection.
-   * @param clientCertificate The client certificate to set, or null to clear it.
-   */
-  setClientCertificate(clientCertificate: ClientCertificate | null): Promise<void>;
-
-  /**
-   * Rename the current collection. Its directory keeps its name.
-   * @param title The new title.
-   */
-  renameCollection(title: string): Promise<void>;
-
-  /**
-   * Replace all existing environment variables with the given ones.
-   * @param environmentVariables
-   */
-  setEnvironmentVariables(environmentVariables: EnvironmentMap): void;
-
-  /**
-   * Select an environment by its key.
-   * @param key The key of the environment to select.
-   */
-  selectEnvironment(key?: string): void;
-
-  /**
-   * Save the folder to the file system.
-   * @param folder The folder to save.
-   */
-  saveFolder(folder: Folder): void;
-
-  /**
-   * Copies the given folder and all its children and returns the copied folder.
-   * If any child has a non-draft request body, it is copied as well.
-   *
-   * @param folder The folder to copy.
-   */
-  copyFolder(folder: Folder): Promise<Folder>;
-
-  /**
    * Open an existing collection at the given directory path.
+   * The new state is broadcast as a snapshot before this resolves.
    * @param dirPath The directory path of the collection.
    */
-  openCollection(dirPath: string): Promise<Collection>;
+  openCollection(dirPath: string): Promise<void>;
 
   /**
    * Create a new collection at the given directory path with the given title.
    * @param dirPath The directory path of the new collection. Must be empty.
    * @param title The title of the new collection.
    */
-  createCollection(dirPath: string, title: string): Promise<Collection>;
+  createCollection(dirPath: string, title: string): Promise<void>;
 
   /**
    * Close the collection at the given directory path. You cannot close the default collection.
    * @param dirPath The directory path of the collection to close. If not provided, the current collection is closed.
-   * @returns The now selected collection after closing the specified collection.
    */
-  closeCollection(dirPath?: string): Promise<Collection>;
+  closeCollection(dirPath?: string): Promise<void>;
 
   /**
    * Open a folder dialog and return the selected directory path.
@@ -300,53 +204,10 @@ export interface IEventService {
   ): Promise<void>;
 
   /**
-   * Rename the given folder or request to the new title. Use {@link renameCollection} for the
-   * current collection. This updates the title and the directory name if necessary.
-   * @param object The object to rename.
-   * @param newTitle The new title.
-   */
-  rename(object: Folder | TrufosRequest, newTitle: string): Promise<void>;
-
-  /**
-   * Moves a child object from one parent to another on the file system.
-   * @param child the child object that gets moved
-   * @param oldParent the parent object the child is currently in
-   * @param newParent the parent object the child gets moved to
-   * @param position OPTIONAL: the new position of the child in the new parent. If not provided, the child will be added to the end of the new parent's children
-   */
-  moveItem(
-    child: Folder | TrufosRequest,
-    oldParent: Folder | Collection,
-    newParent: Folder | Collection,
-    position?: number
-  ): Promise<void>;
-
-  /**
-   * Reorders a child object within its parent folder or collection.
-   * @param parent the parent folder or collection
-   * @param childId the ID of the child object to reorder
-   * @param newIndex the new index of the child object within the parent's children array
-   * @returns the updated parent folder or collection
-   */
-  reorderItem<T extends Folder | Collection>(
-    parent: T,
-    childId: string,
-    newIndex: number
-  ): Promise<T>;
-
-  /**
    * Trigger the application update process in the background.
    * Will show a dialog to the user if an update is available.
    */
   updateApp(): void;
-
-  /**
-   * Saves the script for the given request and script type to the file system.
-   * @param request The request the script belongs to.
-   * @param type The type of the script (e.g. pre-request)
-   * @param script The script content to save.
-   */
-  saveScript(request: TrufosRequest, type: ScriptType, script: string): Promise<void>;
 
   /**
    * Save a request or response body to disk. Opens a native save dialog with a suggested filename
