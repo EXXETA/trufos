@@ -5,7 +5,11 @@ import {
   OAuth1Method,
   OAuth2Method,
 } from 'shim/objects/auth';
-import { applyAuthorizationChange, createDefaultAuthorization } from './forms';
+import {
+  applyAuthorizationChange,
+  createDefaultAuthorization,
+  getAuthorizationForm,
+} from './forms';
 
 const DEFAULTS: [AuthorizationType, string | undefined][] = [
   [AuthorizationType.INHERIT, undefined],
@@ -30,6 +34,15 @@ describe('createDefaultAuthorization', () => {
     expect(AuthorizationInformation.safeParse(auth).success).toBe(true);
     expect(auth.type).toBe(type);
     if (method != null) expect(auth).toHaveProperty('method', method);
+  });
+
+  it.each(DEFAULTS)('keeps every form field of %s (method %s) in the schema', (type, method) => {
+    const auth = AuthorizationInformation.parse(createDefaultAuthorization(type, method));
+    const keys = Object.entries(getAuthorizationForm(type, method))
+      .filter(([, field]) => field.type !== 'label')
+      .map(([key]) => key);
+
+    expect(keys.filter((key) => !(key in auth))).toEqual([]);
   });
 
   it('fills every field of the form, so the form does not fill them one by one', () => {

@@ -61,6 +61,8 @@ describe('CollectionReplica', () => {
 
   it('rebases pending commands onto foreign patches', async () => {
     let release!: () => Promise<void>;
+    // a fresh main, so the replica from beforeEach does not receive every event a second time
+    main = new FakeCollectionMain(makeModel());
     replica = new CollectionReplica(
       structuredClone(main.model),
       (envelope) =>
@@ -103,6 +105,38 @@ describe('CollectionReplica', () => {
     expect(snapshot).toHaveBeenCalledOnce();
     expect(replica.model.requests.get('r2')!.title).toBe('Missed');
     expect(replica.model.requests.get('r3')!.title).toBe('Seen');
+  });
+
+  it('does not re-apply a command that main confirmed during a resync', async () => {
+    main = new FakeCollectionMain(makeModel());
+    let releaseSnapshot!: () => void;
+    const snapshot = vi.fn(() =>
+      new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() =>
+        main.getCollectionState()
+      )
+    );
+    replica = new CollectionReplica(
+      structuredClone(main.model),
+      (envelope) => main.dispatch(envelope),
+      snapshot
+    );
+    main.onEvent((event) => replica.receive(event));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const resync = replica.resync();
+
+    const copied = replica.dispatch({ type: 'copy', id: 'r3', idMap: { r3: 'r3-copy' } });
+    expect(replica.model.requests.has('r3-copy')).toBe(true);
+    await vi.waitFor(() => expect(main.model.requests.has('r3-copy')).toBe(true));
+
+    releaseSnapshot();
+    await Promise.all([copied, resync]);
+
+    expect(snapshot).toHaveBeenCalledOnce();
+    expect(warn).not.toHaveBeenCalled();
+    expect(replica.model.version).toBe(1);
+    expect(replica.model.requests.has('r3-copy')).toBe(true);
+    expect(replica.model.childIds.get('col')).toEqual(['f1', 'r3', 'r3-copy']);
+    warn.mockRestore();
   });
 
   it('drops a rejected command, resyncs and rethrows', async () => {

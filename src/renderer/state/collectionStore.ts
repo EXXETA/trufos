@@ -129,23 +129,25 @@ export const createCollectionStore = (replica: CollectionReplica): CollectionSto
         );
 
       /**
-       * Drops the editor changes of the given requests and their descendants, and deselects the
-       * selected request if it is one of them. Used before they are deleted.
+       * Drops the editor changes of the given request or folder and its descendants, and deselects
+       * the selected request if it is one of them. Used right before it is deleted.
        */
-      const forgetRequests = (ids: string[]) => {
+      const forgetItem = (id: string) => {
         const model = replica.model;
-        for (const id of ids) {
-          for (const descendantId of [id, ...getDescendantIds(model, id)]) {
-            cancelModelEdits(descendantId);
-          }
+        for (const descendantId of [id, ...getDescendantIds(model, id)]) {
+          cancelModelEdits(descendantId);
         }
         const { selectedRequestId, setSelectedRequest } = get();
-        if (
-          selectedRequestId != null &&
-          ids.some((id) => isSelfOrDescendant(model, selectedRequestId, id))
-        ) {
+        if (selectedRequestId != null && isSelfOrDescendant(model, selectedRequestId, id)) {
           setSelectedRequest(undefined);
         }
+      };
+
+      /** Copies a request or folder. Pending editor changes must be flushed before. */
+      const copyItem = async (id: string) => {
+        const ids = [id, ...getDescendantIds(replica.model, id)];
+        const idMap = Object.fromEntries(ids.map((sourceId) => [sourceId, crypto.randomUUID()]));
+        await dispatch({ type: 'copy', id, idMap });
       };
 
       return {
@@ -287,25 +289,27 @@ export const createCollectionStore = (replica: CollectionReplica): CollectionSto
           const { selectedIds, requests, folders } = get();
           const items = getTopLevelSelectedItems(selectedIds, requests, folders);
           await runBulk(set, get, async () => {
-            forgetRequests(items.map((item) => item.id));
             for (const item of items) {
+              forgetItem(item.id);
               await dispatch({ type: 'delete', id: item.id });
             }
           });
         },
 
         duplicateSelectedItems: async () => {
-          const { selectedIds, requests, folders, copyRequest, copyFolder } = get();
+          const { selectedIds, requests, folders } = get();
           const items = getTopLevelSelectedItems(selectedIds, requests, folders);
           await runBulk(set, get, async () => {
+            // main copies the body and script files, so they must contain the latest editor changes
+            await flushModelEdits();
             for (const item of items) {
-              await (item.type === 'request' ? copyRequest(item.id) : copyFolder(item.id));
+              await copyItem(item.id);
             }
           });
         },
 
         deleteRequest: async (id) => {
-          forgetRequests([id]);
+          forgetItem(id);
           await dispatch({ type: 'delete', id });
         },
 
@@ -334,7 +338,8 @@ export const createCollectionStore = (replica: CollectionReplica): CollectionSto
         },
 
         copyRequest: async (id) => {
-          await dispatch({ type: 'copy', id, idMap: { [id]: crypto.randomUUID() } });
+          await flushModelEdits();
+          await copyItem(id);
         },
 
         addHeader: () =>
@@ -423,7 +428,7 @@ export const createCollectionStore = (replica: CollectionReplica): CollectionSto
 
         deleteFolder: async (id) => {
           console.info('Deleting folder', id);
-          forgetRequests([id]);
+          forgetItem(id);
           await dispatch({ type: 'delete', id });
         },
 
@@ -432,9 +437,8 @@ export const createCollectionStore = (replica: CollectionReplica): CollectionSto
         },
 
         copyFolder: async (id) => {
-          const ids = [id, ...getDescendantIds(replica.model, id)];
-          const idMap = Object.fromEntries(ids.map((sourceId) => [sourceId, crypto.randomUUID()]));
-          await dispatch({ type: 'copy', id, idMap });
+          await flushModelEdits();
+          await copyItem(id);
         },
 
         isFolderOpen: (id) => get().openFolders.has(id),
@@ -566,7 +570,9 @@ export const createCollectionStore = (replica: CollectionReplica): CollectionSto
  */
 function syncWithModel(store: CollectionStore, model: CollectionModel) {
   const state = store.getState();
-  const isNewCollection = state.collection.id !== model.collection.id;
+  const isNewCollection =
+    state.collection.id !== model.collection.id ||
+    state.collection.dirPath !== model.collection.dirPath;
   const { selectedRequestId } = state;
 
   if (selectedRequestId != null && (isNewCollection || !model.requests.has(selectedRequestId))) {

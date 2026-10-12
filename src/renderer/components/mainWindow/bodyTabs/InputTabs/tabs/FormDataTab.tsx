@@ -11,17 +11,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { FileBody, RequestBodyType } from 'shim/objects/request';
+import { FileBody, FormDataBody, RequestBodyType } from 'shim/objects/request';
 import { FilePicker } from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { Paperclip, Type } from 'lucide-react';
+
+/** Returned while the body is not form data, so the selector result stays stable. */
+const NO_FIELDS: readonly FormDataBody['fields'][number][] = Object.freeze([]);
 
 export const FormDataTab = () => {
   const { addFormDataField, updateFormDataField, deleteFormDataField, setRequestBody } =
     useCollectionActions();
   const fields = useCollectionStore((state) => {
     const body = state.requests.get(state.selectedRequestId!)?.body;
-    return body?.type === RequestBodyType.FORM_DATA ? body.fields : [];
+    return body?.type === RequestBodyType.FORM_DATA ? body.fields : NO_FIELDS;
   });
 
   const toggleFieldType = (index: number) => {

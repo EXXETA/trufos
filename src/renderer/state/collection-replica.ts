@@ -74,7 +74,10 @@ export class CollectionReplica {
       this.pending = [];
       this.setConfirmed(event.model);
     } else if (this.resyncing != null) {
-      // the snapshot being fetched already contains these patches
+      // The snapshot being fetched already contains these patches, so they are not applied. The
+      // command they confirm must not stay pending though, or it would be applied a second time
+      // on top of the snapshot. The visible model keeps it until the snapshot arrives.
+      this.pending = this.pending.filter(({ commandId }) => commandId !== event.commandId);
     } else if (event.version !== this.confirmed.version + 1) {
       console.warn(
         `Missed a collection update (expected version ${this.confirmed.version + 1}, got ${event.version})`

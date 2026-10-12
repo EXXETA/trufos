@@ -326,6 +326,22 @@ describe('creating and changing items', () => {
     expect(ctx.store.getState().requests.get(copyId)!.title).toBe('r1 (Copy)');
   });
 
+  it.each([
+    ['copyRequest', 'r1'],
+    ['copyFolder', 'F'],
+  ] as const)('%s flushes the editor changes before copying', async (action, id) => {
+    let commandsWhenFlushed: number | undefined;
+    vi.mocked(flushModelEdits).mockImplementationOnce(async () => {
+      commandsWhenFlushed = ctx.commands().length;
+    });
+
+    await ctx.store.getState()[action](id);
+
+    expect(flushModelEdits).toHaveBeenCalledWith();
+    expect(commandsWhenFlushed).toBe(0);
+    expect(ctx.commands().map(({ type }) => type)).toEqual(['copy']);
+  });
+
   it('moveItem moves an item into another folder and opens it', async () => {
     await ctx.store.getState().moveItem('r3', 'G', 0);
 
@@ -494,6 +510,23 @@ describe('model updates', () => {
     expect(openFolders.size).toBe(0);
     expect(selectedIds.size).toBe(0);
   });
+
+  it('resets UI state when a collection with the same ID is opened from another directory', () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r2');
+    ctx.store.getState().setSelection(['r1']);
+
+    ctx.main.emit({
+      kind: 'snapshot',
+      model: normalizeCollection({ ...defaultCollection(), dirPath: '/copy-of-col' }),
+    });
+
+    const { collection, selectedRequestId, openFolders, selectedIds } = ctx.store.getState();
+    expect(collection.dirPath).toBe('/copy-of-col');
+    expect(selectedRequestId).toBeUndefined();
+    expect(openFolders.size).toBe(0);
+    expect(selectedIds.size).toBe(0);
+  });
 });
 
 describe('collections', () => {
@@ -547,6 +580,39 @@ describe('bulk actions', () => {
     expect(ctx.commands().map(({ type }) => type)).toEqual(['copy', 'copy']);
     expect(ctx.store.getState().selectedRequestId).toBe('r1');
     expect(childIds(ctx, COL_ID)).toHaveLength(4);
+  });
+
+  it('flushes the editor changes once before duplicating', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelection(['F', 'r3']);
+    const commandsWhenFlushed: number[] = [];
+    vi.mocked(flushModelEdits).mockImplementationOnce(async () => {
+      commandsWhenFlushed.push(ctx.commands().length);
+    });
+
+    await ctx.store.getState().duplicateSelectedItems();
+
+    expect(commandsWhenFlushed).toEqual([0]);
+    expect(ctx.commands().map(({ type }) => type)).toEqual(['copy', 'copy']);
+  });
+
+  it('cancels the editor changes of each item right before deleting it', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelection(['F', 'r3']);
+    const commandsWhenCancelled = new Map<string, number>();
+    const original = vi.mocked(cancelModelEdits).getMockImplementation();
+    vi.mocked(cancelModelEdits).mockImplementation((id) => {
+      commandsWhenCancelled.set(id, ctx.commands().length);
+    });
+
+    try {
+      await ctx.store.getState().deleteSelectedItems();
+    } finally {
+      vi.mocked(cancelModelEdits).mockImplementation(original!);
+    }
+
+    expect(commandsWhenCancelled.get('r1')).toBe(0);
+    expect(commandsWhenCancelled.get('r3')).toBe(1);
   });
 
   it('ignores a second call while the first is still in flight', async () => {

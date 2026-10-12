@@ -68,16 +68,13 @@ export const ModularForm = <T extends object>({
   data,
   onDataChanged,
 }: FormProps<T>) => {
+  /**
+   * Returns the value to show for a field. A missing value is shown as the default but not written
+   * to the data: this runs during render, and the field stays absent until the user edits it.
+   */
   const getValue = useCallback(
-    <V,>(key: keyof T, defaultValue: V) => {
-      if (data[key] == null) {
-        onDataChanged({ [key]: defaultValue } as Partial<T>);
-        return defaultValue;
-      } else {
-        return data[key] as V;
-      }
-    },
-    [data, onDataChanged]
+    <V,>(key: keyof T, defaultValue: V) => (data[key] as V | undefined) ?? defaultValue,
+    [data]
   );
 
   const renderField = (key: keyof T, fieldConfig: FormFieldConfig) => {
