@@ -14,6 +14,7 @@ import {
 import { FilePicker } from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon } from '@/components/icons';
+import { showError } from '@/error/errorHandler';
 
 const eventService = RendererEventService.instance;
 
@@ -55,7 +56,7 @@ export const CollectionCreate: React.FC<{
 
       await loadCollections();
     } catch (e) {
-      console.error('Error creating collection:', e);
+      showError('Could not create the collection', e);
     } finally {
       onClose?.();
     }
@@ -63,7 +64,7 @@ export const CollectionCreate: React.FC<{
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
-      <DialogContent className="flex max-h-[80vh] w-[760px] max-w-3xl flex-col border-none shadow-none">
+      <DialogContent className="flex max-h-[80vh] w-190 max-w-3xl flex-col border-none shadow-none">
         <DialogHeader>
           <DialogTitle>New Collection</DialogTitle>
         </DialogHeader>

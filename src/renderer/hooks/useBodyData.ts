@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { getToastForError } from '@/components/ui/use-toast';
+import { showError } from '@/error/errorHandler';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import type { StringBufferEncoding } from 'shim/ipc-stream';
 
@@ -38,7 +38,7 @@ export const useBodyData = (
       .then((content) => {
         if (!canceled && content !== undefined) onChange(content);
       })
-      .catch(getToastForError);
+      .catch((error) => showError('Could not load the body', error));
 
     return () => {
       canceled = true;

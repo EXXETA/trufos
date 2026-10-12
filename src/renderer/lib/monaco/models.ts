@@ -95,17 +95,31 @@ export function getResponseModel(requestId: string): editor.ITextModel {
   return registry.get(requestId)!.response;
 }
 
-export function disposeModelsForRequest(requestId: string): void {
+/** Requests whose models are currently being disposed without persisting their content. */
+const discardedRequestIds = new Set<string>();
+
+/**
+ * Disposes all models of the given request.
+ * @param requestId the ID of the request
+ * @param save whether to persist the body and script content first. Pass `false` for a request
+ * that no longer exists, e.g. after it was deleted, as saving would recreate it on disk.
+ */
+export function disposeModelsForRequest(requestId: string, save = true): void {
   const models = registry.get(requestId);
   if (!models) return;
-  // Dispose each model — this triggers onWillDisposeModel for body & script,
-  // which handles persisting their content.
-  models.body.dispose();
-  for (const scriptModel of models.scripts.values()) {
-    scriptModel.dispose();
+  if (!save) discardedRequestIds.add(requestId);
+  try {
+    // Dispose each model — this triggers onWillDisposeModel for body & script,
+    // which handles persisting their content.
+    models.body.dispose();
+    for (const scriptModel of models.scripts.values()) {
+      scriptModel.dispose();
+    }
+    models.response.dispose();
+  } finally {
+    discardedRequestIds.delete(requestId);
+    registry.delete(requestId);
   }
-  models.response.dispose();
-  registry.delete(requestId);
 }
 
 // ── Save helper used by MainTopBar and CollectionStoreProvider ───────────────
@@ -135,7 +149,7 @@ export async function saveModelContent(model: editor.ITextModel): Promise<void> 
 
 editor.onWillDisposeModel((model) => {
   const parsed = parseModelUri(model.uri);
-  if (!parsed || !getRequest) return;
+  if (!parsed || !getRequest || discardedRequestIds.has(parsed.requestId)) return;
   const request = getRequest(parsed.requestId);
   if (!request) return;
 

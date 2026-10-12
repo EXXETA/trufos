@@ -412,6 +412,38 @@ describe('MainEventService', () => {
     });
   });
 
+  describe('rename', () => {
+    it('should rename the collection held by main so later saves keep the new title', async () => {
+      const { EnvironmentService } = await import('../environment/service/environment-service.js');
+      const id = randomUUID();
+      // @ts-expect-error Collection object missing optional required fields
+      const current: Collection = { id, type: 'collection', title: 'Old', dirPath: '/test' };
+      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(current);
+      const renameSpy = vi
+        .spyOn(PersistenceService.instance, 'rename')
+        .mockResolvedValue(undefined);
+      const eventService = new MainEventService();
+
+      await eventService.rename({ ...current }, 'New');
+
+      expect(renameSpy).toHaveBeenCalledOnce();
+      expect(renameSpy.mock.calls[0][0]).toBe(current);
+    });
+
+    it('should rename other objects as received', async () => {
+      // @ts-expect-error Folder object missing optional required fields
+      const folder: Folder = { id: randomUUID(), type: 'folder', title: 'Old', parentId: 'p' };
+      const renameSpy = vi
+        .spyOn(PersistenceService.instance, 'rename')
+        .mockResolvedValue(undefined);
+      const eventService = new MainEventService();
+
+      await eventService.rename(folder, 'New');
+
+      expect(renameSpy).toHaveBeenCalledWith(folder, 'New');
+    });
+  });
+
   describe('openLogDirectory', () => {
     it('should open the log directory in the file manager', async () => {
       const { app, shell } = await import('electron');

@@ -5,6 +5,7 @@ import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import { z } from 'zod';
 import { isCollection, isFolder, isRequest, TrufosObject } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
@@ -50,6 +51,12 @@ import {
 } from './snapshot';
 
 const secretService = SecretService.instance;
+
+const INFO_FILE_SCHEMAS = {
+  collection: CollectionInfoFile,
+  folder: FolderInfoFile,
+  request: RequestInfoFile,
+} as const satisfies Record<TrufosObject['type'], z.ZodType<InfoFile>>;
 
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
@@ -195,21 +202,19 @@ export class PersistenceService {
       newDirPath = object.dirPath;
     }
 
-    // Persist new title to the primary info file so that a reload reflects the change.
-    await this.saveInfoFile(object, newDirPath);
-
-    // Also update the title in the draft info file if one exists, so the rename is reflected
-    // after a restart even when the request has unsaved changes. Only the title field is patched
-    // to preserve all other draft changes (body, headers, URL, etc.).
     if (isRequest(object)) {
-      const draftInfoPath = path.join(
-        this.getDraftDirPath(newDirPath),
-        this.getInfoFileName('request')
-      );
-      if (await exists(draftInfoPath)) {
-        const draftInfo = JSON.parse(await fs.readFile(draftInfoPath, 'utf8'));
-        await this.writeJson(draftInfoPath, { ...draftInfo, title });
+      // The given request may carry unsaved draft changes, so only the title is patched into its
+      // info files. Writing the whole object would turn the draft into its saved state.
+      const infoFileName = this.getInfoFileName('request');
+      for (const dirPath of [newDirPath, this.getDraftDirPath(newDirPath)]) {
+        const infoFilePath = path.join(dirPath, infoFileName);
+        if (await exists(infoFilePath)) {
+          const info = JSON.parse(await readFileLimited(infoFilePath, 'utf8'));
+          await this.writeJson(infoFilePath, { ...info, title });
+        }
       }
+    } else {
+      await this.saveInfoFile(object, newDirPath);
     }
   }
 
@@ -510,7 +515,7 @@ export class PersistenceService {
   public async createCollection(dirPath: string, title: string): Promise<Collection> {
     dirPath = this.normalizeDirPath(dirPath);
     logger.info('Creating new collection at', dirPath);
-    if (!isEmpty(dirPath)) {
+    if ((await exists(dirPath)) && !(await isEmpty(dirPath))) {
       throw new Error('Directory is not empty');
     }
 
@@ -760,8 +765,7 @@ export class PersistenceService {
         await this.loadSecrets(dirPath)
       );
       const latest = await migrateInfoFile(info, type, filePath); // (potentially) migrate the info file to the latest version
-      await InfoFile.parseAsync(latest); // validate the info file
-      return latest;
+      return await INFO_FILE_SCHEMAS[type].parseAsync(latest); // validate against the schema of the expected type
     } catch (e) {
       throw new Error(`Failed to load ${type} info file at "${filePath}":`, { cause: e });
     }

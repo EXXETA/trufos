@@ -7,6 +7,7 @@ import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { AuthorizationType, OAuth2Method } from 'shim/objects';
+import { registerGetRequest } from '@/lib/monaco/models';
 
 const mockEventService = RendererEventService.instance as unknown as {
   deleteObject: ReturnType<typeof vi.fn>;
@@ -41,6 +42,7 @@ vi.mock('@/services/event/renderer-event-service', () => ({
       reorderItem: vi.fn().mockResolvedValue(undefined),
       moveItem: vi.fn().mockResolvedValue(undefined),
       saveRequest: vi.fn().mockResolvedValue(undefined),
+      saveScript: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));
@@ -714,5 +716,60 @@ describe('moveItemsAfter', () => {
       /item not found/
     );
     expect(mockEventService.reorderItem).not.toHaveBeenCalled();
+  });
+});
+
+describe('moveItem', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('moves a request into another folder without saving it, which would drop its text body', async () => {
+    const target = makeFolder('T', COL_ID, []);
+    const store = createCollectionStore(makeCollection(COL_ID, [makeRequest('A', COL_ID), target]));
+
+    await store.getState().moveItem('A', 'T', 0);
+
+    expect(mockEventService.moveItem).toHaveBeenCalledOnce();
+    expect(RendererEventService.instance.saveRequest).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleting the open request', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEventService.deleteObject.mockResolvedValue(undefined);
+    registerGetRequest((id) => (id === REQ_ID ? makeRequest(REQ_ID, COL_ID) : undefined));
+  });
+
+  it('deleteRequest does not save the request again, which would recreate it on disk', async () => {
+    const store = buildStore();
+
+    await store.getState().deleteRequest(REQ_ID);
+
+    expect(mockEventService.deleteObject).toHaveBeenCalledOnce();
+    expect(store.getState().selectedRequestId).toBeUndefined();
+    expect(RendererEventService.instance.saveRequest).not.toHaveBeenCalled();
+    expect(RendererEventService.instance.saveScript).not.toHaveBeenCalled();
+  });
+
+  it('deleteSelectedItems does not save the open request before deleting it', async () => {
+    const store = buildStore();
+    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, []));
+
+    store.getState().setSelection([REQ_ID]);
+    await store.getState().deleteSelectedItems();
+
+    expect(mockEventService.deleteObject).toHaveBeenCalledOnce();
+    expect(RendererEventService.instance.saveRequest).not.toHaveBeenCalled();
+    expect(RendererEventService.instance.saveScript).not.toHaveBeenCalled();
+  });
+
+  it('switching to another request still saves the outgoing one', () => {
+    const store = buildStore();
+
+    store.getState().setSelectedRequest(undefined);
+
+    expect(RendererEventService.instance.saveRequest).toHaveBeenCalledOnce();
   });
 });

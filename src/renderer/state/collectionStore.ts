@@ -314,8 +314,9 @@ export const createCollectionStore = (collection: Collection) => {
       deleteRequest: async (id) => {
         await eventService.deleteObject(selectRequest(get(), id)!);
 
-        // Use setSelectedRequest so model disposal is handled consistently.
         if (get().selectedRequestId === id) {
+          // Saving the models of the deleted request would recreate it on disk
+          disposeModelsForRequest(id, false);
           get().setSelectedRequest(undefined);
         }
 
@@ -628,8 +629,8 @@ export const createCollectionStore = (collection: Collection) => {
             }
           });
 
-          // Persist to backend
-          if (isRequest(item!)) await eventService.saveRequest(item!);
+          // Persist to backend. The info files don't store the parent, so moving the directory
+          // is enough; saving the request here would drop its text body
           await eventService.moveItem(
             item!,
             selectParent(state, item!.parentId),
@@ -743,6 +744,9 @@ const runBulk = async (
       );
 
     if (affectsOpenRequest) {
+      // Saving the models of a request that is about to be deleted would race with its deletion
+      // and could recreate it on disk
+      disposeModelsForRequest(selectedRequestId, false);
       get().setSelectedRequest(undefined);
     }
 
