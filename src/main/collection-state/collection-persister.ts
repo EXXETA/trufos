@@ -5,7 +5,7 @@ import {
   getDescendantIds,
   getNode,
 } from 'shim/collection-model';
-import { getInlineTextBody, TrufosRequest } from 'shim/objects/request';
+import { getInlineTextBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 
 const persistenceService = PersistenceService.instance;
 
@@ -39,7 +39,9 @@ export function persistCommand(
       return {
         immediate: async () => {
           await persistenceService.saveRequestInfo(request);
-          await persistenceService.writeTextBody(request, getInlineTextBody(request) ?? '');
+          if (request.body.type === RequestBodyType.TEXT) {
+            await persistenceService.writeTextBody(request, getInlineTextBody(request) ?? '');
+          }
           await saveOrder(request.parentId);
         },
       };

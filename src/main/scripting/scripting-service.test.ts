@@ -422,6 +422,102 @@ describe('ScriptingService', () => {
       expect(mockState.state.collection.environments.dev.variables.baseUrl.value).toBe('changed');
     });
 
+    it('should only apply the variables the script set on top of the current ones', async () => {
+      // Arrange: the variables change while the script runs
+      log.mockImplementationOnce(() => {
+        mockState.state.collection = {
+          variables: { testVar: { value: 'concurrent' }, added: { value: 'concurrent' } },
+          environments: {
+            dev: { variables: { baseUrl: { value: 'concurrent' }, added: { value: 'x' } } },
+            prod: { variables: {} },
+          },
+        };
+      });
+
+      // Act
+      await service.executeScript(
+        `
+        console.log('changing');
+        trufos.setCollectionVariable('count', '1');
+        trufos.setEnvironmentVariable('apiKey', 'secret');
+      `,
+        ScriptType.PRE_REQUEST,
+        log
+      );
+
+      // Assert
+      expect(mockState.state.collection).toEqual({
+        variables: {
+          testVar: { value: 'concurrent' },
+          added: { value: 'concurrent' },
+          count: { value: '1' },
+        },
+        environments: {
+          dev: {
+            variables: {
+              baseUrl: { value: 'concurrent' },
+              added: { value: 'x' },
+              apiKey: { value: 'secret' },
+            },
+          },
+          prod: { variables: {} },
+        },
+      });
+    });
+
+    it('should dispatch both commands before awaiting either', async () => {
+      // Arrange
+      let resolve!: () => void;
+      mockState.collectionState.apply.mockImplementationOnce(
+        () => new Promise<void>((r) => (resolve = r))
+      );
+
+      // Act
+      const executing = service.executeScript(
+        `
+        trufos.setCollectionVariable('a', '1');
+        trufos.setEnvironmentVariable('b', '2');
+      `,
+        ScriptType.PRE_REQUEST,
+        log
+      );
+      await new Promise((r) => setImmediate(r));
+
+      // Assert
+      expect(mockState.collectionState.apply).toHaveBeenCalledTimes(2);
+      expect(mockState.collectionState.apply).toHaveBeenLastCalledWith({
+        type: 'setEnvironments',
+        environments: expect.objectContaining({
+          dev: { variables: expect.objectContaining({ b: { value: '2' } }) },
+        }),
+      });
+      resolve();
+      await executing;
+    });
+
+    it('should skip an environment that was deleted while the script ran', async () => {
+      // Arrange
+      log.mockImplementationOnce(() => {
+        mockState.state.collection = {
+          ...mockState.state.collection,
+          environments: { prod: { variables: {} } },
+        };
+      });
+
+      // Act
+      await service.executeScript(
+        `
+        console.log('deleting');
+        trufos.setEnvironmentVariable('a', 'b', 'dev');
+      `,
+        ScriptType.PRE_REQUEST,
+        log
+      );
+
+      // Assert
+      expect(mockState.state.collection.environments).toEqual({ prod: { variables: {} } });
+    });
+
     it('should report a failure to apply the variables to the script log', async () => {
       // Arrange
       const failure = new Error('failed');

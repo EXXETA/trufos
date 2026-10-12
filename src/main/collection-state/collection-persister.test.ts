@@ -146,6 +146,23 @@ describe('persistCommand()', () => {
     expect(persisted(await reload())).toEqual(persisted(next));
   });
 
+  it('createRequest writes no body file for a request without a text body', async () => {
+    // Act
+    await run(model, {
+      type: 'createRequest',
+      request: request('new', 'f1', { draft: true, body: { type: RequestBodyType.FILE } }),
+      index: 0,
+    });
+
+    // Assert
+    expect(await exists(path.join(dirPath, 'f1', 'new', DRAFT_DIR_NAME, 'request.json'))).toBe(
+      true
+    );
+    expect(await exists(path.join(dirPath, 'f1', 'new', DRAFT_DIR_NAME, TEXT_BODY_FILE_NAME))).toBe(
+      false
+    );
+  });
+
   it('createFolder writes the folder and the order of the parent', async () => {
     // Act
     const next = await run(model, {

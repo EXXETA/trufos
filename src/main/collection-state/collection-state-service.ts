@@ -54,6 +54,21 @@ export class CollectionStateService
   /** The pending debounced info file writes, by request ID. */
   private readonly debounced = new Map<string, NodeJS.Timeout>();
 
+  /** The IDs of requests whose info file has edits that are not written yet. */
+  private readonly unwritten = new Set<string>();
+
+  /**
+   * Incremented whenever the model is replaced by loading it from disk. Effects queued for an
+   * older generation were planned from a model that no longer exists and are skipped.
+   */
+  private generation = 0;
+
+  /** How many loads or reloads are in progress. Commands are rejected while this is not 0. */
+  private loading = 0;
+
+  /** The tail of the chain that runs loads one after another. It never rejects. */
+  private loadLock: Promise<void> = Promise.resolve();
+
   /** The current state of the open collection. It is immutable. */
   public get model(): CollectionModel {
     if (this._model == null) throw new Error('No collection is loaded');
@@ -82,9 +97,8 @@ export class CollectionStateService
    * snapshot. Pending writes of the previous collection are flushed first.
    * @param dirPath the directory of the collection
    */
-  public async load(dirPath: string): Promise<void> {
-    await this.flush();
-    await this.loadModel(dirPath);
+  public load(dirPath: string): Promise<void> {
+    return this.exclusive(() => this.flushAndLoad(dirPath));
   }
 
   /**
@@ -102,7 +116,11 @@ export class CollectionStateService
    * collection is loaded instead. The default collection cannot be closed.
    * @param dirPath the directory of the collection to close. Defaults to the current one.
    */
-  public async closeCollection(dirPath?: string): Promise<void> {
+  public closeCollection(dirPath?: string): Promise<void> {
+    return this.exclusive(() => this.closeCollectionExclusive(dirPath));
+  }
+
+  private async closeCollectionExclusive(dirPath?: string) {
     dirPath ??= this.model.collection.dirPath;
     logger.info('Closing collection at', dirPath);
 
@@ -115,7 +133,7 @@ export class CollectionStateService
     }
 
     if (dirPath === this._model?.collection.dirPath) {
-      await this.load(SettingsService.DEFAULT_COLLECTION_DIR);
+      await this.flushAndLoad(SettingsService.DEFAULT_COLLECTION_DIR);
     }
 
     // remove the collection from the list of open collections
@@ -151,11 +169,16 @@ export class CollectionStateService
    * changes are written before this resolves; request edits are written debounced.
    * @param input the {@link CommandEnvelope}. It is validated, as it usually comes from the
    * renderer.
-   * @throws if the envelope is invalid, the command cannot be applied or persisting it failed
+   * @throws if the envelope is invalid, the command cannot be applied, the collection is being
+   * loaded, or persisting it failed or was skipped because the collection was reloaded meanwhile
    */
   public async dispatch(input: unknown): Promise<void> {
     const envelope = CommandEnvelope.parse(input);
+    if (this.loading > 0) {
+      throw new Error('The collection is being loaded, the command was not applied');
+    }
     const prev = this.model;
+    const { generation } = this;
     const [next, patches] = produceWithPatches(prev, (draft) => {
       applyCommand(draft, envelope);
       draft.version++;
@@ -173,9 +196,10 @@ export class CollectionStateService
     if (command.type === 'saveRequest' || command.type === 'discardRequest') {
       // saving writes the latest draft itself and discarding makes the pending write obsolete
       this.cancelDebounce(command.id);
+      this.unwritten.delete(command.id);
     }
     for (const requestId of plan.debounce ?? []) this.debounce(requestId);
-    if (plan.immediate != null) await this.enqueue(plan.immediate);
+    if (plan.immediate != null) await this.enqueue(plan.immediate, generation);
   }
 
   /**
@@ -199,6 +223,7 @@ export class CollectionStateService
 
   private debounce(requestId: string) {
     this.cancelDebounce(requestId);
+    this.unwritten.add(requestId);
     const timeout = setTimeout(() => {
       this.debounced.delete(requestId);
       this.enqueueRequestInfo(requestId);
@@ -213,25 +238,43 @@ export class CollectionStateService
 
   /** Queues writing the info file of a request in the state it has when the write runs. */
   private enqueueRequestInfo(requestId: string) {
-    this.enqueue(async () => {
-      // the request may have been deleted in the meantime
-      const request = this._model?.requests.get(requestId);
-      if (request != null) await persistenceService.saveRequestInfo(request);
-    }).catch(() => {}); // already logged, and nobody waits for a debounced write
+    this.enqueue(
+      async () => {
+        // an earlier write may already have written the latest state
+        if (!this.unwritten.delete(requestId)) return;
+        // the request may have been deleted in the meantime
+        const request = this._model?.requests.get(requestId);
+        if (request != null) await persistenceService.saveRequestInfo(request);
+      },
+      this.generation,
+      requestId
+    ).catch(() => {}); // already logged, and nobody waits for a debounced write
   }
 
   /**
    * Adds an effect to the serial persistence queue. If it fails, the collection is reloaded from
    * disk before the next effect runs.
+   * @param effect the effect to run
+   * @param generation the {@link generation} of the model the effect was planned from. If the
+   * model was reloaded since, the effect is skipped and the returned promise rejects.
+   * @param requestId the request whose info file the effect writes, if that is what it does
    * @returns a promise that settles with the effect
    */
-  private enqueue(effect: () => Promise<void>): Promise<void> {
+  private enqueue(
+    effect: () => Promise<void>,
+    generation: number,
+    requestId?: string
+  ): Promise<void> {
     const result = this.queue.then(async () => {
+      if (generation !== this.generation) {
+        logger.warn('Skipping a change planned before the collection was reloaded');
+        throw new Error('The collection was reloaded before the change could be written');
+      }
       try {
         await effect();
       } catch (error) {
         logger.error('Failed to persist a change of the collection, reloading it:', error);
-        await this.reloadAfterFailure();
+        await this.reloadAfterFailure(requestId);
         throw error;
       }
     });
@@ -239,15 +282,57 @@ export class CollectionStateService
     return result;
   }
 
-  private async reloadAfterFailure() {
-    for (const requestId of [...this.debounced.keys()]) this.cancelDebounce(requestId);
-    const dirPath = this._model?.collection.dirPath;
-    if (dirPath == null) return;
+  /**
+   * Reloads the collection from disk after an effect failed. The edits of other requests that are
+   * not written yet are written first, so they survive the reload if possible.
+   * @param failedRequestId the request whose info file failed to be written, if any
+   */
+  private async reloadAfterFailure(failedRequestId?: string) {
+    this.loading++;
     try {
-      await this.loadModel(dirPath);
-    } catch (error) {
-      logger.error(`Failed to reload the collection at ${dirPath}:`, error);
+      for (const requestId of [...this.debounced.keys()]) this.cancelDebounce(requestId);
+      const unwritten = [...this.unwritten].filter((requestId) => requestId !== failedRequestId);
+      this.unwritten.clear();
+      for (const requestId of unwritten) {
+        const request = this._model?.requests.get(requestId);
+        if (request == null) continue;
+        try {
+          await persistenceService.saveRequestInfo(request);
+        } catch (error) {
+          logger.error(`Failed to write request ${requestId} before reloading:`, error);
+        }
+      }
+
+      const dirPath = this._model?.collection.dirPath;
+      if (dirPath == null) return;
+      try {
+        await this.loadModel(dirPath);
+      } catch (error) {
+        logger.error(`Failed to reload the collection at ${dirPath}:`, error);
+      }
+    } finally {
+      this.loading--;
     }
+  }
+
+  /**
+   * Runs a task that may load a collection once every such task started before it has settled.
+   * Commands are rejected from now on until the task has settled.
+   */
+  private exclusive<T>(task: () => Promise<T>): Promise<T> {
+    this.loading++;
+    const result = this.loadLock.then(task).finally(() => this.loading--);
+    this.loadLock = result.then(
+      () => {},
+      () => {}
+    );
+    return result;
+  }
+
+  /** Flushes the pending writes and loads the collection. */
+  private async flushAndLoad(dirPath: string) {
+    await this.flush();
+    await this.loadModel(dirPath);
   }
 
   /** Loads the collection without waiting for the persistence queue. */
@@ -263,6 +348,7 @@ export class CollectionStateService
     // the version never goes back, so the renderer can tell old events from new ones
     if (previous != null) model.version = previous.version + 1;
     this._model = freeze(model, true);
+    this.generation++;
 
     await this.addToOpenCollections(collection.dirPath);
     this.emit('changed', { kind: 'snapshot', model: this._model });

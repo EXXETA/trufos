@@ -13,6 +13,7 @@ import { BodyStore } from 'main/network/service/body-store';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { sendToRenderer } from 'main/event/send-to-renderer';
+import { closeAfterFlush } from 'main/close-window';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -89,15 +90,16 @@ const createWindow = async () => {
         event.preventDefault();
         setImmediate(() => sendToRenderer(mainWindow.webContents, MainProcessEvent.BeforeClose));
 
-        // wait for renderer to be ready to close, or give up after 30s
-        await once(ipcMain, RendererEvent.ReadyToClose, { signal: AbortSignal.timeout(30_000) });
-
-        // write the changes the renderer flushed, and any still debounced, before quitting
-        await collectionState.flush();
-
-        // close app
-        mainWindow.close();
-        app.quit();
+        // wait for renderer to be ready to close, or give up after 30s, then write the changes the
+        // renderer flushed, and any still debounced, before quitting
+        await closeAfterFlush(
+          once(ipcMain, RendererEvent.ReadyToClose, { signal: AbortSignal.timeout(30_000) }),
+          () => collectionState.flush(),
+          () => {
+            mainWindow.close();
+            app.quit();
+          }
+        );
       }
     });
 

@@ -286,7 +286,12 @@ export class HttpService {
   }
 
   private async executeScript(request: TrufosRequest, type: ScriptType, log: ScriptLogger) {
-    const stream = await persistenceService.loadScript(request, type);
+    // The request may have been saved, discarded or edited into a draft since it was sent, which
+    // changes where its scripts are. They are loaded from where they are now, once written.
+    const collectionState = CollectionStateService.instance;
+    await collectionState.flush();
+    const current = collectionState.model.requests.get(request.id) ?? request;
+    const stream = await persistenceService.loadScript(current, type);
     if (stream != null) {
       const script = await text(stream);
       await scriptingService.executeScript(script, type, log);

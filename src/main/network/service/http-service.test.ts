@@ -583,6 +583,75 @@ describe('HttpService', () => {
     );
   });
 
+  it('fetchAsync() should load the scripts of the request as it is now', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/data');
+    const httpService = setupMockHttpService(url, 'OK');
+    const collectionId = randomUUID();
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: collectionId,
+      type: 'request',
+      lastModified: 0,
+      title: 'Saved Meanwhile',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+      draft: true,
+    };
+    const saved: TrufosRequest = { ...request, draft: false };
+    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(
+      normalizeCollection({
+        id: collectionId,
+        type: 'collection',
+        title: 'Collection',
+        dirPath: '/collection',
+        isDefault: false,
+        lastModified: 0,
+        variables: {},
+        environments: {},
+        children: [saved],
+      })
+    );
+    const loadScript = vi.spyOn(PersistenceService.instance, 'loadScript');
+
+    // Act
+    await httpService.fetchAsync(request, recorder);
+
+    // Assert
+    expect(loadScript).toHaveBeenCalledTimes(2);
+    for (const [loaded] of loadScript.mock.calls) {
+      expect(loaded).toMatchObject({ id: request.id, draft: false });
+    }
+  });
+
+  it('fetchAsync() should load the scripts of the sent request if it was deleted', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/data');
+    const httpService = setupMockHttpService(url, 'OK');
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Deleted Meanwhile',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+      draft: true,
+    };
+    const loadScript = vi.spyOn(PersistenceService.instance, 'loadScript');
+
+    // Act
+    await httpService.fetchAsync(request, recorder);
+
+    // Assert
+    expect(loadScript).toHaveBeenCalledWith(request, ScriptType.PRE_REQUEST);
+    expect(loadScript).toHaveBeenCalledWith(request, ScriptType.POST_RESPONSE);
+  });
+
   it('fetchAsync() should report the request exactly as it is sent to the recorder', async () => {
     // Arrange
     const url = new URL('https://example.com/api/recorded');

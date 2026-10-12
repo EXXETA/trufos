@@ -19,8 +19,10 @@ interface ScriptVariables {
   variables: VariableMap;
   environments: EnvironmentMap;
   selectedEnvironmentKey?: string;
-  variablesChanged: boolean;
-  environmentsChanged: boolean;
+  /** The names of the collection variables the script set. */
+  changedVariables: Set<string>;
+  /** The names of the variables the script set, by environment key. */
+  changedEnvironmentVariables: Map<string, Set<string>>;
 }
 
 /**
@@ -43,7 +45,7 @@ export class ScriptingService {
 
         setCollectionVariable: (name: string, value: string | VariableObject) => {
           ScriptingService.setVariable(state.variables, name, value);
-          state.variablesChanged = true;
+          state.changedVariables.add(name);
         },
 
         getEnvironmentVariable: (name: string, environment?: string) => {
@@ -56,10 +58,13 @@ export class ScriptingService {
           value: string | VariableObject,
           environment?: string
         ) => {
-          const variables = ScriptingService.getEnvironmentVariables(state, environment);
+          const key = environment ?? state.selectedEnvironmentKey;
+          const variables = ScriptingService.getEnvironmentVariables(state, key);
           // like reading, writing to an environment that does not exist has no effect
           ScriptingService.setVariable(variables ?? {}, name, value);
-          if (variables != null) state.environmentsChanged = true;
+          if (key == null || variables == null) return;
+          const changed = state.changedEnvironmentVariables.get(key) ?? new Set<string>();
+          state.changedEnvironmentVariables.set(key, changed.add(name));
         },
       }),
     });
@@ -132,8 +137,8 @@ export class ScriptingService {
         environments: collection.environments,
       }),
       selectedEnvironmentKey,
-      variablesChanged: false,
-      environmentsChanged: false,
+      changedVariables: new Set(),
+      changedEnvironmentVariables: new Map(),
     };
     try {
       const context = createContext(this.createApi(type, log, state), {
@@ -147,17 +152,45 @@ export class ScriptingService {
       log({ script: type, level: 'error', args: [err] });
     }
 
-    try {
-      if (state.variablesChanged) {
-        await collectionState.apply({ type: 'setVariables', variables: state.variables });
-      }
-      if (state.environmentsChanged) {
-        await collectionState.apply({ type: 'setEnvironments', environments: state.environments });
-      }
-    } catch (err) {
-      logger.error('Failed to apply the variables changed by a script:', err);
-      log({ script: type, level: 'error', args: [err] });
+    // Only the variables the script set are applied, on top of the current state, so changes
+    // made while the script ran or while the first command is persisted are kept. Both commands
+    // are dispatched before either is awaited, as each applies synchronously.
+    const applying: Promise<void>[] = [];
+    if (state.changedVariables.size > 0) {
+      const variables = ScriptingService.mergeVariables(
+        collectionState.model.collection.variables,
+        state.variables,
+        state.changedVariables
+      );
+      applying.push(collectionState.apply({ type: 'setVariables', variables }));
     }
+    if (state.changedEnvironmentVariables.size > 0) {
+      const environments = { ...collectionState.model.collection.environments };
+      for (const [key, names] of state.changedEnvironmentVariables) {
+        const current = environments[key];
+        const changed = state.environments[key]?.variables;
+        // the environment may have been deleted in the meantime
+        if (current == null || changed == null) continue;
+        environments[key] = {
+          ...current,
+          variables: ScriptingService.mergeVariables(current.variables, changed, names),
+        };
+      }
+      applying.push(collectionState.apply({ type: 'setEnvironments', environments }));
+    }
+
+    for (const result of await Promise.allSettled(applying)) {
+      if (result.status === 'fulfilled') continue;
+      logger.error('Failed to apply the variables changed by a script:', result.reason);
+      log({ script: type, level: 'error', args: [result.reason] });
+    }
+  }
+
+  /** Returns the current variables with the given names replaced by the changed ones. */
+  private static mergeVariables(current: VariableMap, changed: VariableMap, names: Set<string>) {
+    const variables = { ...current };
+    for (const name of names) variables[name] = changed[name];
+    return variables;
   }
 }
 

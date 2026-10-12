@@ -396,6 +396,152 @@ describe('CollectionStateService', () => {
     });
   });
 
+  describe('concurrency', () => {
+    it('rejects commands while a collection is loaded', async () => {
+      // Act
+      const loading = service.load(secondDirPath);
+      const dispatched = service.apply({ type: 'renameCollection', title: 'renamed' });
+
+      // Assert
+      await expect(dispatched).rejects.toThrow('being loaded');
+      await loading;
+      expect(service.model.collection).toMatchObject({ id: 'second', title: 'second' });
+      expect(events.map((event) => event.kind)).toEqual(['snapshot']);
+    });
+
+    it('accepts commands again once the load is done', async () => {
+      // Arrange
+      await service.load(secondDirPath);
+
+      // Act
+      await service.apply({ type: 'renameCollection', title: 'renamed' });
+
+      // Assert
+      expect(service.model.collection.title).toBe('renamed');
+    });
+
+    it('rejects commands while the collection is reloaded after a failure', async () => {
+      // Arrange
+      let reject!: (error: Error) => void;
+      vi.spyOn(persistenceService, 'rename').mockReturnValueOnce(
+        new Promise<void>((_, r) => (reject = r))
+      );
+      const failing = service.apply({ type: 'rename', id: 'r1', title: 'renamed' });
+      const loadCollection = persistenceService.loadCollection.bind(persistenceService);
+      let dispatchedDuringReload: Promise<void> | undefined;
+      vi.spyOn(persistenceService, 'loadCollection').mockImplementationOnce((...args) => {
+        dispatchedDuringReload = service.apply({ type: 'renameCollection', title: 'renamed' });
+        return loadCollection(...args);
+      });
+
+      // Act
+      reject(new Error('disk full'));
+
+      // Assert
+      await expect(failing).rejects.toThrow('disk full');
+      await expect(dispatchedDuringReload).rejects.toThrow('being loaded');
+      expect(service.model.collection.title).toBe('first');
+    });
+
+    it('skips effects that were queued before the collection was reloaded', async () => {
+      // Arrange
+      let reject!: (error: Error) => void;
+      vi.spyOn(persistenceService, 'rename').mockReturnValueOnce(
+        new Promise<void>((_, r) => (reject = r))
+      );
+      const failing = service.apply({ type: 'rename', id: 'r1', title: 'renamed' });
+      const stale = service.apply({
+        type: 'createFolder',
+        folder: {
+          id: 'f1',
+          parentId: 'first',
+          type: 'folder',
+          lastModified: 0,
+          title: 'folder',
+        },
+      });
+
+      // Act
+      reject(new Error('disk full'));
+
+      // Assert
+      await expect(failing).rejects.toThrow('disk full');
+      await expect(stale).rejects.toThrow('reloaded');
+      expect(await exists(path.join(firstDirPath, 'folder'))).toBe(false);
+      expect(service.model.folders.has('f1')).toBe(false);
+      expect(service.model.childIds.get('first')).not.toContain('f1');
+    });
+
+    it('writes the pending edits of other requests before reloading after a failure', async () => {
+      // Arrange
+      await service.apply({ type: 'editRequest', id: 'r2', changes: {} });
+      await service.apply({
+        type: 'editRequest',
+        id: 'r2',
+        changes: { method: RequestMethod.PUT },
+      });
+      vi.spyOn(persistenceService, 'rename').mockRejectedValueOnce(new Error('disk full'));
+
+      // Act
+      await expect(service.apply({ type: 'rename', id: 'r1', title: 'renamed' })).rejects.toThrow(
+        'disk full'
+      );
+
+      // Assert
+      expect(service.model.requests.get('r2')?.method).toBe(RequestMethod.PUT);
+      expect(await readRequestInfo('r2', DRAFT_DIR_NAME)).toMatchObject({ method: 'PUT' });
+    });
+
+    it('still reloads if writing a pending edit before the reload fails', async () => {
+      // Arrange
+      await service.apply({ type: 'editRequest', id: 'r2', changes: {} });
+      await service.apply({
+        type: 'editRequest',
+        id: 'r2',
+        changes: { method: RequestMethod.PUT },
+      });
+      vi.spyOn(persistenceService, 'rename').mockRejectedValueOnce(new Error('disk full'));
+      vi.spyOn(persistenceService, 'saveRequestInfo').mockRejectedValueOnce(new Error('failed'));
+      events.length = 0;
+
+      // Act
+      await expect(service.apply({ type: 'rename', id: 'r1', title: 'renamed' })).rejects.toThrow(
+        'disk full'
+      );
+
+      // Assert
+      expect(events.map((event) => event.kind)).toEqual(['patches', 'snapshot']);
+      expect(service.model.requests.get('r1')?.title).toBe('r1');
+      expect(service.model.requests.get('r2')?.method).toBe(RequestMethod.GET);
+    });
+
+    it('loads collections one after another', async () => {
+      // Arrange
+      const loadCollection = persistenceService.loadCollection.bind(persistenceService);
+      let release!: () => void;
+      const released = new Promise<void>((r) => (release = r));
+      vi.spyOn(persistenceService, 'loadCollection').mockImplementationOnce(async (...args) => {
+        await released; // the first load is slower than the second one
+        return loadCollection(...args);
+      });
+
+      // Act
+      const first = service.load(secondDirPath);
+      const second = service.load(firstDirPath);
+      await new Promise((r) => setImmediate(r));
+      release();
+      await Promise.all([first, second]);
+
+      // Assert
+      expect(service.model.collection.id).toBe('first');
+      const { settings } = settingsService;
+      expect(settings.collections[settings.currentCollectionIndex]).toBe(firstDirPath);
+      expect(events.map((event) => event.kind === 'snapshot' && event.model.collection.id)).toEqual(
+        ['second', 'first']
+      );
+    });
+  });
+
   describe('flush()', () => {
     it('waits for queued writes', async () => {
       // Arrange
