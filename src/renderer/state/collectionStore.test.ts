@@ -34,6 +34,7 @@ vi.mock('@/services/event/renderer-event-service', () => ({
   RendererEventService: {
     instance: {
       rename: vi.fn(),
+      renameCollection: vi.fn(),
       setClientCertificate: vi.fn(),
       deleteObject: vi.fn().mockResolvedValue(undefined),
       copyRequest: vi.fn().mockResolvedValue(undefined),
@@ -771,5 +772,17 @@ describe('deleting the open request', () => {
     store.getState().setSelectedRequest(undefined);
 
     expect(RendererEventService.instance.saveRequest).toHaveBeenCalledOnce();
+  });
+});
+
+describe('renameCollection', () => {
+  it('renames the collection through the dedicated IPC method', async () => {
+    const store = buildStore();
+
+    await store.getState().renameCollection('Renamed');
+
+    expect(RendererEventService.instance.renameCollection).toHaveBeenCalledWith('Renamed');
+    expect(RendererEventService.instance.rename).not.toHaveBeenCalled();
+    expect(store.getState().collection!.title).toBe('Renamed');
   });
 });

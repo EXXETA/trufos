@@ -576,10 +576,9 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       renameCollection: async (title: string) => {
-        const current = get().collection;
-        if (!current) return;
+        if (!get().collection) return;
 
-        await eventService.rename(current as Collection, title);
+        await eventService.renameCollection(title);
 
         set((state) => {
           state.collection!.title = title;

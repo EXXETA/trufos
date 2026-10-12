@@ -108,6 +108,10 @@ export class EnvironmentService
     this.currentCollection.clientCertificate = clientCertificate ?? undefined;
   }
 
+  public setCollectionTitle(title: string) {
+    this.currentCollection.title = title;
+  }
+
   /**
    * Loads the given collection and sets it as the current collection.
    *
