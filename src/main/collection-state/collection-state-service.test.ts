@@ -11,6 +11,7 @@ import {
   CollectionModel,
   CollectionStateEvent,
   CommandEnvelope,
+  CommandType,
 } from 'shim/collection-model';
 import { Collection } from 'shim/objects/collection';
 import { RequestBodyType, TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/objects/request';
@@ -117,7 +118,7 @@ describe('CollectionStateService', () => {
     it('loads the saved state of requests with a draft', async () => {
       // Arrange
       await service.apply({
-        type: 'editRequest',
+        type: CommandType.EDIT_REQUEST,
         id: 'r1',
         changes: { method: RequestMethod.PUT },
       });
@@ -136,7 +137,7 @@ describe('CollectionStateService', () => {
 
     it('keeps the selected environment when the same collection is reloaded', async () => {
       // Arrange
-      await service.apply({ type: 'selectEnvironment', key: 'prod' });
+      await service.apply({ type: CommandType.SELECT_ENVIRONMENT, key: 'prod' });
 
       // Act
       await service.load(firstDirPath);
@@ -160,7 +161,7 @@ describe('CollectionStateService', () => {
 
     it('never decreases the version', async () => {
       // Arrange
-      await service.apply({ type: 'renameCollection', title: 'renamed' });
+      await service.apply({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'renamed' } });
       const { version } = service.model;
 
       // Act
@@ -233,12 +234,17 @@ describe('CollectionStateService', () => {
       const replica = structuredClone(service.model);
 
       // Act
-      await service.dispatch(envelope({ type: 'rename', id: 'r1', title: 'renamed' }, 'a'));
       await service.dispatch(
-        envelope({ type: 'createRequest', request: request('r3', 'first', { draft: true }) }, 'b')
+        envelope({ type: CommandType.RENAME, id: 'r1', title: 'renamed' }, 'a')
       );
       await service.dispatch(
-        envelope({ type: 'move', id: 'r3', parentId: 'first', index: 0 }, 'c')
+        envelope(
+          { type: CommandType.CREATE_REQUEST, request: request('r3', 'first', { draft: true }) },
+          'b'
+        )
+      );
+      await service.dispatch(
+        envelope({ type: CommandType.MOVE, id: 'r3', parentId: 'first', index: 0 }, 'c')
       );
 
       // Assert
@@ -260,8 +266,8 @@ describe('CollectionStateService', () => {
       const { version } = service.model;
 
       // Act
-      await service.apply({ type: 'renameCollection', title: 'a' });
-      await service.apply({ type: 'renameCollection', title: 'b' });
+      await service.apply({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'a' } });
+      await service.apply({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'b' } });
 
       // Assert
       expect(service.model.version).toBe(version + 2);
@@ -280,7 +286,7 @@ describe('CollectionStateService', () => {
         service.dispatch({ commandId: 'x', command: { type: 'nope' } })
       ).rejects.toThrow();
       await expect(
-        service.dispatch(envelope({ type: 'delete', id: 'does-not-exist' }))
+        service.dispatch(envelope({ type: CommandType.DELETE, id: 'does-not-exist' }))
       ).rejects.toThrow();
       expect(events).toEqual([]);
       expect(service.model).toBe(model);
@@ -288,7 +294,7 @@ describe('CollectionStateService', () => {
 
     it('writes structural changes before it resolves', async () => {
       // Act
-      await service.apply({ type: 'delete', id: 'r1' });
+      await service.apply({ type: CommandType.DELETE, id: 'r1' });
 
       // Assert
       expect(await exists(path.join(firstDirPath, 'r1'))).toBe(false);
@@ -297,11 +303,11 @@ describe('CollectionStateService', () => {
     it('writes edits of a draft debounced, or when flushed', async () => {
       // Arrange
       vi.useFakeTimers();
-      await service.apply({ type: 'editRequest', id: 'r1', changes: {} });
+      await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
 
       // Act
       await service.apply({
-        type: 'editRequest',
+        type: CommandType.EDIT_REQUEST,
         id: 'r1',
         changes: { method: RequestMethod.PUT },
       });
@@ -313,7 +319,7 @@ describe('CollectionStateService', () => {
 
       // Act
       await service.apply({
-        type: 'editRequest',
+        type: CommandType.EDIT_REQUEST,
         id: 'r1',
         changes: { method: RequestMethod.POST },
       });
@@ -326,15 +332,15 @@ describe('CollectionStateService', () => {
 
     it('saves the latest edits of a draft when it is saved', async () => {
       // Arrange
-      await service.apply({ type: 'setTextBody', id: 'r1', text: 'body' });
+      await service.apply({ type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'body' });
       await service.apply({
-        type: 'editRequest',
+        type: CommandType.EDIT_REQUEST,
         id: 'r1',
         changes: { method: RequestMethod.PUT },
       });
 
       // Act
-      await service.apply({ type: 'saveRequest', id: 'r1' });
+      await service.apply({ type: CommandType.SAVE_REQUEST, id: 'r1' });
       await service.flush();
 
       // Assert
@@ -347,15 +353,15 @@ describe('CollectionStateService', () => {
 
     it('drops pending edits of a draft when it is discarded', async () => {
       // Arrange
-      await service.apply({ type: 'editRequest', id: 'r1', changes: {} });
+      await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
       await service.apply({
-        type: 'editRequest',
+        type: CommandType.EDIT_REQUEST,
         id: 'r1',
         changes: { method: RequestMethod.PUT },
       });
 
       // Act
-      await service.apply({ type: 'discardRequest', id: 'r1' });
+      await service.apply({ type: CommandType.DISCARD_REQUEST, id: 'r1' });
       await service.flush();
 
       // Assert
@@ -369,18 +375,18 @@ describe('CollectionStateService', () => {
       vi.spyOn(persistenceService, 'rename').mockRejectedValueOnce(failure);
 
       // Act & Assert
-      await expect(service.apply({ type: 'rename', id: 'r1', title: 'renamed' })).rejects.toBe(
-        failure
-      );
+      await expect(
+        service.apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' })
+      ).rejects.toBe(failure);
       expect(events.map((event) => event.kind)).toEqual(['patches', 'snapshot']);
       expect(service.model.requests.get('r1')?.title).toBe('r1');
     });
 
     it('reloads the collection if a debounced write fails', async () => {
       // Arrange
-      await service.apply({ type: 'editRequest', id: 'r1', changes: {} });
+      await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
       await service.apply({
-        type: 'editRequest',
+        type: CommandType.EDIT_REQUEST,
         id: 'r1',
         changes: { method: RequestMethod.PUT },
       });
@@ -400,7 +406,10 @@ describe('CollectionStateService', () => {
     it('rejects commands while a collection is loaded', async () => {
       // Act
       const loading = service.load(secondDirPath);
-      const dispatched = service.apply({ type: 'renameCollection', title: 'renamed' });
+      const dispatched = service.apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: { title: 'renamed' },
+      });
 
       // Assert
       await expect(dispatched).rejects.toThrow('being loaded');
@@ -414,7 +423,7 @@ describe('CollectionStateService', () => {
       await service.load(secondDirPath);
 
       // Act
-      await service.apply({ type: 'renameCollection', title: 'renamed' });
+      await service.apply({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'renamed' } });
 
       // Assert
       expect(service.model.collection.title).toBe('renamed');
@@ -426,11 +435,14 @@ describe('CollectionStateService', () => {
       vi.spyOn(persistenceService, 'rename').mockReturnValueOnce(
         new Promise<void>((_, r) => (reject = r))
       );
-      const failing = service.apply({ type: 'rename', id: 'r1', title: 'renamed' });
+      const failing = service.apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' });
       const loadCollection = persistenceService.loadCollection.bind(persistenceService);
       let dispatchedDuringReload: Promise<void> | undefined;
       vi.spyOn(persistenceService, 'loadCollection').mockImplementationOnce((...args) => {
-        dispatchedDuringReload = service.apply({ type: 'renameCollection', title: 'renamed' });
+        dispatchedDuringReload = service.apply({
+          type: CommandType.UPDATE_COLLECTION,
+          changes: { title: 'renamed' },
+        });
         return loadCollection(...args);
       });
 
@@ -449,9 +461,9 @@ describe('CollectionStateService', () => {
       vi.spyOn(persistenceService, 'rename').mockReturnValueOnce(
         new Promise<void>((_, r) => (reject = r))
       );
-      const failing = service.apply({ type: 'rename', id: 'r1', title: 'renamed' });
+      const failing = service.apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' });
       const stale = service.apply({
-        type: 'createFolder',
+        type: CommandType.CREATE_FOLDER,
         folder: {
           id: 'f1',
           parentId: 'first',
@@ -474,18 +486,18 @@ describe('CollectionStateService', () => {
 
     it('writes the pending edits of other requests before reloading after a failure', async () => {
       // Arrange
-      await service.apply({ type: 'editRequest', id: 'r2', changes: {} });
+      await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r2', changes: {} });
       await service.apply({
-        type: 'editRequest',
+        type: CommandType.EDIT_REQUEST,
         id: 'r2',
         changes: { method: RequestMethod.PUT },
       });
       vi.spyOn(persistenceService, 'rename').mockRejectedValueOnce(new Error('disk full'));
 
       // Act
-      await expect(service.apply({ type: 'rename', id: 'r1', title: 'renamed' })).rejects.toThrow(
-        'disk full'
-      );
+      await expect(
+        service.apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' })
+      ).rejects.toThrow('disk full');
 
       // Assert
       expect(service.model.requests.get('r2')?.method).toBe(RequestMethod.PUT);
@@ -494,9 +506,9 @@ describe('CollectionStateService', () => {
 
     it('still reloads if writing a pending edit before the reload fails', async () => {
       // Arrange
-      await service.apply({ type: 'editRequest', id: 'r2', changes: {} });
+      await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r2', changes: {} });
       await service.apply({
-        type: 'editRequest',
+        type: CommandType.EDIT_REQUEST,
         id: 'r2',
         changes: { method: RequestMethod.PUT },
       });
@@ -505,9 +517,9 @@ describe('CollectionStateService', () => {
       events.length = 0;
 
       // Act
-      await expect(service.apply({ type: 'rename', id: 'r1', title: 'renamed' })).rejects.toThrow(
-        'disk full'
-      );
+      await expect(
+        service.apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' })
+      ).rejects.toThrow('disk full');
 
       // Assert
       expect(events.map((event) => event.kind)).toEqual(['patches', 'snapshot']);
@@ -549,7 +561,10 @@ describe('CollectionStateService', () => {
       vi.spyOn(persistenceService, 'saveCollectionInfo').mockReturnValueOnce(
         new Promise<void>((r) => (resolve = r))
       );
-      const dispatched = service.apply({ type: 'renameCollection', title: 'renamed' });
+      const dispatched = service.apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: { title: 'renamed' },
+      });
       const flushed = vi.fn();
 
       // Act
@@ -564,9 +579,90 @@ describe('CollectionStateService', () => {
     });
   });
 
+  describe('read()', () => {
+    it('waits for queued writes before it reads', async () => {
+      // Arrange
+      let resolve!: () => void;
+      vi.spyOn(persistenceService, 'saveCollectionInfo').mockReturnValueOnce(
+        new Promise<void>((r) => (resolve = r))
+      );
+      const dispatched = service.apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: { title: 'renamed' },
+      });
+      const reader = vi.fn(async (model: CollectionModel) => model.collection.title);
+
+      // Act
+      const reading = service.read(reader);
+      await new Promise((r) => setImmediate(r));
+
+      // Assert
+      expect(reader).not.toHaveBeenCalled();
+      resolve();
+      await dispatched;
+      await expect(reading).resolves.toBe('renamed');
+    });
+
+    it('writes pending debounced edits before it reads', async () => {
+      // Arrange
+      vi.useFakeTimers();
+      await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
+      await service.apply({
+        type: CommandType.EDIT_REQUEST,
+        id: 'r1',
+        changes: { method: RequestMethod.PUT },
+      });
+
+      // Act
+      const [info, method] = await service.read(async (model) => [
+        await readRequestInfo('r1', DRAFT_DIR_NAME),
+        model.requests.get('r1')?.method,
+      ]);
+
+      // Assert
+      expect(info).toMatchObject({ method: 'PUT' });
+      expect(method).toBe(RequestMethod.PUT);
+    });
+
+    it('writes the effects of a command dispatched while reading only after the reader is done', async () => {
+      // Arrange
+      let finishReading!: () => void;
+      const reading = service.read(() => new Promise<void>((resolve) => (finishReading = resolve)));
+      await vi.waitFor(() => expect(finishReading).toBeDefined());
+      const saveCollectionInfo = vi.spyOn(persistenceService, 'saveCollectionInfo');
+
+      // Act
+      const dispatched = service.apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: { title: 'renamed' },
+      });
+      await new Promise((r) => setImmediate(r));
+
+      // Assert
+      expect(service.model.collection.title).toBe('renamed');
+      expect(saveCollectionInfo).not.toHaveBeenCalled();
+      finishReading();
+      await Promise.all([reading, dispatched]);
+      expect(saveCollectionInfo).toHaveBeenCalled();
+    });
+
+    it('rejects if the reader fails without affecting later writes', async () => {
+      // Arrange
+      const failure = new Error('read failed');
+
+      // Act & Assert
+      await expect(service.read(() => Promise.reject(failure))).rejects.toBe(failure);
+      await service.apply({ type: CommandType.DELETE, id: 'r1' });
+
+      // Assert
+      expect(events.map((event) => event.kind)).toEqual(['patches']);
+      expect(await exists(path.join(firstDirPath, 'r1'))).toBe(false);
+    });
+  });
+
   it('model objects are frozen', async () => {
     // Arrange
-    await service.apply({ type: 'renameCollection', title: 'renamed' });
+    await service.apply({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'renamed' } });
     const model: CollectionModel = service.model;
 
     // Assert

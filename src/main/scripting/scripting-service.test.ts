@@ -5,7 +5,7 @@ import { ScriptingService } from './scripting-service';
 import { vol } from 'memfs';
 import type { ScriptLogger } from 'main/network/service/request-recorder';
 import { ScriptType } from 'shim/scripting';
-import type { CollectionCommand } from 'shim/collection-model';
+import { CollectionCommand, CommandType } from 'shim/collection-model';
 import { freeze } from 'immer';
 
 const log = vi.fn<ScriptLogger>();
@@ -28,11 +28,12 @@ const mockState = vi.hoisted(() => {
     },
     // applies the commands like the real service, so later scripts see the changes
     apply: vi.fn(async (command: CollectionCommand) => {
-      if (command.type === 'setVariables') {
-        state.collection = { ...state.collection, variables: command.variables };
-      } else if (command.type === 'setEnvironments') {
-        state.collection = { ...state.collection, environments: command.environments };
-      }
+      if (command.type !== CommandType.UPDATE_COLLECTION) return;
+      const { variables, environments } = command.changes;
+      state.collection = {
+        variables: variables ?? state.collection.variables,
+        environments: environments ?? state.collection.environments,
+      };
     }),
   };
 
@@ -353,7 +354,7 @@ describe('ScriptingService', () => {
   });
 
   describe('executeScript(, ScriptType.PRE_REQUEST) - applying changed variables', () => {
-    it('should apply one setVariables command when collection variables are set', async () => {
+    it('should apply one command when collection variables are set', async () => {
       await service.executeScript(
         `
         trufos.setCollectionVariable('a', '1');
@@ -365,12 +366,14 @@ describe('ScriptingService', () => {
 
       expect(mockState.collectionState.apply).toHaveBeenCalledOnce();
       expect(mockState.collectionState.apply).toHaveBeenCalledWith({
-        type: 'setVariables',
-        variables: expect.objectContaining({ a: { value: '1' }, b: { value: '2' } }),
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {
+          variables: expect.objectContaining({ a: { value: '1' }, b: { value: '2' } }),
+        },
       });
     });
 
-    it('should apply one setEnvironments command when an environment variable is set', async () => {
+    it('should apply one command when an environment variable is set', async () => {
       await service.executeScript(
         `trufos.setEnvironmentVariable('baseUrl', 'http://localhost:9000');`,
         ScriptType.PRE_REQUEST,
@@ -379,8 +382,10 @@ describe('ScriptingService', () => {
 
       expect(mockState.collectionState.apply).toHaveBeenCalledOnce();
       expect(mockState.collectionState.apply).toHaveBeenCalledWith({
-        type: 'setEnvironments',
-        environments: { dev: { variables: { baseUrl: { value: 'http://localhost:9000' } } } },
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {
+          environments: { dev: { variables: { baseUrl: { value: 'http://localhost:9000' } } } },
+        },
       });
     });
 
@@ -465,15 +470,9 @@ describe('ScriptingService', () => {
       });
     });
 
-    it('should dispatch both commands before awaiting either', async () => {
-      // Arrange
-      let resolve!: () => void;
-      mockState.collectionState.apply.mockImplementationOnce(
-        () => new Promise<void>((r) => (resolve = r))
-      );
-
+    it('should apply variables and environments with a single command', async () => {
       // Act
-      const executing = service.executeScript(
+      await service.executeScript(
         `
         trufos.setCollectionVariable('a', '1');
         trufos.setEnvironmentVariable('b', '2');
@@ -481,18 +480,18 @@ describe('ScriptingService', () => {
         ScriptType.PRE_REQUEST,
         log
       );
-      await new Promise((r) => setImmediate(r));
 
       // Assert
-      expect(mockState.collectionState.apply).toHaveBeenCalledTimes(2);
-      expect(mockState.collectionState.apply).toHaveBeenLastCalledWith({
-        type: 'setEnvironments',
-        environments: expect.objectContaining({
-          dev: { variables: expect.objectContaining({ b: { value: '2' } }) },
-        }),
+      expect(mockState.collectionState.apply).toHaveBeenCalledOnce();
+      expect(mockState.collectionState.apply).toHaveBeenCalledWith({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {
+          variables: expect.objectContaining({ a: { value: '1' } }),
+          environments: {
+            dev: { variables: expect.objectContaining({ b: { value: '2' } }) },
+          },
+        },
       });
-      resolve();
-      await executing;
     });
 
     it('should skip an environment that was deleted while the script ran', async () => {

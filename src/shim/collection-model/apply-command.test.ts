@@ -7,7 +7,7 @@ import { RequestMethod } from '../objects/request-method';
 import { parseUrl } from '../objects/url';
 import { AuthorizationType } from '../objects/auth';
 import { applyCommand, applyCommandTo } from './apply-command';
-import { CollectionCommand, CommandError } from './commands';
+import { CollectionCommand, CommandError, CommandType } from './commands';
 import { CollectionModel, normalizeCollection } from './model';
 
 const TIMESTAMP = 1_000;
@@ -80,7 +80,7 @@ describe('normalizeCollection', () => {
 describe('applyCommand', () => {
   it('creates a request at the given index', () => {
     const model = apply(createModel(), {
-      type: 'createRequest',
+      type: CommandType.CREATE_REQUEST,
       request: request('new', 'f1', { draft: true }),
       index: 1,
     });
@@ -90,7 +90,7 @@ describe('applyCommand', () => {
 
   it('creates a folder at the end by default', () => {
     const model = apply(createModel(), {
-      type: 'createFolder',
+      type: CommandType.CREATE_FOLDER,
       folder: { id: 'f3', parentId: 'col', type: 'folder', lastModified: 0, title: 'f3' },
     });
     expect(model.childIds.get('col')).toEqual(['f1', 'r3', 'f3']);
@@ -99,27 +99,37 @@ describe('applyCommand', () => {
 
   it('rejects duplicate IDs and missing parents', () => {
     expect(() =>
-      apply(createModel(), { type: 'createRequest', request: request('r1', 'col') })
+      apply(createModel(), { type: CommandType.CREATE_REQUEST, request: request('r1', 'col') })
     ).toThrow(CommandError);
     expect(() =>
-      apply(createModel(), { type: 'createRequest', request: request('x', 'missing') })
+      apply(createModel(), { type: CommandType.CREATE_REQUEST, request: request('x', 'missing') })
     ).toThrow(CommandError);
   });
 
   it('renames a request and its saved state', () => {
-    let model = apply(createModel(), { type: 'editRequest', id: 'r1', changes: {} });
-    model = apply(model, { type: 'rename', id: 'r1', title: 'renamed' });
+    let model = apply(createModel(), { type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
+    model = apply(model, { type: CommandType.RENAME, id: 'r1', title: 'renamed' });
     expect(model.requests.get('r1')!.title).toBe('renamed');
     expect(model.savedRequests.get('r1')!.title).toBe('renamed');
   });
 
   it('reorders within the same parent', () => {
-    const model = apply(createModel(), { type: 'move', id: 'r1', parentId: 'f1', index: 1 });
+    const model = apply(createModel(), {
+      type: CommandType.MOVE,
+      id: 'r1',
+      parentId: 'f1',
+      index: 1,
+    });
     expect(model.childIds.get('f1')).toEqual(['f2', 'r1']);
   });
 
   it('moves to another parent and updates parentId', () => {
-    const model = apply(createModel(), { type: 'move', id: 'r1', parentId: 'col', index: 0 });
+    const model = apply(createModel(), {
+      type: CommandType.MOVE,
+      id: 'r1',
+      parentId: 'col',
+      index: 0,
+    });
     expect(model.childIds.get('f1')).toEqual(['f2']);
     expect(model.childIds.get('col')).toEqual(['r1', 'f1', 'r3']);
     expect(model.requests.get('r1')!.parentId).toBe('col');
@@ -127,15 +137,15 @@ describe('applyCommand', () => {
 
   it('rejects moving a folder into itself or a descendant', () => {
     expect(() =>
-      apply(createModel(), { type: 'move', id: 'f1', parentId: 'f2', index: 0 })
+      apply(createModel(), { type: CommandType.MOVE, id: 'f1', parentId: 'f2', index: 0 })
     ).toThrow(CommandError);
     expect(() =>
-      apply(createModel(), { type: 'move', id: 'f1', parentId: 'f1', index: 0 })
+      apply(createModel(), { type: CommandType.MOVE, id: 'f1', parentId: 'f1', index: 0 })
     ).toThrow(CommandError);
   });
 
   it('deletes a folder with all descendants', () => {
-    const model = apply(createModel(), { type: 'delete', id: 'f1' });
+    const model = apply(createModel(), { type: CommandType.DELETE, id: 'f1' });
     expect(model.childIds.get('col')).toEqual(['r3']);
     expect(model.folders.size).toBe(0);
     expect([...model.requests.keys()]).toEqual(['r3']);
@@ -144,7 +154,7 @@ describe('applyCommand', () => {
 
   it('copies a folder with all descendants to the end of its parent', () => {
     const model = apply(createModel(), {
-      type: 'copy',
+      type: CommandType.COPY,
       id: 'f1',
       idMap: { f1: 'c1', r1: 'cr1', f2: 'c2', r2: 'cr2' },
     });
@@ -158,24 +168,24 @@ describe('applyCommand', () => {
 
   it('copies the draft of a request as the saved state of the copy', () => {
     let model = apply(createModel(), {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r3',
       changes: { method: RequestMethod.POST },
     });
-    model = apply(model, { type: 'copy', id: 'r3', idMap: { r3: 'c3' } });
+    model = apply(model, { type: CommandType.COPY, id: 'r3', idMap: { r3: 'c3' } });
     expect(model.requests.get('c3')).toMatchObject({ method: RequestMethod.POST, draft: false });
     expect(model.savedRequests.has('c3')).toBe(false);
   });
 
   it('rejects a copy with missing IDs', () => {
-    expect(() => apply(createModel(), { type: 'copy', id: 'f1', idMap: { f1: 'c1' } })).toThrow(
-      CommandError
-    );
+    expect(() =>
+      apply(createModel(), { type: CommandType.COPY, id: 'f1', idMap: { f1: 'c1' } })
+    ).toThrow(CommandError);
   });
 
   it('creates a draft on the first edit and keeps the saved state', () => {
     const model = apply(createModel(), {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r1',
       changes: { method: RequestMethod.PUT },
     });
@@ -192,12 +202,12 @@ describe('applyCommand', () => {
 
   it('keeps the first saved state on further edits', () => {
     let model = apply(createModel(), {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r1',
       changes: { method: RequestMethod.PUT },
     });
     model = apply(model, {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r1',
       changes: { method: RequestMethod.POST },
     });
@@ -206,80 +216,102 @@ describe('applyCommand', () => {
 
   it('sets and removes the authorization of a request', () => {
     let model = apply(createModel(), {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r1',
       changes: { auth: { type: AuthorizationType.BEARER, token: 't' } },
     });
     expect(model.requests.get('r1')!.auth).toEqual({ type: AuthorizationType.BEARER, token: 't' });
-    model = apply(model, { type: 'editRequest', id: 'r1', changes: { auth: null } });
+    model = apply(model, { type: CommandType.EDIT_REQUEST, id: 'r1', changes: { auth: null } });
     expect(model.requests.get('r1')).not.toHaveProperty('auth');
   });
 
   it('marks a request as draft when its body or script changes', () => {
-    const model = apply(createModel(), { type: 'setTextBody', id: 'r1', text: 'body' });
+    const model = apply(createModel(), { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'body' });
     expect(model.requests.get('r1')!.draft).toBe(true);
     expect(model.savedRequests.has('r1')).toBe(true);
   });
 
   it('saves a draft', () => {
     let model = apply(createModel(), {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r1',
       changes: { method: RequestMethod.PUT },
     });
-    model = apply(model, { type: 'saveRequest', id: 'r1' });
+    model = apply(model, { type: CommandType.SAVE_REQUEST, id: 'r1' });
     expect(model.requests.get('r1')).toMatchObject({ method: RequestMethod.PUT, draft: false });
     expect(model.savedRequests.has('r1')).toBe(false);
   });
 
   it('discards a draft by restoring the saved state', () => {
     let model = apply(createModel(), {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r1',
       changes: { method: RequestMethod.PUT },
     });
-    model = apply(model, { type: 'discardRequest', id: 'r1' });
+    model = apply(model, { type: CommandType.DISCARD_REQUEST, id: 'r1' });
     expect(model.requests.get('r1')).toMatchObject({ method: RequestMethod.GET, draft: false });
     expect(model.savedRequests.has('r1')).toBe(false);
   });
 
   it('deletes a never saved request when discarding it', () => {
     let model = apply(createModel(), {
-      type: 'createRequest',
+      type: CommandType.CREATE_REQUEST,
       request: request('new', 'col', { draft: true }),
     });
-    model = apply(model, { type: 'discardRequest', id: 'new' });
+    model = apply(model, { type: CommandType.DISCARD_REQUEST, id: 'new' });
     expect(model.requests.has('new')).toBe(false);
     expect(model.childIds.get('col')).toEqual(['f1', 'r3']);
   });
 
   it('keeps the environment selection valid when environments change', () => {
-    let model = apply(createModel(), { type: 'selectEnvironment', key: 'prod' });
+    let model = apply(createModel(), { type: CommandType.SELECT_ENVIRONMENT, key: 'prod' });
     expect(model.selectedEnvironmentKey).toBe('prod');
-    model = apply(model, { type: 'setEnvironments', environments: { dev: { variables: {} } } });
+    model = apply(model, {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: { environments: { dev: { variables: {} } } },
+    });
     expect(model.selectedEnvironmentKey).toBe('dev');
-    expect(() => apply(model, { type: 'selectEnvironment', key: 'missing' })).toThrow(CommandError);
+    expect(() => apply(model, { type: CommandType.SELECT_ENVIRONMENT, key: 'missing' })).toThrow(
+      CommandError
+    );
   });
 
-  it('changes collection settings', () => {
-    let model = apply(createModel(), { type: 'renameCollection', title: 'New' });
-    model = apply(model, {
-      type: 'setClientCertificate',
-      clientCertificate: { certPath: '/cert.pem' },
+  it('changes only the given collection settings', () => {
+    let model = apply(createModel(), {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: {
+        title: 'New',
+        clientCertificate: { certPath: '/cert.pem' },
+        auth: { type: AuthorizationType.BEARER, token: 't' },
+      },
     });
     model = apply(model, {
-      type: 'setCollectionAuth',
-      auth: { type: AuthorizationType.BEARER, token: 't' },
+      type: CommandType.UPDATE_COLLECTION,
+      changes: { variables: { a: { value: '1' } } },
     });
-    model = apply(model, { type: 'setVariables', variables: { a: { value: '1' } } });
     expect(model.collection).toMatchObject({
       title: 'New',
       clientCertificate: { certPath: '/cert.pem' },
       auth: { type: AuthorizationType.BEARER, token: 't' },
       variables: { a: { value: '1' } },
     });
-    model = apply(model, { type: 'setClientCertificate' });
+    expect(model.selectedEnvironmentKey).toBe('dev');
+  });
+
+  it('removes the client certificate and the authorization of the collection', () => {
+    let model = apply(createModel(), {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: {
+        clientCertificate: { certPath: '/cert.pem' },
+        auth: { type: AuthorizationType.BEARER, token: 't' },
+      },
+    });
+    model = apply(model, {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: { clientCertificate: null, auth: null },
+    });
     expect(model.collection).not.toHaveProperty('clientCertificate');
+    expect(model.collection).not.toHaveProperty('auth');
   });
 
   it('produces patches that reproduce the change on a replica', () => {
@@ -289,7 +321,7 @@ describe('applyCommand', () => {
       applyCommand(draft, {
         commandId: 'cmd',
         timestamp: TIMESTAMP,
-        command: { type: 'move', id: 'r2', parentId: 'col', index: 0 },
+        command: { type: CommandType.MOVE, id: 'r2', parentId: 'col', index: 0 },
       })
     );
     // patches are sent over IPC, which uses the structured clone algorithm

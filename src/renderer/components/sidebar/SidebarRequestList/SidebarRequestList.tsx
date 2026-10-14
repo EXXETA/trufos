@@ -239,7 +239,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     const nextRequestId = visibleRequestIds[nextIndex];
 
     if (nextRequestId && nextRequestId !== selectedRequestId) {
-      setSelectedRequest(nextRequestId);
+      void setSelectedRequest(nextRequestId);
     }
   };
 

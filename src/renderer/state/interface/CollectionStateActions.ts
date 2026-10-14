@@ -1,11 +1,9 @@
-import { FolderInfo, RequestChanges } from 'shim/collection-model';
-import { AuthorizationInformation, AuthorizationInformationNoInherit } from 'shim/objects/auth';
-import { ClientCertificate } from 'shim/objects/collection';
-import { EnvironmentMap } from 'shim/objects/environment';
+import { CollectionChanges, FolderInfo, RequestChanges } from 'shim/collection-model';
+import { AuthorizationInformation } from 'shim/objects/auth';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { FormDataBody, RequestBody, TrufosRequest } from 'shim/objects/request';
-import { VariableMap } from 'shim/objects/variables';
+import { TrufosId } from 'shim/objects/id';
 import { ScriptType } from 'shim/scripting';
 import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 
@@ -48,7 +46,15 @@ export interface CollectionStateActions {
    */
   setRequestBodyMimeType(mimeType?: string): void;
 
-  setSelectedRequest(id?: TrufosRequest['id']): void;
+  /**
+   * Select the given request, or none. The editor changes of the previously selected request are
+   * sent to main and its editor models are disposed.
+   * @param id the request id, or undefined to select none
+   * @returns a promise that resolves when main applied the editor changes of the previously
+   * selected request, at once if there are none. It rejects if they could not be applied; the
+   * error is shown to the user either way.
+   */
+  setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
 
   /**
    * Set the currently active script type.
@@ -190,7 +196,7 @@ export interface CollectionStateActions {
    * Delete the folder to the file system
    * @param id
    */
-  deleteFolder(id: string): Promise<void>;
+  deleteFolder(id: FolderInfo['id']): Promise<void>;
 
   /**
    * Rename the folder title
@@ -237,35 +243,17 @@ export interface CollectionStateActions {
   ): void;
 
   /**
-   * Set or remove the authorization of the current collection.
-   * @param auth the authorization, or undefined to remove it
+   * Change the settings of the current collection. Settings that are not given stay unchanged.
+   * @param changes the settings to change. `null` removes the client certificate or the
+   * authorization.
    */
-  setCollectionAuth(auth?: AuthorizationInformationNoInherit): Promise<void>;
-
-  /**
-   * Replace the variables of the current collection.
-   * @param variables The new variables
-   */
-  setVariables(variables: VariableMap): Promise<void>;
-
-  /**
-   * Replace the environments of the current collection.
-   * @param environments The new environments
-   */
-  setEnvironments(environments: EnvironmentMap): Promise<void>;
+  updateCollection(changes: CollectionChanges): Promise<void>;
 
   /**
    * Select the environment whose variables are used. Not persisted.
    * @param key the environment key, or undefined to select none
    */
   selectEnvironment(key?: string): Promise<void>;
-
-  /**
-   * Rename the currently opened collection.
-   *
-   * @param title The new title of the collection.
-   */
-  renameCollection(title: string): Promise<void>;
 
   /**
    * Close the currently opened collection.
@@ -276,7 +264,7 @@ export interface CollectionStateActions {
    */
   closeCollection(dirPath?: string): Promise<void>;
 
-  moveItem(itemId: string, newParentId: string, position: number): Promise<void>;
+  moveItem(itemId: TrufosId, newParentId: TrufosId, position: number): Promise<void>;
 
   /**
    * Move each of `ids`, in order, so they form a contiguous run directly after `afterId`
@@ -292,11 +280,5 @@ export interface CollectionStateActions {
    * @param afterId The id of the anchor item the run is placed after.
    * @param ids The ids to move, in the order they should appear.
    */
-  moveItemsAfter(afterId: string, ids: string[]): Promise<void>;
-
-  /**
-   * Update the client certificate of the current collection.
-   * @param certificate The certificate to set, or null to clear it.
-   */
-  setClientCertificate(certificate: ClientCertificate | null): Promise<void>;
+  moveItemsAfter(afterId: TrufosId, ids: TrufosId[]): Promise<void>;
 }

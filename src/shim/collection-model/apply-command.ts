@@ -1,6 +1,6 @@
 import { current, produce, type Draft } from 'immer';
 import { TrufosRequest } from '../objects/request';
-import { CommandEnvelope, CommandError } from './commands';
+import { CommandEnvelope, CommandError, CommandType } from './commands';
 import {
   CollectionModel,
   getDescendantIds,
@@ -22,14 +22,14 @@ type ModelDraft = Draft<CollectionModel>;
 export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void {
   const { command, timestamp } = envelope;
   switch (command.type) {
-    case 'createRequest': {
+    case CommandType.CREATE_REQUEST: {
       const { request } = command;
       assertNewId(model, request.id);
       insertChild(model, request.parentId, request.id, command.index);
       model.requests.set(request.id, { ...request, lastModified: timestamp });
       return;
     }
-    case 'createFolder': {
+    case CommandType.CREATE_FOLDER: {
       const { folder } = command;
       assertNewId(model, folder.id);
       insertChild(model, folder.parentId, folder.id, command.index);
@@ -37,7 +37,7 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       model.childIds.set(folder.id, []);
       return;
     }
-    case 'rename': {
+    case CommandType.RENAME: {
       const node = getExistingNode(model, command.id);
       node.title = command.title;
       node.lastModified = timestamp;
@@ -46,7 +46,7 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       if (saved != null) saved.title = command.title;
       return;
     }
-    case 'move': {
+    case CommandType.MOVE: {
       const node = getExistingNode(model, command.id);
       if (!isParent(model, command.parentId)) {
         throw new CommandError(`Parent ${command.parentId} does not exist`);
@@ -60,17 +60,17 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       if (saved != null) saved.parentId = command.parentId;
       return;
     }
-    case 'delete': {
+    case CommandType.DELETE: {
       const node = getExistingNode(model, command.id);
       removeChild(model, node.parentId, node.id);
       deleteSubtree(model, node.id);
       return;
     }
-    case 'copy': {
+    case CommandType.COPY: {
       copySubtree(model, command.id, command.idMap, timestamp);
       return;
     }
-    case 'editRequest': {
+    case CommandType.EDIT_REQUEST: {
       const request = getDraftRequest(model, command.id, timestamp);
       const { auth, ...changes } = command.changes;
       Object.assign(request, changes);
@@ -78,19 +78,19 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       else if (auth !== undefined) request.auth = auth;
       return;
     }
-    case 'setTextBody':
-    case 'setScript':
+    case CommandType.SET_TEXT_BODY:
+    case CommandType.SET_SCRIPT:
       // the content itself is not part of the model, the main process writes it to disk
       getDraftRequest(model, command.id, timestamp);
       return;
-    case 'saveRequest': {
+    case CommandType.SAVE_REQUEST: {
       const request = getExistingRequest(model, command.id);
       if (!request.draft) return;
       request.draft = false;
       model.savedRequests.delete(command.id);
       return;
     }
-    case 'discardRequest': {
+    case CommandType.DISCARD_REQUEST: {
       const request = getExistingRequest(model, command.id);
       if (!request.draft) return;
       const saved = model.savedRequests.get(command.id);
@@ -103,32 +103,26 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       }
       return;
     }
-    case 'renameCollection':
-      model.collection.title = command.title;
-      return;
-    case 'setVariables':
-      model.collection.variables = command.variables;
-      return;
-    case 'setEnvironments':
-      model.collection.environments = command.environments;
+    case CommandType.UPDATE_COLLECTION: {
+      const { clientCertificate, auth, ...changes } = command.changes;
+      Object.assign(model.collection, changes);
+      if (clientCertificate === null) delete model.collection.clientCertificate;
+      else if (clientCertificate !== undefined)
+        model.collection.clientCertificate = clientCertificate;
+      if (auth === null) delete model.collection.auth;
+      else if (auth !== undefined) model.collection.auth = auth;
+      // removing the selected environment selects another one
       model.selectedEnvironmentKey = getValidEnvironmentKey(
         model.collection,
         model.selectedEnvironmentKey
       );
       return;
-    case 'selectEnvironment':
+    }
+    case CommandType.SELECT_ENVIRONMENT:
       if (command.key != null && model.collection.environments[command.key] == null) {
         throw new CommandError(`Environment ${command.key} does not exist`);
       }
       model.selectedEnvironmentKey = command.key;
-      return;
-    case 'setClientCertificate':
-      if (command.clientCertificate == null) delete model.collection.clientCertificate;
-      else model.collection.clientCertificate = command.clientCertificate;
-      return;
-    case 'setCollectionAuth':
-      if (command.auth == null) delete model.collection.auth;
-      else model.collection.auth = command.auth;
       return;
   }
 }

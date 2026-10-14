@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCollectionStore, createModelPersistence } from './collectionStore';
-import { CollectionReplica } from './collection-replica';
 import {
   FakeCollectionMain,
   makeCollection,
@@ -10,7 +9,7 @@ import {
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { cancelModelEdits, flushModelEdits } from '@/lib/monaco/models';
-import { CollectionCommand, normalizeCollection } from 'shim/collection-model';
+import { CollectionCommand, CommandType, normalizeCollection } from 'shim/collection-model';
 import { Collection } from 'shim/objects/collection';
 import { AuthorizationType, OAuth2Method } from 'shim/objects/auth';
 import { RequestBodyType } from 'shim/objects/request';
@@ -66,13 +65,12 @@ const defaultCollection = () =>
 
 const setup = (collection: Collection = defaultCollection(), savedRequests = []) => {
   const main = new FakeCollectionMain(normalizeCollection(collection, savedRequests));
-  const replica = new CollectionReplica(
+  const { store, replica } = createCollectionStore(
     structuredClone(main.model),
     main.dispatch,
     main.getCollectionState
   );
   main.onEvent((event) => replica.receive(event));
-  const store = createCollectionStore(replica);
   const commands = (): CollectionCommand[] => main.received.map(({ command }) => command);
   return { main, replica, store, commands };
 };
@@ -99,7 +97,7 @@ describe('request edits', () => {
     ctx.store.getState().updateRequest({ method: RequestMethod.POST });
 
     expect(ctx.commands()).toEqual([
-      { type: 'editRequest', id: 'r3', changes: { method: RequestMethod.POST } },
+      { type: CommandType.EDIT_REQUEST, id: 'r3', changes: { method: RequestMethod.POST } },
     ]);
     expect(request().method).toBe(RequestMethod.POST);
     expect(request().draft).toBe(true);
@@ -129,7 +127,7 @@ describe('request edits', () => {
 
     clearHeaders();
     expect(request().headers).toEqual([]);
-    expect(ctx.commands().every((command) => command.type === 'editRequest')).toBe(true);
+    expect(ctx.commands().every((command) => command.type === CommandType.EDIT_REQUEST)).toBe(true);
   });
 
   it('query param actions send the complete new url', () => {
@@ -146,10 +144,28 @@ describe('request edits', () => {
 
     deleteQueryParam(0);
     expect(ctx.commands().at(-1)).toEqual({
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r3',
       changes: { url: { base: 'http://localhost', query: [] } },
     });
+  });
+
+  it('sends only the changed fields and nothing if no field changed', () => {
+    const { updateRequest, updateHeader, setRequestBodyMimeType } = ctx.store.getState();
+
+    updateRequest({ method: RequestMethod.GET });
+    updateHeader(0, { key: 'missing' });
+    setRequestBodyMimeType(undefined);
+    expect(ctx.commands()).toEqual([]);
+
+    ctx.store.getState().addHeader();
+    expect(ctx.commands()).toEqual([
+      {
+        type: CommandType.EDIT_REQUEST,
+        id: 'r3',
+        changes: { headers: [{ key: '', value: '', isActive: true }] },
+      },
+    ]);
   });
 
   it('setRequestBodyMimeType changes the mime type of a text body', () => {
@@ -258,7 +274,7 @@ describe('updateAuthorization', () => {
 
     expect(auth()).toBeUndefined();
     expect(ctx.commands().at(-1)).toEqual({
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r3',
       changes: { auth: null },
     });
@@ -277,11 +293,13 @@ describe('creating and changing items', () => {
 
     const [command] = ctx.commands();
     expect(command).toMatchObject({
-      type: 'createRequest',
+      type: CommandType.CREATE_REQUEST,
       request: { parentId: 'G', title: 'New', draft: true },
     });
     const { selectedRequestId, requests, openFolders, savedRequests } = ctx.store.getState();
-    expect(selectedRequestId).toBe(command.type === 'createRequest' && command.request.id);
+    expect(selectedRequestId).toBe(
+      command.type === CommandType.CREATE_REQUEST && command.request.id
+    );
     expect(requests.get(selectedRequestId!)!.draft).toBe(true);
     expect(savedRequests.has(selectedRequestId!)).toBe(false);
     expect([...openFolders]).toEqual(expect.arrayContaining(['F', 'G']));
@@ -291,7 +309,10 @@ describe('creating and changing items', () => {
     await ctx.store.getState().addNewFolder('Folder');
 
     const [command] = ctx.commands();
-    expect(command).toMatchObject({ type: 'createFolder', folder: { parentId: COL_ID } });
+    expect(command).toMatchObject({
+      type: CommandType.CREATE_FOLDER,
+      folder: { parentId: COL_ID },
+    });
     expect(childIds(ctx, COL_ID)).toHaveLength(3);
   });
 
@@ -300,8 +321,8 @@ describe('creating and changing items', () => {
     await ctx.store.getState().renameFolder('F', 'Folder');
 
     expect(ctx.commands()).toEqual([
-      { type: 'rename', id: 'r1', title: 'Request' },
-      { type: 'rename', id: 'F', title: 'Folder' },
+      { type: CommandType.RENAME, id: 'r1', title: 'Request' },
+      { type: CommandType.RENAME, id: 'F', title: 'Folder' },
     ]);
     expect(ctx.store.getState().folders.get('F')!.title).toBe('Folder');
   });
@@ -310,7 +331,7 @@ describe('creating and changing items', () => {
     await ctx.store.getState().copyFolder('F');
 
     const [command] = ctx.commands();
-    expect(command.type === 'copy' && Object.keys(command.idMap).sort()).toEqual([
+    expect(command.type === CommandType.COPY && Object.keys(command.idMap).sort()).toEqual([
       'F',
       'G',
       'r1',
@@ -339,26 +360,38 @@ describe('creating and changing items', () => {
 
     expect(flushModelEdits).toHaveBeenCalledWith();
     expect(commandsWhenFlushed).toBe(0);
-    expect(ctx.commands().map(({ type }) => type)).toEqual(['copy']);
+    expect(ctx.commands().map(({ type }) => type)).toEqual([CommandType.COPY]);
   });
 
   it('moveItem moves an item into another folder and opens it', async () => {
     await ctx.store.getState().moveItem('r3', 'G', 0);
 
-    expect(ctx.commands()).toEqual([{ type: 'move', id: 'r3', parentId: 'G', index: 0 }]);
+    expect(ctx.commands()).toEqual([{ type: CommandType.MOVE, id: 'r3', parentId: 'G', index: 0 }]);
     expect(childIds(ctx, 'G')).toEqual(['r3', 'r2']);
     expect(ctx.store.getState().openFolders.has('G')).toBe(true);
   });
 
   it('changes the collection settings', async () => {
-    const { setVariables, setEnvironments, selectEnvironment, renameCollection } =
-      ctx.store.getState();
+    const { updateCollection, selectEnvironment } = ctx.store.getState();
 
-    await setVariables({ host: { value: 'localhost' } });
-    await setEnvironments({ dev: { variables: {} }, prod: { variables: {} } });
+    await updateCollection({
+      title: 'Renamed',
+      variables: { host: { value: 'localhost' } },
+      environments: { dev: { variables: {} }, prod: { variables: {} } },
+    });
     await selectEnvironment('prod');
-    await renameCollection('Renamed');
 
+    expect(ctx.commands()).toEqual([
+      {
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {
+          title: 'Renamed',
+          variables: { host: { value: 'localhost' } },
+          environments: { dev: { variables: {} }, prod: { variables: {} } },
+        },
+      },
+      { type: CommandType.SELECT_ENVIRONMENT, key: 'prod' },
+    ]);
     const { collection, selectedEnvironmentKey } = ctx.store.getState();
     expect(collection.variables).toEqual({ host: { value: 'localhost' } });
     expect(Object.keys(collection.environments)).toEqual(['dev', 'prod']);
@@ -366,25 +399,21 @@ describe('creating and changing items', () => {
     expect(collection.title).toBe('Renamed');
   });
 
-  it('sets and clears the client certificate', async () => {
-    await ctx.store.getState().setClientCertificate({ certPath: '/cert.pem' });
-    expect(ctx.store.getState().collection.clientCertificate).toEqual({ certPath: '/cert.pem' });
+  it('sets and removes the client certificate and the collection authorization', async () => {
+    const { updateCollection } = ctx.store.getState();
 
-    await ctx.store.getState().setClientCertificate(null);
-    expect(ctx.commands().at(-1)).toEqual({
-      type: 'setClientCertificate',
-      clientCertificate: undefined,
+    await updateCollection({
+      clientCertificate: { certPath: '/cert.pem' },
+      auth: { type: AuthorizationType.BEARER, token: 't' },
     });
+    expect(ctx.store.getState().collection).toMatchObject({
+      clientCertificate: { certPath: '/cert.pem' },
+      auth: { type: AuthorizationType.BEARER, token: 't' },
+    });
+
+    await updateCollection({ clientCertificate: null, auth: null });
     expect(ctx.store.getState().collection.clientCertificate).toBeUndefined();
-  });
-
-  it('sets the collection authorization', async () => {
-    await ctx.store.getState().setCollectionAuth({ type: AuthorizationType.BEARER, token: 't' });
-
-    expect(ctx.store.getState().collection.auth).toEqual({
-      type: AuthorizationType.BEARER,
-      token: 't',
-    });
+    expect(ctx.store.getState().collection.auth).toBeUndefined();
   });
 });
 
@@ -401,11 +430,24 @@ describe('selected request', () => {
     expect([...ctx.store.getState().openFolders].sort()).toEqual(['F', 'G']);
   });
 
-  it('flushes the editor changes of the outgoing request', () => {
+  it('flushes the editor changes of the outgoing request', async () => {
     ctx.store.getState().setSelectedRequest('r1');
-    ctx.store.getState().setSelectedRequest('r3');
+    let flushed = false;
+    vi.mocked(flushModelEdits).mockImplementationOnce(async () => {
+      flushed = true;
+    });
+
+    await ctx.store.getState().setSelectedRequest('r3');
 
     expect(flushModelEdits).toHaveBeenCalledWith('r1');
+    expect(flushed).toBe(true);
+  });
+
+  it('resolves at once if no request was selected before', async () => {
+    await ctx.store.getState().setSelectedRequest('r3');
+
+    expect(flushModelEdits).not.toHaveBeenCalled();
+    expect(ctx.store.getState().selectedRequestId).toBe('r3');
   });
 
   it('deleteRequest cancels the editor changes and deselects the request', async () => {
@@ -418,7 +460,7 @@ describe('selected request', () => {
       vi.mocked(flushModelEdits).mock.invocationCallOrder[0]
     );
     expect(ctx.store.getState().selectedRequestId).toBeUndefined();
-    expect(ctx.commands()).toEqual([{ type: 'delete', id: 'r3' }]);
+    expect(ctx.commands()).toEqual([{ type: CommandType.DELETE, id: 'r3' }]);
   });
 
   it('deleteFolder deselects a request inside the folder', async () => {
@@ -440,7 +482,7 @@ describe('selected request', () => {
     await ctx.store.getState().saveRequest('r3');
 
     expect(flushModelEdits).toHaveBeenCalledWith('r3');
-    expect(ctx.commands().at(-1)).toEqual({ type: 'saveRequest', id: 'r3' });
+    expect(ctx.commands().at(-1)).toEqual({ type: CommandType.SAVE_REQUEST, id: 'r3' });
     expect(ctx.store.getState().requests.get('r3')!.draft).toBe(false);
   });
 
@@ -486,7 +528,11 @@ describe('model updates', () => {
     ctx.store.getState().setSelection(['r1', 'r3']);
     const commandId = 'foreign';
 
-    await ctx.main.dispatch({ commandId, timestamp: 1, command: { type: 'delete', id: 'G' } });
+    await ctx.main.dispatch({
+      commandId,
+      timestamp: 1,
+      command: { type: CommandType.DELETE, id: 'G' },
+    });
 
     const { selectedRequestId, openFolders, selectedIds } = ctx.store.getState();
     expect(selectedRequestId).toBeUndefined();
@@ -536,18 +582,41 @@ describe('collections', () => {
 
     await ctx.store.getState().changeCollection('/other');
 
-    expect(flushModelEdits).toHaveBeenCalledWith();
+    expect(flushModelEdits).toHaveBeenCalledWith('r1');
     expect(eventService.openCollection).toHaveBeenCalledWith('/other');
     expect(ctx.store.getState().selectedRequestId).toBeUndefined();
   });
 
+  it('changeCollection keeps the collection open if the editor changes could not be sent', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    vi.mocked(flushModelEdits).mockRejectedValueOnce(new Error('failed'));
+
+    await expect(ctx.store.getState().changeCollection('/other')).rejects.toThrow('failed');
+
+    expect(eventService.openCollection).not.toHaveBeenCalled();
+  });
+
   it('closeCollection closes the current collection by default', async () => {
     const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
 
     await ctx.store.getState().closeCollection();
 
-    expect(flushModelEdits).toHaveBeenCalledWith();
+    expect(flushModelEdits).toHaveBeenCalledWith('r1');
+    expect(ctx.store.getState().selectedRequestId).toBeUndefined();
     expect(eventService.closeCollection).toHaveBeenCalledWith(`/${COL_ID}`);
+  });
+});
+
+describe('selection', () => {
+  it('addToSelection keeps the items that are already selected', () => {
+    const ctx = setup();
+    ctx.store.getState().setSelection(['r1']);
+
+    ctx.store.getState().addToSelection(['r1', 'F']);
+
+    expect([...ctx.store.getState().selectedIds]).toEqual(['r1', 'F']);
   });
 });
 
@@ -560,8 +629,8 @@ describe('bulk actions', () => {
     await ctx.store.getState().deleteSelectedItems();
 
     expect(ctx.commands()).toEqual([
-      { type: 'delete', id: 'F' },
-      { type: 'delete', id: 'r3' },
+      { type: CommandType.DELETE, id: 'F' },
+      { type: CommandType.DELETE, id: 'r3' },
     ]);
     expect(cancelModelEdits).toHaveBeenCalledWith('r2');
     const { selectedIds, selectedRequestId, isBulkActionRunning } = ctx.store.getState();
@@ -577,7 +646,7 @@ describe('bulk actions', () => {
 
     await ctx.store.getState().duplicateSelectedItems();
 
-    expect(ctx.commands().map(({ type }) => type)).toEqual(['copy', 'copy']);
+    expect(ctx.commands().map(({ type }) => type)).toEqual([CommandType.COPY, CommandType.COPY]);
     expect(ctx.store.getState().selectedRequestId).toBe('r1');
     expect(childIds(ctx, COL_ID)).toHaveLength(4);
   });
@@ -593,7 +662,7 @@ describe('bulk actions', () => {
     await ctx.store.getState().duplicateSelectedItems();
 
     expect(commandsWhenFlushed).toEqual([0]);
-    expect(ctx.commands().map(({ type }) => type)).toEqual(['copy', 'copy']);
+    expect(ctx.commands().map(({ type }) => type)).toEqual([CommandType.COPY, CommandType.COPY]);
   });
 
   it('cancels the editor changes of each item right before deleting it', async () => {
@@ -623,7 +692,7 @@ describe('bulk actions', () => {
     await ctx.store.getState().deleteSelectedItems();
     await first;
 
-    expect(ctx.commands()).toEqual([{ type: 'delete', id: 'r3' }]);
+    expect(ctx.commands()).toEqual([{ type: CommandType.DELETE, id: 'r3' }]);
   });
 
   it('resets the in-flight flag after a rejection', async () => {
@@ -738,8 +807,13 @@ describe('createModelPersistence', () => {
     await persistence.setScript('r1', ScriptType.POST_RESPONSE, 'script');
 
     expect(ctx.commands()).toEqual([
-      { type: 'setTextBody', id: 'r1', text: 'body' },
-      { type: 'setScript', id: 'r1', scriptType: ScriptType.POST_RESPONSE, text: 'script' },
+      { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'body' },
+      {
+        type: CommandType.SET_SCRIPT,
+        id: 'r1',
+        scriptType: ScriptType.POST_RESPONSE,
+        text: 'script',
+      },
     ]);
     expect(ctx.store.getState().requests.get('r1')!.draft).toBe(true);
   });
@@ -751,7 +825,7 @@ describe('createModelPersistence', () => {
     await persistence.markDraft('r1');
     await persistence.markDraft('r1');
 
-    expect(ctx.commands()).toEqual([{ type: 'editRequest', id: 'r1', changes: {} }]);
+    expect(ctx.commands()).toEqual([{ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} }]);
   });
 
   it('rejects instead of throwing for a request that does not exist', async () => {

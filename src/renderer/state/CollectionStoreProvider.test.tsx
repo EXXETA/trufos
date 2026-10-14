@@ -3,6 +3,7 @@ import { render, screen, act, waitFor } from '@testing-library/react';
 import { CollectionStoreProvider } from './CollectionStoreProvider';
 import { useCollectionStore } from '@/state/collectionStore';
 import { MainProcessEvent, RendererEvent } from 'shim/event-service';
+import { CommandType } from 'shim/collection-model';
 import { FakeCollectionMain, makeModel } from '@/__mocks__/fake-collection-main';
 
 const { listeners, eventService, models } = vi.hoisted(() => {
@@ -85,7 +86,7 @@ describe('CollectionStoreProvider', () => {
       main.dispatch({
         commandId: 'foreign',
         timestamp: 1,
-        command: { type: 'renameCollection', title: 'Renamed' },
+        command: { type: CommandType.UPDATE_COLLECTION, changes: { title: 'Renamed' } },
       })
     );
 

@@ -134,7 +134,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   const selectAndClose = useCallback(
     (id: string) => {
-      setSelectedRequest(id);
+      void setSelectedRequest(id);
       onClose();
     },
     [setSelectedRequest, onClose]

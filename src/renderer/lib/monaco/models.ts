@@ -10,7 +10,7 @@ import { ScriptType } from 'shim/scripting';
 const SCHEME = 'trufos';
 
 /** How long to wait after the last keystroke before an edit is sent to the main process. */
-export const MODEL_EDIT_DEBOUNCE_MS = 500;
+export const MODEL_EDIT_DEBOUNCE_MS = 1000;
 
 export interface RequestModels {
   body: editor.ITextModel;

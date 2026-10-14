@@ -15,6 +15,7 @@ import { deepEqual } from '@/util/object-util';
 import { ClientCertificate } from 'shim/objects/collection';
 import { VariableObjectWithKey } from 'shim/objects/variables';
 import { EnvironmentMap } from 'shim/objects/environment';
+import { CollectionChanges } from 'shim/collection-model';
 
 export interface CollectionSettingsModalProps {
   isOpen: boolean;
@@ -35,13 +36,7 @@ type CollectionDraft = {
 };
 
 export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsModalProps) => {
-  const {
-    setVariables,
-    setEnvironments,
-    selectEnvironment,
-    setClientCertificate,
-    renameCollection,
-  } = useCollectionActions();
+  const { updateCollection, selectEnvironment } = useCollectionActions();
 
   const variables = useCollectionStore((s) => s.collection.variables);
   const environments = useCollectionStore((s) => s.collection.environments);
@@ -84,17 +79,16 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
   }, [isOpen]);
 
   const save = async () => {
-    // overwrite the collection settings wholesale through the store actions.
-    await setVariables(variableArrayToMap(draft.variables));
-    await setEnvironments(draft.environments);
-    await selectEnvironment(draft.selectedEnvironment);
-    await setClientCertificate(draft.clientCertificate);
-
-    // rename must run last
+    const changes: CollectionChanges = {
+      variables: variableArrayToMap(draft.variables),
+      environments: draft.environments,
+      clientCertificate: draft.clientCertificate,
+    };
     const newTitle = draft.title.trim();
-    if (newTitle.length > 0 && newTitle !== collectionTitle) {
-      await renameCollection(newTitle);
-    }
+    if (newTitle.length > 0 && newTitle !== collectionTitle) changes.title = newTitle;
+    await updateCollection(changes);
+    // the environments must exist before one of them can be selected
+    await selectEnvironment(draft.selectedEnvironment);
 
     onClose();
   };

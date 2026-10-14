@@ -1,10 +1,12 @@
 import { ipcMain } from 'electron';
 import { createReadStream } from 'node:fs';
+import { waitUntilOpen } from 'main/util/fs-util';
 import type { Readable } from 'node:stream';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { BodyStore } from 'main/network/service/body-store';
 import { StreamInput, StringBufferEncoding } from 'shim/ipc-stream';
+import { TrufosRequest } from 'shim/objects/request';
 
 let nextId = 0;
 
@@ -15,14 +17,25 @@ const bodyStore = BodyStore.instance;
 const collectionState = CollectionStateService.instance;
 
 /**
- * Returns the request of the open collection with the given ID, logging if there is none. Pending
- * writes are awaited first, so the files of the request are up to date.
+ * Opens a file of a request of the open collection while no change of the collection is written,
+ * so the file matches the request. Once a file is open, moving or deleting it does not affect the
+ * stream anymore.
+ * @param requestId the ID of the request
+ * @param open opens the file of the given request
+ * @returns the stream, or undefined if there is no such request or file
  */
-async function getRequest(requestId: string) {
-  await collectionState.flush();
-  const request = collectionState.model.requests.get(requestId);
-  if (request == null) logger.warn(`Request not found for ID: ${requestId}`);
-  return request;
+async function openRequestFile(
+  requestId: string,
+  open: (request: TrufosRequest) => Promise<Readable | undefined>
+): Promise<Readable | undefined> {
+  return await collectionState.read(async (model) => {
+    const request = model.requests.get(requestId);
+    if (request == null) {
+      logger.warn(`Request not found for ID: ${requestId}`);
+      return undefined;
+    }
+    return await open(request).then(waitUntilOpen);
+  });
 }
 
 ipcMain.handle(
@@ -40,13 +53,13 @@ ipcMain.handle(
       stream = bodyStore.openBody(input.id, { encoding, end });
       if (stream == null) logger.warn(`Body not found for ID: ${input.id}`);
     } else if (input.type === 'script') {
-      const request = await getRequest(input.requestId);
-      if (request != null) stream = await persistenceService.loadScript(request, input.source);
+      stream = await openRequestFile(input.requestId, (request) =>
+        persistenceService.loadScript(request, input.source)
+      );
     } else if (input.type === 'request-body') {
-      const request = await getRequest(input.requestId);
-      if (request != null) {
-        stream = await persistenceService.loadTextBodyOfRequest(request, encoding);
-      }
+      stream = await openRequestFile(input.requestId, (request) =>
+        persistenceService.loadTextBodyOfRequest(request, encoding)
+      );
     } else {
       logger.error('Invalid stream input of type', typeof input);
     }

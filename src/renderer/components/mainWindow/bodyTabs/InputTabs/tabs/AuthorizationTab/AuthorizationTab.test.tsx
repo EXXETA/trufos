@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AuthorizationTab } from './AuthorizationTab';
 import { CollectionStoreProvider, createCollectionStore } from '@/state/collectionStore';
-import { CollectionReplica } from '@/state/collection-replica';
 import { FakeCollectionMain, makeCollection, makeRequest } from '@/__mocks__/fake-collection-main';
 import { normalizeCollection } from 'shim/collection-model';
 import {
@@ -42,13 +41,12 @@ describe('AuthorizationTab', () => {
     const main = new FakeCollectionMain(
       normalizeCollection(makeCollection('col', [makeRequest('r1', 'col', { auth })]))
     );
-    const replica = new CollectionReplica(
+    const { store, replica } = createCollectionStore(
       structuredClone(main.model),
       main.dispatch,
       main.getCollectionState
     );
     main.onEvent((event) => replica.receive(event));
-    const store = createCollectionStore(replica);
     store.setState({ selectedRequestId: 'r1' });
 
     render(

@@ -4,6 +4,7 @@ import { VariableMap } from './variables';
 import { EnvironmentMap } from './environment';
 import { AuthorizationInformationNoInherit } from './auth';
 import { z } from 'zod';
+import { TrufosId } from './id';
 
 /** File paths for a client certificate used in mutual TLS (mTLS). */
 export const ClientCertificate = z.object({
@@ -15,7 +16,7 @@ export type ClientCertificate = z.infer<typeof ClientCertificate>;
 
 /** Minimal information about a collection. */
 export const CollectionBase = z.object({
-  id: z.string(),
+  id: TrufosId,
   title: z.string(),
   dirPath: z.string(),
 });

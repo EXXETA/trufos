@@ -11,7 +11,7 @@ Behavior details:
 - Folders: `folder.json` is rewritten to persist the new title.
 - Requests: only the `title` field is patched into `request.json` and, if the request has a draft, into `.draft/request.json`. All other unsaved draft changes stay in the draft and are not written to the saved state. In the model, the title of the saved state of a draft request is updated as well.
 
-Collections are not renamed through `rename`. The `renameCollection` command updates the title of the collection held by main and saves `collection.json`; the collection directory keeps its name.
+Collections are not renamed through `rename`. The `updateCollection` command with a new `title` updates the title of the collection held by main and saves `collection.json`; the collection directory keeps its name.
 
 Edge cases:
 

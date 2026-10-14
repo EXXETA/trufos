@@ -13,6 +13,9 @@ export type SendCommand = (envelope: CommandEnvelope) => Promise<void>;
 /** Fetches the complete state of the open collection from the main process. */
 export type FetchSnapshot = () => Promise<CollectionModel>;
 
+/** Called with the new visible model whenever it changes. */
+export type OnModelChange = (model: CollectionModel) => void;
+
 /**
  * The renderer's replica of the {@link CollectionModel} owned by the main process.
  *
@@ -24,14 +27,14 @@ export class CollectionReplica {
   private confirmed: CollectionModel;
   private visible: CollectionModel;
   private pending: CommandEnvelope[] = [];
-  private readonly listeners = new Set<() => void>();
   /** Set while a snapshot is fetched. Patches received meanwhile are part of that snapshot. */
   private resyncing?: Promise<void>;
 
   constructor(
     snapshot: CollectionModel,
     private readonly send: SendCommand,
-    private readonly fetchSnapshot: FetchSnapshot
+    private readonly fetchSnapshot: FetchSnapshot,
+    private readonly onChange: OnModelChange
   ) {
     this.confirmed = this.visible = snapshot;
   }
@@ -39,15 +42,6 @@ export class CollectionReplica {
   /** The visible model: the confirmed state with all pending commands applied. */
   get model(): CollectionModel {
     return this.visible;
-  }
-
-  /**
-   * Calls the listener whenever the visible model changes.
-   * @returns a function that removes the listener
-   */
-  subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
   }
 
   /**
@@ -64,7 +58,7 @@ export class CollectionReplica {
     };
     this.visible = applyCommandTo(this.visible, envelope);
     this.pending.push(envelope);
-    this.notify();
+    this.onChange(this.visible);
     return this.sendPending(envelope);
   }
 
@@ -140,10 +134,6 @@ export class CollectionReplica {
       }
     });
     this.visible = visible;
-    this.notify();
-  }
-
-  private notify() {
-    for (const listener of this.listeners) listener();
+    this.onChange(visible);
   }
 }

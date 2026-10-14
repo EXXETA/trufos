@@ -1,4 +1,7 @@
+import { once } from 'node:events';
+import { ReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
+import type { Readable } from 'node:stream';
 import { app } from 'electron';
 
 export const USER_DATA_DIR = app.getPath('userData');
@@ -68,4 +71,16 @@ export async function exists(filePath: string) {
  */
 export async function isEmpty(dirPath: string) {
   return !(await fs.readdir(dirPath)).some((file) => file !== '.DS_Store');
+}
+
+/**
+ * Waits until a file stream opened its file. From then on, the stream reads the file it opened,
+ * even if the file is moved, replaced or deleted. Other streams, and no stream at all, are returned
+ * right away.
+ * @param stream the stream to wait for
+ * @returns the given stream
+ */
+export async function waitUntilOpen<T extends Readable | null | undefined>(stream: T): Promise<T> {
+  if (stream instanceof ReadStream && stream.pending) await once(stream, 'ready');
+  return stream;
 }

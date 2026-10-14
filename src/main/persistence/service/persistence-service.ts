@@ -180,13 +180,26 @@ export class PersistenceService {
 
   /**
    * Writes the text body of a request. A request with a draft is written into its draft directory.
+   *
+   * The body is written to a temporary file that then replaces the body file, so a request that is
+   * being sent keeps streaming the body it was sent with. The temporary file has to be next to the
+   * body file, as only a file of the same volume can replace it. It is a dotfile, and one left
+   * behind by a crash is deleted with the draft directory or when the request is saved.
+   *
    * @param request the request to write the text body of
    * @param text the text body
    */
   public async writeTextBody(request: TrufosRequest, text: string): Promise<void> {
     const dirPath = this.getOrCreateDirPath(request, true);
     await fs.mkdir(dirPath, { recursive: true });
-    await fs.writeFile(path.join(dirPath, TEXT_BODY_FILE_NAME), text);
+    const tempFilePath = path.join(dirPath, `.${TEXT_BODY_FILE_NAME}.${randomUUID()}.tmp`);
+    try {
+      await fs.writeFile(tempFilePath, text);
+      await fs.rename(tempFilePath, path.join(dirPath, TEXT_BODY_FILE_NAME));
+    } catch (error) {
+      await fs.rm(tempFilePath, { force: true });
+      throw error;
+    }
   }
 
   /**
@@ -320,8 +333,9 @@ export class PersistenceService {
   }
 
   /**
-   * Turns the draft of a request into its saved state by moving all files from the draft directory
-   * into the request directory.
+   * Turns the draft of a request into its saved state by replacing the saved files with the files
+   * of the draft directory. The draft directory is complete: it gets the body and scripts when it
+   * is created and the info file and secrets with every write.
    * @param request the request to save the draft of
    */
   public async saveChanges(request: TrufosRequest): Promise<void> {
@@ -330,23 +344,18 @@ export class PersistenceService {
     logger.info('Saving changes of request at', dirPath);
     const draftDirPath = this.getDraftDirPath(dirPath);
 
-    // move all files from draft dir to original dir
-    const filesToDelete = new Set([SECRETS_FILE_NAME, TEXT_BODY_FILE_NAME]);
-    const filesToMove = await fs.readdir(draftDirPath);
-    filesToMove.forEach((file) => filesToDelete.delete(file));
+    // delete the saved state, including files the draft no longer has
+    const savedFiles = (await fs.readdir(dirPath)).filter((file) => file !== DRAFT_DIR_NAME);
     await Promise.all(
-      filesToMove.map((file) => fs.rename(path.join(draftDirPath, file), path.join(dirPath, file)))
+      savedFiles.map((file) => fs.rm(path.join(dirPath, file), { recursive: true, force: true }))
     );
 
-    // delete files that exist in the original dir but not in the draft dir
-    for (const file of filesToDelete) {
-      if (await exists(path.join(dirPath, file))) {
-        await fs.unlink(path.join(dirPath, file));
-      }
-    }
-
-    // delete draft dir
-    await fs.rmdir(draftDirPath);
+    // move the draft into its place
+    const draftFiles = await fs.readdir(draftDirPath);
+    await Promise.all(
+      draftFiles.map((file) => fs.rename(path.join(draftDirPath, file), path.join(dirPath, file)))
+    );
+    await fs.rm(draftDirPath, { recursive: true, force: true });
   }
 
   /**

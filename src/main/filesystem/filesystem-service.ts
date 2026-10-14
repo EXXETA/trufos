@@ -13,17 +13,12 @@ export interface TemporaryFile {
  * Singleton service for file system operations
  */
 export class FileSystemService {
-  private static readonly _instance: FileSystemService = new FileSystemService();
+  public static readonly instance = new FileSystemService();
+
   private static readonly _tempDir = app?.getPath('temp') ?? '';
 
   /** The directory of this session's temporary files, see {@link temporaryDirectory}. */
   private _sessionDirectory?: string;
-
-  constructor() {}
-
-  public static get instance() {
-    return this._instance;
-  }
 
   /**
    * The directory all temporary files of this app session are kept in. It is created on first use,

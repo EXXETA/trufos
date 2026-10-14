@@ -12,6 +12,7 @@ import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
 import { StoredBody, TrufosResponse } from 'shim/objects/response';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
+import { waitUntilOpen } from 'main/util/fs-util';
 import { isBlankHeader, TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
@@ -19,10 +20,10 @@ import process from 'node:process';
 import { BodyStore } from 'main/network/service/body-store';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { ScriptType } from 'shim/scripting';
-import { text, buffer } from 'node:stream/consumers';
+import { text } from 'node:stream/consumers';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { mapRequestError } from 'main/network/service/request-error';
-import type { RequestRecorder, ScriptLogger } from 'main/network/service/request-recorder';
+import type { RequestRecorder } from 'main/network/service/request-recorder';
 import { copyRequestBody } from 'main/network/service/request-body-copy';
 
 const fileSystemService = FileSystemService.instance;
@@ -32,6 +33,19 @@ const bodyStore = BodyStore.instance;
 const scriptingService = ScriptingService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
+
+/**
+ * A request together with its files, opened at the moment it is sent. Its scripts are read, its
+ * text body is streamed from the file opened then. So editing, saving or discarding the request
+ * while it is sent cannot change what is sent, as these replace files instead of changing them.
+ */
+export interface PreparedRequest {
+  request: TrufosRequest;
+  /** The opened text body, if the request has a text body that was ever written. */
+  textBody?: Readable;
+  /** The scripts of the request, by type. */
+  scripts: Partial<Record<ScriptType, string>>;
+}
 declare type DispatcherProvider = () => Promise<Dispatcher>;
 
 /**
@@ -62,27 +76,49 @@ export class HttpService {
   }
 
   /**
+   * Opens the files a request needs to be sent: it reads its scripts and opens its text body. Call
+   * this while no change of the collection is written, see {@link CollectionStateService.read}.
+   * The text body is only streamed by {@link fetchAsync}, which also closes it.
+   * @param request the request to prepare
+   * @returns the request with the content of its files
+   */
+  public async prepare(request: TrufosRequest): Promise<PreparedRequest> {
+    const [textBody, preRequestScript, postResponseScript] = await Promise.all([
+      this.openTextBody(request),
+      this.readScript(request, ScriptType.PRE_REQUEST),
+      this.readScript(request, ScriptType.POST_RESPONSE),
+    ]);
+    const scripts: PreparedRequest['scripts'] = {};
+    if (preRequestScript != null) scripts[ScriptType.PRE_REQUEST] = preRequestScript;
+    if (postResponseScript != null) scripts[ScriptType.POST_RESPONSE] = postResponseScript;
+    return { request, textBody, scripts };
+  }
+
+  /**
    * Fetch a resource asynchronously. The response body is written to a temporary file. Any failure
    * is mapped to a user-friendly {@link DisplayableError}.
-   * @param request request object
+   * @param prepared the request to send, see {@link prepare}
    * @returns response object
    */
   public async fetchAsync(
-    request: TrufosRequest,
+    prepared: PreparedRequest,
     recorder: RequestRecorder,
     signal?: AbortSignal
   ): Promise<TrufosResponse> {
     try {
-      return await this.doFetchAsync(request, recorder, signal);
+      return await this.doFetchAsync(prepared, recorder, signal);
     } catch (error) {
       if (signal?.aborted) throw error;
       if (error instanceof DisplayableError) throw error;
       throw mapRequestError(error);
+    } finally {
+      // the body is not streamed if sending failed before, and closing a streamed body is a no-op
+      prepared.textBody?.destroy();
     }
   }
 
   private async doFetchAsync(
-    request: TrufosRequest,
+    { request, textBody, scripts }: PreparedRequest,
     recorder: RequestRecorder,
     signal?: AbortSignal
   ) {
@@ -129,9 +165,16 @@ export class HttpService {
     );
 
     // execute pre-request script if it exists
-    await this.executeScript(request, ScriptType.PRE_REQUEST, recorder.scriptLog);
+    const preRequestScript = scripts[ScriptType.PRE_REQUEST];
+    if (preRequestScript != null) {
+      await scriptingService.executeScript(
+        preRequestScript,
+        ScriptType.PRE_REQUEST,
+        recorder.scriptLog
+      );
+    }
 
-    const [body, size] = await this.readBody(request);
+    const [body, size] = await this.readBody(request, textBody);
     const sentHeaders = withoutUnsetHeaders({
       ['content-type']: this.getContentType(request.body),
       ['authorization']: authorization,
@@ -156,7 +199,14 @@ export class HttpService {
     logger.info(`Received response in ${duration}ms`);
 
     // execute post-response script if it exists
-    await this.executeScript(request, ScriptType.POST_RESPONSE, recorder.scriptLog);
+    const postResponseScript = scripts[ScriptType.POST_RESPONSE];
+    if (postResponseScript != null) {
+      await scriptingService.executeScript(
+        postResponseScript,
+        ScriptType.POST_RESPONSE,
+        recorder.scriptLog
+      );
+    }
 
     // write the response body to an encrypted temporary file
     let responseBody: StoredBody | undefined;
@@ -192,18 +242,14 @@ export class HttpService {
    * @param request request object
    * @returns request body as stream or null if there is no body
    */
-  private async readBody(request: TrufosRequest): Promise<[(Readable | FormData)?, number?]> {
-    if (request.body == null) {
-      return [];
-    }
-
+  private async readBody(
+    request: TrufosRequest,
+    textBody?: Readable
+  ): Promise<[(Readable | FormData)?, number?]> {
     switch (request.body.type) {
       case RequestBodyType.TEXT: {
-        // The body file only exists once the request was opened in the editor, so
-        // requests that were never opened (e.g. sent via the collection runner) have none.
-        const requestBodyStream = await persistenceService.loadTextBodyOfRequest(request);
-        if (requestBodyStream == null) return [];
-        return [environmentService.setVariablesInStream(requestBodyStream) as Readable];
+        if (textBody == null) return [];
+        return [environmentService.setVariablesInStream(textBody) as Readable];
       }
       case RequestBodyType.FILE:
         return this.readFileBody(request.body.filePath);
@@ -219,12 +265,11 @@ export class HttpService {
               break;
             }
             case RequestBodyType.FILE: {
-              const [body] = await this.readFileBody(field.value.filePath);
-              if (body != null) {
-                const fileName = field.value.fileName ?? 'file';
+              const { filePath } = field.value;
+              if (filePath != null) {
                 const mimeType = this.getContentType(field.value);
-                const value = new File([await buffer(body)], fileName, { type: mimeType });
-                form.append(field.key, value);
+                const file = await fs.openAsBlob(filePath, { type: mimeType });
+                form.append(field.key, file, field.value.fileName);
               }
               break;
             }
@@ -241,7 +286,8 @@ export class HttpService {
 
   private async readFileBody(filePath?: string): Promise<[Readable?, number?]> {
     if (filePath == null) return [];
-    return [await fileSystemService.readFile(filePath), fs.statSync(filePath).size];
+    const { size } = await fsp.stat(filePath);
+    return [await fileSystemService.readFile(filePath), size];
   }
 
   /**
@@ -285,17 +331,23 @@ export class HttpService {
     return Promise.all(values.map((value) => environmentService.setVariablesInString(value)));
   }
 
-  private async executeScript(request: TrufosRequest, type: ScriptType, log: ScriptLogger) {
-    // The request may have been saved, discarded or edited into a draft since it was sent, which
-    // changes where its scripts are. They are loaded from where they are now, once written.
-    const collectionState = CollectionStateService.instance;
-    await collectionState.flush();
-    const current = collectionState.model.requests.get(request.id) ?? request;
-    const stream = await persistenceService.loadScript(current, type);
-    if (stream != null) {
-      const script = await text(stream);
-      await scriptingService.executeScript(script, type, log);
-    }
+  /**
+   * Opens the text body of the request. The body file only exists once the request was opened in
+   * the editor, so requests that were never opened (e.g. sent via the collection runner) have none.
+   * @returns the opened text body, or `undefined` if the request has none
+   */
+  private async openTextBody(request: TrufosRequest) {
+    if (request.body.type !== RequestBodyType.TEXT) return undefined;
+    return await persistenceService.loadTextBodyOfRequest(request).then(waitUntilOpen);
+  }
+
+  /**
+   * Reads a script of the request completely.
+   * @returns the text of the script, or `undefined` if the request has none
+   */
+  private async readScript(request: TrufosRequest, type: ScriptType) {
+    const stream = await persistenceService.loadScript(request, type);
+    return stream == null ? undefined : await text(stream);
   }
 }
 

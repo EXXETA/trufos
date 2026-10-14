@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { enableMapSet, enablePatches, type Patch } from 'immer';
 import { Collection } from '../objects/collection';
 import { Folder } from '../objects/folder';
+import { TrufosId } from '../objects/id';
 import { TrufosRequest } from '../objects/request';
 
 // both processes apply commands and patches to Map-based models
@@ -13,8 +14,8 @@ export type CollectionInfo = Omit<Collection, 'children'>;
 
 /** A folder without its children. Order and nesting live in {@link CollectionModel.childIds}. */
 export const FolderInfo = z.object({
-  id: z.string().min(1),
-  parentId: z.string().min(1),
+  id: TrufosId,
+  parentId: TrufosId,
   type: z.literal('folder'),
   lastModified: z.number(),
   title: z.string(),

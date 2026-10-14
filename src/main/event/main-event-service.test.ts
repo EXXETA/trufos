@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { tmpdir } from 'node:os';
+import { Readable } from 'node:stream';
 import { fs } from 'memfs';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
@@ -7,7 +8,7 @@ import { Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
 import { RequestMethod } from 'shim/objects/request-method';
-import { CollectionModel, normalizeCollection } from 'shim/collection-model';
+import { CollectionModel, CommandType, normalizeCollection } from 'shim/collection-model';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { MainProcessEvent } from 'shim/event-service';
 
@@ -27,6 +28,7 @@ vi.mock('./stream-events', () => ({}));
 vi.mock('main/network/service/http-service', () => ({
   HttpService: {
     instance: {
+      prepare: vi.fn(),
       fetchAsync: vi.fn(),
     },
   },
@@ -101,7 +103,7 @@ describe('MainEventService', () => {
       const envelope = {
         commandId: 'id',
         timestamp: 1,
-        command: { type: 'renameCollection', title: 'New' },
+        command: { type: CommandType.UPDATE_COLLECTION, changes: { title: 'New' } },
       } as const;
 
       await new MainEventService().dispatch(envelope);
@@ -154,21 +156,39 @@ describe('MainEventService', () => {
       model = makeModel();
       request = model.requests.values().next().value!;
       vi.spyOn(CollectionStateService.instance, 'model', 'get').mockImplementation(() => model);
-      vi.spyOn(CollectionStateService.instance, 'flush').mockResolvedValue(undefined);
+      vi.spyOn(CollectionStateService.instance, 'read').mockImplementation(
+        async (reader) => await reader(model)
+      );
+      const { HttpService } = await import('../network/service/http-service.js');
+      vi.mocked(HttpService.instance.prepare).mockImplementation(async (request) => ({
+        request,
+        scripts: {},
+      }));
     });
 
-    it('sends the request of the model after flushing pending writes', async () => {
+    it('sends the request of the model as it is when it is read', async () => {
       const { HttpService } = await import('../network/service/http-service.js');
-      const flush = vi.mocked(CollectionStateService.instance.flush);
-      vi.mocked(HttpService.instance.fetchAsync).mockImplementation(async () => {
-        expect(flush).toHaveBeenCalled();
-        return makeResponse();
+      let reading = false;
+      vi.mocked(CollectionStateService.instance.read).mockImplementation(async (reader) => {
+        reading = true;
+        try {
+          return await reader(model);
+        } finally {
+          reading = false;
+        }
       });
+      const prepared = { request, textBody: Readable.from('body'), scripts: {} };
+      vi.mocked(HttpService.instance.prepare).mockImplementation(async () => {
+        expect(reading).toBe(true);
+        return prepared;
+      });
+      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(makeResponse());
 
       await new MainEventService().sendRequest(request.id);
 
+      expect(HttpService.instance.prepare).toHaveBeenCalledWith(request);
       expect(HttpService.instance.fetchAsync).toHaveBeenCalledWith(
-        request,
+        prepared,
         expect.anything(),
         expect.any(AbortSignal)
       );
@@ -180,6 +200,7 @@ describe('MainEventService', () => {
       await expect(new MainEventService().sendRequest('missing')).rejects.toThrow(
         'Request missing does not exist'
       );
+      expect(HttpService.instance.prepare).not.toHaveBeenCalled();
       expect(HttpService.instance.fetchAsync).not.toHaveBeenCalled();
     });
 

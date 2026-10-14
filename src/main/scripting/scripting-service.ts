@@ -6,6 +6,7 @@ import { EnvironmentMap } from 'shim/objects/environment';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import type { ScriptLogger } from 'main/network/service/request-recorder';
 import { ScriptLog } from 'shim/history';
+import { CollectionChanges, CommandType } from 'shim/collection-model';
 
 const collectionState = CollectionStateService.instance;
 
@@ -152,20 +153,33 @@ export class ScriptingService {
       log({ script: type, level: 'error', args: [err] });
     }
 
-    // Only the variables the script set are applied, on top of the current state, so changes
-    // made while the script ran or while the first command is persisted are kept. Both commands
-    // are dispatched before either is awaited, as each applies synchronously.
-    const applying: Promise<void>[] = [];
+    const changes = ScriptingService.getCollectionChanges(state);
+    if (changes == null) return;
+    try {
+      await collectionState.apply({ type: CommandType.UPDATE_COLLECTION, changes });
+    } catch (err) {
+      logger.error('Failed to apply the variables changed by a script:', err);
+      log({ script: type, level: 'error', args: [err] });
+    }
+  }
+
+  /**
+   * Builds the changes of the collection a script made. Only the variables the script set are
+   * applied, on top of the current state, so changes made while the script ran are kept.
+   * @returns the changes, or `undefined` if the script set no variables
+   */
+  private static getCollectionChanges(state: ScriptVariables): CollectionChanges | undefined {
+    const { collection } = collectionState.model;
+    const changes: CollectionChanges = {};
     if (state.changedVariables.size > 0) {
-      const variables = ScriptingService.mergeVariables(
-        collectionState.model.collection.variables,
+      changes.variables = ScriptingService.mergeVariables(
+        collection.variables,
         state.variables,
         state.changedVariables
       );
-      applying.push(collectionState.apply({ type: 'setVariables', variables }));
     }
     if (state.changedEnvironmentVariables.size > 0) {
-      const environments = { ...collectionState.model.collection.environments };
+      const environments = { ...collection.environments };
       for (const [key, names] of state.changedEnvironmentVariables) {
         const current = environments[key];
         const changed = state.environments[key]?.variables;
@@ -176,14 +190,9 @@ export class ScriptingService {
           variables: ScriptingService.mergeVariables(current.variables, changed, names),
         };
       }
-      applying.push(collectionState.apply({ type: 'setEnvironments', environments }));
+      changes.environments = environments;
     }
-
-    for (const result of await Promise.allSettled(applying)) {
-      if (result.status === 'fulfilled') continue;
-      logger.error('Failed to apply the variables changed by a script:', result.reason);
-      log({ script: type, level: 'error', args: [result.reason] });
-    }
+    return changes.variables == null && changes.environments == null ? undefined : changes;
   }
 
   /** Returns the current variables with the given names replaced by the changed ones. */

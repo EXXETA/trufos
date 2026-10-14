@@ -2,19 +2,21 @@ import { PersistenceService } from 'main/persistence/service/persistence-service
 import {
   CollectionCommand,
   CollectionModel,
+  CommandType,
   getDescendantIds,
   getNode,
 } from 'shim/collection-model';
-import { getInlineTextBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { TrufosId } from 'shim/objects/id';
+import { TrufosRequest } from 'shim/objects/request';
 
 const persistenceService = PersistenceService.instance;
 
 /** What has to be written to disk to persist a command. */
-export interface PersistPlan {
+export interface CommandEffects {
   /** Writes that must happen right away, e.g. structural changes. */
   immediate?: () => Promise<void>;
   /** The IDs of requests whose info file is written debounced, as they are edited frequently. */
-  debounce?: string[];
+  debounce?: TrufosId[];
 }
 
 /**
@@ -23,30 +25,27 @@ export interface PersistPlan {
  * @param prev the model before the command was applied
  * @param next the model after the command was applied
  * @param command the applied command
- * @returns the plan to persist the command
+ * @returns the effects that persist the command
  */
-export function persistCommand(
+export function getCommandEffects(
   prev: CollectionModel,
   next: CollectionModel,
   command: CollectionCommand
-): PersistPlan {
-  const saveOrder = (parentId: string) =>
+): CommandEffects {
+  const saveOrder = (parentId: TrufosId) =>
     persistenceService.saveOrder(parentId, next.childIds.get(parentId) ?? []);
 
   switch (command.type) {
-    case 'createRequest': {
+    case CommandType.CREATE_REQUEST: {
       const request = getRequest(next, command.request.id);
       return {
         immediate: async () => {
           await persistenceService.saveRequestInfo(request);
-          if (request.body.type === RequestBodyType.TEXT) {
-            await persistenceService.writeTextBody(request, getInlineTextBody(request) ?? '');
-          }
           await saveOrder(request.parentId);
         },
       };
     }
-    case 'createFolder': {
+    case CommandType.CREATE_FOLDER: {
       const folder = getFolder(next, command.folder.id);
       return {
         immediate: async () => {
@@ -55,11 +54,11 @@ export function persistCommand(
         },
       };
     }
-    case 'rename': {
+    case CommandType.RENAME: {
       const node = getExistingNode(next, command.id);
       return { immediate: () => persistenceService.rename(node, command.title) };
     }
-    case 'move': {
+    case CommandType.MOVE: {
       const oldParentId = getExistingNode(prev, command.id).parentId;
       const newParentId = command.parentId;
       return {
@@ -72,7 +71,7 @@ export function persistCommand(
         },
       };
     }
-    case 'delete': {
+    case CommandType.DELETE: {
       const { parentId } = getExistingNode(prev, command.id);
       return {
         immediate: async () => {
@@ -81,7 +80,7 @@ export function persistCommand(
         },
       };
     }
-    case 'copy': {
+    case CommandType.COPY: {
       const { parentId } = getExistingNode(next, command.idMap[command.id]);
       // parents come before their children, so every parent directory exists when it is needed
       const sourceIds = [command.id, ...getDescendantIds(prev, command.id)];
@@ -102,19 +101,19 @@ export function persistCommand(
         },
       };
     }
-    case 'editRequest': {
+    case CommandType.EDIT_REQUEST: {
       if (getRequest(prev, command.id).draft) return { debounce: [command.id] };
       const request = getRequest(next, command.id);
       return { immediate: () => persistenceService.createDraft(request) };
     }
-    case 'setTextBody':
-    case 'setScript': {
+    case CommandType.SET_TEXT_BODY:
+    case CommandType.SET_SCRIPT: {
       const hadDraft = getRequest(prev, command.id).draft;
       const request = getRequest(next, command.id);
       return {
         immediate: async () => {
           if (!hadDraft) await persistenceService.createDraft(request);
-          if (command.type === 'setTextBody') {
+          if (command.type === CommandType.SET_TEXT_BODY) {
             await persistenceService.writeTextBody(request, command.text);
           } else {
             await persistenceService.saveScript(request, command.scriptType, command.text);
@@ -122,7 +121,7 @@ export function persistCommand(
         },
       };
     }
-    case 'saveRequest': {
+    case CommandType.SAVE_REQUEST: {
       const draft = getRequest(prev, command.id);
       if (!draft.draft) return {};
       const request = getRequest(next, command.id);
@@ -134,7 +133,7 @@ export function persistCommand(
         },
       };
     }
-    case 'discardRequest': {
+    case CommandType.DISCARD_REQUEST: {
       const draft = getRequest(prev, command.id);
       if (!draft.draft) return {};
       const removed = !next.requests.has(command.id);
@@ -145,31 +144,27 @@ export function persistCommand(
         },
       };
     }
-    case 'renameCollection':
-    case 'setVariables':
-    case 'setEnvironments':
-    case 'setClientCertificate':
-    case 'setCollectionAuth':
+    case CommandType.UPDATE_COLLECTION:
       return { immediate: () => persistenceService.saveCollectionInfo(next.collection) };
-    case 'selectEnvironment':
+    case CommandType.SELECT_ENVIRONMENT:
       // the selected environment is not persisted
       return {};
   }
 }
 
-function getExistingNode(model: CollectionModel, id: string | undefined) {
+function getExistingNode(model: CollectionModel, id: TrufosId | undefined) {
   const node = id == null ? undefined : getNode(model, id);
   if (node == null) throw new Error(`Object ${id} does not exist`);
   return node;
 }
 
-function getFolder(model: CollectionModel, id: string) {
+function getFolder(model: CollectionModel, id: TrufosId) {
   const folder = model.folders.get(id);
   if (folder == null) throw new Error(`Folder ${id} does not exist`);
   return folder;
 }
 
-function getRequest(model: CollectionModel, id: string): TrufosRequest {
+function getRequest(model: CollectionModel, id: TrufosId): TrufosRequest {
   const request = model.requests.get(id);
   if (request == null) throw new Error(`Request ${id} does not exist`);
   return request;

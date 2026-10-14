@@ -51,13 +51,14 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
       try {
         const snapshot = await rendererEventService.getCollectionState();
         if (disposed) return;
-        replica = new CollectionReplica(
+        const created = createCollectionStore(
           snapshot,
           (envelope) => rendererEventService.dispatch(envelope),
           () => rendererEventService.getCollectionState()
         );
-        registerModelPersistence(createModelPersistence(replica));
-        setStore(createCollectionStore(replica));
+        replica = created.replica;
+        registerModelPersistence(createModelPersistence(created.replica));
+        setStore(created.store);
       } catch (error) {
         showError("Couldn't load collection store", error);
       }

@@ -128,20 +128,23 @@ export class MainEventService implements IEventService {
   }
 
   async sendRequest(requestId: string, abortKey?: string): Promise<TrufosResponse | null> {
-    // the request is sent as it is on disk, including its body and scripts
-    await collectionState.flush();
-    const { model } = collectionState;
-    const request = model.requests.get(requestId);
-    if (request == null) throw new Error(`Request ${requestId} does not exist`);
+    // the request is sent as it is now, including its body and scripts, even if it is changed
+    // while it is sent
+    const prepared = await collectionState.read(async (model) => {
+      const request = model.requests.get(requestId);
+      if (request == null) throw new Error(`Request ${requestId} does not exist`);
+      return await HttpService.instance.prepare(request);
+    });
+    const { request } = prepared;
 
     // only a request sent with an abort key can be aborted, see abortRequest()
     const abortController = new AbortController();
     if (abortKey != null) this.abortControllers.set(abortKey, abortController);
 
-    const { dirPath } = model.collection;
+    const { dirPath } = collectionState.model.collection;
     const response = await HistoryService.instance.record(request, dirPath, async (recorder) => {
       try {
-        return await HttpService.instance.fetchAsync(request, recorder, abortController.signal);
+        return await HttpService.instance.fetchAsync(prepared, recorder, abortController.signal);
       } catch (error) {
         // An aborted request simply has no response. This is the outcome the caller asked for, so
         // it is reported as one instead of as the platform's abort error.

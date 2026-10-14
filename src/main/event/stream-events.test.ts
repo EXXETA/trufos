@@ -7,6 +7,7 @@ import { ScriptType } from 'shim/scripting';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => ({
+  app: { getPath: () => '/user-data' },
   ipcMain: { handle: vi.fn(), on: vi.fn() },
 }));
 
@@ -16,16 +17,15 @@ vi.mock('main/persistence/service/persistence-service', () => ({
 
 const mockState = vi.hoisted(() => ({
   requests: new Map<string, { id: string }>(),
-  flush: vi.fn(async () => {}),
+  read: vi.fn(async <T>(reader: (model: { requests: Map<string, { id: string }> }) => Promise<T>) =>
+    reader({ requests: mockState.requests })
+  ),
 }));
 
 vi.mock('main/collection-state/collection-state-service', () => ({
   CollectionStateService: {
     instance: {
-      flush: mockState.flush,
-      get model() {
-        return { requests: mockState.requests };
-      },
+      read: mockState.read,
     },
   },
 }));
@@ -88,7 +88,7 @@ describe('stream-open', () => {
     await open({ sender }, { type: 'request-body', requestId: request.id }, 'utf8');
 
     // Assert
-    expect(mockState.flush).toHaveBeenCalled();
+    expect(mockState.read).toHaveBeenCalled();
     expect(PersistenceService.instance.loadTextBodyOfRequest).toHaveBeenCalledWith(request, 'utf8');
   });
 

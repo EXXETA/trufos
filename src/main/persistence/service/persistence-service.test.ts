@@ -1,4 +1,5 @@
-import { exists, USER_DATA_DIR } from 'main/util/fs-util';
+import { exists, USER_DATA_DIR, waitUntilOpen } from 'main/util/fs-util';
+import { text } from 'node:stream/consumers';
 import { randomUUID } from 'node:crypto';
 import fs, { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -21,6 +22,7 @@ import {
   SECRETS_FILE_NAME,
 } from 'main/persistence/constants';
 import { ScriptType } from 'shim/scripting';
+import { AuthorizationType } from 'shim/objects/auth';
 
 const persistenceService = PersistenceService.instance;
 
@@ -903,6 +905,42 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, 'folder-3'))).toBe(false);
   });
 
+  it('writeTextBody() should not change the body a request that is being sent streams', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.writeTextBody(request, 'sent');
+    const stream = await persistenceService
+      .loadTextBodyOfRequest(request, 'utf8')
+      .then(waitUntilOpen);
+
+    // Act
+    await persistenceService.writeTextBody(request, 'edited');
+
+    // Assert
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect(await text(stream!)).toBe('sent');
+    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('edited');
+    expect((await fs.readdir(dirPath)).filter((file) => file.endsWith('.tmp'))).toEqual([]);
+  });
+
+  it('writeTextBody() should remove its temporary file if the body cannot be replaced', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    vi.spyOn(fs, 'rename').mockRejectedValueOnce(new Error('rename failed'));
+
+    // Act
+    const writing = persistenceService.writeTextBody(request, 'body');
+
+    // Assert
+    await expect(writing).rejects.toThrow('rename failed');
+    const dirPath = path.join(collection.dirPath, request.title);
+    expect((await fs.readdir(dirPath)).filter((file) => file.startsWith('.'))).toEqual([]);
+  });
+
   it('saveRequestInfo() should save the metadata of the request without touching its body', async () => {
     // Arrange
     const request = getExampleRequest(collection.id);
@@ -1089,6 +1127,56 @@ describe('PersistenceService', () => {
     ) as RequestInfoFile;
     expect(info.method).toBe(RequestMethod.POST);
     expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('draft');
+  });
+
+  it('saveChanges() should remove saved files the draft no longer has', async () => {
+    // Arrange: the saved request has secrets and scripts
+    const request = {
+      ...getExampleRequest(collection.id),
+      auth: { type: AuthorizationType.BEARER, token: 'secret' },
+    } satisfies TrufosRequest;
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.saveScript(request, ScriptType.PRE_REQUEST, 'pre');
+    await persistenceService.saveScript(request, ScriptType.POST_RESPONSE, 'post');
+    const { auth: _, ...withoutAuth } = request;
+    const draft = freeze({ ...withoutAuth, draft: true }, true);
+    await persistenceService.createDraft(draft);
+    await persistenceService.saveScript(draft, ScriptType.PRE_REQUEST, '');
+    const dirPath = path.join(collection.dirPath, request.title);
+    await rm(path.join(dirPath, DRAFT_DIR_NAME, getScriptFileName(ScriptType.POST_RESPONSE)));
+
+    // Act
+    await persistenceService.saveChanges(freeze({ ...draft, draft: false }, true));
+
+    // Assert
+    expect(await exists(path.join(dirPath, DRAFT_DIR_NAME))).toBe(false);
+    expect(await exists(path.join(dirPath, SECRETS_FILE_NAME))).toBe(false);
+    expect(
+      await readFile(path.join(dirPath, getScriptFileName(ScriptType.PRE_REQUEST)), 'utf-8')
+    ).toBe('');
+    expect(await exists(path.join(dirPath, getScriptFileName(ScriptType.POST_RESPONSE)))).toBe(
+      false
+    );
+    const saved = await persistenceService.loadSavedRequest(request.id, collection.id);
+    expect(saved).not.toHaveProperty('auth');
+  });
+
+  it('saveChanges() should do nothing for a request without a draft', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.writeTextBody(request, 'saved');
+    const dirPath = path.join(collection.dirPath, request.title);
+    const files = await fs.readdir(dirPath);
+
+    // Act
+    await persistenceService.saveChanges(request);
+
+    // Assert
+    expect(await fs.readdir(dirPath)).toEqual(files);
+    expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('saved');
   });
 
   it('discardChanges() should delete the draft and keep the saved state', async () => {

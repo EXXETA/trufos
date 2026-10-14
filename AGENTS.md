@@ -90,6 +90,19 @@ Key renderer directories:
   when data crosses a boundary (IPC, persistence). Parse into a typed structure once at the
   boundary and work with that structure afterwards.
 
+### Files, Streams & Temporary Files
+
+- **Never read request or response bodies completely into memory** (as a string or buffer), e.g.
+  to send them, copy them or pass them between services. Bodies can be arbitrarily large; that's
+  why the persistence layer keeps them in files. Open them as streams and stream them to where
+  they are needed. Only content that has to be in memory anyway (e.g. a script that is executed,
+  or the text shown in an editor) may be read completely.
+- **All temporary files go through `FileSystemService`** (`src/main/filesystem/`, e.g.
+  `temporaryFile()`), so they are named, protected and cleaned up in one place. Do not create
+  temporary files ad hoc. The only exception is a file that replaces another one by renaming (see
+  `PersistenceService.writeTextBody()`): it has to be on the same volume, so it is created next to
+  the target as a dotfile.
+
 ## Development Commands
 
 ```bash

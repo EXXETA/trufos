@@ -8,6 +8,7 @@ import {
   applyCommandTo,
   CollectionCommand,
   CollectionModel,
+  CommandType,
   normalizeCollection,
 } from 'shim/collection-model';
 import { Collection } from 'shim/objects/collection';
@@ -16,14 +17,14 @@ import { RequestBodyType, TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/object
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
-import type { persistCommand as persistCommandType } from './collection-persister';
+import type { getCommandEffects as getCommandEffectsType } from './command-effects';
 
 // both are loaded fresh for every test, as the persistence service remembers the directories of
 // the IDs, which are the same in every test
 let persistenceService: PersistenceServiceType;
-let persistCommand: typeof persistCommandType;
+let getCommandEffects: typeof getCommandEffectsType;
 
-const dirPath = path.join(USER_DATA_DIR, 'collections', 'persister');
+const dirPath = path.join(USER_DATA_DIR, 'collections', 'command-effects');
 
 function request(id: string, parentId: string, overrides: Partial<TrufosRequest> = {}) {
   return {
@@ -86,12 +87,12 @@ async function reload(): Promise<CollectionModel> {
   return model;
 }
 
-/** Applies a command and runs every write of its plan, including the debounced ones. */
+/** Applies a command and runs every write of its effects, including the debounced ones. */
 async function run(model: CollectionModel, command: CollectionCommand) {
   const next = applyCommandTo(model, { commandId: 'cmd', timestamp: 1, command });
-  const plan = persistCommand(model, next, command);
-  await plan.immediate?.();
-  for (const id of plan.debounce ?? []) {
+  const effects = getCommandEffects(model, next, command);
+  await effects.immediate?.();
+  for (const id of effects.debounce ?? []) {
     await persistenceService.saveRequestInfo(next.requests.get(id)!);
   }
   return next;
@@ -117,7 +118,7 @@ function persisted(model: CollectionModel) {
   };
 }
 
-describe('persistCommand()', () => {
+describe('getCommandEffects()', () => {
   let model: CollectionModel;
 
   beforeEach(async () => {
@@ -125,48 +126,30 @@ describe('persistCommand()', () => {
     ({
       PersistenceService: { instance: persistenceService },
     } = await import('../persistence/service/persistence-service.js'));
-    ({ persistCommand } = await import('./collection-persister.js'));
+    ({ getCommandEffects } = await import('./command-effects.js'));
     model = await createModel();
   });
 
-  it('createRequest writes the draft, an empty body and the order of the parent', async () => {
+  it('createRequest writes the draft and the order of the parent, but no body', async () => {
     // Act
     const next = await run(model, {
-      type: 'createRequest',
+      type: CommandType.CREATE_REQUEST,
       request: request('new', 'f1', { draft: true }),
       index: 0,
     });
 
     // Assert
-    expect(await exists(path.join(dirPath, 'f1', 'new', DRAFT_DIR_NAME, 'request.json'))).toBe(
-      true
-    );
-    expect(await readText('f1', 'new', DRAFT_DIR_NAME, TEXT_BODY_FILE_NAME)).toBe('');
+    const draftDirPath = path.join(dirPath, 'f1', 'new', DRAFT_DIR_NAME);
+    expect(await exists(path.join(draftDirPath, 'request.json'))).toBe(true);
+    expect(await exists(path.join(draftDirPath, TEXT_BODY_FILE_NAME))).toBe(false);
     expect(await readJson('f1', ORDER_FILE_NAME)).toEqual(['new', 'r1', 'f2']);
     expect(persisted(await reload())).toEqual(persisted(next));
-  });
-
-  it('createRequest writes no body file for a request without a text body', async () => {
-    // Act
-    await run(model, {
-      type: 'createRequest',
-      request: request('new', 'f1', { draft: true, body: { type: RequestBodyType.FILE } }),
-      index: 0,
-    });
-
-    // Assert
-    expect(await exists(path.join(dirPath, 'f1', 'new', DRAFT_DIR_NAME, 'request.json'))).toBe(
-      true
-    );
-    expect(await exists(path.join(dirPath, 'f1', 'new', DRAFT_DIR_NAME, TEXT_BODY_FILE_NAME))).toBe(
-      false
-    );
   });
 
   it('createFolder writes the folder and the order of the parent', async () => {
     // Act
     const next = await run(model, {
-      type: 'createFolder',
+      type: CommandType.CREATE_FOLDER,
       folder: { id: 'nf', parentId: 'col', type: 'folder', lastModified: 0, title: 'New' },
     });
 
@@ -178,8 +161,8 @@ describe('persistCommand()', () => {
 
   it('rename renames the directory and keeps the descendants reachable', async () => {
     // Act
-    const next = await run(model, { type: 'rename', id: 'f1', title: 'Renamed' });
-    await run(next, { type: 'setTextBody', id: 'r2', text: 'body' });
+    const next = await run(model, { type: CommandType.RENAME, id: 'f1', title: 'Renamed' });
+    await run(next, { type: CommandType.SET_TEXT_BODY, id: 'r2', text: 'body' });
 
     // Assert
     expect(await exists(path.join(dirPath, 'f1'))).toBe(false);
@@ -189,8 +172,8 @@ describe('persistCommand()', () => {
 
   it('move moves a folder whose descendants still resolve afterwards', async () => {
     // Act
-    const next = await run(model, { type: 'move', id: 'f2', parentId: 'col', index: 0 });
-    await run(next, { type: 'setTextBody', id: 'r2', text: 'moved' });
+    const next = await run(model, { type: CommandType.MOVE, id: 'f2', parentId: 'col', index: 0 });
+    await run(next, { type: CommandType.SET_TEXT_BODY, id: 'r2', text: 'moved' });
 
     // Assert
     expect(await exists(path.join(dirPath, 'f1', 'f2'))).toBe(false);
@@ -202,7 +185,7 @@ describe('persistCommand()', () => {
 
   it('move within the same parent only writes the new order', async () => {
     // Act
-    const next = await run(model, { type: 'move', id: 'r3', parentId: 'col', index: 0 });
+    const next = await run(model, { type: CommandType.MOVE, id: 'r3', parentId: 'col', index: 0 });
 
     // Assert
     expect(await readJson(ORDER_FILE_NAME)).toEqual(['r3', 'f1']);
@@ -211,7 +194,7 @@ describe('persistCommand()', () => {
 
   it('delete removes the directory and the ID from the order of the parent', async () => {
     // Act
-    const next = await run(model, { type: 'delete', id: 'f2' });
+    const next = await run(model, { type: CommandType.DELETE, id: 'f2' });
 
     // Assert
     expect(await exists(path.join(dirPath, 'f1', 'f2'))).toBe(false);
@@ -221,13 +204,13 @@ describe('persistCommand()', () => {
 
   it('copy writes every copied node, parents first, with their bodies and scripts', async () => {
     // Arrange
-    let current = await run(model, { type: 'setTextBody', id: 'r2', text: 'body' });
-    current = await run(current, { type: 'saveRequest', id: 'r2' });
+    let current = await run(model, { type: CommandType.SET_TEXT_BODY, id: 'r2', text: 'body' });
+    current = await run(current, { type: CommandType.SAVE_REQUEST, id: 'r2' });
     await persistenceService.saveScript(current.requests.get('r2')!, ScriptType.PRE_REQUEST, 'pre');
 
     // Act
     const next = await run(current, {
-      type: 'copy',
+      type: CommandType.COPY,
       id: 'f1',
       idMap: { f1: 'c1', r1: 'cr1', f2: 'c2', r2: 'cr2' },
     });
@@ -246,14 +229,14 @@ describe('persistCommand()', () => {
   it('copy of a draft request copies its draft state and files', async () => {
     // Arrange
     let current = await run(model, {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r3',
       changes: { method: RequestMethod.POST },
     });
-    current = await run(current, { type: 'setTextBody', id: 'r3', text: 'draft body' });
+    current = await run(current, { type: CommandType.SET_TEXT_BODY, id: 'r3', text: 'draft body' });
 
     // Act
-    const next = await run(current, { type: 'copy', id: 'r3', idMap: { r3: 'copy' } });
+    const next = await run(current, { type: CommandType.COPY, id: 'r3', idMap: { r3: 'copy' } });
 
     // Assert
     expect(await readText('r3-copy', TEXT_BODY_FILE_NAME)).toBe('draft body');
@@ -273,19 +256,23 @@ describe('persistCommand()', () => {
     await persistenceService.saveScript(saved, ScriptType.POST_RESPONSE, 'post');
 
     // Act
-    const plan = persistCommand(
+    const effects = getCommandEffects(
       model,
       applyCommandTo(model, {
         commandId: 'cmd',
         timestamp: 1,
-        command: { type: 'editRequest', id: 'r3', changes: { url: parseUrl('http://edited') } },
+        command: {
+          type: CommandType.EDIT_REQUEST,
+          id: 'r3',
+          changes: { url: parseUrl('http://edited') },
+        },
       }),
-      { type: 'editRequest', id: 'r3', changes: { url: parseUrl('http://edited') } }
+      { type: CommandType.EDIT_REQUEST, id: 'r3', changes: { url: parseUrl('http://edited') } }
     );
-    await plan.immediate?.();
+    await effects.immediate?.();
 
     // Assert
-    expect(plan.debounce).toBeUndefined();
+    expect(effects.debounce).toBeUndefined();
     expect(await readText('r3', DRAFT_DIR_NAME, TEXT_BODY_FILE_NAME)).toBe('saved body');
     expect(await readText('r3', DRAFT_DIR_NAME, getScriptFileName(ScriptType.POST_RESPONSE))).toBe(
       'post'
@@ -300,28 +287,28 @@ describe('persistCommand()', () => {
 
   it('editRequest of a draft is debounced', async () => {
     // Arrange
-    const draft = await run(model, { type: 'editRequest', id: 'r3', changes: {} });
+    const draft = await run(model, { type: CommandType.EDIT_REQUEST, id: 'r3', changes: {} });
     const command: CollectionCommand = {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r3',
       changes: { method: RequestMethod.PUT },
     };
 
     // Act
-    const plan = persistCommand(
+    const effects = getCommandEffects(
       draft,
       applyCommandTo(draft, { commandId: 'cmd', timestamp: 1, command }),
       command
     );
 
     // Assert
-    expect(plan).toEqual({ debounce: ['r3'] });
+    expect(effects).toEqual({ debounce: ['r3'] });
   });
 
   it('setScript writes the script into the draft', async () => {
     // Act
     const next = await run(model, {
-      type: 'setScript',
+      type: CommandType.SET_SCRIPT,
       id: 'r1',
       scriptType: ScriptType.PRE_REQUEST,
       text: 'script',
@@ -336,15 +323,23 @@ describe('persistCommand()', () => {
 
   it('saveRequest turns the draft into the saved state', async () => {
     // Arrange: the last edit was debounced and not written yet
-    let current = await run(model, { type: 'setTextBody', id: 'r3', text: 'draft body' });
+    let current = await run(model, {
+      type: CommandType.SET_TEXT_BODY,
+      id: 'r3',
+      text: 'draft body',
+    });
     current = applyCommandTo(current, {
       commandId: 'cmd',
       timestamp: 1,
-      command: { type: 'editRequest', id: 'r3', changes: { method: RequestMethod.DELETE } },
+      command: {
+        type: CommandType.EDIT_REQUEST,
+        id: 'r3',
+        changes: { method: RequestMethod.DELETE },
+      },
     });
 
     // Act
-    const next = await run(current, { type: 'saveRequest', id: 'r3' });
+    const next = await run(current, { type: CommandType.SAVE_REQUEST, id: 'r3' });
 
     // Assert
     expect(await exists(path.join(dirPath, 'r3', DRAFT_DIR_NAME))).toBe(false);
@@ -355,13 +350,13 @@ describe('persistCommand()', () => {
   it('discardRequest restores the saved state', async () => {
     // Arrange
     const current = await run(model, {
-      type: 'editRequest',
+      type: CommandType.EDIT_REQUEST,
       id: 'r3',
       changes: { method: RequestMethod.POST },
     });
 
     // Act
-    const next = await run(current, { type: 'discardRequest', id: 'r3' });
+    const next = await run(current, { type: CommandType.DISCARD_REQUEST, id: 'r3' });
 
     // Assert
     expect(await exists(path.join(dirPath, 'r3', DRAFT_DIR_NAME))).toBe(false);
@@ -371,12 +366,12 @@ describe('persistCommand()', () => {
   it('discardRequest of a never saved request deletes it', async () => {
     // Arrange
     const current = await run(model, {
-      type: 'createRequest',
+      type: CommandType.CREATE_REQUEST,
       request: request('new', 'col', { draft: true }),
     });
 
     // Act
-    const next = await run(current, { type: 'discardRequest', id: 'new' });
+    const next = await run(current, { type: CommandType.DISCARD_REQUEST, id: 'new' });
 
     // Assert
     expect(await exists(path.join(dirPath, 'new'))).toBe(false);
@@ -384,16 +379,15 @@ describe('persistCommand()', () => {
     expect(persisted(await reload())).toEqual(persisted(next));
   });
 
-  it('collection settings write the collection info file', async () => {
+  it('updateCollection writes the collection info file', async () => {
     // Act
-    let next = await run(model, { type: 'renameCollection', title: 'Renamed' });
-    next = await run(next, {
-      type: 'setVariables',
-      variables: { secret: { value: 'v', secret: true } },
+    let next = await run(model, {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: { title: 'Renamed', variables: { secret: { value: 'v', secret: true } } },
     });
     next = await run(next, {
-      type: 'setEnvironments',
-      environments: { dev: { variables: { a: { value: 'b' } } } },
+      type: CommandType.UPDATE_COLLECTION,
+      changes: { environments: { dev: { variables: { a: { value: 'b' } } } } },
     });
 
     // Assert
@@ -409,19 +403,19 @@ describe('persistCommand()', () => {
   it('selectEnvironment persists nothing', async () => {
     // Arrange
     const current = await run(model, {
-      type: 'setEnvironments',
-      environments: { dev: { variables: {} }, prod: { variables: {} } },
+      type: CommandType.UPDATE_COLLECTION,
+      changes: { environments: { dev: { variables: {} }, prod: { variables: {} } } },
     });
-    const command: CollectionCommand = { type: 'selectEnvironment', key: 'prod' };
+    const command: CollectionCommand = { type: CommandType.SELECT_ENVIRONMENT, key: 'prod' };
 
     // Act
-    const plan = persistCommand(
+    const effects = getCommandEffects(
       current,
       applyCommandTo(current, { commandId: 'cmd', timestamp: 1, command }),
       command
     );
 
     // Assert
-    expect(plan).toEqual({});
+    expect(effects).toEqual({});
   });
 });

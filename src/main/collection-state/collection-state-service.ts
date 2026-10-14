@@ -10,18 +10,20 @@ import {
   CollectionModel,
   CollectionStateEvent,
   CommandEnvelope,
+  CommandType,
   normalizeCollection,
 } from 'shim/collection-model';
 import { Collection, CollectionBase } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
+import { TrufosId } from 'shim/objects/id';
 import { TrufosRequest } from 'shim/objects/request';
-import { persistCommand } from './collection-persister';
+import { getCommandEffects } from './command-effects';
 
 const persistenceService = PersistenceService.instance;
 const settingsService = SettingsService.instance;
 
 /** How long the info file of an edited request is not written after its last edit. */
-export const REQUEST_INFO_DEBOUNCE_MS = 300;
+export const REQUEST_INFO_DEBOUNCE_MS = 2000;
 
 /** Event signatures emitted by the {@link CollectionStateService}. */
 type CollectionStateServiceEvents = {
@@ -52,10 +54,10 @@ export class CollectionStateService
   private queue: Promise<void> = Promise.resolve();
 
   /** The pending debounced info file writes, by request ID. */
-  private readonly debounced = new Map<string, NodeJS.Timeout>();
+  private readonly debounced = new Map<TrufosId, NodeJS.Timeout>();
 
   /** The IDs of requests whose info file has edits that are not written yet. */
-  private readonly unwritten = new Set<string>();
+  private readonly unwritten = new Set<TrufosId>();
 
   /**
    * Incremented whenever the model is replaced by loading it from disk. Effects queued for an
@@ -177,8 +179,7 @@ export class CollectionStateService
     if (this.loading > 0) {
       throw new Error('The collection is being loaded, the command was not applied');
     }
-    const prev = this.model;
-    const { generation } = this;
+    const { model: prev, generation } = this;
     const [next, patches] = produceWithPatches(prev, (draft) => {
       applyCommand(draft, envelope);
       draft.version++;
@@ -192,14 +193,14 @@ export class CollectionStateService
     });
 
     const { command } = envelope;
-    const plan = persistCommand(prev, next, command);
-    if (command.type === 'saveRequest' || command.type === 'discardRequest') {
+    const effects = getCommandEffects(prev, next, command);
+    if (command.type === CommandType.SAVE_REQUEST || command.type === CommandType.DISCARD_REQUEST) {
       // saving writes the latest draft itself and discarding makes the pending write obsolete
       this.cancelDebounce(command.id);
       this.unwritten.delete(command.id);
     }
-    for (const requestId of plan.debounce ?? []) this.debounce(requestId);
-    if (plan.immediate != null) await this.enqueue(plan.immediate, generation);
+    for (const requestId of effects.debounce ?? []) this.debounce(requestId);
+    if (effects.immediate != null) await this.enqueue(effects.immediate, generation);
   }
 
   /**
@@ -214,14 +215,35 @@ export class CollectionStateService
    * Runs all pending debounced writes now and waits until every queued write is done.
    */
   public async flush(): Promise<void> {
+    this.enqueueDebounced();
+    await this.queue;
+  }
+
+  /**
+   * Reads files of the collection while no change is written. Pending debounced writes are written
+   * first, so the files match the model the reader gets.
+   * @param reader reads the files. It gets the model as it is when the reader runs.
+   * @returns the result of the reader
+   */
+  public async read<T>(reader: (model: CollectionModel) => Promise<T>): Promise<T> {
+    this.enqueueDebounced();
+    const result = this.queue.then(() => reader(this.model));
+    this.queue = result.then(
+      () => {},
+      () => {}
+    );
+    return await result;
+  }
+
+  /** Queues all pending debounced writes right away. */
+  private enqueueDebounced() {
     for (const requestId of [...this.debounced.keys()]) {
       this.cancelDebounce(requestId);
       this.enqueueRequestInfo(requestId);
     }
-    await this.queue;
   }
 
-  private debounce(requestId: string) {
+  private debounce(requestId: TrufosId) {
     this.cancelDebounce(requestId);
     this.unwritten.add(requestId);
     const timeout = setTimeout(() => {
@@ -231,13 +253,13 @@ export class CollectionStateService
     this.debounced.set(requestId, timeout);
   }
 
-  private cancelDebounce(requestId: string) {
+  private cancelDebounce(requestId: TrufosId) {
     clearTimeout(this.debounced.get(requestId));
     this.debounced.delete(requestId);
   }
 
   /** Queues writing the info file of a request in the state it has when the write runs. */
-  private enqueueRequestInfo(requestId: string) {
+  private enqueueRequestInfo(requestId: TrufosId) {
     this.enqueue(
       async () => {
         // an earlier write may already have written the latest state
@@ -263,7 +285,7 @@ export class CollectionStateService
   private enqueue(
     effect: () => Promise<void>,
     generation: number,
-    requestId?: string
+    requestId?: TrufosId
   ): Promise<void> {
     const result = this.queue.then(async () => {
       if (generation !== this.generation) {
@@ -287,7 +309,7 @@ export class CollectionStateService
    * not written yet are written first, so they survive the reload if possible.
    * @param failedRequestId the request whose info file failed to be written, if any
    */
-  private async reloadAfterFailure(failedRequestId?: string) {
+  private async reloadAfterFailure(failedRequestId?: TrufosId) {
     this.loading++;
     try {
       for (const requestId of [...this.debounced.keys()]) this.cancelDebounce(requestId);
