@@ -21,7 +21,7 @@ interface NavFolderProps {
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
 export const NavFolder = ({ folderId, depth = 0, onCreateItem, onItemClick }: NavFolderProps) => {
-  const { setFolderOpen, setFolderClose, renameFolder } = useCollectionActions();
+  const { setFolderOpen, setFolderClose, renameItem } = useCollectionActions();
   const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
   const isSelected = useCollectionStore((state) => state.selectedIds.has(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
@@ -91,7 +91,7 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem, onItemClick }: Na
               onSave={(newName) => {
                 const trimmed = newName.trim();
                 if (trimmed && trimmed !== folder.title) {
-                  renameFolder(folderId, trimmed);
+                  renameItem(folderId, trimmed);
                 }
                 setIsEditing(false);
               }}

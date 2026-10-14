@@ -53,6 +53,15 @@ export interface MainProcessEventPayloads {
   [MainProcessEvent.ShowHistory]: [];
 }
 
+/**
+ * Listens to an event pushed by the main process. It receives the Electron IPC event, which most
+ * listeners do not need, followed by the payload, see {@link MainProcessEventPayloads}.
+ */
+export type MainProcessEventListener<E extends MainProcessEvent> = (
+  ipcEvent: unknown,
+  ...payload: MainProcessEventPayloads[E]
+) => void;
+
 /** The payload of every {@link RendererEvent}, see {@link MainProcessEventPayloads}. */
 export interface RendererEventPayloads {
   [RendererEvent.RendererReady]: [];
@@ -133,7 +142,7 @@ export interface IEventService {
    * Get a variable by its key.
    * @param key The key of the variable.
    */
-  getVariable(key: string): Promise<VariableObject>;
+  getVariable(key: string): Promise<VariableObject | undefined>;
 
   /**
    * Replaces all `{{ someVariable }}` templates in the given string with their current values.

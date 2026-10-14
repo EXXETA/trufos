@@ -1,14 +1,18 @@
 import { z } from 'zod';
 import { AuthorizationInformation, AuthorizationInformationNoInherit } from '../objects/auth';
-import { ClientCertificate } from '../objects/collection';
-import { EnvironmentMap } from '../objects/environment';
+import { ClientCertificate, Collection } from '../objects/collection';
 import { TrufosRequest } from '../objects/request';
-import { VariableMap } from '../objects/variables';
 import { ScriptType } from '../scripting';
 import { TrufosId } from '../objects/id';
 import { FolderInfo } from './model';
 
 const Index = z.int().nonnegative();
+
+/**
+ * The IDs of the folders and requests a bulk command acts on. None of them may be a descendant of
+ * another, as acting on a folder already covers its descendants.
+ */
+const TopLevelIds = z.array(TrufosId).min(1);
 
 /** The fields of a request that can be edited. `auth: null` removes the authorization. */
 export const RequestChanges = z
@@ -25,9 +29,7 @@ export type RequestChanges = z.infer<typeof RequestChanges>;
  */
 export const CollectionChanges = z
   .object({
-    title: z.string(),
-    variables: VariableMap,
-    environments: EnvironmentMap,
+    ...Collection.pick({ title: true, variables: true, environments: true }).shape,
     clientCertificate: ClientCertificate.nullable(),
     auth: AuthorizationInformationNoInherit.nullable(),
   })
@@ -42,6 +44,7 @@ export enum CommandType {
   MOVE = 'move',
   DELETE = 'delete',
   COPY = 'copy',
+  CREATE_DRAFT = 'createDraft',
   EDIT_REQUEST = 'editRequest',
   SET_TEXT_BODY = 'setTextBody',
   SET_SCRIPT = 'setScript',
@@ -72,21 +75,28 @@ export const CollectionCommand = z.discriminatedUnion('type', [
   /** Renames a folder or request. */
   z.object({ type: z.literal(CommandType.RENAME), id: TrufosId, title: z.string() }),
   /**
-   * Moves a folder or request to the given index of the given parent. Within the same parent, the
-   * index refers to the children without the moved item.
+   * Moves folders and requests, in the given order, to the given index of the given parent. The
+   * index refers to the children of the parent without the moved items.
    */
-  z.object({ type: z.literal(CommandType.MOVE), id: TrufosId, parentId: TrufosId, index: Index }),
-  /** Deletes a folder (including its descendants) or a request. */
-  z.object({ type: z.literal(CommandType.DELETE), id: TrufosId }),
+  z.object({
+    type: z.literal(CommandType.MOVE),
+    ids: TopLevelIds,
+    parentId: TrufosId,
+    index: Index,
+  }),
+  /** Deletes folders (including their descendants) and requests. */
+  z.object({ type: z.literal(CommandType.DELETE), ids: TopLevelIds }),
   /**
-   * Copies a folder (including its descendants) or a request to the end of its parent.
-   * `idMap` maps the ID of the copied item and of each of its descendants to the ID of its copy.
+   * Copies folders (including their descendants) and requests, each to the end of its parent.
+   * `idMap` maps the ID of every copied item and of each of its descendants to the ID of its copy.
    */
   z.object({
     type: z.literal(CommandType.COPY),
-    id: TrufosId,
+    ids: TopLevelIds,
     idMap: z.record(TrufosId, TrufosId),
   }),
+  /** Turns a request into a draft, if it is none yet, e.g. as soon as its editor content changes. */
+  z.object({ type: z.literal(CommandType.CREATE_DRAFT), id: TrufosId }),
   /** Changes the draft of a request, creating the draft if necessary. */
   z.object({ type: z.literal(CommandType.EDIT_REQUEST), id: TrufosId, changes: RequestChanges }),
   /** Replaces the text body of a request, creating the draft if necessary. */

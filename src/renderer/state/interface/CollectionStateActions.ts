@@ -1,9 +1,10 @@
-import { CollectionChanges, FolderInfo, RequestChanges } from 'shim/collection-model';
+import { CollectionChanges, RequestChanges } from 'shim/collection-model';
 import { AuthorizationInformation } from 'shim/objects/auth';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
-import { FormDataBody, RequestBody, TrufosRequest } from 'shim/objects/request';
+import { FormDataBody, RequestBody } from 'shim/objects/request';
 import { TrufosId } from 'shim/objects/id';
+import { TrufosResponse } from 'shim/objects/response';
 import { ScriptType } from 'shim/scripting';
 import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
 
@@ -12,6 +13,9 @@ type FormDataField = FormDataBody['fields'][number];
 /**
  * The actions of the collection store. Every change to the collection is sent to the main process
  * as a command; the store shows it at once and is corrected by the patches main broadcasts.
+ *
+ * Async actions show their errors to the user themselves and resolve to false if they failed, so
+ * callers can react to a failure without handling the error.
  */
 export interface CollectionStateActions {
   /**
@@ -19,14 +23,21 @@ export interface CollectionStateActions {
    * store is updated by the snapshot main broadcasts.
    * @param dirPath the directory path of the collection to open
    */
-  changeCollection(dirPath: string): Promise<void>;
+  changeCollection(dirPath: string): Promise<boolean>;
+
+  /**
+   * Create a new collection and open it. Unsaved editor changes are sent to main first.
+   * @param dirPath the directory of the new collection
+   * @param title the title of the new collection
+   */
+  createCollection(dirPath: string, title: string): Promise<boolean>;
 
   /**
    * Create a new request that was never saved, and select it.
    * @param title the title of the request. A random one if not given.
    * @param parentId the folder to create it in. Defaults to the collection.
    */
-  addNewRequest(title?: string, parentId?: string): Promise<void>;
+  addNewRequest(title?: string, parentId?: string): Promise<boolean>;
 
   /**
    * Change the currently selected request. This creates a draft.
@@ -48,13 +59,13 @@ export interface CollectionStateActions {
 
   /**
    * Select the given request, or none. The editor changes of the previously selected request are
-   * sent to main and its editor models are disposed.
+   * sent to main and its editor models are disposed. The editor models of the selected request
+   * are created and loaded.
    * @param id the request id, or undefined to select none
    * @returns a promise that resolves when main applied the editor changes of the previously
-   * selected request, at once if there are none. It rejects if they could not be applied; the
-   * error is shown to the user either way.
+   * selected request, at once if there are none. It resolves to false if they could not be applied.
    */
-  setSelectedRequest(id?: TrufosRequest['id']): Promise<void>;
+  setSelectedRequest(id?: TrufosId): Promise<boolean>;
 
   /**
    * Set the currently active script type.
@@ -68,20 +79,20 @@ export interface CollectionStateActions {
    * Toggle a request or folder's membership in the sidebar's multi-selection.
    * @param id the request or folder id
    */
-  toggleItemSelected(id: TrufosRequest['id'] | FolderInfo['id']): void;
+  toggleItemSelected(id: TrufosId): void;
 
   /**
    * Replace the sidebar's multi-selection with the given ids.
    * @param ids the request/folder ids to select
    */
-  setSelection(ids: Iterable<TrufosRequest['id'] | FolderInfo['id']>): void;
+  setSelection(ids: Iterable<TrufosId>): void;
 
   /**
    * Union the given ids into the sidebar's existing multi-selection, without removing any
    * currently-selected id.
    * @param ids the request/folder ids to add to the selection
    */
-  addToSelection(ids: Iterable<TrufosRequest['id'] | FolderInfo['id']>): void;
+  addToSelection(ids: Iterable<TrufosId>): void;
 
   /**
    * Clear the sidebar's multi-selection.
@@ -90,43 +101,60 @@ export interface CollectionStateActions {
 
   /**
    * Delete every top-level id in the sidebar's multi-selection (a selected folder's
-   * already-selected descendants are not deleted a second time), then clear the selection.
+   * already-selected descendants are not deleted a second time) with a single command. The
+   * selection is cleared at once.
    */
-  deleteSelectedItems(): Promise<void>;
+  deleteSelectedItems(): Promise<boolean>;
 
   /**
    * Duplicate every top-level id in the sidebar's multi-selection (a selected folder's
-   * already-selected descendants are not duplicated a second time), then clear the selection.
+   * already-selected descendants are not duplicated a second time) with a single command. The
+   * selection is cleared at once.
    */
-  duplicateSelectedItems(): Promise<void>;
+  duplicateSelectedItems(): Promise<boolean>;
 
-  deleteRequest(id: TrufosRequest['id']): Promise<void>;
+  /**
+   * Delete a request, or a folder including its descendants. Their editor changes are dropped
+   * and the selected request is deselected if it is one of them.
+   * @param id the request or folder id
+   */
+  deleteItem(id: TrufosId): Promise<boolean>;
+
+  /**
+   * Rename a request or folder.
+   * @param id the request or folder id
+   * @param title the new title
+   */
+  renameItem(id: TrufosId, title: string): Promise<boolean>;
+
+  /**
+   * Copy a request, or a folder including its descendants, to the end of its parent. Unsaved
+   * editor changes are sent to main first, as the copy captures the current state.
+   * @param id the request or folder id
+   */
+  copyItem(id: TrufosId): Promise<boolean>;
 
   /**
    * Discard the draft of the currently selected request. A request that was never saved is
    * deleted.
    */
-  discardChanges(): Promise<void>;
+  discardChanges(): Promise<boolean>;
 
   /**
    * Save the draft of the given request. Unsaved editor changes are sent to main first.
    * @param id the request id
    */
-  saveRequest(id: TrufosRequest['id']): Promise<void>;
+  saveRequest(id: TrufosId): Promise<boolean>;
 
   /**
-   * Rename the request title
+   * Send a request in its current state. Unsaved editor changes are sent to main first. Unlike the
+   * other actions, errors are not shown but thrown, as callers show them differently.
    * @param id the request id
-   * @param title the new title of the request
+   * @param signal aborts the request
+   * @returns the response, or null if the request was aborted
+   * @throws {DisplayableError} if sending failed
    */
-  renameRequest(id: TrufosRequest['id'], title: string): Promise<void>;
-
-  /**
-   * Copy a request.
-   *
-   * @param id The id of the request to copy.
-   */
-  copyRequest(id: TrufosRequest['id']): Promise<void>;
+  sendRequest(id: TrufosId, signal?: AbortSignal): Promise<TrufosResponse | null>;
 
   /**
    * Add a new header to the currently selected request
@@ -190,70 +218,46 @@ export interface CollectionStateActions {
    * @param title
    * @param parentId
    */
-  addNewFolder(title?: string, parentId?: string): Promise<void>;
-
-  /**
-   * Delete the folder to the file system
-   * @param id
-   */
-  deleteFolder(id: FolderInfo['id']): Promise<void>;
-
-  /**
-   * Rename the folder title
-   * @param id the folder id
-   * @param title the new title of the folder
-   */
-  renameFolder(id: FolderInfo['id'], title: string): Promise<void>;
-
-  /**
-   * Copy a folder with all its children.
-   *
-   * @param id The id of the folder to copy.
-   */
-  copyFolder(id: FolderInfo['id']): Promise<void>;
+  addNewFolder(title?: string, parentId?: string): Promise<boolean>;
 
   /** For functionality of the sidebar */
   /**
    * needed for rerendering of th sidebar
    * @param id the folder id
    */
-  isFolderOpen(id: FolderInfo['id']): boolean;
+  isFolderOpen(id: TrufosId): boolean;
 
   /**
    * must be set manually that the rendering of the sidebar open the folders correctly
    * @param id the folder id
    */
-  setFolderOpen(id: FolderInfo['id']): void;
+  setFolderOpen(id: TrufosId): void;
 
   /**
    * needed for rerendering of the sidebar
    * @param id the folder id
    */
-  setFolderClose(id: FolderInfo['id']): void;
+  setFolderClose(id: TrufosId): void;
 
   /**
-   * Update the authorization information of the given request. If the type or the OAuth method
-   * changes, the authorization is replaced by a complete default for the new type or method.
-   * @param request The request for which the authorization information should be updated.
-   * @param updatedFields The fields to update in the authorization information. If null, the authorization information will be cleared.
+   * Update the authorization of the selected request. If the type or the OAuth method changes,
+   * the authorization is replaced by a complete default for the new type or method.
+   * @param changes the fields to change, or null to remove the authorization
    */
-  updateAuthorization(
-    request: TrufosRequest,
-    updatedFields?: Partial<AuthorizationInformation> | null
-  ): void;
+  updateAuthorization(changes: Partial<AuthorizationInformation> | null): void;
 
   /**
    * Change the settings of the current collection. Settings that are not given stay unchanged.
    * @param changes the settings to change. `null` removes the client certificate or the
    * authorization.
    */
-  updateCollection(changes: CollectionChanges): Promise<void>;
+  updateCollection(changes: CollectionChanges): Promise<boolean>;
 
   /**
    * Select the environment whose variables are used. Not persisted.
    * @param key the environment key, or undefined to select none
    */
-  selectEnvironment(key?: string): Promise<void>;
+  selectEnvironment(key?: string): Promise<boolean>;
 
   /**
    * Close the currently opened collection.
@@ -262,23 +266,14 @@ export interface CollectionStateActions {
    *
    * @param dirPath Optional path of the collection to close.
    */
-  closeCollection(dirPath?: string): Promise<void>;
-
-  moveItem(itemId: TrufosId, newParentId: TrufosId, position: number): Promise<void>;
+  closeCollection(dirPath?: string): Promise<boolean>;
 
   /**
-   * Move each of `ids`, in order, so they form a contiguous run directly after `afterId`
-   * (the first id right after `afterId`, each next one right after the previous), under
-   * whichever parent the preceding item currently lives in. Each position is computed from
-   * fresh state right before its move, so earlier moves can't shift later targets.
-   * Reuses `moveItem` for every step.
-   *
-   * Throws before moving anything if `afterId` doesn't exist or if its parent is one of `ids`
-   * or a descendant of one (that would nest a moved item inside itself). Also throws, leaving
-   * the earlier moves in place, if a previously-placed item can no longer be found.
-   *
-   * @param afterId The id of the anchor item the run is placed after.
-   * @param ids The ids to move, in the order they should appear.
+   * Move requests and folders, in the given order, to the given index of a parent. None of them
+   * may be inside another one or contain the parent.
+   * @param ids the requests and folders to move
+   * @param parentId the collection or folder to move them into
+   * @param index the index among the children of the parent without the moved items
    */
-  moveItemsAfter(afterId: TrufosId, ids: TrufosId[]): Promise<void>;
+  moveItems(ids: TrufosId[], parentId: TrufosId, index: number): Promise<boolean>;
 }

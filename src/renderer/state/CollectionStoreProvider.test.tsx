@@ -19,7 +19,6 @@ const { listeners, eventService, models } = vi.hoisted(() => {
     },
     models: {
       flushModelEdits: vi.fn(),
-      registerModelPersistence: vi.fn(),
       cancelModelEdits: vi.fn(),
       createModelsForRequest: vi.fn(),
       disposeModelsForRequest: vi.fn(),
@@ -75,7 +74,6 @@ describe('CollectionStoreProvider', () => {
     renderProvider();
 
     expect(await screen.findByText('Test')).toBeDefined();
-    expect(models.registerModelPersistence).toHaveBeenCalledWith(expect.any(Object));
   });
 
   it('applies collection state changes broadcast by main', async () => {
@@ -112,6 +110,5 @@ describe('CollectionStoreProvider', () => {
     unmount();
 
     await waitFor(() => expect(listeners.size).toBe(0));
-    expect(models.registerModelPersistence).toHaveBeenLastCalledWith(undefined);
   });
 });

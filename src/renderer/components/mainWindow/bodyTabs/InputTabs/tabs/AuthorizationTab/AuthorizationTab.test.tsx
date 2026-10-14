@@ -41,12 +41,12 @@ describe('AuthorizationTab', () => {
     const main = new FakeCollectionMain(
       normalizeCollection(makeCollection('col', [makeRequest('r1', 'col', { auth })]))
     );
-    const { store, replica } = createCollectionStore(
+    const { store, collectionState } = createCollectionStore(
       structuredClone(main.model),
       main.dispatch,
       main.getCollectionState
     );
-    main.onEvent((event) => replica.receive(event));
+    main.onEvent((event) => collectionState.receive(event));
     store.setState({ selectedRequestId: 'r1' });
 
     render(

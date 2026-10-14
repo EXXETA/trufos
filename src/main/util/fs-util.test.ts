@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileLimited } from './fs-util';
+import { text } from 'node:stream/consumers';
+import { isSameOrInside, openFile, readFileLimited } from './fs-util';
 
 /** The concurrent read limit that `readFileLimited()` is expected to enforce. */
 const MAX_CONCURRENT_READS = 10;
@@ -113,5 +114,30 @@ describe('readFileLimited', () => {
 
     await expect(readFileLimited('/content.txt', 'utf8')).resolves.toBe('file content');
     await expect(readFileLimited('/content.txt')).resolves.toEqual(Buffer.from('file content'));
+  });
+});
+
+describe('openFile', () => {
+  it('should stream the file it opened even if the file is replaced afterwards', async () => {
+    await fs.writeFile('/open.txt', 'before', 'utf8');
+    const stream = await openFile('/open.txt', 'utf8');
+
+    await fs.writeFile('/open.tmp', 'after', 'utf8');
+    await fs.rename('/open.tmp', '/open.txt');
+
+    await expect(text(stream!)).resolves.toBe('before');
+  });
+
+  it('should return undefined for a missing file', async () => {
+    await expect(openFile('/missing.txt')).resolves.toBeUndefined();
+  });
+});
+
+describe('isSameOrInside', () => {
+  it('should match the directory itself and its descendants only', () => {
+    expect(isSameOrInside('/a/b', '/a/b')).toBe(true);
+    expect(isSameOrInside('/a/b/c/d', '/a/b')).toBe(true);
+    expect(isSameOrInside('/a/bc', '/a/b')).toBe(false);
+    expect(isSameOrInside('/a', '/a/b')).toBe(false);
   });
 });

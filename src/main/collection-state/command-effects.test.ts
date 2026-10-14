@@ -87,14 +87,14 @@ async function reload(): Promise<CollectionModel> {
   return model;
 }
 
-/** Applies a command and runs every write of its effects, including the debounced ones. */
+/** Applies a command and runs every write of its effects, including the delayed one. */
 async function run(model: CollectionModel, command: CollectionCommand) {
   const next = applyCommandTo(model, { commandId: 'cmd', timestamp: 1, command });
   const effects = getCommandEffects(model, next, command);
   await effects.immediate?.();
-  for (const id of effects.debounce ?? []) {
-    await persistenceService.saveRequestInfo(next.requests.get(id)!);
-  }
+  const dirty =
+    effects.dirtyRequestId == null ? undefined : next.requests.get(effects.dirtyRequestId);
+  if (dirty != null) await persistenceService.saveRequestInfo(dirty);
   return next;
 }
 
@@ -170,9 +170,104 @@ describe('getCommandEffects()', () => {
     expect((await reload()).folders.get('f1')?.title).toBe('Renamed');
   });
 
+  it('rename of a draft renames its saved and its draft state only by title', async () => {
+    // Arrange
+    const current = await run(model, {
+      type: CommandType.EDIT_REQUEST,
+      id: 'r3',
+      changes: { method: RequestMethod.POST },
+    });
+
+    // Act
+    const next = await run(current, { type: CommandType.RENAME, id: 'r3', title: 'Renamed' });
+
+    // Assert
+    expect(await readJson('renamed', 'request.json')).toMatchObject({
+      title: 'Renamed',
+      method: RequestMethod.GET,
+    });
+    expect(await readJson('renamed', DRAFT_DIR_NAME, 'request.json')).toMatchObject({
+      title: 'Renamed',
+      method: RequestMethod.POST,
+    });
+    expect(persisted(await reload())).toEqual(persisted(next));
+  });
+
+  it('rename of a never saved draft only writes the draft', async () => {
+    // Arrange
+    const current = await run(model, {
+      type: CommandType.CREATE_REQUEST,
+      request: request('new', 'col', { draft: true }),
+    });
+
+    // Act
+    const next = await run(current, { type: CommandType.RENAME, id: 'new', title: 'Renamed' });
+
+    // Assert
+    expect(await exists(path.join(dirPath, 'renamed', 'request.json'))).toBe(false);
+    expect(await readJson('renamed', DRAFT_DIR_NAME, 'request.json')).toMatchObject({
+      title: 'Renamed',
+    });
+    expect(persisted(await reload())).toEqual(persisted(next));
+  });
+
+  it('move of several items writes the order of every affected parent', async () => {
+    // Act
+    const next = await run(model, {
+      type: CommandType.MOVE,
+      ids: ['r3', 'r1', 'r2'],
+      parentId: 'f1',
+      index: 0,
+    });
+
+    // Assert
+    expect(await readJson(ORDER_FILE_NAME)).toEqual(['f1']);
+    expect(await readJson('f1', ORDER_FILE_NAME)).toEqual(['r3', 'r1', 'r2', 'f2']);
+    expect(await readJson('f1', 'f2', ORDER_FILE_NAME)).toEqual([]);
+    expect(persisted(await reload())).toEqual(persisted(next));
+  });
+
+  it('delete of several items removes all of them', async () => {
+    // Act
+    const next = await run(model, { type: CommandType.DELETE, ids: ['r1', 'r2', 'r3'] });
+
+    // Assert
+    expect(await readJson(ORDER_FILE_NAME)).toEqual(['f1']);
+    expect(await readJson('f1', ORDER_FILE_NAME)).toEqual(['f2']);
+    expect(persisted(await reload())).toEqual(persisted(next));
+  });
+
+  it('copy of several items writes every copy and the orders of their parents', async () => {
+    // Act
+    const next = await run(model, {
+      type: CommandType.COPY,
+      ids: ['r1', 'r3'],
+      idMap: { r1: 'c1', r3: 'c3' },
+    });
+
+    // Assert
+    expect(await readJson(ORDER_FILE_NAME)).toEqual(['f1', 'r3', 'c3']);
+    expect(await readJson('f1', ORDER_FILE_NAME)).toEqual(['r1', 'f2', 'c1']);
+    expect(persisted(await reload())).toEqual(persisted(next));
+  });
+
+  it('createDraft creates the draft directory', async () => {
+    // Act
+    const next = await run(model, { type: CommandType.CREATE_DRAFT, id: 'r3' });
+
+    // Assert
+    expect(await exists(path.join(dirPath, 'r3', DRAFT_DIR_NAME, 'request.json'))).toBe(true);
+    expect(persisted(await reload())).toEqual(persisted(next));
+  });
+
   it('move moves a folder whose descendants still resolve afterwards', async () => {
     // Act
-    const next = await run(model, { type: CommandType.MOVE, id: 'f2', parentId: 'col', index: 0 });
+    const next = await run(model, {
+      type: CommandType.MOVE,
+      ids: ['f2'],
+      parentId: 'col',
+      index: 0,
+    });
     await run(next, { type: CommandType.SET_TEXT_BODY, id: 'r2', text: 'moved' });
 
     // Assert
@@ -185,7 +280,12 @@ describe('getCommandEffects()', () => {
 
   it('move within the same parent only writes the new order', async () => {
     // Act
-    const next = await run(model, { type: CommandType.MOVE, id: 'r3', parentId: 'col', index: 0 });
+    const next = await run(model, {
+      type: CommandType.MOVE,
+      ids: ['r3'],
+      parentId: 'col',
+      index: 0,
+    });
 
     // Assert
     expect(await readJson(ORDER_FILE_NAME)).toEqual(['r3', 'f1']);
@@ -194,7 +294,7 @@ describe('getCommandEffects()', () => {
 
   it('delete removes the directory and the ID from the order of the parent', async () => {
     // Act
-    const next = await run(model, { type: CommandType.DELETE, id: 'f2' });
+    const next = await run(model, { type: CommandType.DELETE, ids: ['f2'] });
 
     // Assert
     expect(await exists(path.join(dirPath, 'f1', 'f2'))).toBe(false);
@@ -211,7 +311,7 @@ describe('getCommandEffects()', () => {
     // Act
     const next = await run(current, {
       type: CommandType.COPY,
-      id: 'f1',
+      ids: ['f1'],
       idMap: { f1: 'c1', r1: 'cr1', f2: 'c2', r2: 'cr2' },
     });
 
@@ -236,7 +336,7 @@ describe('getCommandEffects()', () => {
     current = await run(current, { type: CommandType.SET_TEXT_BODY, id: 'r3', text: 'draft body' });
 
     // Act
-    const next = await run(current, { type: CommandType.COPY, id: 'r3', idMap: { r3: 'copy' } });
+    const next = await run(current, { type: CommandType.COPY, ids: ['r3'], idMap: { r3: 'copy' } });
 
     // Assert
     expect(await readText('r3-copy', TEXT_BODY_FILE_NAME)).toBe('draft body');
@@ -272,7 +372,6 @@ describe('getCommandEffects()', () => {
     await effects.immediate?.();
 
     // Assert
-    expect(effects.debounce).toBeUndefined();
     expect(await readText('r3', DRAFT_DIR_NAME, TEXT_BODY_FILE_NAME)).toBe('saved body');
     expect(await readText('r3', DRAFT_DIR_NAME, getScriptFileName(ScriptType.POST_RESPONSE))).toBe(
       'post'
@@ -287,7 +386,7 @@ describe('getCommandEffects()', () => {
 
   it('editRequest of a draft is debounced', async () => {
     // Arrange
-    const draft = await run(model, { type: CommandType.EDIT_REQUEST, id: 'r3', changes: {} });
+    const draft = await run(model, { type: CommandType.CREATE_DRAFT, id: 'r3' });
     const command: CollectionCommand = {
       type: CommandType.EDIT_REQUEST,
       id: 'r3',
@@ -302,7 +401,8 @@ describe('getCommandEffects()', () => {
     );
 
     // Assert
-    expect(effects).toEqual({ debounce: ['r3'] });
+    expect(effects.immediate).toBeUndefined();
+    expect(effects.dirtyRequestId).toBe('r3');
   });
 
   it('setScript writes the script into the draft', async () => {

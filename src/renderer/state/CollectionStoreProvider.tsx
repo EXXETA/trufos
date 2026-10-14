@@ -1,38 +1,35 @@
 import { useEffect, useState, FC, PropsWithChildren } from 'react';
 import { Loader2 } from 'lucide-react';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { MainProcessEvent, MainProcessEventPayloads, RendererEvent } from 'shim/event-service';
+import { MainProcessEvent, MainProcessEventListener, RendererEvent } from 'shim/event-service';
 import {
   CollectionStore,
   createCollectionStore,
-  createModelPersistence,
   CollectionStoreProvider as StoreProvider,
 } from '@/state/collectionStore';
-import { CollectionReplica } from '@/state/collection-replica';
-import { flushModelEdits, registerModelPersistence } from '@/lib/monaco/models';
+import { CollectionState } from '@/state/collection-state';
+import { flushModelEdits } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
 
 const rendererEventService = RendererEventService.instance;
-
-type Listener<E extends MainProcessEvent> = (
-  ipcEvent: unknown,
-  ...payload: MainProcessEventPayloads[E]
-) => void;
 
 export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => {
   const [store, setStore] = useState<CollectionStore | null>(null);
 
   useEffect(() => {
-    let replica: CollectionReplica | undefined;
+    let collectionState: CollectionState | undefined;
     let disposed = false;
 
     // Registered before the snapshot is fetched: earlier changes are part of the snapshot
-    const onStateChanged: Listener<MainProcessEvent.CollectionStateChanged> = (_, event) => {
-      if (!disposed) replica?.receive(event);
+    const onStateChanged: MainProcessEventListener<MainProcessEvent.CollectionStateChanged> = (
+      _,
+      event
+    ) => {
+      if (!disposed) collectionState?.receive(event);
     };
 
     // Send all pending editor changes to main before the window closes
-    const onBeforeClose: Listener<MainProcessEvent.BeforeClose> = async () => {
+    const onBeforeClose: MainProcessEventListener<MainProcessEvent.BeforeClose> = async () => {
       try {
         console.info('Saving all editor changes before close');
         await flushModelEdits();
@@ -56,8 +53,7 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
           (envelope) => rendererEventService.dispatch(envelope),
           () => rendererEventService.getCollectionState()
         );
-        replica = created.replica;
-        registerModelPersistence(createModelPersistence(created.replica));
+        collectionState = created.collectionState;
         setStore(created.store);
       } catch (error) {
         showError("Couldn't load collection store", error);
@@ -68,7 +64,6 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
 
     return () => {
       disposed = true;
-      registerModelPersistence(undefined);
       rendererEventService
         .removeListener(MainProcessEvent.CollectionStateChanged, onStateChanged)
         .removeListener(MainProcessEvent.BeforeClose, onBeforeClose);

@@ -1,12 +1,8 @@
 import { useCallback } from 'react';
 import { create } from 'zustand';
-import { flushModelEdits } from '@/lib/monaco/models';
-import { HttpService } from '@/services/http/http-service';
 import { showError } from '@/error/errorHandler';
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
-
-const httpService = HttpService.instance;
 
 /**
  * The one in-flight operation per kind, shared across every caller of `useSendRequest`/
@@ -21,9 +17,10 @@ const useInFlightStore = create<{ activeSend: AbortController | null; isSaving: 
 }));
 
 /**
- * Shared send-request side effect: sends all pending editor changes to main, sends the currently
- * selected request via the HTTP service, and stores the response. No-ops when there is no selected
- * request or a send is already in flight. Never throws — errors are caught and shown as a toast.
+ * Shared send-request side effect: sends the currently selected request, including its pending
+ * editor changes, and stores the response. No-ops when
+ * there is no selected request or a send is already in flight. Never throws — errors are caught
+ * and shown as a toast.
  *
  * `isSending` is a single fact shared across every caller of this hook (not a per-caller local
  * state), so any UI reading it reflects whether the current request is being sent right now,
@@ -35,29 +32,26 @@ export function useSendRequest(): {
   isSending: boolean;
 } {
   const isSending = useInFlightStore((state) => state.activeSend != null);
-  const request = useCollectionStore(selectRequest);
+  const requestId = useCollectionStore((state) => state.selectedRequestId);
   const { addResponse } = useResponseActions();
+  const { sendRequest: send } = useCollectionActions();
 
   const sendRequest = useCallback(async () => {
-    if (request == null || useInFlightStore.getState().activeSend != null) return;
+    if (requestId == null || useInFlightStore.getState().activeSend != null) return;
 
     const abortController = new AbortController();
     useInFlightStore.setState({ activeSend: abortController });
 
     try {
-      // Cancelling during this flush aborts the signal before the request goes out, so the send
-      // below returns null without ever reaching the main process.
-      await flushModelEdits();
-
       // No response means the user cancelled, so there is nothing to store.
-      const response = await httpService.sendRequest(request.id, abortController.signal);
-      if (response != null) addResponse(request.id, response);
+      const response = await send(requestId, abortController.signal);
+      if (response != null) addResponse(requestId, response);
     } catch (error) {
       showError(error);
     } finally {
       useInFlightStore.setState({ activeSend: null });
     }
-  }, [request, addResponse]);
+  }, [requestId, addResponse, send]);
 
   const cancelRequest = useCallback(() => useInFlightStore.getState().activeSend?.abort(), []);
 
@@ -75,21 +69,16 @@ export function useSendRequest(): {
  */
 export function useSaveRequest(): { saveRequest: () => Promise<void>; isSaving: boolean } {
   const isSaving = useInFlightStore((state) => state.isSaving);
-  const request = useCollectionStore(selectRequest);
+  const requestId = useCollectionStore((state) => state.selectedRequestId);
   const { saveRequest: save } = useCollectionActions();
 
   const saveRequest = useCallback(async () => {
-    if (request == null) return;
+    if (requestId == null) return;
 
-    try {
-      useInFlightStore.setState({ isSaving: true });
-      await save(request.id);
-    } catch (error) {
-      showError(error);
-    } finally {
-      useInFlightStore.setState({ isSaving: false });
-    }
-  }, [request, save]);
+    useInFlightStore.setState({ isSaving: true });
+    await save(requestId);
+    useInFlightStore.setState({ isSaving: false });
+  }, [requestId, save]);
 
   return { saveRequest, isSaving };
 }

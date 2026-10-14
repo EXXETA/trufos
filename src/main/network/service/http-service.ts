@@ -1,18 +1,16 @@
 import undici, { Agent, Dispatcher, FormData } from 'undici';
 import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
-import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { pipeline } from 'node:stream/promises';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import { Readable } from 'stream';
 import { EnvironmentService } from 'main/environment/service/environment-service';
-import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
 import { StoredBody, TrufosResponse } from 'shim/objects/response';
-import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { waitUntilOpen } from 'main/util/fs-util';
+import type { RequestFiles } from 'main/persistence/service/persistence-service';
+import type { ClientCertificate } from 'shim/objects/collection';
 import { isBlankHeader, TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
@@ -20,33 +18,32 @@ import process from 'node:process';
 import { BodyStore } from 'main/network/service/body-store';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { ScriptType } from 'shim/scripting';
-import { text } from 'node:stream/consumers';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { mapRequestError } from 'main/network/service/request-error';
-import type { RequestRecorder } from 'main/network/service/request-recorder';
+import type { RequestRecorder, ScriptLogger } from 'main/network/service/request-recorder';
 import { copyRequestBody } from 'main/network/service/request-body-copy';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
+import { HistoryService } from 'main/history/history-service';
+import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
+import { TrufosId } from 'shim/objects/id';
 
-const fileSystemService = FileSystemService.instance;
 const environmentService = EnvironmentService.instance;
-const persistenceService = PersistenceService.instance;
 const bodyStore = BodyStore.instance;
 const scriptingService = ScriptingService.instance;
+const collectionState = CollectionStateService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
 
 /**
- * A request together with its files, opened at the moment it is sent. Its scripts are read, its
- * text body is streamed from the file opened then. So editing, saving or discarding the request
- * while it is sent cannot change what is sent, as these replace files instead of changing them.
+ * A request together with its files, taken at the moment it is sent. Its scripts
+ * are read, its text body is streamed from the file opened then. So editing, saving or discarding
+ * the request while it is sent cannot change what is sent, as these replace files instead of
+ * changing them. Whoever prepared the request closes its text body.
  */
-export interface PreparedRequest {
+export interface PreparedRequest extends RequestFiles {
   request: TrufosRequest;
-  /** The opened text body, if the request has a text body that was ever written. */
-  textBody?: Readable;
-  /** The scripts of the request, by type. */
-  scripts: Partial<Record<ScriptType, string>>;
 }
-declare type DispatcherProvider = () => Promise<Dispatcher>;
+declare type DispatcherProvider = (clientCertificate?: ClientCertificate) => Promise<Dispatcher>;
 
 /**
  * Singleton service for making HTTP requests
@@ -55,13 +52,13 @@ export class HttpService {
   public static readonly instance = new HttpService();
 
   private readonly _dispatcherProvider: DispatcherProvider;
+  private readonly abortControllers = new Map<string, AbortController>();
 
   constructor(dispatcherProvider?: DispatcherProvider) {
     this._dispatcherProvider = dispatcherProvider ?? this.buildDefaultDispatcher.bind(this);
   }
 
-  private async buildDefaultDispatcher(): Promise<Dispatcher> {
-    const cert = CollectionStateService.instance.model.collection.clientCertificate;
+  private async buildDefaultDispatcher(cert?: ClientCertificate): Promise<Dispatcher> {
     if (cert == null) {
       return new Agent({ connect: { rejectUnauthorized: false } }); // allow self-signed certificates
     }
@@ -76,28 +73,57 @@ export class HttpService {
   }
 
   /**
-   * Opens the files a request needs to be sent: it reads its scripts and opens its text body. Call
-   * this while no change of the collection is written, see {@link CollectionStateService.read}.
-   * The text body is only streamed by {@link fetchAsync}, which also closes it.
-   * @param request the request to prepare
-   * @returns the request with the content of its files
+   * Sends a request of the open collection as it is now, including its body and scripts, even if
+   * it is changed while it is sent. The request is recorded in the history.
+   * @param requestId the ID of the request
+   * @param abortKey the key to abort the request with, see {@link abortRequest}
+   * @returns the response, or null if the request was aborted
    */
-  public async prepare(request: TrufosRequest): Promise<PreparedRequest> {
-    const [textBody, preRequestScript, postResponseScript] = await Promise.all([
-      this.openTextBody(request),
-      this.readScript(request, ScriptType.PRE_REQUEST),
-      this.readScript(request, ScriptType.POST_RESPONSE),
-    ]);
-    const scripts: PreparedRequest['scripts'] = {};
-    if (preRequestScript != null) scripts[ScriptType.PRE_REQUEST] = preRequestScript;
-    if (postResponseScript != null) scripts[ScriptType.POST_RESPONSE] = postResponseScript;
-    return { request, textBody, scripts };
+  public async sendRequest(requestId: TrufosId, abortKey?: string): Promise<TrufosResponse | null> {
+    const prepared = await collectionState.prepareRequest(requestId);
+    const { request } = prepared;
+
+    const abortController = new AbortController();
+    if (abortKey != null) this.abortControllers.set(abortKey, abortController);
+
+    let response: TrufosResponse | null;
+    try {
+      response = await HistoryService.instance.record(
+        request,
+        collectionState.model.collection.dirPath,
+        async (recorder) => {
+          try {
+            return await this.fetchAsync(prepared, recorder, abortController.signal);
+          } catch (error) {
+            // An aborted request simply has no response. This is the outcome the caller asked for, so
+            // it is reported as one instead of as the platform's abort error.
+            if (!abortController.signal.aborted) throw error;
+            logger.debug('Request was aborted:', request.id);
+            return null;
+          }
+        }
+      );
+    } finally {
+      if (abortKey != null) this.abortControllers.delete(abortKey);
+      // the body is not streamed if sending failed before, and closing a streamed body is a no-op
+      prepared.textBody?.destroy();
+    }
+
+    // the response panel and the collection runner show the latest response of a request
+    if (response != null) LatestResponseBodies.instance.set(request.id, response.body?.id);
+    return response;
+  }
+
+  /** Aborts a request sent with the given abort key, see {@link sendRequest}. */
+  public abortRequest(abortKey: string): void {
+    this.abortControllers.get(abortKey)?.abort();
+    this.abortControllers.delete(abortKey);
   }
 
   /**
    * Fetch a resource asynchronously. The response body is written to a temporary file. Any failure
    * is mapped to a user-friendly {@link DisplayableError}.
-   * @param prepared the request to send, see {@link prepare}
+   * @param prepared the request to send. Its text body is not closed.
    * @returns response object
    */
   public async fetchAsync(
@@ -111,9 +137,6 @@ export class HttpService {
       if (signal?.aborted) throw error;
       if (error instanceof DisplayableError) throw error;
       throw mapRequestError(error);
-    } finally {
-      // the body is not streamed if sending failed before, and closing a streamed body is a no-op
-      prepared.textBody?.destroy();
     }
   }
 
@@ -164,15 +187,7 @@ export class HttpService {
       this.trufosHeadersToUndiciHeaders(request.headers)
     );
 
-    // execute pre-request script if it exists
-    const preRequestScript = scripts[ScriptType.PRE_REQUEST];
-    if (preRequestScript != null) {
-      await scriptingService.executeScript(
-        preRequestScript,
-        ScriptType.PRE_REQUEST,
-        recorder.scriptLog
-      );
-    }
+    await this.runScript(scripts, ScriptType.PRE_REQUEST, recorder.scriptLog);
 
     const [body, size] = await this.readBody(request, textBody);
     const sentHeaders = withoutUnsetHeaders({
@@ -188,7 +203,9 @@ export class HttpService {
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
-      dispatcher: await this._dispatcherProvider(),
+      dispatcher: await this._dispatcherProvider(
+        collectionState.model.collection.clientCertificate
+      ),
       method: request.method,
       headers: sentHeaders,
       body: sentBody,
@@ -198,15 +215,7 @@ export class HttpService {
     const duration = getDurationFromNow(now);
     logger.info(`Received response in ${duration}ms`);
 
-    // execute post-response script if it exists
-    const postResponseScript = scripts[ScriptType.POST_RESPONSE];
-    if (postResponseScript != null) {
-      await scriptingService.executeScript(
-        postResponseScript,
-        ScriptType.POST_RESPONSE,
-        recorder.scriptLog
-      );
-    }
+    await this.runScript(scripts, ScriptType.POST_RESPONSE, recorder.scriptLog);
 
     // write the response body to an encrypted temporary file
     let responseBody: StoredBody | undefined;
@@ -249,7 +258,7 @@ export class HttpService {
     switch (request.body.type) {
       case RequestBodyType.TEXT: {
         if (textBody == null) return [];
-        return [environmentService.setVariablesInStream(textBody) as Readable];
+        return [environmentService.setVariablesInStream(textBody)];
       }
       case RequestBodyType.FILE:
         return this.readFileBody(request.body.filePath);
@@ -286,8 +295,14 @@ export class HttpService {
 
   private async readFileBody(filePath?: string): Promise<[Readable?, number?]> {
     if (filePath == null) return [];
-    const { size } = await fsp.stat(filePath);
-    return [await fileSystemService.readFile(filePath), size];
+    const handle = await fsp.open(filePath);
+    try {
+      const { size } = await handle.stat();
+      return [handle.createReadStream(), size];
+    } catch (error) {
+      await handle.close();
+      throw error;
+    }
   }
 
   /**
@@ -331,23 +346,14 @@ export class HttpService {
     return Promise.all(values.map((value) => environmentService.setVariablesInString(value)));
   }
 
-  /**
-   * Opens the text body of the request. The body file only exists once the request was opened in
-   * the editor, so requests that were never opened (e.g. sent via the collection runner) have none.
-   * @returns the opened text body, or `undefined` if the request has none
-   */
-  private async openTextBody(request: TrufosRequest) {
-    if (request.body.type !== RequestBodyType.TEXT) return undefined;
-    return await persistenceService.loadTextBodyOfRequest(request).then(waitUntilOpen);
-  }
-
-  /**
-   * Reads a script of the request completely.
-   * @returns the text of the script, or `undefined` if the request has none
-   */
-  private async readScript(request: TrufosRequest, type: ScriptType) {
-    const stream = await persistenceService.loadScript(request, type);
-    return stream == null ? undefined : await text(stream);
+  /** Executes a script of a prepared request, if it has one. */
+  private async runScript(
+    scripts: PreparedRequest['scripts'],
+    type: ScriptType,
+    log: ScriptLogger
+  ) {
+    const script = scripts[type];
+    if (script != null) await scriptingService.executeScript(script, type, log);
   }
 }
 

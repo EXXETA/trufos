@@ -8,8 +8,8 @@ export class HttpService {
   public static readonly instance: HttpService = new HttpService();
 
   /**
-   * Send a request of the open collection in its current state, including unsaved changes. Pending
-   * editor changes must be flushed first, see `flushModelEdits`.
+   * Send a request of the open collection in its current state, as main has it. Unsaved editor
+   * changes are not sent, see the `sendRequest` action of the collection store.
    * @param requestId The ID of the request to send.
    * @param signal Aborting this signal cancels the request. Only a request sent with one can be
    * cancelled, and only such a request can end without a response.

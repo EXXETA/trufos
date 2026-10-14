@@ -107,7 +107,7 @@ describe('applyCommand', () => {
   });
 
   it('renames a request and its saved state', () => {
-    let model = apply(createModel(), { type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
+    let model = apply(createModel(), { type: CommandType.CREATE_DRAFT, id: 'r1' });
     model = apply(model, { type: CommandType.RENAME, id: 'r1', title: 'renamed' });
     expect(model.requests.get('r1')!.title).toBe('renamed');
     expect(model.savedRequests.get('r1')!.title).toBe('renamed');
@@ -116,7 +116,7 @@ describe('applyCommand', () => {
   it('reorders within the same parent', () => {
     const model = apply(createModel(), {
       type: CommandType.MOVE,
-      id: 'r1',
+      ids: ['r1'],
       parentId: 'f1',
       index: 1,
     });
@@ -126,7 +126,7 @@ describe('applyCommand', () => {
   it('moves to another parent and updates parentId', () => {
     const model = apply(createModel(), {
       type: CommandType.MOVE,
-      id: 'r1',
+      ids: ['r1'],
       parentId: 'col',
       index: 0,
     });
@@ -137,15 +137,55 @@ describe('applyCommand', () => {
 
   it('rejects moving a folder into itself or a descendant', () => {
     expect(() =>
-      apply(createModel(), { type: CommandType.MOVE, id: 'f1', parentId: 'f2', index: 0 })
+      apply(createModel(), { type: CommandType.MOVE, ids: ['f1'], parentId: 'f2', index: 0 })
     ).toThrow(CommandError);
     expect(() =>
-      apply(createModel(), { type: CommandType.MOVE, id: 'f1', parentId: 'f1', index: 0 })
+      apply(createModel(), { type: CommandType.MOVE, ids: ['f1'], parentId: 'f1', index: 0 })
     ).toThrow(CommandError);
   });
 
+  it('moves several items in the given order, indexed without the moved items', () => {
+    const model = apply(createModel(), {
+      type: CommandType.MOVE,
+      ids: ['r3', 'r1'],
+      parentId: 'col',
+      index: 0,
+    });
+    expect(model.childIds.get('col')).toEqual(['r3', 'r1', 'f1']);
+    expect(model.childIds.get('f1')).toEqual(['f2']);
+    expect(model.requests.get('r1')!.parentId).toBe('col');
+  });
+
+  it('rejects bulk commands with nested or repeated items without changing anything', () => {
+    for (const command of [
+      { type: CommandType.DELETE, ids: ['f1', 'r1'] },
+      { type: CommandType.DELETE, ids: ['r3', 'r3'] },
+      { type: CommandType.MOVE, ids: ['f2', 'r2'], parentId: 'col', index: 0 },
+      { type: CommandType.COPY, ids: ['f1', 'f2'], idMap: { f1: 'a', r1: 'b', f2: 'c', r2: 'd' } },
+    ] satisfies CollectionCommand[]) {
+      expect(() => apply(createModel(), command)).toThrow(CommandError);
+    }
+  });
+
+  it('deletes several items at once', () => {
+    const model = apply(createModel(), { type: CommandType.DELETE, ids: ['f2', 'r3'] });
+    expect(model.childIds.get('col')).toEqual(['f1']);
+    expect(model.childIds.get('f1')).toEqual(['r1']);
+    expect([...model.requests.keys()]).toEqual(['r1']);
+  });
+
+  it('copies several items, each to the end of its parent', () => {
+    const model = apply(createModel(), {
+      type: CommandType.COPY,
+      ids: ['r1', 'r3'],
+      idMap: { r1: 'c1', r3: 'c3' },
+    });
+    expect(model.childIds.get('f1')).toEqual(['r1', 'f2', 'c1']);
+    expect(model.childIds.get('col')).toEqual(['f1', 'r3', 'c3']);
+  });
+
   it('deletes a folder with all descendants', () => {
-    const model = apply(createModel(), { type: CommandType.DELETE, id: 'f1' });
+    const model = apply(createModel(), { type: CommandType.DELETE, ids: ['f1'] });
     expect(model.childIds.get('col')).toEqual(['r3']);
     expect(model.folders.size).toBe(0);
     expect([...model.requests.keys()]).toEqual(['r3']);
@@ -155,7 +195,7 @@ describe('applyCommand', () => {
   it('copies a folder with all descendants to the end of its parent', () => {
     const model = apply(createModel(), {
       type: CommandType.COPY,
-      id: 'f1',
+      ids: ['f1'],
       idMap: { f1: 'c1', r1: 'cr1', f2: 'c2', r2: 'cr2' },
     });
     expect(model.childIds.get('col')).toEqual(['f1', 'r3', 'c1']);
@@ -172,14 +212,14 @@ describe('applyCommand', () => {
       id: 'r3',
       changes: { method: RequestMethod.POST },
     });
-    model = apply(model, { type: CommandType.COPY, id: 'r3', idMap: { r3: 'c3' } });
+    model = apply(model, { type: CommandType.COPY, ids: ['r3'], idMap: { r3: 'c3' } });
     expect(model.requests.get('c3')).toMatchObject({ method: RequestMethod.POST, draft: false });
     expect(model.savedRequests.has('c3')).toBe(false);
   });
 
   it('rejects a copy with missing IDs', () => {
     expect(() =>
-      apply(createModel(), { type: CommandType.COPY, id: 'f1', idMap: { f1: 'c1' } })
+      apply(createModel(), { type: CommandType.COPY, ids: ['f1'], idMap: { f1: 'c1' } })
     ).toThrow(CommandError);
   });
 
@@ -223,6 +263,12 @@ describe('applyCommand', () => {
     expect(model.requests.get('r1')!.auth).toEqual({ type: AuthorizationType.BEARER, token: 't' });
     model = apply(model, { type: CommandType.EDIT_REQUEST, id: 'r1', changes: { auth: null } });
     expect(model.requests.get('r1')).not.toHaveProperty('auth');
+  });
+
+  it('creates a draft without changing the request', () => {
+    const model = apply(createModel(), { type: CommandType.CREATE_DRAFT, id: 'r1' });
+    expect(model.requests.get('r1')).toMatchObject({ draft: true, method: RequestMethod.GET });
+    expect(model.savedRequests.get('r1')).toMatchObject({ draft: false });
   });
 
   it('marks a request as draft when its body or script changes', () => {
@@ -321,7 +367,7 @@ describe('applyCommand', () => {
       applyCommand(draft, {
         commandId: 'cmd',
         timestamp: TIMESTAMP,
-        command: { type: CommandType.MOVE, id: 'r2', parentId: 'col', index: 0 },
+        command: { type: CommandType.MOVE, ids: ['r2'], parentId: 'col', index: 0 },
       })
     );
     // patches are sent over IPC, which uses the structured clone algorithm

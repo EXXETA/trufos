@@ -1,13 +1,18 @@
-import { current, produce, type Draft } from 'immer';
+import { current, type Draft, type Patch, produce, produceWithPatches } from 'immer';
 import { TrufosRequest } from '../objects/request';
 import { CommandEnvelope, CommandError, CommandType } from './commands';
 import {
+  assignChanges,
   CollectionModel,
+  CollectionNodes,
+  FolderInfo,
   getDescendantIds,
   getNode,
+  getTopLevelIds,
   getValidEnvironmentKey,
   isParent,
   isSelfOrDescendant,
+  TreeNode,
 } from './model';
 
 type ModelDraft = Draft<CollectionModel>;
@@ -25,14 +30,14 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
     case CommandType.CREATE_REQUEST: {
       const { request } = command;
       assertNewId(model, request.id);
-      insertChild(model, request.parentId, request.id, command.index);
+      insertChildren(model, request.parentId, [request.id], command.index);
       model.requests.set(request.id, { ...request, lastModified: timestamp });
       return;
     }
     case CommandType.CREATE_FOLDER: {
       const { folder } = command;
       assertNewId(model, folder.id);
-      insertChild(model, folder.parentId, folder.id, command.index);
+      insertChildren(model, folder.parentId, [folder.id], command.index);
       model.folders.set(folder.id, { ...folder, lastModified: timestamp });
       model.childIds.set(folder.id, []);
       return;
@@ -47,40 +52,42 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       return;
     }
     case CommandType.MOVE: {
-      const node = getExistingNode(model, command.id);
+      const nodes = getTopLevelNodes(model, command.ids);
       if (!isParent(model, command.parentId)) {
         throw new CommandError(`Parent ${command.parentId} does not exist`);
-      } else if (isSelfOrDescendant(model, command.parentId, command.id)) {
-        throw new CommandError(`Cannot move ${command.id} into itself`);
       }
-      removeChild(model, node.parentId, node.id);
-      insertChild(model, command.parentId, node.id, command.index);
-      node.parentId = command.parentId;
-      const saved = model.savedRequests.get(command.id);
-      if (saved != null) saved.parentId = command.parentId;
+      for (const node of nodes) {
+        if (isSelfOrDescendant(model, command.parentId, node.id)) {
+          throw new CommandError(`Cannot move ${node.id} into itself`);
+        }
+      }
+      for (const node of nodes) {
+        removeChild(model, node.parentId, node.id);
+        node.parentId = command.parentId;
+        const saved = model.savedRequests.get(node.id);
+        if (saved != null) saved.parentId = command.parentId;
+      }
+      insertChildren(model, command.parentId, command.ids, command.index);
       return;
     }
-    case CommandType.DELETE: {
-      const node = getExistingNode(model, command.id);
-      removeChild(model, node.parentId, node.id);
-      deleteSubtree(model, node.id);
+    case CommandType.DELETE:
+      for (const node of getTopLevelNodes(model, command.ids)) {
+        removeChild(model, node.parentId, node.id);
+        deleteSubtree(model, node.id);
+      }
       return;
-    }
-    case CommandType.COPY: {
-      copySubtree(model, command.id, command.idMap, timestamp);
+    case CommandType.COPY:
+      for (const node of getTopLevelNodes(model, command.ids)) {
+        copySubtree(model, node.id, command.idMap, timestamp);
+      }
       return;
-    }
-    case CommandType.EDIT_REQUEST: {
-      const request = getDraftRequest(model, command.id, timestamp);
-      const { auth, ...changes } = command.changes;
-      Object.assign(request, changes);
-      if (auth === null) delete request.auth;
-      else if (auth !== undefined) request.auth = auth;
+    case CommandType.EDIT_REQUEST:
+      assignChanges(getDraftRequest(model, command.id, timestamp), command.changes);
       return;
-    }
+    case CommandType.CREATE_DRAFT:
     case CommandType.SET_TEXT_BODY:
     case CommandType.SET_SCRIPT:
-      // the content itself is not part of the model, the main process writes it to disk
+      // the text body and scripts are not part of the model, the main process writes them to disk
       getDraftRequest(model, command.id, timestamp);
       return;
     case CommandType.SAVE_REQUEST: {
@@ -103,21 +110,14 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       }
       return;
     }
-    case CommandType.UPDATE_COLLECTION: {
-      const { clientCertificate, auth, ...changes } = command.changes;
-      Object.assign(model.collection, changes);
-      if (clientCertificate === null) delete model.collection.clientCertificate;
-      else if (clientCertificate !== undefined)
-        model.collection.clientCertificate = clientCertificate;
-      if (auth === null) delete model.collection.auth;
-      else if (auth !== undefined) model.collection.auth = auth;
+    case CommandType.UPDATE_COLLECTION:
+      assignChanges(model.collection, command.changes);
       // removing the selected environment selects another one
       model.selectedEnvironmentKey = getValidEnvironmentKey(
-        model.collection,
+        model.collection.environments,
         model.selectedEnvironmentKey
       );
       return;
-    }
     case CommandType.SELECT_ENVIRONMENT:
       if (command.key != null && model.collection.environments[command.key] == null) {
         throw new CommandError(`Environment ${command.key} does not exist`);
@@ -133,16 +133,25 @@ function assertNewId(model: ModelDraft, id: string) {
   }
 }
 
-function getExistingNode(model: ModelDraft, id: string) {
+/** Returns the folder or request with the given ID. @throws CommandError if there is none */
+export function getExistingNode(model: CollectionNodes, id: string): TreeNode {
   const node = getNode(model, id);
   if (node == null) throw new CommandError(`Object ${id} does not exist`);
   return node;
 }
 
-function getExistingRequest(model: ModelDraft, id: string) {
+/** Returns the request with the given ID. @throws CommandError if there is none */
+export function getExistingRequest(model: CollectionNodes, id: string): TrufosRequest {
   const request = model.requests.get(id);
   if (request == null) throw new CommandError(`Request ${id} does not exist`);
   return request;
+}
+
+/** Returns the folder with the given ID. @throws CommandError if there is none */
+export function getExistingFolder(model: CollectionNodes, id: string): FolderInfo {
+  const folder = model.folders.get(id);
+  if (folder == null) throw new CommandError(`Folder ${id} does not exist`);
+  return folder;
 }
 
 /** Returns the request with the given ID, turning it into a draft first if it is none yet. */
@@ -157,18 +166,36 @@ function getDraftRequest(model: ModelDraft, id: string, timestamp: number) {
   return request;
 }
 
-function insertChild(model: ModelDraft, parentId: string, childId: string, index?: number) {
+/**
+ * Returns the folders and requests a bulk command acts on.
+ * @throws CommandError if one does not exist, is given twice or is a descendant of another
+ */
+function getTopLevelNodes(model: ModelDraft, ids: string[]) {
+  const nodes = ids.map((id) => getExistingNode(model, id));
+  if (new Set(ids).size !== ids.length) throw new CommandError('An object is given more than once');
+  if (getTopLevelIds(model, ids).length !== ids.length) {
+    throw new CommandError('An object is a descendant of another given object');
+  }
+  return nodes;
+}
+
+function insertChildren(
+  model: ModelDraft,
+  parentId: string,
+  newChildIds: string[],
+  index?: number
+) {
   const childIds = model.childIds.get(parentId);
   if (childIds == null || !isParent(model, parentId)) {
     throw new CommandError(`Parent ${parentId} does not exist`);
   }
-  childIds.splice(Math.min(index ?? childIds.length, childIds.length), 0, childId);
+  childIds.splice(Math.min(index ?? childIds.length, childIds.length), 0, ...newChildIds);
 }
 
 function removeChild(model: ModelDraft, parentId: string, childId: string) {
-  const childIds = model.childIds.get(parentId);
-  const index = childIds?.indexOf(childId) ?? -1;
-  if (index !== -1) childIds!.splice(index, 1);
+  const childIds = model.childIds.get(parentId) ?? [];
+  const index = childIds.indexOf(childId);
+  if (index !== -1) childIds.splice(index, 1);
 }
 
 function deleteSubtree(model: ModelDraft, id: string) {
@@ -201,7 +228,7 @@ function copySubtree(
     const source = getExistingNode(model, sourceId);
     const parentId = sourceId === id ? root.parentId : idMap[source.parentId];
     const title = sourceId === id ? `${source.title} (Copy)` : source.title;
-    insertChild(model, parentId, copyId);
+    insertChildren(model, parentId, [copyId]);
 
     if (source.type === 'folder') {
       model.folders.set(copyId, {
@@ -230,4 +257,20 @@ function copySubtree(
 /** Returns a copy of the model with the command applied, see {@link applyCommand}. */
 export function applyCommandTo(model: CollectionModel, envelope: CommandEnvelope): CollectionModel {
   return produce(model, (draft) => applyCommand(draft, envelope));
+}
+
+/**
+ * What the main process does for every command: applies it, increments the version and records the
+ * patches that the renderer replays.
+ * @returns the new model and the patches that turn the given model into it
+ */
+export function applyCommandWithPatches(
+  model: CollectionModel,
+  envelope: CommandEnvelope
+): [CollectionModel, Patch[]] {
+  const [next, patches] = produceWithPatches(model, (draft) => {
+    applyCommand(draft, envelope);
+    draft.version++;
+  });
+  return [next, patches];
 }

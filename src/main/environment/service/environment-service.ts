@@ -68,7 +68,7 @@ export class EnvironmentService {
    * @param key The key of the variable.
    * @returns The value of the variable if it exists, otherwise undefined.
    */
-  public getVariable(key: string): VariableObject {
+  public getVariable(key: string): VariableObject | undefined {
     return (
       this.currentEnvironment?.variables[key] ??
       collectionState.model.collection.variables[key] ??

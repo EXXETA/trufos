@@ -14,19 +14,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useBodyData } from '@/hooks/useBodyData';
 import { FolderIcon, SmallArrow } from '@/components/icons';
-import { HttpService } from '@/services/http/http-service';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
-import { flushModelEdits } from '@/lib/monaco/models';
 import { cn } from '@/lib/utils';
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { CollectionTree, getChildren } from '@/components/sidebar/SidebarRequestList/treeUtilities';
+import {
+  useCollectionActions,
+  useCollectionStore,
+  useCollectionTree,
+} from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
-import { showError } from '@/error/errorHandler';
+import { CollectionTree, getChildren, getDescendantIds } from 'shim/collection-model';
 import type { TrufosRequest } from 'shim/objects/request';
 import type { TrufosResponse } from 'shim/objects/response';
-
-const httpService = HttpService.instance;
 
 /** Sentinel for "no environment" since radix Select does not allow empty item values. */
 const NO_ENVIRONMENT = '__none__';
@@ -69,12 +68,6 @@ interface CollectionRunnerProps {
   onClose: () => void;
 }
 
-function collectRequestIds(tree: CollectionTree, folderId: string): string[] {
-  return getChildren(tree, folderId).flatMap((child) =>
-    child.type === 'request' ? child.id : collectRequestIds(tree, child.id)
-  );
-}
-
 function buildRunnerItems(
   tree: CollectionTree,
   parentId: string,
@@ -102,7 +95,7 @@ function buildRunnerItems(
         title: child.title,
         depth,
         ancestors,
-        requestIds: collectRequestIds(tree, child.id),
+        requestIds: getDescendantIds(tree, child.id).filter((id) => tree.requests.has(id)),
       },
       ...buildRunnerItems(tree, child.id, depth + 1, [...ancestors, child.id]),
     ];
@@ -211,13 +204,12 @@ function ResultPill({ result }: { result?: RunnerResult }) {
 
 export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   const collection = useCollectionStore((state) => state.collection);
-  const requests = useCollectionStore((state) => state.requests);
-  const folders = useCollectionStore((state) => state.folders);
-  const childIds = useCollectionStore((state) => state.childIds);
+  const tree = useCollectionTree();
+  const { requests } = tree;
   const { addResponse } = useResponseActions();
   const environments = collection.environments;
   const selectedEnvironment = useCollectionStore((state) => state.selectedEnvironmentKey);
-  const { selectEnvironment } = useCollectionActions();
+  const { selectEnvironment, sendRequest } = useCollectionActions();
 
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(
     () => new Set(requests.keys())
@@ -283,10 +275,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     });
   }, [requests]);
 
-  const items = useMemo(
-    () => buildRunnerItems({ childIds, folders, requests }, collection.id),
-    [childIds, folders, requests, collection.id]
-  );
+  const items = useMemo(() => buildRunnerItems(tree, collection.id), [tree, collection.id]);
 
   // Items inside a collapsed folder are hidden from the checklist but stay selected.
   const visibleItems = useMemo(
@@ -380,8 +369,6 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     const startedAt = performance.now();
     runStartRef.current = startedAt;
     try {
-      await flushModelEdits();
-
       for (const request of requestsToRun) {
         if (signal.aborted) return;
         setResults((current) => ({ ...current, [request.id]: { state: 'running' } }));
@@ -389,7 +376,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
         const requestStartedAt = performance.now();
         try {
           // No response means this request was aborted, i.e. the run was invalidated.
-          const response = await httpService.sendRequest(request.id, signal);
+          const response = await sendRequest(request.id, signal);
           if (response == null || signal.aborted) return;
           addResponse(request.id, response);
           const state = isSuccessfulStatus(response.metaInfo.status) ? 'passed' : 'failed';
@@ -411,8 +398,6 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
           if (stopOnFirstFailure) break;
         }
       }
-    } catch (error) {
-      if (!signal.aborted) showError(error);
     } finally {
       if (!signal.aborted) {
         setTotalDuration(performance.now() - startedAt);
@@ -439,9 +424,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
             <Select
               value={selectedEnvironment ?? NO_ENVIRONMENT}
               onValueChange={(value) =>
-                void selectEnvironment(value === NO_ENVIRONMENT ? undefined : value).catch(
-                  showError
-                )
+                void selectEnvironment(value === NO_ENVIRONMENT ? undefined : value)
               }
               disabled={isRunning}
             >

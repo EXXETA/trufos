@@ -139,12 +139,10 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   }, [open, strategy]);
 
   const doImport = useCallback(async () => {
-    try {
-      setIsImporting(true);
-      let dirPath: string;
-      if (strategy === 'Trufos') {
-        dirPath = srcEntry!.path;
-      } else {
+    setIsImporting(true);
+    let dirPath = srcEntry!.path;
+    if (strategy !== 'Trufos') {
+      try {
         const result = await eventService.importCollection(
           srcEntry!.path,
           targetEntry!.path,
@@ -153,14 +151,16 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
         );
         dirPath = result.collection.dirPath;
         showImportWarnings(result.warnings);
+      } catch (e) {
+        showError(e);
+        setIsImporting(false);
+        return;
       }
-      await changeCollection(dirPath);
-      onClose?.();
-    } catch (e) {
-      showError(e);
-    } finally {
-      setIsImporting(false);
     }
+
+    const opened = await changeCollection(dirPath);
+    setIsImporting(false);
+    if (opened) onClose?.();
   }, [srcEntry, targetEntry, strategy, title, onClose, changeCollection]);
 
   const dialogFooter = useMemo(() => {

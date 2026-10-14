@@ -1,30 +1,19 @@
 import { arrayMove } from '@dnd-kit/sortable';
-import type { CollectionModel, FolderInfo } from 'shim/collection-model';
-import { TrufosRequest } from 'shim/objects/request';
-
-/** The parts of the collection that describe its tree. */
-export type CollectionTree = Pick<CollectionModel, 'childIds' | 'folders' | 'requests'>;
-
-/** A node of the {@link CollectionTree}. */
-export type TreeNode = TrufosRequest | FolderInfo;
+import { CollectionTree, getChildren, TreeNode } from 'shim/collection-model';
 
 /**
- * Returns the most recent save timestamp for an item.
- * For folders, recursively returns the max timestamp of all descendants.
+ * Returns the most recent save timestamp of every node below the given parent. For a folder, this
+ * is the most recent one of the folder and all its descendants.
  */
-export function getMaxTimestamp(item: TreeNode, tree: CollectionTree): number {
-  if (item.type === 'request') return tree.requests.get(item.id)?.lastModified ?? item.lastModified;
-  return Math.max(
-    item.lastModified,
-    ...getChildren(tree, item.id).map((child) => getMaxTimestamp(child, tree))
-  );
-}
-
-/** Returns the children of the collection or of a folder, in order. */
-export function getChildren(tree: CollectionTree, parentId: string): TreeNode[] {
-  return (tree.childIds.get(parentId) ?? [])
-    .map((id) => tree.requests.get(id) ?? tree.folders.get(id))
-    .filter((child) => child != null);
+export function getMaxTimestamps(tree: CollectionTree, parentId: string): Map<string, number> {
+  const timestamps = new Map<string, number>();
+  const visit = (node: TreeNode): number => {
+    const max = Math.max(node.lastModified, ...getChildren(tree, node.id).map(visit));
+    timestamps.set(node.id, max);
+    return max;
+  };
+  getChildren(tree, parentId).forEach(visit);
+  return timestamps;
 }
 
 export enum SortMode {
@@ -66,7 +55,7 @@ export function flattenTree(
   tree: CollectionTree,
   parentId: string,
   openFolders: Set<string>,
-  compare?: ((a: TreeNode, b: TreeNode) => number) | null,
+  compare?: (a: TreeNode, b: TreeNode) => number,
   depth = 0
 ): FlattenedItem[] {
   const children = getChildren(tree, parentId);

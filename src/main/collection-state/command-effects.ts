@@ -4,7 +4,9 @@ import {
   CollectionModel,
   CommandType,
   getDescendantIds,
-  getNode,
+  getExistingFolder,
+  getExistingNode,
+  getExistingRequest,
 } from 'shim/collection-model';
 import { TrufosId } from 'shim/objects/id';
 import { TrufosRequest } from 'shim/objects/request';
@@ -15,8 +17,8 @@ const persistenceService = PersistenceService.instance;
 export interface CommandEffects {
   /** Writes that must happen right away, e.g. structural changes. */
   immediate?: () => Promise<void>;
-  /** The IDs of requests whose info file is written debounced, as they are edited frequently. */
-  debounce?: TrufosId[];
+  /** A request whose info file is written later, as it is changed by frequent edits. */
+  dirtyRequestId?: TrufosId;
 }
 
 /**
@@ -32,58 +34,93 @@ export function getCommandEffects(
   next: CollectionModel,
   command: CollectionCommand
 ): CommandEffects {
-  const saveOrder = (parentId: TrufosId) =>
-    persistenceService.saveOrder(parentId, next.childIds.get(parentId) ?? []);
+  const effects = getSpecificEffects(prev, next, command);
+
+  // whatever the command was, a request that just became a draft needs its draft directory
+  // before anything is written into it
+  const drafts = getCreatedDrafts(prev, next);
+  if (drafts.length === 0) return effects;
+  const { immediate } = effects;
+  return {
+    ...effects,
+    immediate: async () => {
+      for (const draft of drafts) await persistenceService.createDraft(draft);
+      await immediate?.();
+    },
+  };
+}
+
+/** Returns the requests that are a draft in `next`, but were an existing non-draft in `prev`. */
+function getCreatedDrafts(prev: CollectionModel, next: CollectionModel): TrufosRequest[] {
+  if (prev.requests === next.requests) return [];
+  return [...next.requests.values()].filter((request) => {
+    const before = prev.requests.get(request.id);
+    return request.draft && before != null && !before.draft;
+  });
+}
+
+function getSpecificEffects(
+  prev: CollectionModel,
+  next: CollectionModel,
+  command: CollectionCommand
+): CommandEffects {
+  /** Writes the order of each given parent once. */
+  const saveOrders = async (parentIds: Iterable<TrufosId>) => {
+    for (const parentId of new Set(parentIds)) {
+      await persistenceService.saveOrder(parentId, next.childIds.get(parentId) ?? []);
+    }
+  };
 
   switch (command.type) {
     case CommandType.CREATE_REQUEST: {
-      const request = getRequest(next, command.request.id);
+      const request = getExistingRequest(next, command.request.id);
       return {
         immediate: async () => {
           await persistenceService.saveRequestInfo(request);
-          await saveOrder(request.parentId);
+          await saveOrders([request.parentId]);
         },
       };
     }
     case CommandType.CREATE_FOLDER: {
-      const folder = getFolder(next, command.folder.id);
+      const folder = getExistingFolder(next, command.folder.id);
       return {
         immediate: async () => {
           await persistenceService.saveFolder(folder);
-          await saveOrder(folder.parentId);
+          await saveOrders([folder.parentId]);
         },
       };
     }
     case CommandType.RENAME: {
       const node = getExistingNode(next, command.id);
-      return { immediate: () => persistenceService.rename(node, command.title) };
+      const saved = next.savedRequests.get(command.id);
+      return { immediate: () => persistenceService.rename(node, saved) };
     }
     case CommandType.MOVE: {
-      const oldParentId = getExistingNode(prev, command.id).parentId;
-      const newParentId = command.parentId;
+      const oldParentIds = command.ids.map((id) => getExistingNode(prev, id).parentId);
       return {
         immediate: async () => {
-          if (oldParentId !== newParentId) {
-            await persistenceService.move(command.id, newParentId);
-            await saveOrder(oldParentId);
+          for (const [i, id] of command.ids.entries()) {
+            if (oldParentIds[i] !== command.parentId) {
+              await persistenceService.move(id, command.parentId);
+            }
           }
-          await saveOrder(newParentId);
+          await saveOrders([...oldParentIds, command.parentId]);
         },
       };
     }
     case CommandType.DELETE: {
-      const { parentId } = getExistingNode(prev, command.id);
+      const parentIds = command.ids.map((id) => getExistingNode(prev, id).parentId);
       return {
         immediate: async () => {
-          await persistenceService.deleteNode(command.id);
-          await saveOrder(parentId);
+          for (const id of command.ids) await persistenceService.deleteNode(id);
+          await saveOrders(parentIds);
         },
       };
     }
     case CommandType.COPY: {
-      const { parentId } = getExistingNode(next, command.idMap[command.id]);
+      const parentIds = command.ids.map((id) => getExistingNode(prev, id).parentId);
       // parents come before their children, so every parent directory exists when it is needed
-      const sourceIds = [command.id, ...getDescendantIds(prev, command.id)];
+      const sourceIds = command.ids.flatMap((id) => [id, ...getDescendantIds(prev, id)]);
       return {
         immediate: async () => {
           for (const sourceId of sourceIds) {
@@ -91,56 +128,51 @@ export function getCommandEffects(
             const copy = getExistingNode(next, copyId);
             if (copy.type === 'folder') {
               await persistenceService.saveFolder(copy);
-              await saveOrder(copyId);
+              await saveOrders([copyId]);
             } else {
               await persistenceService.saveRequestInfo(copy);
-              await persistenceService.copyRequestFiles(getRequest(prev, sourceId), copy);
+              await persistenceService.copyRequestFiles(getExistingRequest(prev, sourceId), copy);
             }
           }
-          await saveOrder(parentId);
+          await saveOrders(parentIds);
         },
       };
     }
-    case CommandType.EDIT_REQUEST: {
-      if (getRequest(prev, command.id).draft) return { debounce: [command.id] };
-      const request = getRequest(next, command.id);
-      return { immediate: () => persistenceService.createDraft(request) };
+    case CommandType.CREATE_DRAFT:
+      // the draft directory is created for every command that creates a draft
+      return {};
+    case CommandType.EDIT_REQUEST:
+      return { dirtyRequestId: command.id };
+    case CommandType.SET_TEXT_BODY: {
+      const request = getExistingRequest(next, command.id);
+      return { immediate: () => persistenceService.writeTextBody(request, command.text) };
     }
-    case CommandType.SET_TEXT_BODY:
     case CommandType.SET_SCRIPT: {
-      const hadDraft = getRequest(prev, command.id).draft;
-      const request = getRequest(next, command.id);
+      const request = getExistingRequest(next, command.id);
       return {
-        immediate: async () => {
-          if (!hadDraft) await persistenceService.createDraft(request);
-          if (command.type === CommandType.SET_TEXT_BODY) {
-            await persistenceService.writeTextBody(request, command.text);
-          } else {
-            await persistenceService.saveScript(request, command.scriptType, command.text);
-          }
-        },
+        immediate: () => persistenceService.saveScript(request, command.scriptType, command.text),
       };
     }
     case CommandType.SAVE_REQUEST: {
-      const draft = getRequest(prev, command.id);
+      const draft = getExistingRequest(prev, command.id);
       if (!draft.draft) return {};
-      const request = getRequest(next, command.id);
+      const request = getExistingRequest(next, command.id);
       return {
+        // the latest edits of the draft may not have been written yet, so saving writes them itself
         immediate: async () => {
-          // the latest edits of the draft may not have been written yet, see the debounce above
           await persistenceService.saveRequestInfo(draft);
           await persistenceService.saveChanges(request);
         },
       };
     }
     case CommandType.DISCARD_REQUEST: {
-      const draft = getRequest(prev, command.id);
+      const draft = getExistingRequest(prev, command.id);
       if (!draft.draft) return {};
       const removed = !next.requests.has(command.id);
       return {
         immediate: async () => {
           await persistenceService.discardChanges(draft);
-          if (removed) await saveOrder(draft.parentId);
+          if (removed) await saveOrders([draft.parentId]);
         },
       };
     }
@@ -150,22 +182,4 @@ export function getCommandEffects(
       // the selected environment is not persisted
       return {};
   }
-}
-
-function getExistingNode(model: CollectionModel, id: TrufosId | undefined) {
-  const node = id == null ? undefined : getNode(model, id);
-  if (node == null) throw new Error(`Object ${id} does not exist`);
-  return node;
-}
-
-function getFolder(model: CollectionModel, id: TrufosId) {
-  const folder = model.folders.get(id);
-  if (folder == null) throw new Error(`Folder ${id} does not exist`);
-  return folder;
-}
-
-function getRequest(model: CollectionModel, id: TrufosId): TrufosRequest {
-  const request = model.requests.get(id);
-  if (request == null) throw new Error(`Request ${id} does not exist`);
-  return request;
 }

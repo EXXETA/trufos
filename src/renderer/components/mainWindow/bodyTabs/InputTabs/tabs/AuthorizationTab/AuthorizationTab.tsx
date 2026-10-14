@@ -1,4 +1,5 @@
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { getMethod } from '@/state/helper/authorization';
 import { AuthorizationInformation } from 'shim/objects';
 import { useMemo } from 'react';
 import { ModularForm } from './ModularForm';
@@ -6,10 +7,9 @@ import { AUTHORIZATION_NONE, getAuthorizationForm } from './forms';
 
 export const AuthorizationTab = () => {
   const { updateAuthorization } = useCollectionActions();
-  const request = useCollectionStore(selectRequest)!;
-  const auth = request.auth;
+  const auth = useCollectionStore((state) => selectRequest(state)?.auth);
   const type = auth?.type ?? AUTHORIZATION_NONE;
-  const method = auth != null && 'method' in auth ? auth.method : undefined;
+  const method = getMethod(auth);
 
   const form = useMemo(() => getAuthorizationForm(type, method), [type, method]);
 
@@ -22,7 +22,7 @@ export const AuthorizationTab = () => {
           data={{ ...auth, type }}
           onDataChanged={(
             delta: Partial<AuthorizationInformation> | { type: typeof AUTHORIZATION_NONE }
-          ) => updateAuthorization(request, delta.type === AUTHORIZATION_NONE ? null : delta)}
+          ) => updateAuthorization(delta.type === AUTHORIZATION_NONE ? null : delta)}
         />
       </div>
     </div>

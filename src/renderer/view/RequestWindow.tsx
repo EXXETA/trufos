@@ -2,34 +2,16 @@ import { MainTopBar } from '@/components/mainWindow/MainTopBar';
 import { MainBody } from '@/components/mainWindow/MainBody';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { EmptyWildWest } from '@/assets/EmptyWildWest';
-import { MouseEvent, useCallback, useEffect, useRef } from 'react';
-import { setRequestTextBody, setScriptContent } from '@/state/helper/collectionUtil';
-import { ScriptType } from 'shim/scripting';
+import { MouseEvent, useCallback } from 'react';
 import { selectSidebarView, useViewStore } from '@/state/viewStore';
 import { selectSelectedHistoryId, useHistoryStore } from '@/state/historyStore';
 import { HistoryEntryView } from '@/components/history/HistoryEntryView';
 
 export function RequestWindow() {
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
-  const requests = useCollectionStore((state) => state.requests);
   const { addNewRequest } = useCollectionActions();
   const sidebarView = useViewStore(selectSidebarView);
   const selectedHistoryId = useHistoryStore(selectSelectedHistoryId);
-
-  const requestsRef = useRef(requests);
-  requestsRef.current = requests;
-
-  // Load content into models when the selected request changes.
-  // Models are already created by setSelectedRequest in the store before this
-  // effect runs, so getBodyModel / getScriptModel are safe to call here.
-  useEffect(() => {
-    if (selectedRequestId == null) return;
-    const request = requestsRef.current.get(selectedRequestId);
-    void setRequestTextBody(selectedRequestId, request);
-    for (const scriptType of Object.values(ScriptType)) {
-      void setScriptContent(selectedRequestId, request, scriptType);
-    }
-  }, [selectedRequestId]);
 
   const handleAddNewRequest = useCallback(
     (event: MouseEvent) => {

@@ -15,7 +15,7 @@ export interface NavRequestProps {
 }
 
 export const RequestView = ({ requestId, depth = 0, onItemClick }: NavRequestProps) => {
-  const { setSelectedRequest, renameRequest } = useCollectionActions();
+  const { setSelectedRequest, renameItem } = useCollectionActions();
   const request = useCollectionStore((state) => selectRequest(state, requestId)!);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -51,7 +51,7 @@ export const RequestView = ({ requestId, depth = 0, onItemClick }: NavRequestPro
             onSave={(newName) => {
               const trimmed = newName.trim();
               if (trimmed && trimmed !== (request.title || request.url.base)) {
-                renameRequest(requestId, trimmed);
+                renameItem(requestId, trimmed);
               }
               setIsEditing(false);
             }}

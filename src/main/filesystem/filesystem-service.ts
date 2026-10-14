@@ -53,14 +53,4 @@ export class FileSystemService {
     }
     this._sessionDirectory = undefined;
   }
-
-  /**
-   * Creates a read stream for the file at the specified path
-   * @param filePath the file path
-   */
-  public async readFile(filePath: string) {
-    // fs.createReadStream is not an async function, does not return a promise
-    // how does this even work...
-    return fs.createReadStream(filePath);
-  }
 }

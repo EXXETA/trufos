@@ -40,18 +40,11 @@ interface PendingEdit {
 
 const registry = new Map<string, RequestModels>();
 
-/** Pending edits by request ID, then by model (`body` or a script type). */
-const pendingEdits = new Map<string, Map<string, PendingEdit>>();
+/** The editor models whose edits are tracked: the text body or a script. */
+type EditedModel = 'body' | ScriptType;
 
-let persistence: ModelPersistence | undefined;
-
-/**
- * Registers how the content of the editor models is persisted. Called once by the collection
- * store provider.
- */
-export function registerModelPersistence(value: ModelPersistence | undefined): void {
-  persistence = value;
-}
+/** Pending edits by request ID, then by model. */
+const pendingEdits = new Map<string, Map<EditedModel, PendingEdit>>();
 
 // ── URI helpers ─────────────────────────────────────────────────────────────
 
@@ -69,17 +62,25 @@ export function responseUri(requestId: string): Uri {
 
 // ── Registry API ─────────────────────────────────────────────────────────────
 
-export function createModelsForRequest(requestId: string): RequestModels {
+/**
+ * Creates the editor models of a request, unless they exist already.
+ * @param requestId the ID of the request
+ * @param persistence sends the edits of the text body and the scripts to the main process
+ */
+export function createModelsForRequest(
+  requestId: string,
+  persistence: ModelPersistence
+): RequestModels {
   if (registry.has(requestId)) {
     return registry.get(requestId)!;
   }
   const body = editor.createModel('', undefined, bodyUri(requestId));
-  trackEdits(requestId, 'body', body, (text) => persistence?.setTextBody(requestId, text));
+  trackEdits(requestId, 'body', body, persistence);
 
   const scripts = new Map<ScriptType, editor.ITextModel>();
   for (const type of Object.values(ScriptType)) {
     const model = editor.createModel('', 'javascript', scriptUri(requestId, type));
-    trackEdits(requestId, type, model, (text) => persistence?.setScript(requestId, type, text));
+    trackEdits(requestId, type, model, persistence);
     scripts.set(type, model);
   }
 
@@ -90,10 +91,6 @@ export function createModelsForRequest(requestId: string): RequestModels {
   };
   registry.set(requestId, models);
   return models;
-}
-
-export function getModelsForRequest(requestId: string): RequestModels | undefined {
-  return registry.get(requestId);
 }
 
 export function getBodyModel(requestId: string): editor.ITextModel {
@@ -138,14 +135,7 @@ export function disposeModelsForRequest(requestId: string): void {
  */
 export function flushModelEdits(requestId?: string): Promise<void> {
   const requestIds = requestId == null ? [...pendingEdits.keys()] : [requestId];
-  const sent: Promise<void>[] = [];
-  for (const id of requestIds) {
-    for (const edit of pendingEdits.get(id)?.values() ?? []) {
-      clearTimeout(edit.timer);
-      sent.push(edit.send());
-    }
-    pendingEdits.delete(id);
-  }
+  const sent = requestIds.flatMap(takePendingEdits).map((edit) => edit.send());
   return Promise.all(sent).then(() => undefined);
 }
 
@@ -154,19 +144,31 @@ export function flushModelEdits(requestId?: string): Promise<void> {
  * discarded.
  */
 export function cancelModelEdits(requestId: string): void {
-  for (const edit of pendingEdits.get(requestId)?.values() ?? []) {
-    clearTimeout(edit.timer);
-  }
+  takePendingEdits(requestId);
+}
+
+/** Removes the pending edits of a request and stops their timers. */
+function takePendingEdits(requestId: string): PendingEdit[] {
+  const edits = [...(pendingEdits.get(requestId)?.values() ?? [])];
   pendingEdits.delete(requestId);
+  for (const edit of edits) clearTimeout(edit.timer);
+  return edits;
 }
 
 /** Schedules a debounced edit whenever the user changes the content of the model. */
 function trackEdits(
   requestId: string,
-  key: string,
+  key: EditedModel,
   model: editor.ITextModel,
-  persist: (text: string) => Promise<void> | undefined
+  persistence: ModelPersistence
 ) {
+  const send = () => {
+    const text = model.getValue();
+    return key === 'body'
+      ? persistence.setTextBody(requestId, text)
+      : persistence.setScript(requestId, key, text);
+  };
+
   // the listener is disposed together with the model
   model.onDidChangeContent((event) => {
     // a flush replaces the whole content, i.e. the content was loaded and not edited
@@ -175,12 +177,9 @@ function trackEdits(
     let edits = pendingEdits.get(requestId);
     if (edits == null) {
       pendingEdits.set(requestId, (edits = new Map()));
-      persistence?.markDraft(requestId).catch(logError);
+      persistence.markDraft(requestId).catch(logError);
     }
 
-    const send = async () => {
-      await persist(model.getValue());
-    };
     clearTimeout(edits.get(key)?.timer);
     const timer = setTimeout(() => {
       const current = pendingEdits.get(requestId);

@@ -3,7 +3,7 @@ import { DisplayableError } from 'shim/error/DisplayableError';
 import {
   IEventService,
   MainProcessEvent,
-  MainProcessEventPayloads,
+  MainProcessEventListener,
   RendererEvent,
   RendererEventPayloads,
 } from 'shim/event-service';
@@ -36,13 +36,9 @@ export class RendererEventService implements IEventService {
   /**
    * Listens to an event pushed by the main process.
    * @param event the event
-   * @param listener receives the Electron IPC event, which most listeners do not need, followed by
-   * the payload, see {@link MainProcessEventPayloads}
+   * @param listener receives the event, see {@link MainProcessEventListener}
    */
-  on<E extends MainProcessEvent>(
-    event: E,
-    listener: (ipcEvent: unknown, ...payload: MainProcessEventPayloads[E]) => void
-  ): this {
+  on<E extends MainProcessEvent>(event: E, listener: MainProcessEventListener<E>): this {
     window.electron.ipcRenderer.on(event, listener);
     return this;
   }
@@ -64,7 +60,7 @@ export class RendererEventService implements IEventService {
    */
   removeListener<E extends MainProcessEvent>(
     event: E,
-    listener: (ipcEvent: unknown, ...payload: MainProcessEventPayloads[E]) => void
+    listener: MainProcessEventListener<E>
   ): this {
     window.electron.ipcRenderer.removeListener(event, listener);
     return this;

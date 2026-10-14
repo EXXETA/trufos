@@ -5,8 +5,8 @@ import { CollectionSettingsModal } from './CollectionSettingsModal';
 
 const { actions } = vi.hoisted(() => ({
   actions: {
-    updateCollection: vi.fn(),
-    selectEnvironment: vi.fn(),
+    updateCollection: vi.fn(async () => true),
+    selectEnvironment: vi.fn(async () => true),
   },
 }));
 
@@ -82,7 +82,7 @@ describe('CollectionSettingsModal', () => {
     expect((save as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('saves all settings with a single collection update', async () => {
+  it('saves only the changed settings', async () => {
     const user = userEvent.setup();
     render(<CollectionSettingsModal isOpen={true} onClose={onClose} />);
 
@@ -91,11 +91,20 @@ describe('CollectionSettingsModal', () => {
 
     expect(actions.updateCollection).toHaveBeenCalledExactlyOnceWith({
       title: 'My Collection Renamed',
-      variables: {},
-      environments: {},
-      clientCertificate: null,
     });
-    expect(actions.selectEnvironment).toHaveBeenCalledWith(undefined);
+    expect(actions.selectEnvironment).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays open if saving failed', async () => {
+    const user = userEvent.setup();
+    actions.updateCollection.mockResolvedValueOnce(false);
+    render(<CollectionSettingsModal isOpen={true} onClose={onClose} />);
+
+    await user.type(screen.getByLabelText('name'), ' Renamed');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(actions.updateCollection).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

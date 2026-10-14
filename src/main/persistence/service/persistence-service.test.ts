@@ -1,4 +1,4 @@
-import { exists, USER_DATA_DIR, waitUntilOpen } from 'main/util/fs-util';
+import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { text } from 'node:stream/consumers';
 import { randomUUID } from 'node:crypto';
 import fs, { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -17,6 +17,7 @@ import { CollectionInfoFile, RequestInfoFile, GIT_IGNORE_FILE_NAME } from './inf
 import { PersistenceService } from './persistence-service';
 import {
   DRAFT_DIR_NAME,
+  getInfoFileName,
   getScriptFileName,
   ORDER_FILE_NAME,
   SECRETS_FILE_NAME,
@@ -85,11 +86,7 @@ function getExampleRequest(parentId: string): TrufosRequest {
 }
 
 async function streamToString(stream: Readable) {
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks).toString('utf-8');
+  return await text(stream);
 }
 
 describe('PersistenceService', () => {
@@ -118,10 +115,7 @@ describe('PersistenceService', () => {
       'generateDefaultCollection'
     );
     await mkdir(collectionDirPath);
-    await writeFile(
-      path.join(collectionDirPath, persistenceService.getInfoFileName(collection.type)),
-      ''
-    );
+    await writeFile(path.join(collectionDirPath, getInfoFileName(collection.type)), '');
 
     // Act
     await persistenceService.createDefaultCollectionIfNotExists();
@@ -162,7 +156,7 @@ describe('PersistenceService', () => {
 
     // Act
     const title = randomUUID();
-    await persistenceService.rename(freeze(folder, true), title);
+    await persistenceService.rename(freeze({ ...folder, title }, true));
 
     // Assert
     const newDirPath = path.join(collection.dirPath, title);
@@ -189,25 +183,19 @@ describe('PersistenceService', () => {
     const expectedNewPath = path.join(collection.dirPath, sanitizeTitle(newTitle));
 
     // Act
-    await persistenceService.rename(folder, newTitle);
+    await persistenceService.rename({ ...folder, title: newTitle });
 
     // Assert: directory moved
     expect(await exists(expectedNewPath)).toBe(true);
     expect(await exists(oldChildDirPath)).toBe(false);
 
     // Assert: child folder new path exists
-    const newChildFolderPath = path.join(
-      expectedNewPath,
-      persistenceService.getInfoFileName('folder')
-    );
+    const newChildFolderPath = path.join(expectedNewPath, getInfoFileName('folder'));
     expect(await exists(newChildFolderPath)).toBe(true);
 
     // Info file title updated
     const info = JSON.parse(
-      await readFile(
-        path.join(expectedNewPath, persistenceService.getInfoFileName('folder')),
-        'utf-8'
-      )
+      await readFile(path.join(expectedNewPath, getInfoFileName('folder')), 'utf-8')
     );
     expect(info.title).toBe(newTitle);
   });
@@ -222,15 +210,12 @@ describe('PersistenceService', () => {
     expect(await exists(requestDirPath)).toBe(true);
 
     // Act
-    await persistenceService.rename(request, 'Same $Title$'); // sanitized collides -> no dir rename, only title change
+    await persistenceService.rename({ ...request, title: 'Same $Title$' }); // sanitized collides -> no dir rename, only title change
 
     // Assert: file still exists
     expect(await exists(requestDirPath)).toBe(true);
     const info = JSON.parse(
-      await readFile(
-        path.join(requestDirPath, persistenceService.getInfoFileName('request')),
-        'utf-8'
-      )
+      await readFile(path.join(requestDirPath, getInfoFileName('request')), 'utf-8')
     );
     expect(info.title).toBe('Same $Title$');
   });
@@ -246,7 +231,7 @@ describe('PersistenceService', () => {
     const expectedDirPath = path.join(collection.dirPath, `${sanitizeTitle('FolderB')}-2`);
 
     // Act
-    await persistenceService.rename(folderA, 'FolderB');
+    await persistenceService.rename({ ...folderA, title: 'FolderB' });
 
     // Assert
     expect(await exists(expectedDirPath)).toBe(true);
@@ -257,11 +242,9 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollection(collection);
 
     // Assert
-    expect(
-      await exists(
-        path.join(collection.dirPath, persistenceService.getInfoFileName(collection.type))
-      )
-    ).toBe(true);
+    expect(await exists(path.join(collection.dirPath, getInfoFileName(collection.type)))).toBe(
+      true
+    );
   });
 
   it('saveCollection() should store the secrets only in ~secrets.json.bin', async () => {
@@ -277,10 +260,7 @@ describe('PersistenceService', () => {
 
     // Assert
     const info = JSON.parse(
-      await readFile(
-        path.join(collection.dirPath, persistenceService.getInfoFileName(collection.type)),
-        'utf-8'
-      )
+      await readFile(path.join(collection.dirPath, getInfoFileName(collection.type)), 'utf-8')
     ) as CollectionInfoFile;
     expect(info.variables).toEqual(
       Object.fromEntries(Object.entries(variables).filter(([, v]) => !v.secret))
@@ -307,7 +287,7 @@ describe('PersistenceService', () => {
     const dirPath = path.join(collection.dirPath, request.title);
     expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe(text);
     const info = JSON.parse(
-      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
+      await readFile(path.join(dirPath, getInfoFileName('request')), 'utf-8')
     ) as RequestInfoFile;
     expect(info.body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
 
@@ -338,7 +318,7 @@ describe('PersistenceService', () => {
     // Assert
     const info = JSON.parse(
       await readFile(
-        path.join(collection.dirPath, request.title, persistenceService.getInfoFileName('request')),
+        path.join(collection.dirPath, request.title, getInfoFileName('request')),
         'utf-8'
       )
     ) as RequestInfoFile;
@@ -405,7 +385,7 @@ describe('PersistenceService', () => {
     const folderInfoFilePath = path.join(
       collection.dirPath,
       folder.title,
-      persistenceService.getInfoFileName(folder.type)
+      getInfoFileName(folder.type)
     );
 
     await persistenceService.saveCollection(collection, true);
@@ -432,24 +412,15 @@ describe('PersistenceService', () => {
     await persistenceService.saveCollection(collection, true);
 
     // Assert
+    expect(await exists(path.join(collection.dirPath, getInfoFileName(collection.type)))).toBe(
+      true
+    );
     expect(
-      await exists(
-        path.join(collection.dirPath, persistenceService.getInfoFileName(collection.type))
-      )
+      await exists(path.join(collection.dirPath, folder.title, getInfoFileName(folder.type)))
     ).toBe(true);
     expect(
       await exists(
-        path.join(collection.dirPath, folder.title, persistenceService.getInfoFileName(folder.type))
-      )
-    ).toBe(true);
-    expect(
-      await exists(
-        path.join(
-          collection.dirPath,
-          folder.title,
-          request.title,
-          persistenceService.getInfoFileName(request.type)
-        )
+        path.join(collection.dirPath, folder.title, request.title, getInfoFileName(request.type))
       )
     ).toBe(true);
   });
@@ -473,9 +444,7 @@ describe('PersistenceService', () => {
 
     // Assert
     expect(created.dirPath).toBe(dirPath);
-    expect(await exists(path.join(dirPath, persistenceService.getInfoFileName('collection')))).toBe(
-      true
-    );
+    expect(await exists(path.join(dirPath, getInfoFileName('collection')))).toBe(true);
   });
 
   it('loadTextBodyOfRequest() should load the text body of a request', async () => {
@@ -607,10 +576,7 @@ describe('PersistenceService', () => {
     expect(result.environments.dev.variables).toEqual(variables);
     expect(
       JSON.parse(
-        await readFile(
-          path.join(collection.dirPath, persistenceService.getInfoFileName(collection.type)),
-          'utf-8'
-        )
+        await readFile(path.join(collection.dirPath, getInfoFileName(collection.type)), 'utf-8')
       )
     ).not.toContain(secretVariable);
     expect(
@@ -708,11 +674,7 @@ describe('PersistenceService', () => {
     collection.children.push(request);
     await persistenceService.saveCollection(collection, true);
     await writeFile(
-      path.join(
-        collection.dirPath,
-        sanitizeTitle(request.title),
-        persistenceService.getInfoFileName(request.type)
-      ),
+      path.join(collection.dirPath, sanitizeTitle(request.title), getInfoFileName(request.type)),
       '{ this is not json'
     );
 
@@ -731,7 +693,7 @@ describe('PersistenceService', () => {
     const infoFilePath = path.join(
       collection.dirPath,
       sanitizeTitle(request.title),
-      persistenceService.getInfoFileName(request.type)
+      getInfoFileName(request.type)
     );
     const { url: _url, ...incomplete } = JSON.parse(await readFile(infoFilePath, 'utf8'));
     await writeFile(infoFilePath, JSON.stringify(incomplete));
@@ -744,10 +706,7 @@ describe('PersistenceService', () => {
 
   it('loadCollection() should strip unknown properties from info files', async () => {
     // Arrange
-    const infoFilePath = path.join(
-      collection.dirPath,
-      persistenceService.getInfoFileName(collection.type)
-    );
+    const infoFilePath = path.join(collection.dirPath, getInfoFileName(collection.type));
     await persistenceService.saveCollection(collection);
     const info = JSON.parse(await readFile(infoFilePath, 'utf8'));
     await writeFile(infoFilePath, JSON.stringify({ ...info, unknownProperty: true }));
@@ -806,13 +765,7 @@ describe('PersistenceService', () => {
     // Assert: the request stays saveable at its new location
     await persistenceService.saveRequestInfo(request);
     expect(
-      await exists(
-        path.join(
-          folderDirPath,
-          `${request.title}-2`,
-          persistenceService.getInfoFileName('request')
-        )
-      )
+      await exists(path.join(folderDirPath, `${request.title}-2`, getInfoFileName('request')))
     ).toBe(true);
   });
 
@@ -873,11 +826,14 @@ describe('PersistenceService', () => {
     await persistenceService.createDraft(draft);
 
     // Act
-    await persistenceService.rename(freeze(draft, true), 'renamed');
+    await persistenceService.rename(
+      freeze({ ...draft, title: 'renamed' }, true),
+      freeze({ ...request, title: 'renamed' }, true)
+    );
 
     // Assert
     const requestDirPath = path.join(collection.dirPath, sanitizeTitle('renamed'));
-    const infoFileName = persistenceService.getInfoFileName('request');
+    const infoFileName = getInfoFileName('request');
     const saved = JSON.parse(await readFile(path.join(requestDirPath, infoFileName), 'utf-8'));
     const drafted = JSON.parse(
       await readFile(path.join(requestDirPath, DRAFT_DIR_NAME, infoFileName), 'utf-8')
@@ -898,7 +854,7 @@ describe('PersistenceService', () => {
     expect(await exists(secondDirPath)).toBe(true);
 
     // Act
-    await persistenceService.rename(second, 'Folder');
+    await persistenceService.rename({ ...second, title: 'Folder' });
 
     // Assert
     expect(await exists(secondDirPath)).toBe(true);
@@ -911,9 +867,7 @@ describe('PersistenceService', () => {
     collection.children.push(request);
     await persistenceService.saveCollection(collection, true);
     await persistenceService.writeTextBody(request, 'sent');
-    const stream = await persistenceService
-      .loadTextBodyOfRequest(request, 'utf8')
-      .then(waitUntilOpen);
+    const stream = await persistenceService.loadTextBodyOfRequest(request, 'utf8');
 
     // Act
     await persistenceService.writeTextBody(request, 'edited');
@@ -923,6 +877,55 @@ describe('PersistenceService', () => {
     expect(await text(stream!)).toBe('sent');
     expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('edited');
     expect((await fs.readdir(dirPath)).filter((file) => file.endsWith('.tmp'))).toEqual([]);
+  });
+
+  it('openRequestFiles() should read the scripts and open the text body of a draft', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    const draft = freeze({ ...request, draft: true }, true);
+    await persistenceService.createDraft(draft);
+    await persistenceService.writeTextBody(draft, 'draft body');
+    await persistenceService.saveScript(draft, ScriptType.POST_RESPONSE, 'post');
+
+    // Act
+    const files = await persistenceService.openRequestFiles(draft);
+    await persistenceService.writeTextBody(draft, 'edited body');
+
+    // Assert
+    expect(files.scripts).toEqual({ [ScriptType.POST_RESPONSE]: 'post' });
+    expect(await text(files.textBody!)).toBe('draft body');
+  });
+
+  it('openRequestFiles() should have no text body for a request with another body type', async () => {
+    // Arrange
+    const request: TrufosRequest = {
+      ...getExampleRequest(collection.id),
+      body: { type: RequestBodyType.FILE, filePath: '/file.bin' },
+    };
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+
+    // Act
+    const files = await persistenceService.openRequestFiles(request);
+
+    // Assert
+    expect(files).toEqual({ scripts: {}, textBody: undefined });
+  });
+
+  it('openRequestFiles() should not open the text body if reading a script fails', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.writeTextBody(request, 'body');
+    vi.spyOn(persistenceService, 'loadScript').mockRejectedValueOnce(new Error('read failed'));
+    const loadTextBody = vi.spyOn(persistenceService, 'loadTextBodyOfRequest');
+
+    // Act & Assert
+    await expect(persistenceService.openRequestFiles(request)).rejects.toThrow('read failed');
+    expect(loadTextBody).not.toHaveBeenCalled();
   });
 
   it('writeTextBody() should remove its temporary file if the body cannot be replaced', async () => {
@@ -955,7 +958,7 @@ describe('PersistenceService', () => {
     // Assert
     const dirPath = path.join(collection.dirPath, request.title);
     const info = JSON.parse(
-      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
+      await readFile(path.join(dirPath, getInfoFileName('request')), 'utf-8')
     ) as RequestInfoFile;
     expect(info.method).toBe(RequestMethod.PUT);
     expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('body');
@@ -972,7 +975,7 @@ describe('PersistenceService', () => {
 
     // Assert
     const dirPath = path.join(collection.dirPath, request.title);
-    const infoFileName = persistenceService.getInfoFileName('request');
+    const infoFileName = getInfoFileName('request');
     const saved = JSON.parse(await readFile(path.join(dirPath, infoFileName), 'utf-8'));
     const draft = JSON.parse(
       await readFile(path.join(dirPath, DRAFT_DIR_NAME, infoFileName), 'utf-8')
@@ -1045,10 +1048,7 @@ describe('PersistenceService', () => {
       false
     );
     const info = JSON.parse(
-      await readFile(
-        path.join(draftDirPath, persistenceService.getInfoFileName('request')),
-        'utf-8'
-      )
+      await readFile(path.join(draftDirPath, getInfoFileName('request')), 'utf-8')
     ) as RequestInfoFile;
     expect(info.method).toBe(RequestMethod.POST);
   });
@@ -1123,7 +1123,7 @@ describe('PersistenceService', () => {
     const dirPath = path.join(collection.dirPath, request.title);
     expect(await exists(path.join(dirPath, DRAFT_DIR_NAME))).toBe(false);
     const info = JSON.parse(
-      await readFile(path.join(dirPath, persistenceService.getInfoFileName('request')), 'utf-8')
+      await readFile(path.join(dirPath, getInfoFileName('request')), 'utf-8')
     ) as RequestInfoFile;
     expect(info.method).toBe(RequestMethod.POST);
     expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('draft');
@@ -1276,10 +1276,7 @@ describe('PersistenceService', () => {
 
     // Assert
     const saved = JSON.parse(
-      await readFile(
-        path.join(collection.dirPath, persistenceService.getInfoFileName('collection')),
-        'utf-8'
-      )
+      await readFile(path.join(collection.dirPath, getInfoFileName('collection')), 'utf-8')
     ) as CollectionInfoFile;
     expect(saved.title).toBe('renamed');
   });

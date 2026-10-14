@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   EraserIcon,
@@ -15,7 +15,7 @@ import {
   SquareMousePointer,
   HardDrive,
 } from 'lucide-react';
-import { FolderInfo } from 'shim/collection-model';
+import { CollectionTree, FolderInfo, getChildren } from 'shim/collection-model';
 import { TrufosRequest } from 'shim/objects/request';
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -30,13 +30,12 @@ import {
 } from '@/components/ui/command';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
-  CollectionState,
   selectRequest,
   useCollectionActions,
   useCollectionStore,
+  useCollectionTree,
 } from '@/state/collectionStore';
 import { useViewActions } from '@/state/viewStore';
-import { showError } from '@/error/errorHandler';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { Divider } from '@/components/shared/Divider';
 import {
@@ -73,7 +72,7 @@ interface ActionItem {
  * Walk the collection depth-first, flattening nested folders into a single group per folder.
  */
 const buildRequestGroups = (
-  state: Pick<CollectionState, 'childIds' | 'folders' | 'requests'>,
+  tree: CollectionTree,
   parentId: string,
   folder: FolderInfo | null = null
 ): RequestGroup[] => {
@@ -84,14 +83,9 @@ const buildRequestGroups = (
   };
   const subGroups: RequestGroup[] = [];
 
-  for (const childId of state.childIds.get(parentId) ?? []) {
-    const request = state.requests.get(childId);
-    const childFolder = state.folders.get(childId);
-    if (request != null) {
-      group.requests.push(request);
-    } else if (childFolder != null) {
-      subGroups.push(...buildRequestGroups(state, childId, childFolder));
-    }
+  for (const child of getChildren(tree, parentId)) {
+    if (child.type === 'request') group.requests.push(child);
+    else subGroups.push(...buildRequestGroups(tree, child.id, child));
   }
 
   return group.requests.length > 0 ? [group, ...subGroups] : subGroups;
@@ -111,10 +105,11 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const collection = useCollectionStore((s) => s.collection);
-  const folders = useCollectionStore((s) => s.folders);
-  const requests = useCollectionStore((s) => s.requests);
-  const childIds = useCollectionStore((s) => s.childIds);
-  const requestGroups = buildRequestGroups({ childIds, folders, requests }, collection.id);
+  const tree = useCollectionTree();
+  const requestGroups = useMemo(
+    () => buildRequestGroups(tree, collection.id),
+    [tree, collection.id]
+  );
   const allRequests = requestGroups.flatMap((group) => group.requests);
   const currentRequest = useCollectionStore(selectRequest);
   const { setSelectedRequest, discardChanges, selectEnvironment } = useCollectionActions();
@@ -175,7 +170,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     <CommandItem
       key={key}
       value={key}
-      onSelect={() => runAndClose(() => void selectEnvironment(key).catch(showError))}
+      onSelect={() => runAndClose(() => void selectEnvironment(key))}
       className="data-[selected='true']:bg-divider"
     >
       <HardDrive className="shrink-0" />
@@ -246,7 +241,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       icon: EraserIcon,
       label: 'Discard changes',
       disabled: !canSaveRequest,
-      onSelect: () => runAndClose(discardChanges),
+      onSelect: () => runAndClose(() => void discardChanges()),
     },
     {
       value: 'new folder',

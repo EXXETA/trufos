@@ -1,72 +1,65 @@
 import { describe, it, expect } from 'vitest';
-import { CollectionTree, flattenTree, getMaxTimestamp, getRangeSelection } from './treeUtilities';
-import { FolderInfo } from 'shim/collection-model';
+import { flattenTree, getMaxTimestamps, getRangeSelection } from './treeUtilities';
+import { CollectionModel, normalizeCollection } from 'shim/collection-model';
+import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
-import { makeRequest } from '@/__mocks__/fake-collection-main';
+import { makeCollection, makeFolder, makeRequest } from '@/__mocks__/fake-collection-main';
 
 const request = (id: string, parentId: string, lastModified = 0): TrufosRequest =>
   makeRequest(id, parentId, { lastModified });
 
-const folder = (id: string, parentId: string, lastModified = 0): FolderInfo => ({
-  id,
-  type: 'folder',
-  parentId,
-  title: id,
-  lastModified,
-});
+const folder = (
+  id: string,
+  parentId: string,
+  children: Folder['children'] = [],
+  lastModified = 0
+): Folder => ({ ...makeFolder(id, parentId, children), lastModified });
 
-const tree = (nodes: (TrufosRequest | FolderInfo)[]): CollectionTree => {
-  const childIds = new Map<string, string[]>([['col', []]]);
-  for (const node of nodes) {
-    if (node.type === 'folder') childIds.set(node.id, childIds.get(node.id) ?? []);
-    childIds.set(node.parentId, [...(childIds.get(node.parentId) ?? []), node.id]);
-  }
-  return {
-    childIds,
-    requests: new Map(
-      nodes.filter((node) => node.type === 'request').map((node) => [node.id, node])
-    ),
-    folders: new Map(nodes.filter((node) => node.type === 'folder').map((node) => [node.id, node])),
-  };
-};
+const tree = (children: Folder['children']): CollectionModel =>
+  normalizeCollection(makeCollection('col', children));
 
-describe('getMaxTimestamp', () => {
+describe('getMaxTimestamps', () => {
   it('returns the timestamp for a request', () => {
-    const req = request('req-1', 'col', 1000);
+    const t = tree([request('req-1', 'col', 1000)]);
 
-    expect(getMaxTimestamp(req, tree([req]))).toBe(1000);
+    expect(getMaxTimestamps(t, 'col').get('req-1')).toBe(1000);
   });
 
   it('returns max timestamp of direct children for a folder', () => {
-    const f = folder('folder-1', 'col');
-    const t = tree([f, request('req-1', 'folder-1', 500), request('req-2', 'folder-1', 1500)]);
+    const t = tree([
+      folder('folder-1', 'col', [
+        request('req-1', 'folder-1', 500),
+        request('req-2', 'folder-1', 1500),
+      ]),
+    ]);
 
-    expect(getMaxTimestamp(f, t)).toBe(1500);
+    expect(getMaxTimestamps(t, 'col').get('folder-1')).toBe(1500);
   });
 
   it('returns the folder timestamp for an empty folder', () => {
-    const f = folder('folder-1', 'col', 42);
+    const t = tree([folder('folder-1', 'col', [], 42)]);
 
-    expect(getMaxTimestamp(f, tree([f]))).toBe(42);
+    expect(getMaxTimestamps(t, 'col').get('folder-1')).toBe(42);
   });
 
   it('returns max timestamp recursively for nested folders', () => {
-    const outer = folder('outer', 'col');
     const t = tree([
-      outer,
-      request('req-1', 'outer', 100),
-      folder('inner', 'outer'),
-      request('req-2', 'inner', 9000),
+      folder('outer', 'col', [
+        request('req-1', 'outer', 100),
+        folder('inner', 'outer', [request('req-2', 'inner', 9000)]),
+      ]),
     ]);
 
-    expect(getMaxTimestamp(outer, t)).toBe(9000);
+    const timestamps = getMaxTimestamps(t, 'col');
+    expect(timestamps.get('outer')).toBe(9000);
+    expect(timestamps.get('inner')).toBe(9000);
+    expect(timestamps.get('req-1')).toBe(100);
   });
 });
 
 describe('flattenTree', () => {
   const t = tree([
-    folder('b-folder', 'col'),
-    request('nested', 'b-folder'),
+    folder('b-folder', 'col', [request('nested', 'b-folder')]),
     request('a-request', 'col'),
   ]);
 

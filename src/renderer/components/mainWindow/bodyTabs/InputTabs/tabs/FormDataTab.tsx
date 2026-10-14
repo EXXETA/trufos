@@ -17,7 +17,7 @@ import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { Paperclip, Type } from 'lucide-react';
 
 /** Returned while the body is not form data, so the selector result stays stable. */
-const NO_FIELDS: readonly FormDataBody['fields'][number][] = Object.freeze([]);
+const NO_FIELDS: Readonly<FormDataBody['fields']> = Object.freeze([]);
 
 export const FormDataTab = () => {
   const { addFormDataField, updateFormDataField, deleteFormDataField, setRequestBody } =

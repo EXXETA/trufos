@@ -1,10 +1,11 @@
-import { exists, isEmpty, readFileLimited } from 'main/util/fs-util';
+import { exists, isEmpty, isSameOrInside, openFile, readFileLimited } from 'main/util/fs-util';
 import { assign } from 'main/util/object-util';
 import { randomUUID } from 'node:crypto';
 import { createReadStream, ReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import { text } from 'node:stream/consumers';
 import { z } from 'zod';
 import { TrufosObject } from 'shim/objects';
 import { Collection } from 'shim/objects/collection';
@@ -27,6 +28,7 @@ import {
   fromRequestInfoFile,
   GIT_IGNORE_FILE_NAME,
   InfoFile,
+  InfoObject,
   RequestInfoFile,
   toInfoFile,
 } from './info-files/latest';
@@ -53,17 +55,19 @@ import {
 
 const secretService = SecretService.instance;
 
+/** The files of a request that are needed to send it, see {@link PersistenceService.openRequestFiles}. */
+export interface RequestFiles {
+  /** The opened text body, if the request has a text body that was ever written. */
+  textBody?: Readable;
+  /** The scripts of the request, by type. */
+  scripts: Partial<Record<ScriptType, string>>;
+}
+
 const INFO_FILE_SCHEMAS = {
   collection: CollectionInfoFile,
   folder: FolderInfoFile,
   request: RequestInfoFile,
 } as const satisfies Record<TrufosObject['type'], z.ZodType<InfoFile>>;
-
-/**
- * An object that has a directory of its own. Collections and folders may come with or without
- * their children, which are never needed to persist the object itself.
- */
-type PersistedObject = CollectionInfo | FolderInfo | TrufosRequest;
 
 /**
  * This service is responsible for persisting and loading collections, folders, and requests
@@ -82,7 +86,7 @@ export class PersistenceService {
    */
   public async createDefaultCollectionIfNotExists(): Promise<void> {
     const dirPath = SettingsService.DEFAULT_COLLECTION_DIR;
-    if (!(await exists(path.join(dirPath, this.getInfoFileName('collection'))))) {
+    if (!(await exists(path.join(dirPath, getInfoFileName('collection'))))) {
       logger.info('Creating default collection at', dirPath);
       const collection = generateDefaultCollection(dirPath);
       await this.saveCollection(collection, true);
@@ -118,14 +122,18 @@ export class PersistenceService {
 
   /**
    * Renames a folder or request on the file system. The directory is renamed to match the new
-   * title, unless the sanitized title stays the same.
-   * @param node the folder or request to rename
-   * @param title new title of the object
+   * title, unless the sanitized title stays the same. Then the info files are rewritten.
+   * @param node the folder or request with its new title
+   * @param savedRequest the saved state of a draft request, with the new title as well. Its info
+   * file is rewritten, too.
    */
-  public async rename(node: FolderInfo | TrufosRequest, title: string): Promise<void> {
+  public async rename(
+    node: FolderInfo | TrufosRequest,
+    savedRequest?: TrufosRequest
+  ): Promise<void> {
     const oldDirPath = this.getDirPath(node.id);
     const parentDirPath = path.dirname(oldDirPath);
-    const dirName = uniqueName(sanitizeTitle(title), (name) => {
+    const dirName = uniqueName(sanitizeTitle(node.title), (name) => {
       const dirPath = path.join(parentDirPath, name);
       return dirPath !== oldDirPath && this.isDirPathTaken(dirPath);
     });
@@ -139,19 +147,11 @@ export class PersistenceService {
       logger.info('Title changed but directory name unchanged for object', node.id);
     }
 
-    if (node.type === 'request') {
-      // The request may have a draft, so only the title is patched into its info files. Writing
-      // the whole object would turn the draft into its saved state.
-      const infoFileName = this.getInfoFileName('request');
-      for (const dirPath of [newDirPath, this.getDraftDirPath(newDirPath)]) {
-        const infoFilePath = path.join(dirPath, infoFileName);
-        if (await exists(infoFilePath)) {
-          const info = JSON.parse(await readFileLimited(infoFilePath, 'utf8'));
-          await this.writeJson(infoFilePath, { ...info, title });
-        }
-      }
+    if (node.type === 'folder') {
+      await this.saveFolder(node);
     } else {
-      await this.saveInfoFile({ ...node, title }, newDirPath);
+      if (savedRequest != null) await this.saveRequestInfo(savedRequest);
+      await this.saveRequestInfo(node);
     }
   }
 
@@ -215,6 +215,21 @@ export class PersistenceService {
   }
 
   /**
+   * Reads the scripts of a request and opens its text body, from its draft directory if it has a
+   * draft. The caller has to close the text body.
+   * @param request the request to open the files of
+   */
+  public async openRequestFiles(request: TrufosRequest): Promise<RequestFiles> {
+    const scripts: RequestFiles['scripts'] = {};
+    for (const type of Object.values(ScriptType)) {
+      const stream = await this.loadScript(request, type);
+      if (stream != null) scripts[type] = await text(stream);
+    }
+    // opened last, so nothing has to be closed if reading a script fails
+    return { scripts, textBody: await this.loadTextBodyOfRequest(request) };
+  }
+
+  /**
    * Opens a script of a request, from its draft directory if it has a draft.
    * @param request the request to load the script of
    * @param type the type of the script
@@ -224,10 +239,7 @@ export class PersistenceService {
     request: TrufosRequest,
     type: ScriptType
   ): Promise<ReadStream | undefined> {
-    const filePath = this.getScriptFilePath(request, type);
-    if (await exists(filePath)) {
-      return createReadStream(filePath, 'utf-8');
-    }
+    return await openFile(this.getScriptFilePath(request, type), 'utf-8');
   }
 
   /**
@@ -255,10 +267,11 @@ export class PersistenceService {
     ) {
       await createGitIgnore(collection.dirPath);
     }
-    await this.saveCollectionInfo(collection);
+    const { children, ...info } = collection;
+    await this.saveCollectionInfo(info);
 
     if (recursive) {
-      const queue: (Folder | TrufosRequest)[] = [...collection.children];
+      const queue: (Folder | TrufosRequest)[] = [...children];
       for (let child = queue.shift(); child != null; child = queue.shift()) {
         if (child.type === 'request') {
           await this.saveRequestInfo(child);
@@ -266,8 +279,9 @@ export class PersistenceService {
           const textBody = getInlineTextBody(child);
           if (textBody != null) await this.writeTextBody(child, textBody);
         } else {
-          await this.saveFolder(child);
-          queue.push(...child.children);
+          const { children: grandChildren, ...folder } = child;
+          await this.saveFolder(folder);
+          queue.push(...grandChildren);
         }
       }
     }
@@ -303,24 +317,24 @@ export class PersistenceService {
    * @param object the object to save
    * @param dirPath the directory path to save the object to
    */
-  private async saveInfoFile(object: PersistedObject, dirPath: string) {
+  private async saveInfoFile(object: InfoObject, dirPath: string) {
     logger.info('Saving object', object.id);
     await fs.mkdir(dirPath, { recursive: true });
 
     // the secrets are removed from a copy, the given object may be frozen
-    const copy = toTrufosObject(object);
+    const copy = structuredClone(object);
     await this.saveSecrets(copy, dirPath);
 
     // write the info file
-    await this.writeJson(path.join(dirPath, this.getInfoFileName(copy.type)), toInfoFile(copy));
+    await this.writeJson(path.join(dirPath, getInfoFileName(copy.type)), toInfoFile(copy));
   }
 
   /**
-   * Removes secrets from the given trufos object and saves them to a separate file.
-   * @param object the trufos object to extract secrets from
+   * Removes secrets from the given object and saves them to a separate file.
+   * @param object the object to extract secrets from
    * @param dirPath the directory path where the secrets should be saved
    */
-  private async saveSecrets(object: TrufosObject, dirPath: string) {
+  private async saveSecrets(object: InfoObject, dirPath: string) {
     const filePath = path.join(dirPath, SECRETS_FILE_NAME);
     const secrets = extractSecrets(object);
     if (Object.keys(secrets).length > 0) {
@@ -344,16 +358,18 @@ export class PersistenceService {
     logger.info('Saving changes of request at', dirPath);
     const draftDirPath = this.getDraftDirPath(dirPath);
 
-    // delete the saved state, including files the draft no longer has
-    const savedFiles = (await fs.readdir(dirPath)).filter((file) => file !== DRAFT_DIR_NAME);
-    await Promise.all(
-      savedFiles.map((file) => fs.rm(path.join(dirPath, file), { recursive: true, force: true }))
-    );
-
-    // move the draft into its place
-    const draftFiles = await fs.readdir(draftDirPath);
+    // the draft files replace the saved ones, then the saved files the draft no longer has go
+    const [savedFiles, draftFiles] = await Promise.all([
+      fs.readdir(dirPath),
+      fs.readdir(draftDirPath),
+    ]);
     await Promise.all(
       draftFiles.map((file) => fs.rename(path.join(draftDirPath, file), path.join(dirPath, file)))
+    );
+    await Promise.all(
+      savedFiles
+        .filter((file) => file !== DRAFT_DIR_NAME && !draftFiles.includes(file))
+        .map((file) => fs.rm(path.join(dirPath, file), { recursive: true, force: true }))
     );
     await fs.rm(draftDirPath, { recursive: true, force: true });
   }
@@ -368,7 +384,7 @@ export class PersistenceService {
     logger.info('Discarding changes of request at', dirPath);
     await fs.rm(this.getDraftDirPath(dirPath), { recursive: true, force: true });
 
-    if (!(await exists(path.join(dirPath, this.getInfoFileName('request'))))) {
+    if (!(await exists(path.join(dirPath, getInfoFileName('request'))))) {
       this.removePathsUnder(dirPath);
       await fs.rm(dirPath, { recursive: true, force: true });
     }
@@ -394,7 +410,7 @@ export class PersistenceService {
    */
   public async loadSavedRequest(id: string, parentId: string): Promise<TrufosRequest | undefined> {
     const dirPath = this.getDirPath(id);
-    if (!(await exists(path.join(dirPath, this.getInfoFileName('request'))))) return;
+    if (!(await exists(path.join(dirPath, getInfoFileName('request'))))) return;
     return await this.loadRequest(parentId, dirPath, false);
   }
 
@@ -408,15 +424,12 @@ export class PersistenceService {
     request: TrufosRequest,
     encoding?: BufferEncoding
   ): Promise<ReadStream | undefined> {
+    if (request.body.type !== RequestBodyType.TEXT) return undefined;
     logger.info('Loading text body of request', request.id);
-    if (request.body.type === RequestBodyType.TEXT) {
-      const filePath = path.join(this.getOrCreateDirPath(request, true), TEXT_BODY_FILE_NAME);
-      if (await exists(filePath)) {
-        logger.debug(`Opening text body file at ${filePath}`);
-        return createReadStream(filePath, encoding);
-      }
-      logger.warn('Text body file does not exist for request', request.id);
-    }
+    const filePath = path.join(this.getOrCreateDirPath(request, true), TEXT_BODY_FILE_NAME);
+    const stream = await openFile(filePath, encoding);
+    if (stream == null) logger.warn('Text body file does not exist for request', request.id);
+    return stream;
   }
 
   /**
@@ -566,7 +579,7 @@ export class PersistenceService {
     draft?: boolean
   ): Promise<TrufosRequest> {
     const type = 'request' as const;
-    draft ??= await exists(path.join(this.getDraftDirPath(dirPath), this.getInfoFileName(type)));
+    draft ??= await exists(path.join(this.getDraftDirPath(dirPath), getInfoFileName(type)));
     const info = await this.readInfoFile(draft ? this.getDraftDirPath(dirPath) : dirPath, type);
     this.idToPathMap.set(info.id, dirPath);
 
@@ -591,7 +604,7 @@ export class PersistenceService {
     dirPath: string,
     type: TrufosObject['type']
   ): Promise<number> {
-    const infoFilePath = path.join(dirPath, this.getInfoFileName(type));
+    const infoFilePath = path.join(dirPath, getInfoFileName(type));
     const stats = await fs.stat(infoFilePath);
     return stats.mtimeMs;
   }
@@ -640,12 +653,12 @@ export class PersistenceService {
     dirPath: string,
     type?: T['type']
   ): Promise<T | undefined> {
-    if (type === 'folder' || (await exists(path.join(dirPath, this.getInfoFileName('folder'))))) {
+    if (type === 'folder' || (await exists(path.join(dirPath, getInfoFileName('folder'))))) {
       return (await this.loadFolder(parentId, dirPath)) as T;
     } else if (
       type === 'request' ||
-      (await exists(path.join(dirPath, this.getInfoFileName('request')))) ||
-      (await exists(path.join(this.getDraftDirPath(dirPath), this.getInfoFileName('request'))))
+      (await exists(path.join(dirPath, getInfoFileName('request')))) ||
+      (await exists(path.join(this.getDraftDirPath(dirPath), getInfoFileName('request'))))
     ) {
       return (await this.loadRequest(parentId, dirPath)) as T;
     }
@@ -660,7 +673,7 @@ export class PersistenceService {
     dirPath: string,
     type: T['type']
   ): Promise<InfoFile> {
-    const filePath = path.join(dirPath, this.getInfoFileName(type));
+    const filePath = path.join(dirPath, getInfoFileName(type));
     try {
       const info = assign(
         JSON.parse(await readFileLimited(filePath, 'utf8')) as InfoFile,
@@ -690,22 +703,10 @@ export class PersistenceService {
    * @param respectDraft whether to return the draft directory path for requests with draft status
    * @returns the directory path of the object
    */
-  private getOrCreateDirPath(object: PersistedObject, respectDraft = false) {
+  private getOrCreateDirPath(object: InfoObject, respectDraft = false) {
     let dirPath = this.idToPathMap.get(object.id);
-
-    if (dirPath != null) {
-      // already associated with a directory
-    } else if (object.type === 'collection') {
-      dirPath = object.dirPath;
-      this.idToPathMap.set(object.id, dirPath);
-    } else {
-      // object is not yet associated with any directory, must be a new object
-      // we need to derive a new and unused directory path from the parent
-      const parentDirPath = this.getDirPath(object.parentId);
-      const dirName = uniqueName(sanitizeTitle(object.title), (name) =>
-        this.isDirPathTaken(path.join(parentDirPath, name))
-      );
-      dirPath = path.join(parentDirPath, dirName);
+    if (dirPath == null) {
+      dirPath = object.type === 'collection' ? object.dirPath : this.createDirPath(object);
       this.idToPathMap.set(object.id, dirPath);
     }
 
@@ -714,6 +715,15 @@ export class PersistenceService {
       dirPath = this.getDraftDirPath(dirPath);
     }
     return dirPath;
+  }
+
+  /** Derives a new, unused directory path for a new folder or request from its parent. */
+  private createDirPath(node: FolderInfo | TrufosRequest) {
+    const parentDirPath = this.getDirPath(node.parentId);
+    const dirName = uniqueName(sanitizeTitle(node.title), (name) =>
+      this.isDirPathTaken(path.join(parentDirPath, name))
+    );
+    return path.join(parentDirPath, dirName);
   }
 
   /**
@@ -754,15 +764,6 @@ export class PersistenceService {
     }
   }
 
-  /**
-   * Gets the info file name for a given trufos object type.
-   * @param type the type of the trufos object
-   * @returns the info file name
-   */
-  getInfoFileName(type: TrufosObject['type']): string {
-    return getInfoFileName(type);
-  }
-
   private getScriptFilePath(request: TrufosRequest, type: ScriptType) {
     return path.join(this.getOrCreateDirPath(request, true), getScriptFileName(type));
   }
@@ -795,18 +796,4 @@ export class PersistenceService {
   private async writeJson(filePath: string, value: unknown) {
     await fs.writeFile(filePath, JSON.stringify(value, null, 2));
   }
-}
-
-/** Returns true if `dirPath` is `parentDirPath` itself or a directory inside it. */
-function isSameOrInside(dirPath: string, parentDirPath: string) {
-  return dirPath === parentDirPath || dirPath.startsWith(parentDirPath + path.sep);
-}
-
-/**
- * Returns a mutable copy of the given object as a {@link TrufosObject}. Collections and folders
- * get no children, as only their info file is written.
- */
-function toTrufosObject(object: PersistedObject): TrufosObject {
-  const copy = structuredClone(object);
-  return copy.type === 'request' ? copy : { ...copy, children: [] };
 }

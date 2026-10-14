@@ -39,6 +39,7 @@ let mockCurrentRequest: TrufosRequest | undefined;
 vi.mock('@/state/collectionStore', () => ({
   useCollectionStore: <T,>(selector: (state: unknown) => T) =>
     selector({ ...mockModel, selectedRequestId: undefined }),
+  useCollectionTree: () => mockModel,
   useCollectionActions: () => ({
     setSelectedRequest: setSelectedRequestMock,
     updateRequest: vi.fn(),

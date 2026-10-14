@@ -1,6 +1,5 @@
-import { produceWithPatches } from 'immer';
 import {
-  applyCommand,
+  applyCommandWithPatches,
   CollectionModel,
   CollectionStateEvent,
   CommandEnvelope,
@@ -36,10 +35,7 @@ export class FakeCollectionMain {
       this.rejectNext = undefined;
       throw error;
     }
-    const [model, patches] = produceWithPatches(this.model, (draft) => {
-      applyCommand(draft, envelope);
-      draft.version++;
-    });
+    const [model, patches] = applyCommandWithPatches(this.model, envelope);
     this.model = model;
     if (this.broadcast) {
       this.emit({

@@ -22,7 +22,6 @@ import { getSuggestedFilename } from 'main/network/response-filename';
 import { updateElectronApp } from 'update-electron-app';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { HistoryService } from 'main/history/history-service';
-import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 
 // register stream events
@@ -30,6 +29,7 @@ import './stream-events';
 
 const collectionState = CollectionStateService.instance;
 const environmentService = EnvironmentService.instance;
+const httpService = HttpService.instance;
 const importService = ImportService.instance;
 const exportService = ExportService.instance;
 
@@ -93,7 +93,6 @@ export class MainEventService implements IEventService {
    * attached to the window.
    */
   public window: BrowserWindow | null = null;
-  private readonly abortControllers = new Map<string, AbortController>();
 
   private constructor() {
     for (const propertyName of Reflect.ownKeys(MainEventService.prototype)) {
@@ -128,42 +127,11 @@ export class MainEventService implements IEventService {
   }
 
   async sendRequest(requestId: string, abortKey?: string): Promise<TrufosResponse | null> {
-    // the request is sent as it is now, including its body and scripts, even if it is changed
-    // while it is sent
-    const prepared = await collectionState.read(async (model) => {
-      const request = model.requests.get(requestId);
-      if (request == null) throw new Error(`Request ${requestId} does not exist`);
-      return await HttpService.instance.prepare(request);
-    });
-    const { request } = prepared;
-
-    // only a request sent with an abort key can be aborted, see abortRequest()
-    const abortController = new AbortController();
-    if (abortKey != null) this.abortControllers.set(abortKey, abortController);
-
-    const { dirPath } = collectionState.model.collection;
-    const response = await HistoryService.instance.record(request, dirPath, async (recorder) => {
-      try {
-        return await HttpService.instance.fetchAsync(prepared, recorder, abortController.signal);
-      } catch (error) {
-        // An aborted request simply has no response. This is the outcome the caller asked for, so
-        // it is reported as one instead of as the platform's abort error.
-        if (!abortController.signal.aborted) throw error;
-        logger.debug('Request was aborted:', request.id);
-        return null;
-      } finally {
-        if (abortKey != null) this.abortControllers.delete(abortKey);
-      }
-    });
-
-    // the response panel and the collection runner show the latest response of a request
-    if (response != null) LatestResponseBodies.instance.set(request.id, response.body?.id);
-    return response;
+    return await httpService.sendRequest(requestId, abortKey);
   }
 
   async abortRequest(abortKey: string) {
-    this.abortControllers.get(abortKey)?.abort();
-    this.abortControllers.delete(abortKey);
+    httpService.abortRequest(abortKey);
   }
 
   async getAppVersion() {

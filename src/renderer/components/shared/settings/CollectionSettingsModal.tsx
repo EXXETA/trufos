@@ -79,17 +79,19 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
   }, [isOpen]);
 
   const save = async () => {
-    const changes: CollectionChanges = {
-      variables: variableArrayToMap(draft.variables),
-      environments: draft.environments,
-      clientCertificate: draft.clientCertificate,
-    };
-    const newTitle = draft.title.trim();
-    if (newTitle.length > 0 && newTitle !== collectionTitle) changes.title = newTitle;
-    await updateCollection(changes);
-    // the environments must exist before one of them can be selected
-    await selectEnvironment(draft.selectedEnvironment);
+    const isChanged = (key: keyof CollectionDraft) => !deepEqual(draft[key], initialDraft?.[key]);
+    const changes: CollectionChanges = {};
+    if (isChanged('title')) changes.title = draft.title.trim();
+    if (isChanged('variables')) changes.variables = variableArrayToMap(draft.variables);
+    if (isChanged('environments')) changes.environments = draft.environments;
+    if (isChanged('clientCertificate')) changes.clientCertificate = draft.clientCertificate;
 
+    // the dialog stays open if saving failed. The environments must exist before one of them can
+    // be selected.
+    if (Object.keys(changes).length > 0 && !(await updateCollection(changes))) return;
+    if (isChanged('selectedEnvironment') && !(await selectEnvironment(draft.selectedEnvironment))) {
+      return;
+    }
     onClose();
   };
 

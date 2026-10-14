@@ -20,7 +20,7 @@ export interface FolderDropdownProps {
 }
 
 export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdownProps) => {
-  const { copyFolder, deleteFolder } = useCollectionActions();
+  const { copyItem, deleteItem } = useCollectionActions();
 
   const openModal = (type: 'folder' | 'request') => {
     onCreateItem({ type, parentId: folder.id });
@@ -50,13 +50,13 @@ export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdow
 
           <DropdownMenuItem onClick={handleMouseEvent(onRename)}>Rename Folder</DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleMouseEvent(() => copyFolder(folder.id))}>
+          <DropdownMenuItem onClick={handleMouseEvent(() => copyItem(folder.id))}>
             Copy Folder
           </DropdownMenuItem>
 
           <DropdownMenuItem
             className="text-danger"
-            onClick={handleMouseEvent(() => deleteFolder(folder.id))}
+            onClick={handleMouseEvent(() => deleteItem(folder.id))}
           >
             Delete Folder
           </DropdownMenuItem>

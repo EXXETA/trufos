@@ -1,28 +1,27 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { freeze, produceWithPatches } from 'immer';
+import { freeze } from 'immer';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { SettingsService } from 'main/persistence/service/settings-service';
 import {
-  applyCommand,
+  applyCommandWithPatches,
   CollectionCommand,
   CollectionModel,
   CollectionStateEvent,
   CommandEnvelope,
-  CommandType,
   normalizeCollection,
 } from 'shim/collection-model';
-import { Collection, CollectionBase } from 'shim/objects/collection';
-import { Folder } from 'shim/objects/folder';
+import { CollectionBase } from 'shim/objects/collection';
 import { TrufosId } from 'shim/objects/id';
 import { TrufosRequest } from 'shim/objects/request';
+import type { PreparedRequest } from 'main/network/service/http-service';
 import { getCommandEffects } from './command-effects';
 
 const persistenceService = PersistenceService.instance;
 const settingsService = SettingsService.instance;
 
-/** How long the info file of an edited request is not written after its last edit. */
+/** How long writing the info file of a request is postponed after its last edit. */
 export const REQUEST_INFO_DEBOUNCE_MS = 2000;
 
 /** Event signatures emitted by the {@link CollectionStateService}. */
@@ -33,14 +32,17 @@ type CollectionStateServiceEvents = {
   'collection-changed': [];
 };
 
+const noop = () => {};
+
 /**
  * Owns the currently open collection as a {@link CollectionModel}. Every change is a
  * {@link CollectionCommand}: the service validates and applies it, broadcasts the resulting patches
  * with a `changed` event and persists the change.
  *
- * Persistence effects run one after another on a serial queue. Edits of a request are written
- * debounced, everything else immediately. If an effect fails, the collection is reloaded from disk
- * and broadcast as a snapshot.
+ * Persistence effects run one after another on a serial queue, together with everything else that
+ * touches the files of the collection: readers and loading another collection. The info files of
+ * edited requests are written with a delay, see {@link REQUEST_INFO_DEBOUNCE_MS}. If an effect fails, the collection is reloaded from disk and
+ * broadcast as a snapshot.
  */
 export class CollectionStateService
   extends EventEmitter<CollectionStateServiceEvents>
@@ -50,14 +52,14 @@ export class CollectionStateService
 
   private _model?: CollectionModel;
 
-  /** The tail of the serial persistence queue. It never rejects. */
+  /** The tail of the serial queue. It never rejects. */
   private queue: Promise<void> = Promise.resolve();
 
-  /** The pending debounced info file writes, by request ID. */
-  private readonly debounced = new Map<TrufosId, NodeJS.Timeout>();
-
-  /** The IDs of requests whose info file has edits that are not written yet. */
-  private readonly unwritten = new Set<TrufosId>();
+  /**
+   * The requests whose info file is outdated, with the timer that writes it. A request stays here
+   * until its info file is written.
+   */
+  private readonly dirtyRequests = new Map<TrufosId, NodeJS.Timeout>();
 
   /**
    * Incremented whenever the model is replaced by loading it from disk. Effects queued for an
@@ -67,9 +69,6 @@ export class CollectionStateService
 
   /** How many loads or reloads are in progress. Commands are rejected while this is not 0. */
   private loading = 0;
-
-  /** The tail of the chain that runs loads one after another. It never rejects. */
-  private loadLock: Promise<void> = Promise.resolve();
 
   /** The current state of the open collection. It is immutable. */
   public get model(): CollectionModel {
@@ -96,11 +95,11 @@ export class CollectionStateService
 
   /**
    * Loads the collection at the given directory, makes it the current one and broadcasts it as a
-   * snapshot. Pending writes of the previous collection are flushed first.
+   * snapshot. Dirty requests of the previous collection are written first.
    * @param dirPath the directory of the collection
    */
   public load(dirPath: string): Promise<void> {
-    return this.exclusive(() => this.flushAndLoad(dirPath));
+    return this.exclusive(() => this.loadModel(dirPath));
   }
 
   /**
@@ -119,31 +118,29 @@ export class CollectionStateService
    * @param dirPath the directory of the collection to close. Defaults to the current one.
    */
   public closeCollection(dirPath?: string): Promise<void> {
-    return this.exclusive(() => this.closeCollectionExclusive(dirPath));
-  }
+    return this.exclusive(async () => {
+      dirPath ??= this.model.collection.dirPath;
+      logger.info('Closing collection at', dirPath);
 
-  private async closeCollectionExclusive(dirPath?: string) {
-    dirPath ??= this.model.collection.dirPath;
-    logger.info('Closing collection at', dirPath);
+      if (
+        dirPath === SettingsService.DEFAULT_COLLECTION_DIR ||
+        settingsService.settings.collections.length <= 1
+      ) {
+        logger.warn('Cannot close the default collection.');
+        return;
+      }
 
-    if (
-      dirPath === SettingsService.DEFAULT_COLLECTION_DIR ||
-      settingsService.settings.collections.length <= 1
-    ) {
-      logger.warn('Cannot close the default collection.');
-      return;
-    }
+      if (dirPath === this._model?.collection.dirPath) {
+        await this.loadModel(SettingsService.DEFAULT_COLLECTION_DIR);
+      }
 
-    if (dirPath === this._model?.collection.dirPath) {
-      await this.flushAndLoad(SettingsService.DEFAULT_COLLECTION_DIR);
-    }
-
-    // remove the collection from the list of open collections
-    const settings = settingsService.modifiableSettings;
-    const current = settings.collections[settings.currentCollectionIndex];
-    settings.collections = settings.collections.filter((path) => path !== dirPath);
-    settings.currentCollectionIndex = Math.max(0, settings.collections.indexOf(current));
-    await settingsService.setSettings(settings);
+      // remove the collection from the list of open collections
+      const settings = settingsService.modifiableSettings;
+      const current = settings.collections[settings.currentCollectionIndex];
+      settings.collections = settings.collections.filter((path) => path !== dirPath);
+      settings.currentCollectionIndex = Math.max(0, settings.collections.indexOf(current));
+      await settingsService.setSettings(settings);
+    });
   }
 
   /**
@@ -167,23 +164,35 @@ export class CollectionStateService
   }
 
   /**
-   * Applies a command to the model, broadcasts the patches and persists the change. Structural
-   * changes are written before this resolves; request edits are written debounced.
+   * Applies a command to the model, broadcasts the patches and persists the change. Immediate
+   * effects are written before this resolves; request info files of edits are written later.
    * @param input the {@link CommandEnvelope}. It is validated, as it usually comes from the
    * renderer.
    * @throws if the envelope is invalid, the command cannot be applied, the collection is being
    * loaded, or persisting it failed or was skipped because the collection was reloaded meanwhile
    */
   public async dispatch(input: unknown): Promise<void> {
-    const envelope = CommandEnvelope.parse(input);
+    await this.applyEnvelope(CommandEnvelope.parse(input));
+  }
+
+  /**
+   * Applies a command issued by the main process itself, see {@link dispatch}. Unlike there, the
+   * model is changed when this returns, so callers may choose not to wait for the persistence.
+   * @param command the command to apply
+   * @returns a promise that settles when the change is persisted. It rejects if the command cannot
+   * be applied or the collection is being loaded.
+   */
+  public async apply(command: CollectionCommand): Promise<void> {
+    return this.applyEnvelope({ commandId: randomUUID(), timestamp: Date.now(), command });
+  }
+
+  /** Applies a command synchronously and returns the promise of its persistence. */
+  private applyEnvelope(envelope: CommandEnvelope): Promise<void> {
     if (this.loading > 0) {
       throw new Error('The collection is being loaded, the command was not applied');
     }
     const { model: prev, generation } = this;
-    const [next, patches] = produceWithPatches(prev, (draft) => {
-      applyCommand(draft, envelope);
-      draft.version++;
-    });
+    const [next, patches] = applyCommandWithPatches(prev, envelope);
     this._model = next;
     this.emit('changed', {
       kind: 'patches',
@@ -192,102 +201,108 @@ export class CollectionStateService
       commandId: envelope.commandId,
     });
 
-    const { command } = envelope;
-    const effects = getCommandEffects(prev, next, command);
-    if (command.type === CommandType.SAVE_REQUEST || command.type === CommandType.DISCARD_REQUEST) {
-      // saving writes the latest draft itself and discarding makes the pending write obsolete
-      this.cancelDebounce(command.id);
-      this.unwritten.delete(command.id);
+    const effects = getCommandEffects(prev, next, envelope.command);
+    if (effects.dirtyRequestId != null) this.markDirty(effects.dirtyRequestId);
+    return effects.immediate == null
+      ? Promise.resolve()
+      : this.enqueue(effects.immediate, generation);
+  }
+
+  /**
+   * Queues writing all dirty requests right away and waits until every queued write is done.
+   */
+  public flush(): Promise<void> {
+    this.enqueueDirtyWrites();
+    return this.queue;
+  }
+
+  /**
+   * Reads files of a request while no change is written. Dirty requests are written first, so the
+   * files match the request the reader gets.
+   * @param id the ID of the request
+   * @param reader reads the files. It gets the request as it is when the reader runs.
+   * @returns the result of the reader, or undefined if there is no such request
+   */
+  public readRequest<T>(
+    id: TrufosId,
+    reader: (request: TrufosRequest) => Promise<T>
+  ): Promise<T | undefined> {
+    this.enqueueDirtyWrites();
+    return this.chain(async () => {
+      const request = this.model.requests.get(id);
+      return request == null ? undefined : await reader(request);
+    });
+  }
+
+  /**
+   * Opens a request for sending, see {@link PreparedRequest}.
+   * @param id the ID of the request
+   * @throws if there is no such request
+   */
+  public async prepareRequest(id: TrufosId): Promise<PreparedRequest> {
+    const prepared = await this.readRequest(id, async (request) => ({
+      request,
+      ...(await persistenceService.openRequestFiles(request)),
+    }));
+    if (prepared == null) throw new Error(`Request ${id} does not exist`);
+    return prepared;
+  }
+
+  /**
+   * Runs a task that loads a collection on the queue, after the dirty requests are written. Commands are
+   * rejected from now on until the task has settled.
+   */
+  private exclusive<T>(task: () => Promise<T>): Promise<T> {
+    this.enqueueDirtyWrites();
+    this.loading++;
+    return this.chain(task).finally(() => this.loading--);
+  }
+
+  /** Runs the task after everything queued before it. Returns the task's own promise. */
+  private chain<T>(task: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(task);
+    this.queue = result.then(noop, noop);
+    return result;
+  }
+
+  /** Postpones writing the info file of a request until it was not edited for a while. */
+  private markDirty(id: TrufosId) {
+    clearTimeout(this.dirtyRequests.get(id));
+    const timer = setTimeout(() => this.enqueueDirtyWrites([id]), REQUEST_INFO_DEBOUNCE_MS);
+    this.dirtyRequests.set(id, timer);
+  }
+
+  /** Queues writing the info files of the given dirty requests, of all by default. */
+  private enqueueDirtyWrites(ids = [...this.dirtyRequests.keys()]) {
+    if (ids.length === 0) return;
+    // already logged, and nobody waits for a delayed write
+    this.enqueue(() => this.writeDirtyRequests(ids), this.generation).catch(noop);
+  }
+
+  /**
+   * Writes the info files of the given requests as they are now, unless they are not dirty anymore
+   * or were deleted meanwhile.
+   */
+  private async writeDirtyRequests(ids: TrufosId[]) {
+    for (const id of ids) {
+      if (!this.dirtyRequests.has(id)) continue;
+      clearTimeout(this.dirtyRequests.get(id));
+      this.dirtyRequests.delete(id);
+      const request = this.model.requests.get(id);
+      if (request != null) await persistenceService.saveRequestInfo(request);
     }
-    for (const requestId of effects.debounce ?? []) this.debounce(requestId);
-    if (effects.immediate != null) await this.enqueue(effects.immediate, generation);
   }
 
   /**
-   * Builds an envelope for a command issued by the main process itself and dispatches it.
-   * @param command the command to apply
-   */
-  public async apply(command: CollectionCommand): Promise<void> {
-    await this.dispatch({ commandId: randomUUID(), timestamp: Date.now(), command });
-  }
-
-  /**
-   * Runs all pending debounced writes now and waits until every queued write is done.
-   */
-  public async flush(): Promise<void> {
-    this.enqueueDebounced();
-    await this.queue;
-  }
-
-  /**
-   * Reads files of the collection while no change is written. Pending debounced writes are written
-   * first, so the files match the model the reader gets.
-   * @param reader reads the files. It gets the model as it is when the reader runs.
-   * @returns the result of the reader
-   */
-  public async read<T>(reader: (model: CollectionModel) => Promise<T>): Promise<T> {
-    this.enqueueDebounced();
-    const result = this.queue.then(() => reader(this.model));
-    this.queue = result.then(
-      () => {},
-      () => {}
-    );
-    return await result;
-  }
-
-  /** Queues all pending debounced writes right away. */
-  private enqueueDebounced() {
-    for (const requestId of [...this.debounced.keys()]) {
-      this.cancelDebounce(requestId);
-      this.enqueueRequestInfo(requestId);
-    }
-  }
-
-  private debounce(requestId: TrufosId) {
-    this.cancelDebounce(requestId);
-    this.unwritten.add(requestId);
-    const timeout = setTimeout(() => {
-      this.debounced.delete(requestId);
-      this.enqueueRequestInfo(requestId);
-    }, REQUEST_INFO_DEBOUNCE_MS);
-    this.debounced.set(requestId, timeout);
-  }
-
-  private cancelDebounce(requestId: TrufosId) {
-    clearTimeout(this.debounced.get(requestId));
-    this.debounced.delete(requestId);
-  }
-
-  /** Queues writing the info file of a request in the state it has when the write runs. */
-  private enqueueRequestInfo(requestId: TrufosId) {
-    this.enqueue(
-      async () => {
-        // an earlier write may already have written the latest state
-        if (!this.unwritten.delete(requestId)) return;
-        // the request may have been deleted in the meantime
-        const request = this._model?.requests.get(requestId);
-        if (request != null) await persistenceService.saveRequestInfo(request);
-      },
-      this.generation,
-      requestId
-    ).catch(() => {}); // already logged, and nobody waits for a debounced write
-  }
-
-  /**
-   * Adds an effect to the serial persistence queue. If it fails, the collection is reloaded from
-   * disk before the next effect runs.
+   * Adds an effect to the serial queue. If it fails, the collection is reloaded from disk before
+   * the next effect runs.
    * @param effect the effect to run
    * @param generation the {@link generation} of the model the effect was planned from. If the
    * model was reloaded since, the effect is skipped and the returned promise rejects.
-   * @param requestId the request whose info file the effect writes, if that is what it does
    * @returns a promise that settles with the effect
    */
-  private enqueue(
-    effect: () => Promise<void>,
-    generation: number,
-    requestId?: TrufosId
-  ): Promise<void> {
-    const result = this.queue.then(async () => {
+  private enqueue(effect: () => Promise<void>, generation: number): Promise<void> {
+    return this.chain(async () => {
       if (generation !== this.generation) {
         logger.warn('Skipping a change planned before the collection was reloaded');
         throw new Error('The collection was reloaded before the change could be written');
@@ -296,77 +311,51 @@ export class CollectionStateService
         await effect();
       } catch (error) {
         logger.error('Failed to persist a change of the collection, reloading it:', error);
-        await this.reloadAfterFailure(requestId);
+        await this.reloadAfterFailure();
         throw error;
       }
     });
-    this.queue = result.catch(() => {});
-    return result;
   }
 
   /**
-   * Reloads the collection from disk after an effect failed. The edits of other requests that are
-   * not written yet are written first, so they survive the reload if possible.
-   * @param failedRequestId the request whose info file failed to be written, if any
+   * Reloads the collection from disk after an effect failed. The info files of dirty requests are
+   * written first, so their edits survive the reload if possible.
    */
-  private async reloadAfterFailure(failedRequestId?: TrufosId) {
+  private async reloadAfterFailure() {
     this.loading++;
     try {
-      for (const requestId of [...this.debounced.keys()]) this.cancelDebounce(requestId);
-      const unwritten = [...this.unwritten].filter((requestId) => requestId !== failedRequestId);
-      this.unwritten.clear();
-      for (const requestId of unwritten) {
-        const request = this._model?.requests.get(requestId);
-        if (request == null) continue;
-        try {
-          await persistenceService.saveRequestInfo(request);
-        } catch (error) {
-          logger.error(`Failed to write request ${requestId} before reloading:`, error);
-        }
+      for (const id of [...this.dirtyRequests.keys()]) {
+        await this.writeDirtyRequests([id]).catch((error) => {
+          logger.error(`Failed to write request ${id} before reloading:`, error);
+        });
       }
 
       const dirPath = this._model?.collection.dirPath;
       if (dirPath == null) return;
-      try {
-        await this.loadModel(dirPath);
-      } catch (error) {
+      await this.loadModel(dirPath).catch((error) => {
         logger.error(`Failed to reload the collection at ${dirPath}:`, error);
-      }
+      });
     } finally {
       this.loading--;
     }
   }
 
-  /**
-   * Runs a task that may load a collection once every such task started before it has settled.
-   * Commands are rejected from now on until the task has settled.
-   */
-  private exclusive<T>(task: () => Promise<T>): Promise<T> {
-    this.loading++;
-    const result = this.loadLock.then(task).finally(() => this.loading--);
-    this.loadLock = result.then(
-      () => {},
-      () => {}
-    );
-    return result;
-  }
-
-  /** Flushes the pending writes and loads the collection. */
-  private async flushAndLoad(dirPath: string) {
-    await this.flush();
-    await this.loadModel(dirPath);
-  }
-
-  /** Loads the collection without waiting for the persistence queue. */
+  /** Loads the collection, makes it the current one and broadcasts it as a snapshot. */
   private async loadModel(dirPath: string) {
     const previous = this._model;
     const collection = await persistenceService.loadCollection(dirPath);
-    const savedRequests = await this.loadSavedRequests(collection);
 
     // keep the selected environment when the same collection is reloaded
     const selectedEnvironmentKey =
       previous?.collection.id === collection.id ? previous.selectedEnvironmentKey : undefined;
-    const model = normalizeCollection(collection, savedRequests, selectedEnvironmentKey);
+    const model = normalizeCollection(collection, [], selectedEnvironmentKey);
+    const drafts = [...model.requests.values()].filter((request) => request.draft);
+    const savedRequests = await Promise.all(
+      drafts.map((draft) => persistenceService.loadSavedRequest(draft.id, draft.parentId))
+    );
+    for (const saved of savedRequests) {
+      if (saved != null) model.savedRequests.set(saved.id, saved);
+    }
     // the version never goes back, so the renderer can tell old events from new ones
     if (previous != null) model.version = previous.version + 1;
     this._model = freeze(model, true);
@@ -375,21 +364,6 @@ export class CollectionStateService
     await this.addToOpenCollections(collection.dirPath);
     this.emit('changed', { kind: 'snapshot', model: this._model });
     if (collection.dirPath !== previous?.collection.dirPath) this.emit('collection-changed');
-  }
-
-  /** Loads the saved state of every request of the collection that has a draft. */
-  private async loadSavedRequests(collection: Collection) {
-    const savedRequests: TrufosRequest[] = [];
-    const queue: (Folder | TrufosRequest)[] = [...collection.children];
-    for (let node = queue.pop(); node != null; node = queue.pop()) {
-      if (node.type === 'folder') {
-        queue.push(...node.children);
-      } else if (node.draft) {
-        const saved = await persistenceService.loadSavedRequest(node.id, node.parentId);
-        if (saved != null) savedRequests.push(saved);
-      }
-    }
-    return savedRequests;
   }
 
   /** Adds the collection to the open collections in the settings and makes it the current one. */

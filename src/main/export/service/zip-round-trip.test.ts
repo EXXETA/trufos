@@ -1,3 +1,4 @@
+import { text } from 'node:stream/consumers';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -173,10 +174,5 @@ function findRequest(collection: Collection, id: string): TrufosRequest {
 }
 
 async function streamToString(stream?: NodeJS.ReadableStream) {
-  if (stream == null) return undefined;
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk as Uint8Array);
-  }
-  return Buffer.concat(chunks).toString('utf-8');
+  return stream == null ? undefined : await text(stream);
 }

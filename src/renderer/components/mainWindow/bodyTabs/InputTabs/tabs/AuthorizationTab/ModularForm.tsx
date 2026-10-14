@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -55,6 +54,22 @@ export type FormFieldConfig =
 
 export type FormComponentConfiguration = Record<string, FormFieldConfig>;
 
+/** The value a field shows while it has none: its default, or the default of its type. */
+function getFieldDefault(field: FormFieldConfig): string | number | boolean | undefined {
+  switch (field.type) {
+    case 'label':
+      return undefined;
+    case 'number':
+      return field.defaultValue ?? 0;
+    case 'checkbox':
+      return field.defaultValue ?? true;
+    case 'select':
+      return field.defaultValue ?? field.options[0]?.value;
+    default:
+      return field.defaultValue ?? '';
+  }
+}
+
 export interface FormProps<T extends object> {
   config: FormComponentConfiguration;
   data: T;
@@ -72,10 +87,8 @@ export const ModularForm = <T extends object>({
    * Returns the value to show for a field. A missing value is shown as the default but not written
    * to the data: this runs during render, and the field stays absent until the user edits it.
    */
-  const getValue = useCallback(
-    <V,>(key: keyof T, defaultValue: V) => (data[key] as V | undefined) ?? defaultValue,
-    [data]
-  );
+  const getValue = <V,>(key: keyof T, field: FormFieldConfig) =>
+    (data[key] as V | undefined) ?? (getFieldDefault(field) as V);
 
   const renderField = (key: keyof T, fieldConfig: FormFieldConfig) => {
     switch (fieldConfig.type) {
@@ -88,13 +101,13 @@ export const ModularForm = <T extends object>({
 
       case 'text':
       case 'email': {
-        const { label, placeholder, defaultValue } = fieldConfig;
+        const { label, placeholder } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <Input
               type={fieldConfig.type}
-              value={getValue(key, defaultValue ?? '')}
+              value={getValue<string>(key, fieldConfig)}
               onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
               className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
@@ -104,12 +117,12 @@ export const ModularForm = <T extends object>({
       }
 
       case 'password': {
-        const { label, placeholder, defaultValue } = fieldConfig;
+        const { label, placeholder } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <SecretInput
-              value={getValue(key, defaultValue ?? '')}
+              value={getValue<string>(key, fieldConfig)}
               onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
               className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
@@ -119,13 +132,13 @@ export const ModularForm = <T extends object>({
       }
 
       case 'number': {
-        const { label, placeholder, defaultValue } = fieldConfig;
+        const { label, placeholder } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <Input
               type="number"
-              value={getValue(key, defaultValue ?? 0)}
+              value={getValue<number>(key, fieldConfig)}
               onChange={(e) => onDataChanged({ [key]: e.target.valueAsNumber ?? 0 } as Partial<T>)}
               placeholder={placeholder}
               className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
@@ -135,12 +148,12 @@ export const ModularForm = <T extends object>({
       }
 
       case 'select': {
-        const { label, placeholder, defaultValue } = fieldConfig;
+        const { label, placeholder } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <Select
-              value={getValue(key, defaultValue ?? fieldConfig.options[0].value)}
+              value={getValue<string>(key, fieldConfig)}
               onValueChange={(value) => onDataChanged({ [key]: value } as Partial<T>)}
             >
               <SelectTrigger className="border-border bg-background-primary w-full rounded-md border px-3 py-2">
@@ -159,12 +172,12 @@ export const ModularForm = <T extends object>({
       }
 
       case 'checkbox': {
-        const { label, defaultValue } = fieldConfig;
+        const { label } = fieldConfig;
         return (
           <div key={key as string} className="flex items-center space-x-2">
             <Checkbox
               id={key as string}
-              checked={getValue(key, defaultValue ?? true)}
+              checked={getValue<boolean>(key, fieldConfig)}
               onCheckedChange={(checked) =>
                 onDataChanged({ [key]: checked === true } as Partial<T>)
               }
@@ -181,12 +194,12 @@ export const ModularForm = <T extends object>({
       }
 
       case 'textarea': {
-        const { label, placeholder, defaultValue } = fieldConfig;
+        const { label, placeholder } = fieldConfig;
         return (
           <div key={key as string} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <textarea
-              value={getValue(key, defaultValue ?? '')}
+              value={getValue<string>(key, fieldConfig)}
               onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
               placeholder={placeholder}
               rows={fieldConfig.rows ?? 3}

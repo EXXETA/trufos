@@ -17,15 +17,16 @@ vi.mock('main/persistence/service/persistence-service', () => ({
 
 const mockState = vi.hoisted(() => ({
   requests: new Map<string, { id: string }>(),
-  read: vi.fn(async <T>(reader: (model: { requests: Map<string, { id: string }> }) => Promise<T>) =>
-    reader({ requests: mockState.requests })
-  ),
+  readRequest: vi.fn(async <T>(id: string, reader: (request: { id: string }) => Promise<T>) => {
+    const request = mockState.requests.get(id);
+    return request == null ? undefined : await reader(request);
+  }),
 }));
 
 vi.mock('main/collection-state/collection-state-service', () => ({
   CollectionStateService: {
     instance: {
-      read: mockState.read,
+      readRequest: mockState.readRequest,
     },
   },
 }));
@@ -88,7 +89,7 @@ describe('stream-open', () => {
     await open({ sender }, { type: 'request-body', requestId: request.id }, 'utf8');
 
     // Assert
-    expect(mockState.read).toHaveBeenCalled();
+    expect(mockState.readRequest).toHaveBeenCalled();
     expect(PersistenceService.instance.loadTextBodyOfRequest).toHaveBeenCalledWith(request, 'utf8');
   });
 

@@ -10,7 +10,11 @@ import {
   useSensor,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import {
+  useCollectionActions,
+  useCollectionStore,
+  useCollectionTree,
+} from '@/state/collectionStore';
 import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
 import { NavFolder } from '@/components/sidebar/SidebarRequestList/Nav/NavFolder';
 import { NavRequest } from '@/components/sidebar/SidebarRequestList/Nav/NavRequest';
@@ -18,16 +22,15 @@ import {
   flattenTree,
   removeChildrenOf,
   getProjection,
-  getMaxTimestamp,
+  getMaxTimestamps,
   getRangeSelection,
   SortMode,
-  TreeNode,
 } from './treeUtilities';
-import { getTopLevelSelectedItems, isWithinGroup } from '@/state/helper/collectionUtil';
+import { getMoveIndex } from '@/state/helper/collectionUtil';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
-import { FolderInfo } from 'shim/collection-model';
+import { FolderInfo, getTopLevelIds, isSelfOrDescendant, TreeNode } from 'shim/collection-model';
 import { TrufosRequest } from 'shim/objects/request';
 import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
 import { BulkActionBar } from '@/components/sidebar/SidebarRequestList/BulkActionBar';
@@ -113,17 +116,13 @@ const DragOverlayContent = ({ itemId, groupCount }: { itemId: string; groupCount
 
 export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarRequestListProps) => {
   const collectionId = useCollectionStore((state) => state.collection.id);
-  const childIds = useCollectionStore((state) => state.childIds);
+  const tree = useCollectionTree();
   const openFolders = useCollectionStore((state) => state.openFolders);
-  const folders = useCollectionStore((state) => state.folders);
-  const requests = useCollectionStore((state) => state.requests);
   const sortMode = useCollectionStore((state) => state.sortMode);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const selectedIds = useCollectionStore((state) => state.selectedIds);
-  const isBulkActionRunning = useCollectionStore((state) => state.isBulkActionRunning);
   const {
-    moveItem,
-    moveItemsAfter,
+    moveItems,
     setSelectedRequest,
     toggleItemSelected,
     setSelection,
@@ -145,21 +144,19 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   );
   const activeSensors = sortMode === SortMode.DEFAULT ? sensors : [];
 
-  const sortFn = useMemo((): ((a: TreeNode, b: TreeNode) => number) | null => {
-    const tree = { childIds, requests, folders };
+  const sortFn = useMemo((): ((a: TreeNode, b: TreeNode) => number) | undefined => {
     if (sortMode === SortMode.AZ_ASC) return (a, b) => a.title.localeCompare(b.title);
     if (sortMode === SortMode.AZ_DESC) return (a, b) => b.title.localeCompare(a.title);
-    if (sortMode === SortMode.TIME_DESC)
-      return (a, b) => getMaxTimestamp(b, tree) - getMaxTimestamp(a, tree);
-    if (sortMode === SortMode.TIME_ASC)
-      return (a, b) => getMaxTimestamp(a, tree) - getMaxTimestamp(b, tree);
-    return null;
-  }, [sortMode, childIds, requests, folders]);
+    if (sortMode !== SortMode.TIME_DESC && sortMode !== SortMode.TIME_ASC) return undefined;
+    const timestamps = getMaxTimestamps(tree, collectionId);
+    const direction = sortMode === SortMode.TIME_DESC ? -1 : 1;
+    return (a, b) => direction * ((timestamps.get(a.id) ?? 0) - (timestamps.get(b.id) ?? 0));
+  }, [sortMode, tree, collectionId]);
 
   // Flatten the tree for a single SortableContext.
   const flattenedItems = useMemo(
-    () => flattenTree({ childIds, requests, folders }, collectionId, openFolders, sortFn),
-    [childIds, requests, folders, collectionId, openFolders, sortFn]
+    () => flattenTree(tree, collectionId, openFolders, sortFn),
+    [tree, collectionId, openFolders, sortFn]
   );
 
   const visibleRequestIds = useMemo(
@@ -170,10 +167,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   // Top-level (non-nested) members of the current multi-selection: excludes any selected id
   // that is itself a descendant of another selected folder, since moving that ancestor folder
   // already carries it along.
-  const topLevelSelectedIds = useMemo(
-    () => getTopLevelSelectedItems(selectedIds, requests, folders).map((item) => item.id),
-    [selectedIds, requests, folders]
-  );
+  const topLevelSelectedIds = useMemo(() => getTopLevelIds(tree, selectedIds), [selectedIds, tree]);
 
   // A drag counts as a "group drag" only when the dragged item is itself a top-level member
   // of a multi-selection — dragging a selected item whose ancestor folder is also selected
@@ -299,7 +293,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
     setActiveId(active.id as string);
   };
 
-  const handleDragEnd = async ({ active, over, delta }: DragEndEvent) => {
+  const handleDragEnd = ({ active, over, delta }: DragEndEvent) => {
     if (!over || active.id === over.id || sortMode !== SortMode.DEFAULT) {
       setActiveId(null);
       return;
@@ -319,35 +313,31 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
 
     setActiveId(null);
 
-    if (
-      isMultiDrag &&
-      isWithinGroup(projection.parentId, new Set(topLevelSelectedIds), requests, folders)
-    ) {
-      // Dropping the group into one of its own folders (or their descendants) would nest a
-      // member inside itself; reject the whole drop before anything moves (I20).
-      clearSelection();
+    if (!isMultiDrag) {
+      void moveItems([activeIdStr], projection.parentId, projection.newIndex);
       return;
     }
 
-    await moveItem(activeIdStr, projection.parentId, projection.newIndex);
-
-    if (isMultiDrag) {
-      // Preserve the rest of the group's pre-drag relative order.
-      const otherTopLevelIds = flattenedItems
+    // The dragged item lands where it was dropped, followed by the rest in pre-drag order
+    const movedIds = [
+      activeIdStr,
+      ...flattenedItems
         .filter((item) => item.id !== activeIdStr && topLevelSelectedIds.includes(item.id))
-        .map((item) => item.id);
-
-      try {
-        // Positions are resolved relative to the previously-placed item from fresh state on
-        // each step, so the group lands as a contiguous run right after the active item.
-        await moveItemsAfter(activeIdStr, otherTopLevelIds);
-      } finally {
-        // Clear even if one of the group's moveItem calls failed mid-loop, so the selection
-        // doesn't keep referencing items that may have already been relocated; no rollback is
-        // attempted here either, matching runBulk's error-handling posture.
-        clearSelection();
-      }
+        .map((item) => item.id),
+    ];
+    clearSelection();
+    if (movedIds.some((id) => isSelfOrDescendant(tree, projection.parentId, id))) {
+      // Dropping the group into one of its own folders (or their descendants) would nest a
+      // member inside itself; reject the whole drop before anything moves (I20).
+      return;
     }
+    const index = getMoveIndex(
+      tree.childIds.get(projection.parentId) ?? [],
+      activeIdStr,
+      projection.newIndex,
+      new Set(movedIds)
+    );
+    void moveItems(movedIds, projection.parentId, index);
   };
 
   const handleDragCancel = () => {
@@ -355,12 +345,12 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   };
 
   const handleDuplicateSelected = () => {
-    duplicateSelectedItems();
+    void duplicateSelectedItems();
   };
 
   const handleConfirmBulkDelete = () => {
     setIsBulkDeleteDialogOpen(false);
-    deleteSelectedItems();
+    void deleteSelectedItems();
   };
 
   // Find the active item for the DragOverlay preview
@@ -431,7 +421,6 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
           onClear={clearSelection}
           onDuplicate={handleDuplicateSelected}
           onDeleteClick={() => setIsBulkDeleteDialogOpen(true)}
-          disabled={isBulkActionRunning}
         />
         <SidebarContent className="tabs-scrollbar -mr-6 -ml-6 flex-1 overflow-x-hidden overflow-y-auto">
           <DndContext

@@ -4,29 +4,21 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { CollectionRunner } from './CollectionRunner';
 import { RequestMethod } from 'shim/objects/request-method';
 import type { Folder } from 'shim/objects/folder';
-import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
-import { RequestBodyType, type TrufosRequest } from 'shim/objects/request';
+import { type CollectionModel, normalizeCollection } from 'shim/collection-model';
+import type { TrufosRequest } from 'shim/objects/request';
 import type { TrufosResponse } from 'shim/objects/response';
+import {
+  makeCollection,
+  makeFolder as makeSharedFolder,
+  makeRequest as makeSharedRequest,
+} from '@/__mocks__/fake-collection-main';
 
 const sendRequestMock =
   vi.fn<(requestId: string, signal?: AbortSignal) => Promise<TrufosResponse | null>>();
 const addResponseMock = vi.fn();
-const showErrorMock = vi.fn();
-
-vi.mock('@/services/http/http-service', () => ({
-  HttpService: {
-    instance: {
-      sendRequest: (requestId: string, signal?: AbortSignal) => sendRequestMock(requestId, signal),
-    },
-  },
-}));
 
 vi.mock('@/state/responseStore', () => ({
   useResponseActions: () => ({ addResponse: addResponseMock }),
-}));
-
-vi.mock('@/lib/monaco/models', () => ({
-  flushModelEdits: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/hooks/useBodyData', () => ({
@@ -42,24 +34,16 @@ vi.mock('@/components/ui/resizable', () => ({
   ResizableHandle: () => null,
 }));
 
-vi.mock('@/error/errorHandler', () => ({
-  showError: (...args: unknown[]) => showErrorMock(...args),
-}));
-
-interface MockState {
-  collection: Pick<CollectionInfo, 'id' | 'title' | 'environments'>;
-  selectedEnvironmentKey?: string;
-  requests: Map<string, TrufosRequest>;
-  folders: Map<string, FolderInfo>;
-  childIds: Map<string, string[]>;
-}
-
-let mockState: MockState;
+let mockState: CollectionModel;
 const selectEnvironmentMock = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/state/collectionStore', () => ({
-  useCollectionStore: <T,>(selector: (state: MockState) => T) => selector(mockState),
-  useCollectionActions: () => ({ selectEnvironment: selectEnvironmentMock }),
+  useCollectionStore: <T,>(selector: (state: CollectionModel) => T) => selector(mockState),
+  useCollectionTree: () => mockState,
+  useCollectionActions: () => ({
+    selectEnvironment: selectEnvironmentMock,
+    sendRequest: (requestId: string, signal?: AbortSignal) => sendRequestMock(requestId, signal),
+  }),
 }));
 
 /** The nested tree the tests describe the collection with. */
@@ -71,21 +55,15 @@ function makeRequest(
   method: RequestMethod = RequestMethod.GET,
   parentId = 'col-1'
 ): TrufosRequest {
-  return {
-    id,
-    parentId,
-    type: 'request',
-    lastModified: 0,
+  return makeSharedRequest(id, parentId, {
     title,
-    url: { base: `https://example.com/${id}`, query: [] },
     method,
-    headers: [],
-    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-  };
+    url: { base: `https://example.com/${id}`, query: [] },
+  });
 }
 
 function makeFolder(id: string, title: string, children: TreeItem[]): Folder {
-  return { id, parentId: 'col-1', type: 'folder', lastModified: 0, title, children };
+  return { ...makeSharedFolder(id, 'col-1', children), title };
 }
 
 function makeResponse(status: number, duration = 100): TrufosResponse {
@@ -105,36 +83,15 @@ function makeResponse(status: number, duration = 100): TrufosResponse {
 let mockChildren: TreeItem[];
 
 function setupCollection(children: TreeItem[]) {
-  const requests = new Map<string, TrufosRequest>();
-  const folders = new Map<string, FolderInfo>();
-  const childIds = new Map<string, string[]>();
-  const walk = (parentId: string, items: TreeItem[]) => {
-    childIds.set(
-      parentId,
-      items.map((item) => item.id)
-    );
-    for (const item of items) {
-      if (item.type === 'request') requests.set(item.id, item);
-      else {
-        const { children: grandChildren, ...folder } = item;
-        folders.set(item.id, folder);
-        walk(item.id, grandChildren);
-      }
-    }
-  };
-  walk('col-1', children);
   mockChildren = children;
-  mockState = {
-    collection: {
-      id: 'col-1',
+  mockState = normalizeCollection(
+    makeCollection('col-1', children, {
       title: 'My Collection',
       environments: { dev: { variables: {} }, prod: { variables: {} } },
-    },
-    selectedEnvironmentKey: 'dev',
-    requests,
-    folders,
-    childIds,
-  };
+    }),
+    [],
+    'dev'
+  );
 }
 
 function renderRunner(props: Partial<Parameters<typeof CollectionRunner>[0]> = {}) {
@@ -155,7 +112,6 @@ function deferred<T>() {
 beforeEach(() => {
   sendRequestMock.mockReset();
   addResponseMock.mockClear();
-  showErrorMock.mockClear();
   selectEnvironmentMock.mockClear().mockResolvedValue(undefined);
   setupCollection([
     makeRequest('req-1', 'Login', RequestMethod.POST),

@@ -15,7 +15,7 @@ interface RequestContextMenuProps {
 }
 
 export const RequestContextMenu = ({ requestId }: RequestContextMenuProps) => {
-  const { deleteRequest } = useCollectionActions();
+  const { deleteItem } = useCollectionActions();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -25,7 +25,7 @@ export const RequestContextMenu = ({ requestId }: RequestContextMenuProps) => {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-background">
         <DropdownMenuItem
-          onClick={handleMouseEvent(() => deleteRequest(requestId))}
+          onClick={handleMouseEvent(() => deleteItem(requestId))}
           className="text-danger"
         >
           Delete

@@ -26,14 +26,15 @@ const mockState = vi.hoisted(() => {
     get model() {
       return state;
     },
-    // applies the commands like the real service, so later scripts see the changes
-    apply: vi.fn(async (command: CollectionCommand) => {
-      if (command.type !== CommandType.UPDATE_COLLECTION) return;
+    // applies the commands at once like the real service, so later scripts see the changes
+    apply: vi.fn((command: CollectionCommand): Promise<void> => {
+      if (command.type !== CommandType.UPDATE_COLLECTION) return Promise.resolve();
       const { variables, environments } = command.changes;
       state.collection = {
         variables: variables ?? state.collection.variables,
         environments: environments ?? state.collection.environments,
       };
+      return Promise.resolve();
     }),
   };
 
@@ -76,8 +77,6 @@ describe('ScriptingService', () => {
 
     vi.spyOn(app, 'getVersion').mockReturnValue('1.0.0');
 
-    // Reset singleton instance for fresh context
-    ScriptingService._instance = null;
     service = ScriptingService.instance;
   });
 
@@ -427,49 +426,6 @@ describe('ScriptingService', () => {
       expect(mockState.state.collection.environments.dev.variables.baseUrl.value).toBe('changed');
     });
 
-    it('should only apply the variables the script set on top of the current ones', async () => {
-      // Arrange: the variables change while the script runs
-      log.mockImplementationOnce(() => {
-        mockState.state.collection = {
-          variables: { testVar: { value: 'concurrent' }, added: { value: 'concurrent' } },
-          environments: {
-            dev: { variables: { baseUrl: { value: 'concurrent' }, added: { value: 'x' } } },
-            prod: { variables: {} },
-          },
-        };
-      });
-
-      // Act
-      await service.executeScript(
-        `
-        console.log('changing');
-        trufos.setCollectionVariable('count', '1');
-        trufos.setEnvironmentVariable('apiKey', 'secret');
-      `,
-        ScriptType.PRE_REQUEST,
-        log
-      );
-
-      // Assert
-      expect(mockState.state.collection).toEqual({
-        variables: {
-          testVar: { value: 'concurrent' },
-          added: { value: 'concurrent' },
-          count: { value: '1' },
-        },
-        environments: {
-          dev: {
-            variables: {
-              baseUrl: { value: 'concurrent' },
-              added: { value: 'x' },
-              apiKey: { value: 'secret' },
-            },
-          },
-          prod: { variables: {} },
-        },
-      });
-    });
-
     it('should apply variables and environments with a single command', async () => {
       // Act
       await service.executeScript(
@@ -494,33 +450,12 @@ describe('ScriptingService', () => {
       });
     });
 
-    it('should skip an environment that was deleted while the script ran', async () => {
+    it('should not wait for the variables to be written to disk', async () => {
       // Arrange
-      log.mockImplementationOnce(() => {
-        mockState.state.collection = {
-          ...mockState.state.collection,
-          environments: { prod: { variables: {} } },
-        };
-      });
-
-      // Act
-      await service.executeScript(
-        `
-        console.log('deleting');
-        trufos.setEnvironmentVariable('a', 'b', 'dev');
-      `,
-        ScriptType.PRE_REQUEST,
-        log
+      let persist!: () => void;
+      mockState.collectionState.apply.mockReturnValueOnce(
+        new Promise<void>((resolve) => (persist = resolve))
       );
-
-      // Assert
-      expect(mockState.state.collection.environments).toEqual({ prod: { variables: {} } });
-    });
-
-    it('should report a failure to apply the variables to the script log', async () => {
-      // Arrange
-      const failure = new Error('failed');
-      mockState.collectionState.apply.mockRejectedValueOnce(failure);
 
       // Act
       await service.executeScript(
@@ -530,11 +465,27 @@ describe('ScriptingService', () => {
       );
 
       // Assert
-      expect(log).toHaveBeenCalledWith({
-        script: ScriptType.PRE_REQUEST,
-        level: 'error',
-        args: [failure],
-      });
+      expect(persist).toBeDefined();
+      expect(log).not.toHaveBeenCalled();
+      persist();
+    });
+
+    it('should only log a failure to write the variables to disk to the app log', async () => {
+      // Arrange
+      const error = vi.spyOn(logger, 'error');
+      mockState.collectionState.apply.mockRejectedValueOnce(new Error('disk full'));
+
+      // Act
+      await service.executeScript(
+        `trufos.setCollectionVariable('a', 'b');`,
+        ScriptType.PRE_REQUEST,
+        log
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // Assert
+      expect(log).not.toHaveBeenCalled();
+      expect(error).toHaveBeenCalled();
     });
   });
 

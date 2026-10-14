@@ -1,6 +1,9 @@
-import { HttpService } from './http-service';
+import { HttpService, PreparedRequest } from './http-service';
 import { MockAgent, FormData } from 'undici';
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
+import { USER_DATA_DIR } from 'main/util/fs-util';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { parseUrl } from 'shim/objects/url';
 import { randomUUID } from 'node:crypto';
@@ -12,7 +15,6 @@ import { EnvironmentService } from 'main/environment/service/environment-service
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { TemplateReplaceStream, UnmatchedVariableError } from 'template-replace-stream';
 import { BodyStore } from 'main/network/service/body-store';
-import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
 import { Readable } from 'node:stream';
@@ -23,12 +25,33 @@ import { ScriptType } from 'shim/scripting';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { normalizeCollection } from 'shim/collection-model';
 import { freeze } from 'immer';
+import { HistoryService } from 'main/history/history-service';
+import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
+import type { TrufosResponse } from 'shim/objects/response';
 
 const mockAgent = new MockAgent({ connections: 1 });
 const recorder = { sent: vi.fn(), scriptLog: vi.fn() } satisfies RequestRecorder;
 const environmentService = EnvironmentService.instance;
+const model = normalizeCollection({
+  id: randomUUID(),
+  type: 'collection',
+  title: 'Collection',
+  dirPath: '/collection',
+  isDefault: false,
+  lastModified: 0,
+  variables: {},
+  environments: {},
+  children: [],
+});
+
+/** Prepares a request the way `CollectionStateService.prepareRequest()` does. */
+async function prepare(request: TrufosRequest): Promise<PreparedRequest> {
+  return {
+    request,
+    ...(await PersistenceService.instance.openRequestFiles(request)),
+  };
+}
 const responseBodyService = BodyStore.instance;
-const fileSystemService = FileSystemService.instance;
 
 describe('HttpService', () => {
   beforeAll(() => {
@@ -41,19 +64,7 @@ describe('HttpService', () => {
     // @ts-expect-error loadScript mock returns null but type expects ReadStream | null
     vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
     vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockResolvedValue(undefined);
-    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(
-      normalizeCollection({
-        id: randomUUID(),
-        type: 'collection',
-        title: 'Collection',
-        dirPath: '/collection',
-        isDefault: false,
-        lastModified: 0,
-        variables: {},
-        environments: {},
-        children: [],
-      })
-    );
+    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(model);
   });
 
   it('fetchAsync() should make an HTTP call and return the body on read', async () => {
@@ -74,7 +85,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    const result = await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    const result = await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     expect(result.metaInfo.status).toEqual(200);
@@ -103,7 +114,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    const result = await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    const result = await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     expect(result.metaInfo.status).toEqual(200);
@@ -135,7 +146,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    const result = await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    const result = await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert: bodySizeInBytes must reflect the real body size, not the fake content-length
     const actualBodySize = (await readText(responseBodyService.openBody(result.body!.id)!)).length;
@@ -164,7 +175,7 @@ describe('HttpService', () => {
     const expectedAuthHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
     // Act: requests come from the model of the open collection, which is frozen
-    await httpService.fetchAsync(await httpService.prepare(freeze(request, true)), recorder);
+    await httpService.fetchAsync(await prepare(freeze(request, true)), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -194,7 +205,7 @@ describe('HttpService', () => {
     const httpService = setupMockHttpService(url, null);
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -235,7 +246,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -265,42 +276,11 @@ describe('HttpService', () => {
     };
 
     // Act & Assert
-    await expect(
-      httpService.fetchAsync(await httpService.prepare(request), recorder)
-    ).rejects.toMatchObject({
+    await expect(httpService.fetchAsync(await prepare(request), recorder)).rejects.toMatchObject({
       name: DisplayableError.name,
       title: 'Undefined Variable',
       description: expect.stringContaining('baseUrl'),
     });
-    spy.mockRestore();
-  });
-
-  it('fetchAsync() should close the opened body if sending fails before it is streamed', async () => {
-    // Arrange
-    const spy = vi
-      .spyOn(environmentService, 'setVariablesInString')
-      .mockRejectedValue(new UnmatchedVariableError('baseUrl'));
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
-    const request: TrufosRequest = {
-      id: randomUUID(),
-      parentId: randomUUID(),
-      type: 'request',
-      lastModified: 0,
-      title: 'Failing Request',
-      url: parseUrl('https://{{ baseUrl }}/api'),
-      method: RequestMethod.POST,
-      headers: [],
-      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-    };
-    const textBody = Readable.from('body');
-
-    // Act
-    await expect(
-      httpService.fetchAsync({ request, textBody, scripts: {} }, recorder)
-    ).rejects.toThrow();
-
-    // Assert
-    expect(textBody.destroyed).toBe(true);
     spy.mockRestore();
   });
 
@@ -335,7 +315,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -379,7 +359,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -412,7 +392,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -456,7 +436,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -478,7 +458,7 @@ describe('HttpService', () => {
     const openAsBlob = vi
       .spyOn(fs, 'openAsBlob')
       .mockImplementation(async (_, options) => new Blob([fileContent], options));
-    const readFile = vi.spyOn(fileSystemService, 'readFile');
+    const open = vi.spyOn(fsp, 'open');
 
     const request: TrufosRequest = {
       id: randomUUID(),
@@ -507,7 +487,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     // @ts-expect-error getCallHistory() return type may not have lastCall
@@ -523,7 +503,7 @@ describe('HttpService', () => {
     expect(await file.text()).toBe(fileContent);
     // the file is opened as a file-backed blob instead of being read into memory
     expect(openAsBlob).toHaveBeenCalledWith('/mock/test.txt', { type: 'text/plain' });
-    expect(readFile).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
   });
 
   it('fetchAsync() should replace variables in form data fields', async () => {
@@ -569,7 +549,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     // @ts-expect-error getCallHistory() return type may not have lastCall
@@ -607,7 +587,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     expect(executeSpy).toHaveBeenCalledTimes(2);
@@ -653,7 +633,7 @@ describe('HttpService', () => {
     const executeSpy = vi
       .spyOn(ScriptingService.instance, 'executeScript')
       .mockResolvedValue(undefined);
-    const prepared = await httpService.prepare(request);
+    const prepared = await prepare(request);
 
     // the files of the request change after it was prepared
     files.body = 'edited body';
@@ -688,7 +668,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     expect(recorder.sent).toHaveBeenCalledWith(
@@ -726,90 +706,235 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await httpService.prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
     const logged = spies.flatMap((spy) => spy.mock.calls.flat()).map(String);
     expect(logged.some((arg) => arg.includes(password))).toBe(false);
     expect(logged.some((arg) => arg.includes('app-log-cookie'))).toBe(false);
   });
-});
 
-describe('HttpService.prepare()', () => {
-  const httpService = new HttpService();
-
-  function makeRequest(body: TrufosRequest['body']): TrufosRequest {
-    return {
+  it('fetchAsync() should send a file body with the size of the opened file', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/file');
+    mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    await fsp.mkdir(USER_DATA_DIR, { recursive: true });
+    const filePath = path.join(USER_DATA_DIR, `${randomUUID()}.txt`);
+    await fsp.writeFile(filePath, 'file content');
+    const request: TrufosRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
       type: 'request',
       lastModified: 0,
-      title: 'Prepared Request',
-      url: parseUrl('https://example.com'),
+      title: 'File Request',
+      url: parseUrl(url.toString()),
       method: RequestMethod.POST,
       headers: [],
-      body,
+      body: { type: RequestBodyType.FILE, filePath },
     };
-  }
+
+    // Act
+    await httpService.fetchAsync(await prepare(request), recorder);
+
+    // Assert
+    expect(recorder.sent.mock.calls[0]?.[0].headers['content-length']).toBe('12');
+    const bodyCopy: BodyCopy | undefined = recorder.sent.mock.calls[0]?.[1];
+    await bodyCopy?.done;
+    expect(await readText(responseBodyService.openBody(bodyCopy!.id)!)).toEqual('file content');
+  });
+
+  it('fetchAsync() should use the client certificate of the collection', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/certificate');
+    mockAgent.get(url.origin).intercept({ path: url.pathname }).reply(200, 'OK');
+    const dispatcherProvider = vi.fn(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService(dispatcherProvider);
+    const clientCertificate = { certPath: '/cert.pem' };
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Certificate Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+    };
+    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue({
+      ...model,
+      collection: { ...model.collection, clientCertificate },
+    });
+
+    // Act
+    await httpService.fetchAsync(await prepare(request), recorder);
+
+    // Assert
+    expect(dispatcherProvider).toHaveBeenCalledWith(clientCertificate);
+  });
+});
+
+describe('HttpService.sendRequest()', () => {
+  const request: TrufosRequest = {
+    id: randomUUID(),
+    parentId: model.collection.id,
+    type: 'request',
+    lastModified: 0,
+    title: 'Test Request',
+    url: parseUrl('https://example.com'),
+    method: RequestMethod.GET,
+    headers: [],
+    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+  };
+  let httpService: HttpService;
+
+  const makeResponse = (): TrufosResponse => ({
+    type: 'response',
+    body: { id: randomUUID(), size: 0 },
+    headers: {},
+    metaInfo: {
+      status: 200,
+      duration: 1,
+      size: { totalSizeInBytes: 0, headersSizeInBytes: 0, bodySizeInBytes: 0 },
+    },
+  });
+
+  /** Lets the fetch hang until it is aborted, then rejects with the given error. */
+  const fetchUntilAborted = (error: () => unknown) => {
+    let signal: AbortSignal | undefined;
+    vi.spyOn(httpService, 'fetchAsync').mockImplementation((_prepared, _recorder, abortSignal) => {
+      signal = abortSignal;
+      return new Promise((_, reject) => {
+        abortSignal?.addEventListener('abort', () => reject(error()));
+      });
+    });
+    return () => signal;
+  };
 
   beforeEach(() => {
-    vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockImplementation(
-      async () => Readable.from('text body') as fs.ReadStream
+    vi.restoreAllMocks();
+    httpService = new HttpService(() => Promise.resolve(mockAgent));
+    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(model);
+    vi.spyOn(CollectionStateService.instance, 'prepareRequest').mockResolvedValue({
+      request,
+      scripts: {},
+    });
+  });
+
+  it('sends the prepared request', async () => {
+    // Arrange
+    const prepared = { request, textBody: Readable.from('body'), scripts: {} };
+    vi.mocked(CollectionStateService.instance.prepareRequest).mockResolvedValue(prepared);
+    const fetchAsync = vi.spyOn(httpService, 'fetchAsync').mockResolvedValue(makeResponse());
+
+    // Act
+    await httpService.sendRequest(request.id);
+
+    // Assert
+    expect(CollectionStateService.instance.prepareRequest).toHaveBeenCalledWith(request.id);
+    expect(fetchAsync).toHaveBeenCalledWith(prepared, expect.anything(), expect.any(AbortSignal));
+  });
+
+  it('fails without sending if the request cannot be prepared', async () => {
+    // Arrange
+    const failure = new Error('Request missing does not exist');
+    vi.mocked(CollectionStateService.instance.prepareRequest).mockRejectedValue(failure);
+    const fetchAsync = vi.spyOn(httpService, 'fetchAsync');
+
+    // Act & Assert
+    await expect(httpService.sendRequest('missing')).rejects.toBe(failure);
+    expect(fetchAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps the latest response body of a request alive', async () => {
+    // Arrange
+    const response = makeResponse();
+    vi.spyOn(httpService, 'fetchAsync').mockResolvedValue(response);
+    const setLatest = vi.spyOn(LatestResponseBodies.instance, 'set');
+
+    // Act
+    await httpService.sendRequest(request.id);
+
+    // Assert
+    expect(setLatest).toHaveBeenCalledWith(request.id, response.body!.id);
+  });
+
+  it('records the request in the history of the collection', async () => {
+    // Arrange
+    HistoryService.instance.clear(model.collection.dirPath);
+    vi.spyOn(httpService, 'fetchAsync').mockResolvedValue(makeResponse());
+
+    // Act
+    await httpService.sendRequest(request.id);
+
+    // Assert
+    expect(HistoryService.instance.list(model.collection.dirPath)).toEqual([
+      expect.objectContaining({
+        requestId: request.id,
+        outcome: expect.objectContaining({ type: 'response', status: 200 }),
+      }),
+    ]);
+  });
+
+  it('passes an abort signal for keyed requests and aborts it by key', async () => {
+    // Arrange
+    const getSignal = fetchUntilAborted(() => new Error('aborted'));
+    const sending = httpService.sendRequest(request.id, 'runner-request-1');
+    await vi.waitFor(() => expect(getSignal()).toBeDefined());
+
+    // Act
+    httpService.abortRequest('runner-request-1');
+    await sending;
+
+    // Assert
+    expect(getSignal()?.aborted).toBe(true);
+  });
+
+  it('resolves an aborted request with null instead of failing', async () => {
+    // Arrange: undici rejects with a DOMException, which breaks both logging and IPC serialization
+    const getSignal = fetchUntilAborted(
+      () => new DOMException('This operation was aborted', 'AbortError')
     );
-    // @ts-expect-error loadScript mock returns null but type expects ReadStream | null
-    vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
-  });
-
-  it('opens the text body of a request with a text body without reading it', async () => {
-    // Arrange
-    const request = makeRequest({ type: RequestBodyType.TEXT, mimeType: 'text/plain' });
+    const sending = httpService.sendRequest(request.id, 'runner-request-2');
+    await vi.waitFor(() => expect(getSignal()).toBeDefined());
 
     // Act
-    const prepared = await httpService.prepare(request);
+    httpService.abortRequest('runner-request-2');
 
     // Assert
-    expect(prepared.textBody).toBeInstanceOf(Readable);
-    expect(prepared.textBody!.readableDidRead).toBe(false);
-    expect(PersistenceService.instance.loadTextBodyOfRequest).toHaveBeenCalledWith(request);
-    expect(await readText(prepared.textBody!)).toBe('text body');
+    await expect(sending).resolves.toBeNull();
   });
 
-  it('does not read a text body of a request with another body type', async () => {
+  it('closes the text body whether sending succeeds or fails', async () => {
     // Arrange
-    const request = makeRequest({ type: RequestBodyType.FILE, filePath: '/file.bin' });
+    const textBodies = [Readable.from('sent'), Readable.from('failed')];
+    for (const textBody of textBodies) {
+      vi.mocked(CollectionStateService.instance.prepareRequest).mockResolvedValueOnce({
+        request,
+        textBody,
+        scripts: {},
+      });
+    }
+    vi.spyOn(httpService, 'fetchAsync')
+      .mockResolvedValueOnce(makeResponse())
+      .mockRejectedValueOnce(new Error('connection refused'));
 
     // Act
-    const prepared = await httpService.prepare(request);
+    await httpService.sendRequest(request.id);
+    await expect(httpService.sendRequest(request.id)).rejects.toThrow('connection refused');
 
     // Assert
-    expect(prepared.textBody).toBeUndefined();
-    expect(PersistenceService.instance.loadTextBodyOfRequest).not.toHaveBeenCalled();
+    expect(textBodies.map((textBody) => textBody.destroyed)).toEqual([true, true]);
   });
 
-  it('has no text body if the request has no body file', async () => {
+  it('rethrows a non-abort failure unchanged', async () => {
     // Arrange
-    vi.mocked(PersistenceService.instance.loadTextBodyOfRequest).mockResolvedValue(undefined);
-    const request = makeRequest({ type: RequestBodyType.TEXT, mimeType: 'text/plain' });
+    const failure = new Error('connection refused');
+    vi.spyOn(httpService, 'fetchAsync').mockRejectedValue(failure);
 
-    // Act
-    const prepared = await httpService.prepare(request);
-
-    // Assert
-    expect(prepared.textBody).toBeUndefined();
-  });
-
-  it('only contains the scripts the request has', async () => {
-    // Arrange
-    vi.mocked(PersistenceService.instance.loadScript).mockImplementation(async (_, type) =>
-      type === ScriptType.POST_RESPONSE ? (Readable.from('post') as fs.ReadStream) : undefined
-    );
-    const request = makeRequest({ type: RequestBodyType.TEXT, mimeType: 'text/plain' });
-
-    // Act
-    const prepared = await httpService.prepare(request);
-
-    // Assert
-    expect(prepared.scripts).toEqual({ [ScriptType.POST_RESPONSE]: 'post' });
+    // Act & Assert
+    await expect(httpService.sendRequest(request.id, 'runner-request-3')).rejects.toBe(failure);
   });
 });
 

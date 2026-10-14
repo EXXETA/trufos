@@ -244,7 +244,7 @@ describe('CollectionStateService', () => {
         )
       );
       await service.dispatch(
-        envelope({ type: CommandType.MOVE, id: 'r3', parentId: 'first', index: 0 }, 'c')
+        envelope({ type: CommandType.MOVE, ids: ['r3'], parentId: 'first', index: 0 }, 'c')
       );
 
       // Assert
@@ -286,21 +286,51 @@ describe('CollectionStateService', () => {
         service.dispatch({ commandId: 'x', command: { type: 'nope' } })
       ).rejects.toThrow();
       await expect(
-        service.dispatch(envelope({ type: CommandType.DELETE, id: 'does-not-exist' }))
+        service.dispatch(envelope({ type: CommandType.DELETE, ids: ['does-not-exist'] }))
       ).rejects.toThrow();
       expect(events).toEqual([]);
       expect(service.model).toBe(model);
     });
 
-    it('writes structural changes before it resolves', async () => {
+    it('apply() changes the model before persisting and rejects an invalid command', async () => {
       // Act
-      await service.apply({ type: CommandType.DELETE, id: 'r1' });
+      const persisted = service.apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: { title: 'renamed' },
+      });
+
+      // Assert
+      expect(service.model.collection.title).toBe('renamed');
+      await expect(service.apply({ type: CommandType.DELETE, ids: ['missing'] })).rejects.toThrow();
+      await persisted;
+    });
+
+    it('skips the delayed write of a request that was deleted meanwhile', async () => {
+      // Arrange
+      await service.apply({ type: CommandType.CREATE_DRAFT, id: 'r1' });
+      await service.apply({
+        type: CommandType.EDIT_REQUEST,
+        id: 'r1',
+        changes: { method: RequestMethod.PUT },
+      });
+
+      // Act
+      await service.apply({ type: CommandType.DELETE, ids: ['r1'] });
+      await service.flush();
 
       // Assert
       expect(await exists(path.join(firstDirPath, 'r1'))).toBe(false);
     });
 
-    it('writes edits of a draft debounced, or when flushed', async () => {
+    it('writes structural changes before it resolves', async () => {
+      // Act
+      await service.apply({ type: CommandType.DELETE, ids: ['r1'] });
+
+      // Assert
+      expect(await exists(path.join(firstDirPath, 'r1'))).toBe(false);
+    });
+
+    it('writes edits of a draft delayed, or when flushed', async () => {
       // Arrange
       vi.useFakeTimers();
       await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
@@ -351,7 +381,7 @@ describe('CollectionStateService', () => {
       );
     });
 
-    it('drops pending edits of a draft when it is discarded', async () => {
+    it('keeps the saved state when a draft with pending edits is discarded', async () => {
       // Arrange
       await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
       await service.apply({
@@ -382,7 +412,7 @@ describe('CollectionStateService', () => {
       expect(service.model.requests.get('r1')?.title).toBe('r1');
     });
 
-    it('reloads the collection if a debounced write fails', async () => {
+    it('reloads the collection if a delayed write fails', async () => {
       // Arrange
       await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
       await service.apply({
@@ -406,10 +436,9 @@ describe('CollectionStateService', () => {
     it('rejects commands while a collection is loaded', async () => {
       // Act
       const loading = service.load(secondDirPath);
-      const dispatched = service.apply({
-        type: CommandType.UPDATE_COLLECTION,
-        changes: { title: 'renamed' },
-      });
+      const dispatched = service.dispatch(
+        envelope({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'renamed' } })
+      );
 
       // Assert
       await expect(dispatched).rejects.toThrow('being loaded');
@@ -439,10 +468,9 @@ describe('CollectionStateService', () => {
       const loadCollection = persistenceService.loadCollection.bind(persistenceService);
       let dispatchedDuringReload: Promise<void> | undefined;
       vi.spyOn(persistenceService, 'loadCollection').mockImplementationOnce((...args) => {
-        dispatchedDuringReload = service.apply({
-          type: CommandType.UPDATE_COLLECTION,
-          changes: { title: 'renamed' },
-        });
+        dispatchedDuringReload = service.dispatch(
+          envelope({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'renamed' } })
+        );
         return loadCollection(...args);
       });
 
@@ -579,21 +607,18 @@ describe('CollectionStateService', () => {
     });
   });
 
-  describe('read()', () => {
+  describe('readRequest()', () => {
     it('waits for queued writes before it reads', async () => {
       // Arrange
       let resolve!: () => void;
-      vi.spyOn(persistenceService, 'saveCollectionInfo').mockReturnValueOnce(
+      vi.spyOn(persistenceService, 'rename').mockReturnValueOnce(
         new Promise<void>((r) => (resolve = r))
       );
-      const dispatched = service.apply({
-        type: CommandType.UPDATE_COLLECTION,
-        changes: { title: 'renamed' },
-      });
-      const reader = vi.fn(async (model: CollectionModel) => model.collection.title);
+      const dispatched = service.apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' });
+      const reader = vi.fn(async (request: TrufosRequest) => request.title);
 
       // Act
-      const reading = service.read(reader);
+      const reading = service.readRequest('r1', reader);
       await new Promise((r) => setImmediate(r));
 
       // Assert
@@ -603,7 +628,7 @@ describe('CollectionStateService', () => {
       await expect(reading).resolves.toBe('renamed');
     });
 
-    it('writes pending debounced edits before it reads', async () => {
+    it('writes pending edits before it reads', async () => {
       // Arrange
       vi.useFakeTimers();
       await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
@@ -614,12 +639,13 @@ describe('CollectionStateService', () => {
       });
 
       // Act
-      const [info, method] = await service.read(async (model) => [
-        await readRequestInfo('r1', DRAFT_DIR_NAME),
-        model.requests.get('r1')?.method,
-      ]);
+      const result = await service.readRequest('r1', async (request) => ({
+        info: await readRequestInfo('r1', DRAFT_DIR_NAME),
+        method: request.method,
+      }));
 
       // Assert
+      const { info, method } = result!;
       expect(info).toMatchObject({ method: 'PUT' });
       expect(method).toBe(RequestMethod.PUT);
     });
@@ -627,7 +653,10 @@ describe('CollectionStateService', () => {
     it('writes the effects of a command dispatched while reading only after the reader is done', async () => {
       // Arrange
       let finishReading!: () => void;
-      const reading = service.read(() => new Promise<void>((resolve) => (finishReading = resolve)));
+      const reading = service.readRequest(
+        'r1',
+        () => new Promise<void>((resolve) => (finishReading = resolve))
+      );
       await vi.waitFor(() => expect(finishReading).toBeDefined());
       const saveCollectionInfo = vi.spyOn(persistenceService, 'saveCollectionInfo');
 
@@ -646,13 +675,35 @@ describe('CollectionStateService', () => {
       expect(saveCollectionInfo).toHaveBeenCalled();
     });
 
+    it('gets the request, or undefined if there is none', async () => {
+      // Act
+      const title = await service.readRequest('r1', async (request) => request.title);
+      const missing = await service.readRequest('missing', async () => 'read');
+
+      // Assert
+      expect(title).toBe('r1');
+      expect(missing).toBeUndefined();
+    });
+
+    it('prepareRequest() opens the files of the request, or fails if there is none', async () => {
+      // Act
+      const prepared = await service.prepareRequest('r1');
+      prepared.textBody?.destroy();
+
+      // Assert
+      expect(prepared).toMatchObject({ request: { id: 'r1' }, scripts: {} });
+      await expect(service.prepareRequest('missing')).rejects.toThrow(
+        'Request missing does not exist'
+      );
+    });
+
     it('rejects if the reader fails without affecting later writes', async () => {
       // Arrange
       const failure = new Error('read failed');
 
       // Act & Assert
-      await expect(service.read(() => Promise.reject(failure))).rejects.toBe(failure);
-      await service.apply({ type: CommandType.DELETE, id: 'r1' });
+      await expect(service.readRequest('r1', () => Promise.reject(failure))).rejects.toBe(failure);
+      await service.apply({ type: CommandType.DELETE, ids: ['r1'] });
 
       // Assert
       expect(events.map((event) => event.kind)).toEqual(['patches']);

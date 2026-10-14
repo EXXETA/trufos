@@ -1,22 +1,25 @@
-import { TrufosObject } from 'shim/objects';
 import { omit, split } from 'main/util/object-util';
 import { Collection } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { VariableMap } from 'shim/objects/variables';
+import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
 import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-4-0';
 import { SettingsService } from '../settings-service';
 
 export { createGitIgnore, GIT_IGNORE_CONTENT, GIT_IGNORE_FILE_NAME } from './v2-0-0';
 export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v2-4-0';
 
+/** An object that has an info file of its own. Its children are never written to it. */
+export type InfoObject = CollectionInfo | FolderInfo | TrufosRequest;
+
 /**
  * Deep clones the given object and removes any properties that are not allowed in an info file.
- * @param object The trufos object to convert to an info file.
+ * @param object The object to convert to an info file.
  */
-export function toInfoFile(object: TrufosObject): InfoFile {
+export function toInfoFile(object: InfoObject): InfoFile {
   const { id, title, ...rest } = object;
-  const infoFile: TrufosObject & { version: typeof VERSION.string } = {
+  const infoFile: InfoObject & { version: typeof VERSION.string } = {
     id,
     title,
     version: VERSION.toString(),
@@ -30,9 +33,9 @@ export function toInfoFile(object: TrufosObject): InfoFile {
       return request;
     }
     case 'collection':
-      return omit(infoFile, 'type', 'lastModified', 'isDefault', 'dirPath', 'children');
+      return omit(infoFile, 'type', 'lastModified', 'isDefault', 'dirPath');
     case 'folder':
-      return omit(infoFile, 'type', 'lastModified', 'parentId', 'children');
+      return omit(infoFile, 'type', 'lastModified', 'parentId');
   }
 }
 
@@ -100,7 +103,7 @@ function extractSecretsFromMap(variables: VariableMap): VariableMap {
  * @param object The Trufos object from which to extract secrets. They will be removed from it.
  * @return A partial Trufos object containing the secrets that were removed.
  */
-export function extractSecrets(object: TrufosObject): Partial<TrufosObject> {
+export function extractSecrets(object: InfoObject): Partial<InfoObject> {
   switch (object.type) {
     case 'collection':
       return {

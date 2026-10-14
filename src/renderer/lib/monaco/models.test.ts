@@ -8,7 +8,6 @@ import {
   getBodyModel,
   getScriptModel,
   MODEL_EDIT_DEBOUNCE_MS,
-  registerModelPersistence,
 } from './models';
 
 const persistence = {
@@ -29,13 +28,11 @@ beforeEach(() => {
   persistence.setTextBody.mockResolvedValue(undefined);
   persistence.setScript.mockResolvedValue(undefined);
   persistence.markDraft.mockResolvedValue(undefined);
-  registerModelPersistence(persistence);
-  createModelsForRequest(REQUEST_ID);
+  createModelsForRequest(REQUEST_ID, persistence);
 });
 
 afterEach(() => {
   disposeModelsForRequest(REQUEST_ID);
-  registerModelPersistence(undefined);
   vi.useRealTimers();
 });
 
@@ -89,7 +86,7 @@ describe('editor models', () => {
   });
 
   it('flushModelEdits without a request flushes all requests', async () => {
-    createModelsForRequest('req-2');
+    createModelsForRequest('req-2', persistence);
     type(getBodyModel('req-2'), 'other');
 
     await flushModelEdits();

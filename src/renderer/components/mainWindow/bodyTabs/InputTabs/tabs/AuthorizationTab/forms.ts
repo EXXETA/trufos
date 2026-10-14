@@ -1,5 +1,4 @@
 import {
-  AuthorizationInformation,
   AuthorizationType,
   OAuth1Method,
   OAuth1SignatureMethod,
@@ -7,7 +6,7 @@ import {
   OAuth2Method,
   OAuth2PKCECodeChallengeMethod,
 } from 'shim/objects';
-import type { FormComponentConfiguration, FormFieldConfig } from './ModularForm';
+import { type FormComponentConfiguration } from './ModularForm';
 
 export const AUTHORIZATION_NONE = 'none' as const;
 export type AuthorizationTypeOrNone = AuthorizationType | typeof AUTHORIZATION_NONE;
@@ -26,7 +25,6 @@ const BASE_FORM = {
     type: 'select' as const,
     label: 'Authorization Type',
     options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
-    defaultValue: AUTHORIZATION_NONE,
   },
 };
 
@@ -76,7 +74,6 @@ export const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration
         { value: OAuth2Method.AUTHORIZATION_CODE, label: 'Authorization Code' },
         { value: OAuth2Method.AUTHORIZATION_CODE_PKCE, label: 'Authorization Code with PKCE' },
       ],
-      defaultValue: OAuth2Method.CLIENT_CREDENTIALS,
     },
   },
   [AuthorizationType.OAUTH1]: {
@@ -88,7 +85,6 @@ export const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration
         { value: OAuth1Method.EXISTING_TOKEN, label: 'Existing Token / Two-legged' },
         { value: OAuth1Method.AUTHORIZATION, label: 'Authorization (3-legged)' },
       ],
-      defaultValue: OAuth1Method.EXISTING_TOKEN,
     },
     consumerKey: {
       type: 'text',
@@ -113,7 +109,6 @@ const OAUTH1_SHARED_FORM: FormComponentConfiguration = {
       { value: OAuth1SignatureMethod.HMAC_SHA256, label: 'HMAC-SHA256' },
       { value: OAuth1SignatureMethod.PLAINTEXT, label: 'PLAINTEXT' },
     ],
-    defaultValue: OAuth1SignatureMethod.HMAC_SHA1,
   },
   realm: {
     type: 'text',
@@ -200,7 +195,6 @@ const OAUTH2_BASE_FORM: FormComponentConfiguration = {
         label: 'Send Credentials in Request Body',
       },
     ],
-    defaultValue: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
   },
 };
 
@@ -256,7 +250,6 @@ export const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } =
           label: 'Plain',
         },
       ],
-      defaultValue: OAuth2PKCECodeChallengeMethod.S256,
     },
     codeVerifier: {
       type: 'text',
@@ -276,97 +269,24 @@ export const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } =
   },
 };
 
-function isOAuth1Method(method: string): method is OAuth1Method {
-  return Object.values<string>(OAuth1Method).includes(method);
-}
-
-function isOAuth2Method(method: string): method is OAuth2Method {
-  return Object.values<string>(OAuth2Method).includes(method);
-}
+/** The forms of the authorization types whose form depends on a method, by method. */
+const METHOD_FORMS: Partial<
+  Record<AuthorizationTypeOrNone, Record<string, FormComponentConfiguration>>
+> = {
+  [AuthorizationType.OAUTH1]: OAUTH1_FORMS,
+  [AuthorizationType.OAUTH2]: OAUTH2_FORMS,
+};
 
 /**
  * Returns the form of the given authorization type. OAuth forms depend on the method as well.
  * @param type the authorization type, or none
- * @param method the OAuth method. Defaults to the default of the method field.
+ * @param method the OAuth method of an OAuth authorization
  */
 export function getAuthorizationForm(
   type: AuthorizationTypeOrNone,
   method?: string
 ): FormComponentConfiguration {
   const form = FORMS[type];
-  const methodField = form.method;
-  method ??= methodField?.type === 'select' ? methodField.defaultValue : undefined;
-  if (method == null) return form;
-  if (type === AuthorizationType.OAUTH2 && isOAuth2Method(method)) {
-    return { ...form, ...OAUTH2_FORMS[method] };
-  } else if (type === AuthorizationType.OAUTH1 && isOAuth1Method(method)) {
-    return { ...form, ...OAUTH1_FORMS[method] };
-  }
-  return form;
-}
-
-/** The value that the form shows for a field without a value, see `ModularForm`. */
-function getDefaultValue(field: FormFieldConfig): string | number | boolean | undefined {
-  switch (field.type) {
-    case 'label':
-      return undefined;
-    case 'number':
-      return field.defaultValue ?? 0;
-    case 'checkbox':
-      return field.defaultValue ?? true;
-    case 'select':
-      return field.defaultValue ?? field.options[0]?.value;
-    default:
-      return field.defaultValue ?? '';
-  }
-}
-
-/**
- * Creates a complete authorization of the given type in which every field has the default value
- * of its form field. The form would otherwise fill in the missing fields one at a time, and none
- * of these partial objects is a valid {@link AuthorizationInformation}.
- * @param type the authorization type
- * @param method the OAuth method. Defaults to the default of the method field.
- */
-export function createDefaultAuthorization(
-  type: AuthorizationType,
-  method?: string
-): AuthorizationInformation {
-  const values: Record<string, unknown> = {};
-  for (const [key, field] of Object.entries(getAuthorizationForm(type, method))) {
-    const value = getDefaultValue(field);
-    if (value !== undefined) values[key] = value;
-  }
-  if (method != null) values.method = method;
-  return AuthorizationInformation.parse({ ...values, type });
-}
-
-/**
- * Applies a change made in the authorization form. If the type or the OAuth method changes, the
- * result starts from {@link createDefaultAuthorization}, keeping the fields that the old and the
- * new method share. The result is always a complete, valid authorization.
- * @param current the current authorization
- * @param delta the changed fields
- * @throws ZodError if the change makes the authorization invalid
- */
-export function applyAuthorizationChange(
-  current: AuthorizationInformation | undefined,
-  delta: Partial<AuthorizationInformation>
-): AuthorizationInformation {
-  const type = delta.type ?? current?.type;
-  if (type == null) throw new Error('The authorization type is missing');
-
-  const currentMethod = current != null && 'method' in current ? current.method : undefined;
-  const deltaMethod = 'method' in delta ? delta.method : undefined;
-  const method = deltaMethod ?? (current?.type === type ? currentMethod : undefined);
-  if (current != null && current.type === type && method === currentMethod) {
-    return AuthorizationInformation.parse({ ...current, ...delta });
-  }
-
-  const defaults = createDefaultAuthorization(type, method);
-  const shared =
-    current?.type === type
-      ? Object.entries(current).filter(([key]) => key in defaults && key !== 'method')
-      : [];
-  return AuthorizationInformation.parse({ ...defaults, ...Object.fromEntries(shared), ...delta });
+  const methodForm = method != null ? METHOD_FORMS[type]?.[method] : undefined;
+  return methodForm != null ? { ...form, ...methodForm } : form;
 }
