@@ -23,11 +23,6 @@ import {
   removeChildrenOf,
   getProjection,
   getMaxTimestamps,
-  getParentIds,
-  getSortFields,
-  getTopLevelIds,
-  isSelfOrDescendant,
-  selectRequestSortFields,
   getMoveIndex,
   getRangeSelection,
 } from './treeUtilities';
@@ -35,7 +30,12 @@ import { SortMode } from '@/state/interface/SortMode';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
-import { FolderInfo } from 'shim/collection-model';
+import {
+  FolderInfo,
+  getParentFolderIds,
+  getTopLevelIds,
+  isSelfOrDescendant,
+} from 'shim/collection-model';
 import { useShallow } from 'zustand/react/shallow';
 import { TrufosRequest } from 'shim/objects/request';
 import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
@@ -120,8 +120,9 @@ const DragOverlayContent = ({ itemId, groupCount }: { itemId: string; groupCount
   );
 };
 
-/** Selected while the sidebar keeps the manual order, so it does not cause renders. */
-const NO_SORT_FIELDS: (string | number)[] = [];
+/** Selected while the sort mode does not need them, so they do not cause renders. */
+const NO_TITLES: Readonly<Record<string, string>> = Object.freeze({});
+const NO_TIMES: Readonly<Record<string, number>> = Object.freeze({});
 
 export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarRequestListProps) => {
   const collectionId = useCollectionStore((state) => state.collection.id);
@@ -130,14 +131,25 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   const sortMode = useCollectionStore((state) => state.sortMode);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const selectedIds = useCollectionStore((state) => state.selectedIds);
-  // Only the fields the sort mode reads, so the list does not follow every edit of a request, e.g.
-  // every keystroke in the URL.
-  const requestSortFields = useCollectionStore(
+  // Only the request fields the sort mode reads, so the list does not follow every edit of a
+  // request, e.g. every keystroke in the URL. `useShallow` compares the records key by key.
+  const isTitleSort = sortMode === SortMode.AZ_ASC || sortMode === SortMode.AZ_DESC;
+  const isTimeSort = sortMode === SortMode.TIME_ASC || sortMode === SortMode.TIME_DESC;
+  const requestTitles = useCollectionStore(
     useShallow((state) =>
-      sortMode === SortMode.DEFAULT ? NO_SORT_FIELDS : selectRequestSortFields(state.requests)
+      isTitleSort
+        ? Object.fromEntries([...state.requests].map(([id, request]) => [id, request.title]))
+        : NO_TITLES
     )
   );
-  const parentIds = useMemo(() => getParentIds(structure), [structure]);
+  const requestTimes = useCollectionStore(
+    useShallow((state) =>
+      isTimeSort
+        ? Object.fromEntries([...state.requests].map(([id, request]) => [id, request.lastModified]))
+        : NO_TIMES
+    )
+  );
+  const parentFolderIds = useMemo(() => getParentFolderIds(structure), [structure]);
   const {
     moveItems,
     setSelectedRequest,
@@ -162,15 +174,17 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   const activeSensors = sortMode === SortMode.DEFAULT ? sensors : [];
 
   const sortFn = useMemo((): ((a: string, b: string) => number) | undefined => {
-    if (sortMode === SortMode.DEFAULT) return undefined;
-    const fields = getSortFields(structure, requestSortFields);
-    const title = (id: string) => fields.get(id)?.title ?? '';
-    if (sortMode === SortMode.AZ_ASC) return (a, b) => title(a).localeCompare(title(b));
-    if (sortMode === SortMode.AZ_DESC) return (a, b) => title(b).localeCompare(title(a));
-    const timestamps = getMaxTimestamps(structure, collectionId, fields);
-    const direction = sortMode === SortMode.TIME_DESC ? -1 : 1;
-    return (a, b) => direction * ((timestamps.get(a) ?? 0) - (timestamps.get(b) ?? 0));
-  }, [sortMode, structure, requestSortFields, collectionId]);
+    if (isTitleSort) {
+      const title = (id: string) => structure.folders.get(id)?.title ?? requestTitles[id] ?? '';
+      const direction = sortMode === SortMode.AZ_DESC ? -1 : 1;
+      return (a, b) => direction * title(a).localeCompare(title(b));
+    }
+    if (isTimeSort) {
+      const timestamps = getMaxTimestamps(structure, collectionId, requestTimes);
+      const direction = sortMode === SortMode.TIME_DESC ? -1 : 1;
+      return (a, b) => direction * ((timestamps.get(a) ?? 0) - (timestamps.get(b) ?? 0));
+    }
+  }, [sortMode, isTitleSort, isTimeSort, structure, requestTitles, requestTimes, collectionId]);
 
   // Flatten the tree for a single SortableContext.
   const flattenedItems = useMemo(
@@ -187,8 +201,8 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   // that is itself a descendant of another selected folder, since moving that ancestor folder
   // already carries it along.
   const topLevelSelectedIds = useMemo(
-    () => getTopLevelIds(parentIds, selectedIds),
-    [selectedIds, parentIds]
+    () => getTopLevelIds(parentFolderIds, selectedIds),
+    [selectedIds, parentFolderIds]
   );
 
   // A drag counts as a "group drag" only when the dragged item is itself a top-level member
@@ -345,7 +359,7 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
           .map((item) => item.id)
       );
     }
-    if (movedIds.some((id) => isSelfOrDescendant(parentIds, projection.parentId, id))) {
+    if (movedIds.some((id) => isSelfOrDescendant(parentFolderIds, projection.parentId, id))) {
       // Dropping an item into one of its own folders (or their descendants) would nest it inside
       // itself; reject the whole drop before anything moves or the selection changes (I20).
       return;

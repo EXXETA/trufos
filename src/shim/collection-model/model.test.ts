@@ -7,6 +7,7 @@ import {
   getAncestorIds,
   getChildren,
   getDescendantIds,
+  getParentFolderIds,
   getTopLevelIds,
   isSelfOrDescendant,
   normalizeCollection,
@@ -106,6 +107,17 @@ describe('getAncestorIds()', () => {
     expect(getAncestorIds(model, 'r2')).toEqual(['f2', 'f1']);
     expect(getAncestorIds(model, 'r3')).toEqual([]);
     expect(getAncestorIds(model, 'missing')).toEqual([]);
+  });
+
+  it('gives the same answers from the parent folder index as from the nodes', () => {
+    const model = normalizeCollection(collection);
+    const parentFolderIds = getParentFolderIds(model);
+
+    for (const id of ['f1', 'r1', 'f2', 'r2', 'r3', 'missing']) {
+      expect(getAncestorIds(parentFolderIds, id)).toEqual(getAncestorIds(model, id));
+    }
+    expect(getTopLevelIds(parentFolderIds, ['r2', 'f1', 'r3'])).toEqual(['f1', 'r3']);
+    expect(isSelfOrDescendant(parentFolderIds, 'r2', 'f1')).toBe(true);
   });
 });
 

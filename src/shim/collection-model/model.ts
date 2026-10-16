@@ -216,31 +216,54 @@ export function getDescendantIds(
   return result;
 }
 
-/** Returns the IDs of the folders that contain the given node, innermost first. */
-export function getAncestorIds(nodes: CollectionNodes, id: string): string[] {
-  const path: string[] = [];
-  for (let node = getNode(nodes, id); node != null; node = nodes.folders.get(node.parentId)) {
-    path.push(node.id);
+/** The parent folder of every node that is inside a folder, by node ID. */
+export type ParentFolderIds = ReadonlyMap<string, string>;
+
+/**
+ * Where the ancestor helpers look up the parent folder of a node: the nodes themselves, or a
+ * {@link ParentFolderIds} index for callers that only follow the structure of the tree.
+ */
+export type ParentSource = CollectionNodes | ParentFolderIds;
+
+/** Returns the parent folder of every node inside a folder, from the structure of the tree alone. */
+export function getParentFolderIds(tree: CollectionStructure): ParentFolderIds {
+  const parentIds = new Map<string, string>();
+  for (const [parentId, childIds] of tree.childIds) {
+    if (!tree.folders.has(parentId)) continue;
+    for (const childId of childIds) parentIds.set(childId, parentId);
   }
-  return path.slice(1);
+  return parentIds;
+}
+
+/** Returns the folder that contains the given node, or undefined at the top level. */
+function getParentFolderId(source: ParentSource, id: string): string | undefined {
+  if (!('folders' in source)) return source.get(id);
+  const parentId = getNode(source, id)?.parentId;
+  return parentId != null && source.folders.has(parentId) ? parentId : undefined;
+}
+
+/** Returns the IDs of the folders that contain the given node, innermost first. */
+export function getAncestorIds(source: ParentSource, id: string): string[] {
+  const path: string[] = [];
+  for (let parentId = getParentFolderId(source, id); parentId != null;) {
+    path.push(parentId);
+    parentId = getParentFolderId(source, parentId);
+  }
+  return path;
 }
 
 /**
  * Returns the given IDs without those inside a folder that is given as well, e.g. the items a bulk
  * action acts on, as acting on a folder already covers its descendants.
  */
-export function getTopLevelIds(nodes: CollectionNodes, ids: Iterable<string>): string[] {
+export function getTopLevelIds(source: ParentSource, ids: Iterable<string>): string[] {
   const idSet = new Set(ids);
   return [...idSet].filter(
-    (id) => !getAncestorIds(nodes, id).some((ancestorId) => idSet.has(ancestorId))
+    (id) => !getAncestorIds(source, id).some((ancestorId) => idSet.has(ancestorId))
   );
 }
 
 /** Returns true if `id` is `ancestorId` itself or one of its descendants. */
-export function isSelfOrDescendant(
-  nodes: CollectionNodes,
-  id: string,
-  ancestorId: string
-): boolean {
-  return id === ancestorId || getAncestorIds(nodes, id).includes(ancestorId);
+export function isSelfOrDescendant(source: ParentSource, id: string, ancestorId: string): boolean {
+  return id === ancestorId || getAncestorIds(source, id).includes(ancestorId);
 }

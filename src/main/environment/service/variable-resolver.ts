@@ -83,8 +83,9 @@ export function resolveVariablesInString(
 }
 
 /**
- * Returns a copy of the authorization with the variables resolved in its string fields. Nested
- * objects, i.e. retrieved OAuth tokens, are kept as they are.
+ * Returns a copy of the authorization with the variables resolved in its top-level string fields.
+ * Nested objects, i.e. the retrieved OAuth tokens, are deliberately kept as they are: they come from
+ * the token endpoint and hold no templates. (An earlier version resolved them recursively.)
  */
 async function resolveVariablesInAuth<T extends AuthorizationInformation>(
   model: CollectionModel,
