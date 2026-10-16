@@ -6,7 +6,13 @@ import { ScriptConsole, ScriptingContext, ScriptType, VariableObject } from 'shi
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import type { ScriptLogger } from 'main/network/service/request-recorder';
 import { ScriptLog } from 'shim/history';
-import { CollectionChanges, CollectionInfo, CommandType } from 'shim/collection-model';
+import {
+  CollectionChanges,
+  CollectionCommand,
+  CollectionInfo,
+  CollectionModel,
+  CommandType,
+} from 'shim/collection-model';
 import { TrufosId } from 'shim/objects/id';
 
 const collectionState = CollectionStateService.instance;
@@ -95,8 +101,10 @@ export class ScriptingService {
   }
 
   /**
-   * Executes a user script. Variables the script changes are applied to the open collection
-   * afterwards. Writing them to disk is not waited for.
+   * Executes a user script. The script and the `updateCollection` command for the variables it
+   * changes run as one task on the collection state's queue, so the model cannot change in
+   * between. The variables are written to disk before this resolves; a failure to write them is
+   * only logged.
    * @param code the source code of the script
    * @param type the type of the script, used to label its console output
    * @param log receives the console output and errors of the script
@@ -109,14 +117,6 @@ export class ScriptingService {
     log: ScriptLogger,
     collectionId: TrufosId
   ): Promise<void> {
-    if (collectionState.model.collection.id !== collectionId) {
-      const message =
-        'The script was not run, as another collection was opened while the request was sent';
-      logger.warn(message);
-      log({ script: type, level: 'warn', args: [message] });
-      return;
-    }
-
     let script: Script;
     try {
       const now = getSteadyTimestamp();
@@ -128,10 +128,36 @@ export class ScriptingService {
       return;
     }
 
+    let ran: boolean;
+    try {
+      ran = await collectionState.applyTo(collectionId, (model) =>
+        this.runScript(script, type, log, model)
+      );
+    } catch (err) {
+      logger.error('Failed to apply the variables changed by a script:', err);
+      return;
+    }
+    if (!ran) {
+      const message =
+        'The script was not run, as another collection was opened while the request was sent';
+      logger.warn(message);
+      log({ script: type, level: 'warn', args: [message] });
+    }
+  }
+
+  /**
+   * Runs a compiled script against the collection of the given model.
+   * @returns the command that applies the variables the script changed, if any
+   */
+  private runScript(
+    script: Script,
+    type: ScriptType,
+    log: ScriptLogger,
+    { collection, selectedEnvironmentKey }: CollectionModel
+  ): CollectionCommand | undefined {
     // The script runs synchronously, so the collection cannot change while it runs. The draft only
     // exists while it runs: a callback that runs later, e.g. from a promise, gets a throwaway copy
     // instead, so its reads see what the script left behind and its writes are lost.
-    const { collection, selectedEnvironmentKey } = collectionState.model;
     let draft: Draft<CollectionInfo> | undefined;
     let finished: CollectionInfo = collection;
     const getCollection = () => {
@@ -165,16 +191,14 @@ export class ScriptingService {
       }
     });
     finished = changed;
-    if (changed === collection) return;
+    if (changed === collection) return undefined;
 
     const changes: CollectionChanges = {};
     if (changed.variables !== collection.variables) changes.variables = changed.variables;
     if (changed.environments !== collection.environments) {
       changes.environments = changed.environments;
     }
-    collectionState
-      .apply({ type: CommandType.UPDATE_COLLECTION, changes })
-      .catch((err) => logger.error('Failed to apply the variables changed by a script:', err));
+    return { type: CommandType.UPDATE_COLLECTION, changes };
   }
 }
 

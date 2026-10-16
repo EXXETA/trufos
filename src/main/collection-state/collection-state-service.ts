@@ -4,6 +4,7 @@ import { freeze } from 'immer';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { SettingsService } from 'main/persistence/service/settings-service';
+import { SerialQueue } from 'main/util/serial-queue';
 import {
   applyCommandWithPatches,
   CollectionCommand,
@@ -32,6 +33,13 @@ type CollectionStateServiceEvents = {
   'collection-changed': [];
 };
 
+/**
+ * Plans a command from the current model. Runs synchronously on the queue, so the model cannot
+ * change until the command is applied.
+ * @returns the command, or undefined if there is nothing to apply
+ */
+export type CommandPlan = (model: CollectionModel) => CollectionCommand | undefined;
+
 const noop = () => {};
 
 /**
@@ -39,10 +47,12 @@ const noop = () => {};
  * {@link CollectionCommand}: the service validates and applies it, broadcasts the resulting patches
  * with a `changed` event and persists the change.
  *
- * Persistence effects run one after another on a serial queue, together with everything else that
- * touches the files of the collection: readers and loading another collection. The info files of
- * edited requests are written with a delay, see {@link REQUEST_INFO_DEBOUNCE_MS}. If an effect
- * fails, the collection is reloaded from disk and broadcast as a snapshot.
+ * Everything that changes the model or touches the files of the collection runs on one queue, one
+ * task after another: applying a command together with its persistence effect, delayed writes,
+ * readers and loading another collection. So an effect is always written from the model it was
+ * planned from, and a reader sees files that match the model. The info files of edited requests
+ * are written with a delay, see {@link REQUEST_INFO_DEBOUNCE_MS}. If an effect fails, the
+ * collection is reloaded from disk and broadcast as a snapshot.
  */
 export class CollectionStateService
   extends EventEmitter<CollectionStateServiceEvents>
@@ -52,23 +62,14 @@ export class CollectionStateService
 
   private _model?: CollectionModel;
 
-  /** The tail of the serial queue. It never rejects. */
-  private queue: Promise<void> = Promise.resolve();
+  /** Runs everything that changes the model or touches the files of the collection. */
+  private readonly queue = new SerialQueue();
 
   /**
    * The requests whose info file is outdated, with the timer that writes it. A request stays here
    * until its info file is written.
    */
   private readonly dirtyRequests = new Map<TrufosId, NodeJS.Timeout>();
-
-  /**
-   * Incremented whenever the model is replaced by loading it from disk. Effects queued for an
-   * older generation were planned from a model that no longer exists and are skipped.
-   */
-  private generation = 0;
-
-  /** How many loads or reloads are in progress. Commands are rejected while this is not 0. */
-  private loading = 0;
 
   /** The current state of the open collection. It is immutable. */
   public get model(): CollectionModel {
@@ -99,7 +100,7 @@ export class CollectionStateService
    * @param dirPath the directory of the collection
    */
   public load(dirPath: string): Promise<void> {
-    return this.exclusive(() => this.loadModel(dirPath));
+    return this.queue.run(() => this.loadModel(dirPath));
   }
 
   /**
@@ -118,7 +119,7 @@ export class CollectionStateService
    * @param dirPath the directory of the collection to close. Defaults to the current one.
    */
   public closeCollection(dirPath?: string): Promise<void> {
-    return this.exclusive(async () => {
+    return this.queue.run(async () => {
       dirPath ??= this.model.collection.dirPath;
       logger.info('Closing collection at', dirPath);
 
@@ -167,53 +168,43 @@ export class CollectionStateService
    * effects are written before this resolves; request info files of edits are written later.
    * @param input the {@link CommandEnvelope}. It is validated, as it usually comes from the
    * renderer.
-   * @throws if the envelope is invalid, the command cannot be applied, the collection is being
-   * loaded, or persisting it failed or was skipped because the collection was reloaded meanwhile
+   * @throws if the envelope is invalid, the command cannot be applied, another collection was
+   * opened before the command was applied, or persisting it failed
    */
   public async dispatch(input: unknown): Promise<void> {
-    await this.applyEnvelope(CommandEnvelope.parse(input));
-  }
-
-  /**
-   * Applies a command issued by the main process itself, see {@link dispatch}. Unlike there, the
-   * model is changed when this returns, so callers may choose not to wait for the persistence.
-   * @param command the command to apply
-   * @returns a promise that settles when the change is persisted. It rejects if the command cannot
-   * be applied or the collection is being loaded.
-   */
-  public async apply(command: CollectionCommand): Promise<void> {
-    return this.applyEnvelope({ commandId: randomUUID(), timestamp: Date.now(), command });
-  }
-
-  /** Applies a command synchronously and returns the promise of its persistence. */
-  private applyEnvelope(envelope: CommandEnvelope): Promise<void> {
-    if (this.loading > 0) {
-      throw new Error('The collection is being loaded, the command was not applied');
-    }
-    const { model: prev, generation } = this;
-    const [next, patches] = applyCommandWithPatches(prev, envelope);
-    this._model = next;
-    this.emit('changed', {
-      kind: 'patches',
-      version: next.version,
-      patches,
-      commandId: envelope.commandId,
+    const envelope = CommandEnvelope.parse(input);
+    const collectionId = this.model.collection.id;
+    await this.queue.run(() => {
+      if (this.model.collection.id !== collectionId) {
+        throw new Error('Another collection was opened, the command was not applied');
+      }
+      return this.applyEnvelope(envelope);
     });
-
-    const effects = getCommandEffects(prev, next, envelope.command);
-    if (effects.dirtyRequestId != null) this.markDirty(effects.dirtyRequestId);
-    for (const id of effects.cleanRequestIds ?? []) this.markClean(id);
-    return effects.immediate == null
-      ? Promise.resolve()
-      : this.enqueue(effects.immediate, generation);
   }
 
   /**
-   * Queues writing all dirty requests right away and waits until every queued write is done.
+   * Plans a command from the current model and applies it, see {@link dispatch}. Both happen on
+   * the queue, so the model the command was planned from is the one it is applied to.
+   * @param collectionId the collection the plan belongs to. The plan does not run if another
+   * collection is open when it is its turn.
+   * @param plan the {@link CommandPlan}
+   * @returns whether the plan ran. Rejects if the plan or applying its command failed.
+   */
+  public applyTo(collectionId: TrufosId, plan: CommandPlan): Promise<boolean> {
+    return this.queue.run(async () => {
+      if (this._model?.collection.id !== collectionId) return false;
+      const command = plan(this.model);
+      if (command != null) await this.applyEnvelope(this.envelopeOf(command));
+      return true;
+    });
+  }
+
+  /**
+   * Writes all dirty requests right away and waits until every write queued before is done.
+   * @throws if writing a dirty request failed
    */
   public flush(): Promise<void> {
-    this.enqueueDirtyWrites();
-    return this.queue;
+    return this.writeDirty();
   }
 
   /**
@@ -227,8 +218,8 @@ export class CollectionStateService
     id: TrufosId,
     reader: (request: TrufosRequest) => Promise<T>
   ): Promise<T | undefined> {
-    this.enqueueDirtyWrites();
-    return this.chain(async () => {
+    this.writeDirty().catch(noop); // already logged, and the reader does not depend on it
+    return this.queue.run(async () => {
       const request = this.model.requests.get(id);
       return request == null ? undefined : await reader(request);
     });
@@ -249,27 +240,35 @@ export class CollectionStateService
     return prepared;
   }
 
-  /**
-   * Runs a task that loads a collection on the queue, after the dirty requests are written.
-   * Commands are rejected from now on until the task has settled.
-   */
-  private exclusive<T>(task: () => Promise<T>): Promise<T> {
-    this.enqueueDirtyWrites();
-    this.loading++;
-    return this.chain(task).finally(() => this.loading--);
+  private envelopeOf(command: CollectionCommand): CommandEnvelope {
+    return { commandId: randomUUID(), timestamp: Date.now(), command };
   }
 
-  /** Runs the task after everything queued before it. Returns the task's own promise. */
-  private chain<T>(task: () => Promise<T>): Promise<T> {
-    const result = this.queue.then(task);
-    this.queue = result.then(noop, noop);
-    return result;
+  /**
+   * Applies a command, broadcasts its patches and runs its immediate effect. Runs on the queue.
+   */
+  private async applyEnvelope(envelope: CommandEnvelope): Promise<void> {
+    const prev = this.model;
+    const [next, patches] = applyCommandWithPatches(prev, envelope);
+    this._model = next;
+    this.emit('changed', {
+      kind: 'patches',
+      version: next.version,
+      patches,
+      commandId: envelope.commandId,
+    });
+
+    const effects = getCommandEffects(prev, next, envelope.command);
+    if (effects.dirtyRequestId != null) this.markDirty(effects.dirtyRequestId);
+    for (const id of effects.cleanRequestIds ?? []) this.markClean(id);
+    if (effects.immediate != null) await this.runEffect(effects.immediate);
   }
 
   /** Postpones writing the info file of a request until it was not edited for a while. */
   private markDirty(id: TrufosId) {
     clearTimeout(this.dirtyRequests.get(id));
-    const timer = setTimeout(() => this.enqueueDirtyWrites([id]), REQUEST_INFO_DEBOUNCE_MS);
+    // already logged, and nobody waits for a delayed write
+    const timer = setTimeout(() => this.writeDirty([id]).catch(noop), REQUEST_INFO_DEBOUNCE_MS);
     this.dirtyRequests.set(id, timer);
   }
 
@@ -279,78 +278,59 @@ export class CollectionStateService
     this.dirtyRequests.delete(id);
   }
 
-  /** Queues writing the info files of the given dirty requests, of all by default. */
-  private enqueueDirtyWrites(ids = [...this.dirtyRequests.keys()]) {
-    if (ids.length === 0) return;
-    // already logged, and nobody waits for a delayed write
-    this.enqueue(() => this.writeDirtyRequests(ids), this.generation).catch(noop);
+  /**
+   * Queues writing the info files of the given requests, of all dirty ones by default. Like any
+   * effect, a failed write reloads the collection.
+   */
+  private writeDirty(ids?: TrufosId[]): Promise<void> {
+    return this.queue.run(() =>
+      this.runEffect(() => this.writeDirtyRequests(ids ?? [...this.dirtyRequests.keys()]))
+    );
   }
 
   /**
-   * Writes the info files of the given requests as they are now, unless they are not dirty anymore
-   * or were deleted meanwhile.
+   * Writes the info files of those of the given requests that are still dirty, as they are now. A
+   * request that was deleted meanwhile is skipped. Runs on the queue.
    */
   private async writeDirtyRequests(ids: TrufosId[]) {
     for (const id of ids) {
-      const timer = this.dirtyRequests.get(id);
-      if (timer == null) continue;
+      if (!this.dirtyRequests.has(id)) continue;
       const request = this.model.requests.get(id);
       if (request != null) await persistenceService.saveRequestInfo(request);
-      if (this.dirtyRequests.get(id) === timer) this.markClean(id);
+      this.markClean(id);
     }
   }
 
   /**
-   * Adds an effect to the serial queue. If it fails, the collection is reloaded from disk before
-   * the next effect runs.
-   * @param effect the effect to run
-   * @param generation the {@link generation} of the model the effect was planned from. If the
-   * model was reloaded since, the effect is skipped and the returned promise rejects.
-   * @returns a promise that settles with the effect
+   * Runs a persistence effect. If it fails, the collection is reloaded from disk before anything
+   * else runs, so the model matches the disk again. Runs on the queue.
    */
-  private enqueue(effect: () => Promise<void>, generation: number): Promise<void> {
-    return this.chain(async () => {
-      if (generation !== this.generation) {
-        logger.warn('Skipping a change planned before the collection was reloaded');
-        throw new Error('The collection was reloaded before the change could be written');
-      }
-      try {
-        await effect();
-      } catch (error) {
-        logger.error('Failed to persist a change of the collection, reloading it:', error);
-        await this.reloadAfterFailure();
-        throw error;
-      }
-    });
-  }
-
-  /**
-   * Reloads the collection from disk after an effect failed. The info files of dirty requests are
-   * written first, so their edits survive the reload if possible.
-   */
-  private async reloadAfterFailure() {
-    this.loading++;
+  private async runEffect(effect: () => Promise<void>) {
     try {
-      for (const id of [...this.dirtyRequests.keys()]) {
-        await this.writeDirtyRequests([id]).catch((error) => {
-          logger.error(`Failed to write request ${id} before reloading:`, error);
+      await effect();
+    } catch (error) {
+      logger.error('Failed to persist a change of the collection, reloading it:', error);
+      const dirPath = this._model?.collection.dirPath;
+      if (dirPath != null) {
+        await this.loadModel(dirPath).catch((reloadError) => {
+          logger.error(`Failed to reload the collection at ${dirPath}:`, reloadError);
         });
       }
-
-      const dirPath = this._model?.collection.dirPath;
-      if (dirPath == null) return;
-      await this.loadModel(dirPath).catch((error) => {
-        logger.error(`Failed to reload the collection at ${dirPath}:`, error);
-        // the model is known to differ from the disk, so nothing planned from it may be written
-        this.generation++;
-      });
-    } finally {
-      this.loading--;
+      throw error;
     }
   }
 
-  /** Loads the collection, makes it the current one and broadcasts it as a snapshot. */
+  /**
+   * Loads the collection, makes it the current one and broadcasts it as a snapshot. The info files
+   * of dirty requests are written first, so their edits survive if possible. Runs on the queue.
+   */
   private async loadModel(dirPath: string) {
+    for (const id of [...this.dirtyRequests.keys()]) {
+      await this.writeDirtyRequests([id]).catch((error) => {
+        logger.error(`Failed to write request ${id} before loading a collection:`, error);
+      });
+    }
+
     const previous = this._model;
     const collection = await persistenceService.loadCollection(dirPath);
 
@@ -372,7 +352,6 @@ export class CollectionStateService
     // renderer never disagree about which collection is open
     await this.addToOpenCollections(collection.dirPath);
     this._model = freeze(model, true);
-    this.generation++;
     // the edits of the previous model were written before, or could not be written at all
     for (const id of [...this.dirtyRequests.keys()]) this.markClean(id);
     this.emit('changed', { kind: 'snapshot', model: this._model });

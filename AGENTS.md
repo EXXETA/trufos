@@ -99,9 +99,9 @@ Key renderer directories:
   or the text shown in an editor) may be read completely.
 - **All temporary files go through `FileSystemService`** (`src/main/filesystem/`, e.g.
   `temporaryFile()`), so they are named, protected and cleaned up in one place. Do not create
-  temporary files ad hoc. The only exception is a file that replaces another one by renaming (see
-  `PersistenceService.replaceFile()`): it has to be on the same volume, so it is created next to
-  the target as a dotfile.
+  temporary files ad hoc. To write a file atomically, use `replaceFile()`: its temporary file has to
+  be on the same volume as the target, so it is created next to the target as a dotfile instead of
+  in the temporary directory.
 
 ## Development Commands
 

@@ -69,13 +69,16 @@ renderer: applyPatches(confirmed) ─▶ drop own pending command ─▶ re-appl
   request that was deleted meanwhile is skipped. Effects that write the info file of a request
   themselves (creating, saving or discarding a draft) mark it clean, so it is not written twice. A request that becomes a draft gets its draft directory first, whatever the
   command was; this is derived from the model transition, not restated per command. The service
-  itself is command-agnostic: everything runs on one serial queue, in order: writes, readers, and
-  loading another collection. Dirty requests are written before a request is sent, before the app
-  closes and before the collection changes. If a persistence effect fails, main reloads the
-  collection from disk and broadcasts a snapshot; effects that were queued before the failure are
-  skipped, whether or not the reload succeeds, as they were planned from a model that no longer
-  matches the disk. Commands that arrive while a collection is being loaded are rejected. The
-  debounce only protects against crashes: every path that reads a request from disk flushes first.
+  itself is command-agnostic: everything that changes the model or touches the files runs as one
+  task after another on a single queue (`SerialQueue`, `src/main/util/serial-queue.ts`): applying a command
+  together with its immediate effect, delayed writes, readers, and loading another collection.
+  Because a command is applied on the queue, an effect is always written from the model it was
+  planned from and nothing has to be skipped or rolled back later. Dirty requests are written
+  before a request is sent, before the app closes and before the collection changes. If a
+  persistence effect fails, main reloads the collection from disk and broadcasts a snapshot before
+  the next task runs. A command that was dispatched while a collection is loaded is applied to the
+  loaded model afterwards, or rejected if another collection is open by then. The debounce only
+  protects against crashes: every path that reads a request from disk flushes first.
   Directory names are chosen so that they neither collide with a known object nor with a directory
   that happens to exist on disk, e.g. one left over from a crash.
 - **Renderer** (`CollectionState`, mirrored into the zustand collection store) keeps the last
@@ -109,10 +112,11 @@ is told and the model is reloaded from disk, so the editor never silently shows 
 ## Other main services
 
 - `EnvironmentService` resolves variables and authorization from the model.
-- `ScriptingService` runs a script against an Immer draft of the collection. Scripts run
-  synchronously, so the model cannot change meanwhile. Afterwards, the changed variables are
-  applied with one `updateCollection` command. The model changes synchronously; the script does
-  not wait for the collection file to be written.
+- `ScriptingService` runs a script against an Immer draft of the collection. The script and the
+  one `updateCollection` command for the variables it changed run as a single task on the
+  collection state's queue (`CollectionStateService.applyTo()`), so the model cannot change in
+  between, and the check that the request's collection is still open happens on the queue as
+  well. The script waits for the collection file to be written; a failure is only logged.
 - `HttpService.sendRequest()` and `stream-open` take request ids; main looks the request up in its
   model (`CollectionStateService.prepareRequest()` and `readRequest()`) and opens its files on the
   persistence queue, so no write interleaves. Everything else a request needs, e.g. variables and
@@ -123,6 +127,6 @@ is told and the model is reloaded from disk, so the editor never silently shows 
   later writes cannot change what it reads. A request reads its scripts and opens its text body
   before it is sent (`PersistenceService.openRequestFiles()`), together with the collection it
   belongs to; the body is streamed, never read into memory. Text bodies and JSON files are written
-  atomically (a temporary file replaces the target, `PersistenceService.replaceFile()`), so readers
+  atomically (a temporary file replaces the target, `FileSystemService.replaceFile()`), so readers
   never see a half-written file and a request that is being sent keeps streaming the body it was
   sent with.

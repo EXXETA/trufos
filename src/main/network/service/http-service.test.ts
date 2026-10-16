@@ -67,6 +67,13 @@ describe('HttpService', () => {
     vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
     vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockResolvedValue(undefined);
     vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(model);
+    vi.spyOn(CollectionStateService.instance, 'applyTo').mockImplementation(
+      async (collectionId, plan) => {
+        if (model.collection.id !== collectionId) return false;
+        plan(model);
+        return true;
+      }
+    );
   });
 
   it('fetchAsync() should make an HTTP call and return the body on read', async () => {

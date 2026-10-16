@@ -1,11 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFile, writeFile } from 'node:fs/promises';
 import { SettingsService, VERSION } from './settings-service';
 import { exists } from 'main/util/fs-util';
+import { FileSystemService } from 'main/filesystem/filesystem-service';
 
 const settingsService = SettingsService.instance;
 
 describe('SettingsService', async () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('should create a new settings if none exists', async () => {
     // Assert
     expect(await exists(SettingsService.SETTINGS_FILE)).toBe(false);
@@ -49,6 +54,35 @@ describe('SettingsService', async () => {
     expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
       newSettings
     );
+  });
+
+  it('writes the settings file one write at a time, ending with the newest settings', async () => {
+    // Arrange
+    await settingsService.init();
+    const fileSystemService = FileSystemService.instance;
+    const replaceFile = fileSystemService.replaceFile.bind(fileSystemService);
+    let releaseFirst!: () => void;
+    const firstHeld = new Promise<void>((resolve) => (releaseFirst = resolve));
+    const started: string[] = [];
+    vi.spyOn(fileSystemService, 'replaceFile').mockImplementation(async (file, data) => {
+      started.push(data);
+      if (started.length === 1) await firstHeld;
+      await replaceFile(file, data);
+    });
+
+    // Act
+    const first = settingsService.updateSettings({ collections: ['first'] });
+    const second = settingsService.updateSettings({ collections: ['second'] });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(started).toHaveLength(1);
+    releaseFirst();
+    await Promise.all([first, second]);
+
+    // Assert
+    expect(started).toHaveLength(2);
+    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject({
+      collections: ['second'],
+    });
   });
 
   it('should update partial settings and persist to file', async () => {

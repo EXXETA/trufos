@@ -24,21 +24,34 @@ const mockState = vi.hoisted(() => {
     selectedEnvironmentKey: 'dev',
   };
 
+  // applies the commands at once like the real service, so later scripts see the changes
+  const apply = vi.fn((command: CollectionCommand): Promise<void> => {
+    if (command.type !== CommandType.UPDATE_COLLECTION) return Promise.resolve();
+    const { variables, environments } = command.changes;
+    state.collection = {
+      ...state.collection,
+      variables: variables ?? state.collection.variables,
+      environments: environments ?? state.collection.environments,
+    };
+    return Promise.resolve();
+  });
+
   const collectionState = {
     get model() {
       return state;
     },
-    // applies the commands at once like the real service, so later scripts see the changes
-    apply: vi.fn((command: CollectionCommand): Promise<void> => {
-      if (command.type !== CommandType.UPDATE_COLLECTION) return Promise.resolve();
-      const { variables, environments } = command.changes;
-      state.collection = {
-        ...state.collection,
-        variables: variables ?? state.collection.variables,
-        environments: environments ?? state.collection.environments,
-      };
-      return Promise.resolve();
-    }),
+    apply,
+    applyTo: vi.fn(
+      async (
+        collectionId: string,
+        plan: (model: typeof state) => CollectionCommand | undefined
+      ): Promise<boolean> => {
+        if (state.collection.id !== collectionId) return false;
+        const command = plan(state);
+        if (command != null) await apply(command);
+        return true;
+      }
+    ),
   };
 
   return { state, collectionState };
@@ -501,25 +514,32 @@ describe('ScriptingService', () => {
       });
     });
 
-    it('should not wait for the variables to be written to disk', async () => {
+    it('should wait for the variables to be applied', async () => {
       // Arrange
       let persist!: () => void;
       mockState.collectionState.apply.mockReturnValueOnce(
         new Promise<void>((resolve) => (persist = resolve))
       );
+      const done = vi.fn();
 
       // Act
-      await service.executeScript(
-        `trufos.setCollectionVariable('a', 'b');`,
-        ScriptType.PRE_REQUEST,
-        log,
-        COLLECTION_ID
-      );
+      const executing = service
+        .executeScript(
+          `trufos.setCollectionVariable('a', 'b');`,
+          ScriptType.PRE_REQUEST,
+          log,
+          COLLECTION_ID
+        )
+        .then(done);
+      await new Promise((resolve) => setImmediate(resolve));
 
       // Assert
       expect(persist).toBeDefined();
-      expect(log).not.toHaveBeenCalled();
+      expect(done).not.toHaveBeenCalled();
       persist();
+      await executing;
+      expect(done).toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
     });
 
     it('should only log a failure to write the variables to disk to the app log', async () => {

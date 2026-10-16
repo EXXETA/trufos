@@ -1,8 +1,10 @@
 import path from 'node:path';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { Initializable } from 'main/shared/initializable';
+import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { SemVer } from 'main/util/semver';
+import { SerialQueue } from 'main/util/serial-queue';
 import { AppSettings } from 'shim/app-settings';
 
 const DEFAULT_APP_SETTINGS: AppSettings = { theme: 'system' };
@@ -72,6 +74,12 @@ export class SettingsService implements Initializable {
     collections: [SettingsService.DEFAULT_COLLECTION_DIR],
   });
 
+  /**
+   * Writes the settings file one write at a time, so an earlier write cannot finish last and leave
+   * older settings in the file.
+   */
+  private readonly writes = new SerialQueue();
+
   async init() {
     if (await exists(SettingsService.SETTINGS_FILE)) {
       await this.readSettings();
@@ -89,10 +97,11 @@ export class SettingsService implements Initializable {
   }
 
   /**
-   * Sets the settings and writes them to the settings file.
+   * Sets the settings and writes them to the settings file. Resolves once the file contains these
+   * settings or newer ones.
    * @param settings The new settings to set
    */
-  public async setSettings(settings: Readonly<SettingsObject>) {
+  public async setSettings(settings: Readonly<SettingsObject>): Promise<void> {
     this._settings = structuredClone(settings);
     await this.writeSettings();
   }
@@ -101,7 +110,7 @@ export class SettingsService implements Initializable {
    * Updates the settings with the given partial settings and writes them to the settings file.
    * @param partial The partial settings to update the current settings with
    */
-  public async updateSettings(partial: Partial<SettingsObject>) {
+  public async updateSettings(partial: Partial<SettingsObject>): Promise<void> {
     await this.setSettings({ ...this._settings, ...partial });
   }
 
@@ -112,10 +121,18 @@ export class SettingsService implements Initializable {
     return structuredClone(this._settings);
   }
 
-  private async writeSettings() {
-    const settings: SettingsObject & { version?: string } = this.modifiableSettings;
-    settings.version = VERSION.string;
-    await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(settings, null, 2));
+  /**
+   * Queues writing the settings file. It gets the settings as they are when the write starts. The
+   * file is replaced, so a crash cannot leave it half-written.
+   */
+  private writeSettings(): Promise<void> {
+    return this.writes.run(() => {
+      const settings: SettingsInfoFile = { ...this.modifiableSettings, version: VERSION.string };
+      return FileSystemService.instance.replaceFile(
+        SettingsService.SETTINGS_FILE,
+        JSON.stringify(settings, null, 2)
+      );
+    });
   }
 
   private async readSettings() {
