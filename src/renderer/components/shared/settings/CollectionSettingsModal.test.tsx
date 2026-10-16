@@ -82,6 +82,17 @@ describe('CollectionSettingsModal', () => {
     expect((save as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it('disables Save when the title is blank', async () => {
+    const user = userEvent.setup();
+    render(<CollectionSettingsModal isOpen={true} onClose={onClose} />);
+
+    await user.clear(screen.getByLabelText('name'));
+    await user.type(screen.getByLabelText('name'), ' ');
+
+    const save = screen.getByRole('button', { name: /^save$/i });
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('saves only the changed settings', async () => {
     const user = userEvent.setup();
     render(<CollectionSettingsModal isOpen={true} onClose={onClose} />);

@@ -130,7 +130,7 @@ export class MainEventService implements IEventService {
     return await httpService.sendRequest(requestId, abortKey);
   }
 
-  async abortRequest(abortKey: string) {
+  async abortRequest(abortKey: string): Promise<void> {
     httpService.abortRequest(abortKey);
   }
 

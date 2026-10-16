@@ -419,6 +419,21 @@ describe('ScriptingService', () => {
       expect(mockState.collectionState.apply).not.toHaveBeenCalled();
     });
 
+    it('should report a variable change from a callback after the script finished instead of applying it', async () => {
+      // Act
+      await service.executeScript(
+        "Promise.resolve().then(() => trufos.setCollectionVariable('late', 'value'))",
+        ScriptType.PRE_REQUEST,
+        log,
+        COLLECTION_ID
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // Assert
+      expect(mockState.collectionState.apply).not.toHaveBeenCalled();
+      expect(log).toHaveBeenCalledWith(expect.objectContaining({ level: 'error' }));
+    });
+
     it('should not run the script when another collection was opened meanwhile', async () => {
       // Arrange
       const warn = vi.spyOn(logger, 'warn');

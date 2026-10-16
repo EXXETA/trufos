@@ -475,6 +475,20 @@ describe('PersistenceService', () => {
     expect(await streamToString(result)).toBe(textBody);
   });
 
+  it('loadTextBodyOfRequest() should fail for a request without a directory instead of reserving one', async () => {
+    // Arrange
+    await persistenceService.saveCollection(collection);
+    const unsaved = getExampleRequest(collection.id);
+    const saved = getExampleRequest(collection.id);
+
+    // Act & Assert
+    await expect(persistenceService.loadTextBodyOfRequest(unsaved)).rejects.toThrow('not found');
+
+    // the directory of the unsaved request was not reserved, so the saved one gets its name
+    await persistenceService.saveRequestInfo(saved);
+    expect(await exists(path.join(collection.dirPath, saved.title))).toBe(true);
+  });
+
   it('loadTextBodyOfRequest() should load the text body of a request with utf8', async () => {
     // Arrange
     const textBody = 'text body';

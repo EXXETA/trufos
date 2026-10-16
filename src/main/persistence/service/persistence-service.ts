@@ -228,7 +228,8 @@ export class PersistenceService {
     request: TrufosRequest,
     type: ScriptType
   ): Promise<ReadStream | undefined> {
-    return await openFile(this.getScriptFilePath(request, type), 'utf-8');
+    const filePath = path.join(this.getRequestDirPath(request), getScriptFileName(type));
+    return await openFile(filePath, 'utf-8');
   }
 
   /**
@@ -419,7 +420,7 @@ export class PersistenceService {
   ): Promise<ReadStream | undefined> {
     if (request.body.type !== RequestBodyType.TEXT) return undefined;
     logger.info('Loading text body of request', request.id);
-    const filePath = path.join(this.getOrCreateDirPath(request, true), TEXT_BODY_FILE_NAME);
+    const filePath = path.join(this.getRequestDirPath(request), TEXT_BODY_FILE_NAME);
     const stream = await openFile(filePath, encoding);
     if (stream == null) logger.warn('Text body file does not exist for request', request.id);
     return stream;
@@ -759,6 +760,16 @@ export class PersistenceService {
 
   private getScriptFilePath(request: TrufosRequest, type: ScriptType) {
     return path.join(this.getOrCreateDirPath(request, true), getScriptFileName(type));
+  }
+
+  /**
+   * Returns the directory the files of a request are read from: its draft directory if it has a
+   * draft. Unlike {@link getOrCreateDirPath}, reading never reserves a directory.
+   * @throws Error if the request has no directory, i.e. it was never saved
+   */
+  private getRequestDirPath(request: TrufosRequest) {
+    const dirPath = this.getDirPath(request.id);
+    return request.draft ? this.getDraftDirPath(dirPath) : dirPath;
   }
 
   private isDirPathTaken(targetDirPath: string) {

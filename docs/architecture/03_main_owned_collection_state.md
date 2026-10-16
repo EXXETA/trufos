@@ -63,7 +63,9 @@ renderer: applyPatches(confirmed) ─▶ drop own pending command ─▶ re-appl
   means for the disk. It returns `immediate` writes (structural operations: create, move, rename,
   delete, copy, save, discard) and, for request edits, a `dirtyRequestId`: the info file of a dirty
   request is written from the current model 2 s after its last edit, or earlier when something
-  flushes. A dirty request that was deleted meanwhile is skipped. Effects that write the info file
+  flushes. Text body and script edits mark the request dirty as well, so the modification time of
+  its info file follows them. A request stays dirty until its info file was written: if that
+  fails, the reload after the failure retries it first, so the edit survives if possible. A dirty request that was deleted meanwhile is skipped. Effects that write the info file
   of a request themselves (creating, saving or discarding a draft) mark it clean, so it is not
   written twice. A request that becomes a draft gets its draft directory first, whatever the
   command was; this is derived from the model transition, not restated per command. The service

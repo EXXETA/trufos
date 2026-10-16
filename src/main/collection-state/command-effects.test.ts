@@ -429,6 +429,22 @@ describe('getCommandEffects()', () => {
     expect(effects.dirtyRequestId).toBe('r3');
   });
 
+  it('setTextBody and setScript mark the request dirty, so its info file gets a new modification time', () => {
+    const commands: CollectionCommand[] = [
+      { type: CommandType.SET_TEXT_BODY, id: 'r3', text: 'body' },
+      {
+        type: CommandType.SET_SCRIPT,
+        id: 'r3',
+        scriptType: ScriptType.PRE_REQUEST,
+        text: 'script',
+      },
+    ];
+    for (const command of commands) {
+      const next = applyCommandTo(model, { commandId: 'cmd', timestamp: 1, command });
+      expect(getCommandEffects(model, next, command).dirtyRequestId).toBe('r3');
+    }
+  });
+
   it('setScript writes the script into the draft', async () => {
     // Act
     const next = await run(model, {

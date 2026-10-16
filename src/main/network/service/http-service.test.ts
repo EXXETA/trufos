@@ -62,6 +62,7 @@ describe('HttpService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
     // @ts-expect-error loadScript mock returns null but type expects ReadStream | null
     vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
     vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockResolvedValue(undefined);
@@ -779,6 +780,46 @@ describe('HttpService', () => {
     const bodyCopy: BodyCopy | undefined = recorder.sent.mock.calls[0]?.[1];
     await bodyCopy?.done;
     expect(await readText(responseBodyService.openBody(bodyCopy!.id)!)).toEqual('file content');
+  });
+
+  it('fetchAsync() should close the file body if sending fails', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/file-failure');
+    mockAgent
+      .get(url.origin)
+      .intercept({ path: url.pathname, method: 'POST' })
+      .replyWithError(new Error('connection refused'));
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    await fsp.mkdir(USER_DATA_DIR, { recursive: true });
+    const filePath = path.join(USER_DATA_DIR, `${randomUUID()}.txt`);
+    await fsp.writeFile(filePath, 'file content');
+    const open = fsp.open.bind(fsp);
+    const handles: Awaited<ReturnType<typeof fsp.open>>[] = [];
+    vi.spyOn(fsp, 'open').mockImplementation(async (...args) => {
+      const handle = await open(...args);
+      handles.push(handle);
+      return handle;
+    });
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'File Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: { type: RequestBodyType.FILE, filePath },
+    };
+
+    // Act
+    await expect(httpService.fetchAsync(await prepare(request), recorder)).rejects.toThrow(
+      'connection refused'
+    );
+
+    // Assert: the file handle is closed once the stream is destroyed
+    expect(handles).toHaveLength(1);
+    await vi.waitFor(() => expect(handles[0].fd).toBe(-1));
   });
 
   it('fetchAsync() should use the client certificate of the collection', async () => {

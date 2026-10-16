@@ -172,6 +172,20 @@ describe('CollectionStateService', () => {
     });
   });
 
+  describe('load() failure', () => {
+    it('keeps the current collection if adding the new one to the settings fails', async () => {
+      // Arrange
+      vi.spyOn(settingsService, 'setSettings').mockRejectedValueOnce(new Error('settings locked'));
+
+      // Act & Assert
+      await expect(service.load(secondDirPath)).rejects.toThrow('settings locked');
+      expect(service.model.collection.id).toBe('first');
+      expect(events).toEqual([]);
+      await service.apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' });
+      expect(service.model.requests.get('r1')?.title).toBe('renamed');
+    });
+  });
+
   describe('closeCollection()', () => {
     it('loads the default collection when the current one is closed', async () => {
       // Arrange
@@ -442,7 +456,7 @@ describe('CollectionStateService', () => {
       expect(service.model.requests.get('r1')?.title).toBe('r1');
     });
 
-    it('reloads the collection if a delayed write fails', async () => {
+    it('retries a failed delayed write before reloading, so the edit survives', async () => {
       // Arrange
       await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
       await service.apply({
@@ -458,7 +472,39 @@ describe('CollectionStateService', () => {
 
       // Assert
       expect(events.map((event) => event.kind)).toEqual(['snapshot']);
-      expect(service.model.requests.get('r1')?.method).toBe(RequestMethod.GET);
+      expect(service.model.requests.get('r1')?.method).toBe(RequestMethod.PUT);
+      expect(await readRequestInfo('r1', DRAFT_DIR_NAME)).toMatchObject({ method: 'PUT' });
+    });
+
+    it('keeps a request dirty if it is edited while its info file is written', async () => {
+      // Arrange
+      await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
+      await service.apply({
+        type: CommandType.EDIT_REQUEST,
+        id: 'r1',
+        changes: { method: RequestMethod.PUT },
+      });
+      const saveRequestInfo = persistenceService.saveRequestInfo.bind(persistenceService);
+      let finishWrite: (() => void) | undefined;
+      vi.spyOn(persistenceService, 'saveRequestInfo').mockImplementationOnce(async (request) => {
+        await new Promise<void>((resolve) => (finishWrite = resolve));
+        await saveRequestInfo(request);
+      });
+
+      // Act: the request is edited while its first write is in progress
+      const firstWrite = service.flush();
+      await vi.waitFor(() => expect(finishWrite).toBeDefined());
+      void service.apply({
+        type: CommandType.EDIT_REQUEST,
+        id: 'r1',
+        changes: { method: RequestMethod.POST },
+      });
+      finishWrite?.();
+      await firstWrite;
+      await service.flush();
+
+      // Assert
+      expect(await readRequestInfo('r1', DRAFT_DIR_NAME)).toMatchObject({ method: 'POST' });
     });
   });
 

@@ -149,14 +149,20 @@ function getSpecificEffects(
       return {};
     case CommandType.EDIT_REQUEST:
       return { dirtyRequestId: command.id };
+    // the info file follows text body and script edits as well, as its modification time is the
+    // modification time of the request
     case CommandType.SET_TEXT_BODY: {
       const request = getExistingRequest(next, command.id);
-      return { immediate: () => persistenceService.writeTextBody(request, command.text) };
+      return {
+        immediate: () => persistenceService.writeTextBody(request, command.text),
+        dirtyRequestId: command.id,
+      };
     }
     case CommandType.SET_SCRIPT: {
       const request = getExistingRequest(next, command.id);
       return {
         immediate: () => persistenceService.saveScript(request, command.scriptType, command.text),
+        dirtyRequestId: command.id,
       };
     }
     case CommandType.SAVE_REQUEST: {

@@ -1,5 +1,5 @@
 import { app } from 'electron';
-import { type Draft, produce } from 'immer';
+import { castDraft, type Draft, produce } from 'immer';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { createContext, Script } from 'node:vm';
 import { ScriptConsole, ScriptingContext, ScriptType, VariableObject } from 'shim';
@@ -22,17 +22,18 @@ export class ScriptingService {
 
   /**
    * Creates the scripting API.
-   * @param collection a draft of the collection. The script reads and sets its variables there.
+   * @param getCollection returns the draft of the collection the script reads and sets its
+   * variables in
    * @param selectedEnvironmentKey the environment the script uses by default
    */
   private createApi(
     script: ScriptType,
     log: ScriptLogger,
-    collection: Draft<CollectionInfo>,
+    getCollection: () => Draft<CollectionInfo>,
     selectedEnvironmentKey?: string
   ) {
     const getEnvironment = (key = selectedEnvironmentKey) =>
-      key == null ? undefined : collection.environments[key];
+      key == null ? undefined : getCollection().environments[key];
 
     return Object.freeze<ScriptingContext>({
       console: ScriptingService.createConsole(script, log),
@@ -40,10 +41,10 @@ export class ScriptingService {
       trufos: Object.freeze({
         version: app.getVersion(),
 
-        getCollectionVariable: (name: string) => collection.variables[name]?.value,
+        getCollectionVariable: (name: string) => getCollection().variables[name]?.value,
 
         setCollectionVariable: (name: string, value: string | VariableObject) => {
-          const { variables } = collection;
+          const { variables } = getCollection();
           variables[name] = ScriptingService.mergeVariable(variables[name], value);
         },
 
@@ -127,21 +128,43 @@ export class ScriptingService {
       return;
     }
 
-    // the script runs synchronously, so the collection cannot change while it runs
+    // The script runs synchronously, so the collection cannot change while it runs. The draft only
+    // exists while it runs: a callback that runs later, e.g. from a promise, gets a throwaway copy
+    // instead, so its reads see what the script left behind and its writes are lost.
     const { collection, selectedEnvironmentKey } = collectionState.model;
-    const changed = produce(collection, (draft) => {
+    let draft: Draft<CollectionInfo> | undefined;
+    let finished: CollectionInfo = collection;
+    const getCollection = () => {
+      if (draft != null) return draft;
+      log({
+        script: type,
+        level: 'error',
+        args: [
+          'The variables cannot be changed anymore, as the script has finished. Callbacks that run after the script, e.g. from a promise, are not supported.',
+        ],
+      });
+      return castDraft(structuredClone(finished));
+    };
+    const changed = produce(collection, (recipe) => {
+      draft = recipe;
       try {
-        const context = createContext(this.createApi(type, log, draft, selectedEnvironmentKey), {
-          name: 'Trufos Scripting Context',
-        });
+        const context = createContext(
+          this.createApi(type, log, getCollection, selectedEnvironmentKey),
+          {
+            name: 'Trufos Scripting Context',
+          }
+        );
         const now = getSteadyTimestamp();
         script.runInContext(context, { timeout: SCRIPT_TIMEOUT_SECONDS * 1000 });
         logger.debug(`Script executed successfully after ${getDurationStringFromNow(now)}`);
       } catch (err) {
         logger.info(`Script execution failed with ${errorName(err)}`);
         log({ script: type, level: 'error', args: [err] });
+      } finally {
+        draft = undefined;
       }
     });
+    finished = changed;
     if (changed === collection) return;
 
     const changes: CollectionChanges = {};

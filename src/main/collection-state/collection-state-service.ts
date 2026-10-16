@@ -293,10 +293,11 @@ export class CollectionStateService
    */
   private async writeDirtyRequests(ids: TrufosId[]) {
     for (const id of ids) {
-      if (!this.dirtyRequests.has(id)) continue;
-      this.markClean(id);
+      const timer = this.dirtyRequests.get(id);
+      if (timer == null) continue;
       const request = this.model.requests.get(id);
       if (request != null) await persistenceService.saveRequestInfo(request);
+      if (this.dirtyRequests.get(id) === timer) this.markClean(id);
     }
   }
 
@@ -365,10 +366,14 @@ export class CollectionStateService
     }
     // the version never goes back, so the renderer can tell old events from new ones
     if (previous != null) model.version = previous.version + 1;
+
+    // the collection only becomes the current one once nothing can fail anymore, so main and the
+    // renderer never disagree about which collection is open
+    await this.addToOpenCollections(collection.dirPath);
     this._model = freeze(model, true);
     this.generation++;
-
-    await this.addToOpenCollections(collection.dirPath);
+    // the edits of the previous model were written before, or could not be written at all
+    for (const id of [...this.dirtyRequests.keys()]) this.markClean(id);
     this.emit('changed', { kind: 'snapshot', model: this._model });
     if (collection.dirPath !== previous?.collection.dirPath) this.emit('collection-changed');
   }
