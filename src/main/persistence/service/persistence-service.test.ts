@@ -783,6 +783,72 @@ describe('PersistenceService', () => {
     ).toBe(true);
   });
 
+  it('move() should not move onto a directory that exists but belongs to no known object', async () => {
+    // Arrange: a leftover directory with the name the moved request would get
+    const folder = getExampleFolder(collection.id);
+    const request = getExampleRequest(collection.id);
+    collection.children.push(folder, request);
+    await persistenceService.saveCollection(collection, true);
+    const folderDirPath = path.join(collection.dirPath, folder.title);
+    await mkdir(path.join(folderDirPath, request.title, 'leftover'), { recursive: true });
+
+    // Act
+    await persistenceService.move(request.id, folder.id);
+
+    // Assert
+    expect(await exists(path.join(folderDirPath, request.title, 'leftover'))).toBe(true);
+    expect(await exists(path.join(folderDirPath, `${request.title}-2`))).toBe(true);
+  });
+
+  it('rename() should not rename onto a directory that exists but belongs to no known object', async () => {
+    // Arrange
+    const folder = getExampleFolder(collection.id);
+    folder.title = 'FolderA';
+    collection.children.push(folder);
+    await persistenceService.saveCollection(collection, true);
+    const takenDirPath = path.join(collection.dirPath, sanitizeTitle('FolderB'));
+    await mkdir(path.join(takenDirPath, 'leftover'), { recursive: true });
+
+    // Act
+    await persistenceService.rename({ ...folder, title: 'FolderB' });
+
+    // Assert
+    expect(await exists(path.join(takenDirPath, 'leftover'))).toBe(true);
+    expect(await exists(`${takenDirPath}-2`)).toBe(true);
+  });
+
+  it('saveRequestInfo() should not write a new request into a directory that belongs to no known object', async () => {
+    // Arrange
+    await persistenceService.saveCollection(collection, true);
+    const request = getExampleRequest(collection.id);
+    await mkdir(path.join(collection.dirPath, request.title, 'leftover'), { recursive: true });
+
+    // Act
+    await persistenceService.saveRequestInfo(request);
+
+    // Assert
+    expect(await exists(path.join(collection.dirPath, request.title, 'leftover'))).toBe(true);
+    expect(
+      await exists(path.join(collection.dirPath, `${request.title}-2`, getInfoFileName('request')))
+    ).toBe(true);
+  });
+
+  it('loadCollectionBase() should read the collection without registering its directory', async () => {
+    // Arrange: a copy of the collection with the same ID
+    await persistenceService.saveCollection(collection, true);
+    const copyDirPath = path.join(USER_DATA_DIR, 'collections', `${randomUUID()}-copy`);
+    await fs.cp(collection.dirPath, copyDirPath, { recursive: true });
+
+    // Act
+    const result = await persistenceService.loadCollectionBase(copyDirPath);
+    await persistenceService.saveCollectionInfo({ ...collection, title: 'changed' });
+
+    // Assert
+    expect(result).toEqual({ id: collection.id, title: collection.title, dirPath: copyDirPath });
+    const info = JSON.parse(await readFile(path.join(copyDirPath, 'collection.json'), 'utf-8'));
+    expect(info.title).toBe(collection.title);
+  });
+
   it('move() and saveOrder() should keep both parents complete after reload (#957)', async () => {
     // Arrange
     const folder = getExampleFolder(collection.id);

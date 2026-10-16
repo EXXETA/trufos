@@ -240,6 +240,28 @@ describe('CollectionStateService', () => {
       ]);
       expect(settingsService.settings.collections).not.toContain(missingDirPath);
     });
+
+    it('does not change where the files of the current collection are written', async () => {
+      // Arrange: another open collection has the same ID, e.g. an imported export of the current one
+      await service.load(secondDirPath);
+      const copyDirPath = path.join(USER_DATA_DIR, 'collections', 'copy');
+      await fs.cp(secondDirPath, copyDirPath, { recursive: true });
+      const settings = settingsService.modifiableSettings;
+      settings.collections.push(copyDirPath);
+      await settingsService.setSettings(settings);
+
+      // Act
+      await service.listCollections();
+      await service.apply({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'updated' } });
+
+      // Assert
+      const readTitle = (dirPath: string) =>
+        fs
+          .readFile(path.join(dirPath, 'collection.json'), 'utf-8')
+          .then((t) => JSON.parse(t).title);
+      expect(await readTitle(secondDirPath)).toBe('updated');
+      expect(await readTitle(copyDirPath)).toBe('second');
+    });
   });
 
   describe('dispatch()', () => {
@@ -586,6 +608,37 @@ describe('CollectionStateService', () => {
       expect(await exists(path.join(firstDirPath, 'folder'))).toBe(false);
       expect(service.model.folders.has('f1')).toBe(false);
       expect(service.model.childIds.get('first')).not.toContain('f1');
+    });
+
+    it('skips queued effects if the reload after a failure fails as well', async () => {
+      // Arrange
+      let reject!: (error: Error) => void;
+      vi.spyOn(persistenceService, 'rename').mockReturnValueOnce(
+        new Promise<void>((_, r) => (reject = r))
+      );
+      vi.spyOn(persistenceService, 'loadCollection').mockRejectedValueOnce(new Error('unreadable'));
+      const failing = service.apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' });
+      const stale = service.apply({
+        type: CommandType.CREATE_FOLDER,
+        folder: {
+          id: 'f1',
+          parentId: 'first',
+          type: 'folder',
+          lastModified: 0,
+          title: 'folder',
+        },
+      });
+
+      // Act
+      reject(new Error('disk full'));
+
+      // Assert: the model is known to differ from the disk, so nothing planned from it is written
+      await expect(failing).rejects.toThrow('disk full');
+      await expect(stale).rejects.toThrow('reloaded');
+      expect(await exists(path.join(firstDirPath, 'folder'))).toBe(false);
+      // commands are accepted again, and the next failure triggers another reload
+      await service.apply({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'again' } });
+      expect(service.model.collection.title).toBe('again');
     });
 
     it('writes the pending edits of other requests before reloading after a failure', async () => {

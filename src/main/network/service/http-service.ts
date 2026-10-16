@@ -85,14 +85,20 @@ export class HttpService {
    * @returns the response, or null if the request was aborted
    */
   public async sendRequest(requestId: TrufosId, abortKey?: string): Promise<TrufosResponse | null> {
-    const prepared = await collectionState.prepareRequest(requestId);
-    const { request } = prepared;
-
+    // registered before anything is awaited, so an abort cannot slip through while preparing
     const abortController = new AbortController();
     if (abortKey != null) this.abortControllers.set(abortKey, abortController);
 
     let response: TrufosResponse | null;
+    let textBody: PreparedRequest['textBody'];
     try {
+      const prepared = await collectionState.prepareRequest(requestId);
+      textBody = prepared.textBody;
+      if (abortController.signal.aborted) {
+        logger.debug('Request was aborted while it was prepared:', requestId);
+        return null;
+      }
+      const { request } = prepared;
       response = await HistoryService.instance.record(
         request,
         collectionState.model.collection.dirPath,
@@ -111,11 +117,11 @@ export class HttpService {
     } finally {
       if (abortKey != null) this.abortControllers.delete(abortKey);
       // the body is not streamed if sending failed before, and closing a streamed body is a no-op
-      prepared.textBody?.destroy();
+      textBody?.destroy();
     }
 
     // the response panel and the collection runner show the latest response of a request
-    if (response != null) LatestResponseBodies.instance.set(request.id, response.body?.id);
+    if (response != null) LatestResponseBodies.instance.set(requestId, response.body?.id);
     return response;
   }
 

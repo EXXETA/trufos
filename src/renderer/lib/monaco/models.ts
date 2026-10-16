@@ -29,6 +29,11 @@ export interface ModelPersistence {
   setScript(requestId: string, scriptType: ScriptType, text: string): Promise<void>;
   /** Turns the request into a draft if it is none yet, so the change is visible at once. */
   markDraft(requestId: string): Promise<void>;
+  /**
+   * Called when a debounced edit could not be sent. The editor then shows text that is not
+   * persisted, so the caller should tell the user and reload the content of the model.
+   */
+  editFailed(requestId: string, model: EditedModel, error: unknown): void;
 }
 
 /** An edit that waits for its debounce timer. */
@@ -41,10 +46,16 @@ interface PendingEdit {
 const registry = new Map<string, RequestModels>();
 
 /** The editor models whose edits are tracked: the text body or a script. */
-type EditedModel = 'body' | ScriptType;
+export type EditedModel = 'body' | ScriptType;
 
 /** Pending edits by request ID, then by model. */
 const pendingEdits = new Map<string, Map<EditedModel, PendingEdit>>();
+
+/** The requests whose changes are ignored at the moment, see {@link suspendModelEdits}. */
+const suspended = new Set<string>();
+
+/** The models whose content is being loaded, with the token of the latest load. */
+const loading = new Map<editor.ITextModel, symbol>();
 
 // ── URI helpers ─────────────────────────────────────────────────────────────
 
@@ -147,6 +158,38 @@ export function cancelModelEdits(requestId: string): void {
   takePendingEdits(requestId);
 }
 
+/**
+ * Ignores the changes of the models of a request until the returned function is called, e.g. while
+ * its changes are discarded: text typed meanwhile is replaced anyway, so it must not be sent.
+ * @returns resumes tracking the edits
+ */
+export function suspendModelEdits(requestId: string): () => void {
+  suspended.add(requestId);
+  return () => suspended.delete(requestId);
+}
+
+/**
+ * Loads the content of a model. Changes made while it loads are not edits, as the loaded content
+ * replaces them: sending them would persist a fragment instead of the whole content. If the model
+ * is disposed or loaded again meanwhile, the loaded content is dropped.
+ * @param model the model to load the content of
+ * @param load loads the content
+ */
+export async function loadModelContent(
+  model: editor.ITextModel,
+  load: () => Promise<string>
+): Promise<void> {
+  const token = Symbol('load');
+  loading.set(model, token);
+  try {
+    const text = await load();
+    // setValue is a flush, so it is not tracked as an edit
+    if (!model.isDisposed() && loading.get(model) === token) model.setValue(text);
+  } finally {
+    if (loading.get(model) === token) loading.delete(model);
+  }
+}
+
 /** Removes the pending edits of a request and stops their timers. */
 function takePendingEdits(requestId: string): PendingEdit[] {
   const edits = [...(pendingEdits.get(requestId)?.values() ?? [])];
@@ -172,12 +215,15 @@ function trackEdits(
   // the listener is disposed together with the model
   model.onDidChangeContent((event) => {
     // a flush replaces the whole content, i.e. the content was loaded and not edited
-    if (event.isFlush) return;
+    if (event.isFlush || suspended.has(requestId) || loading.has(model)) return;
 
     let edits = pendingEdits.get(requestId);
     if (edits == null) {
       pendingEdits.set(requestId, (edits = new Map()));
-      persistence.markDraft(requestId).catch(logError);
+      // the edit that follows reports its own failure
+      persistence
+        .markDraft(requestId)
+        .catch((error) => console.error('Could not mark the request as draft:', error));
     }
 
     clearTimeout(edits.get(key)?.timer);
@@ -185,12 +231,8 @@ function trackEdits(
       const current = pendingEdits.get(requestId);
       current?.delete(key);
       if (current?.size === 0) pendingEdits.delete(requestId);
-      send().catch(logError);
+      send().catch((error) => persistence.editFailed(requestId, key, error));
     }, MODEL_EDIT_DEBOUNCE_MS);
     edits.set(key, { timer, send });
   });
-}
-
-function logError(error: unknown) {
-  console.error('Could not persist an editor change:', error);
 }

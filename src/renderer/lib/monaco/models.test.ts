@@ -7,13 +7,16 @@ import {
   flushModelEdits,
   getBodyModel,
   getScriptModel,
+  loadModelContent,
   MODEL_EDIT_DEBOUNCE_MS,
+  suspendModelEdits,
 } from './models';
 
 const persistence = {
   setTextBody: vi.fn(),
   setScript: vi.fn(),
   markDraft: vi.fn(),
+  editFailed: vi.fn(),
 };
 
 const REQUEST_ID = 'req-1';
@@ -119,5 +122,84 @@ describe('editor models', () => {
     vi.advanceTimersByTime(MODEL_EDIT_DEBOUNCE_MS);
 
     expect(persistence.setTextBody).not.toHaveBeenCalled();
+  });
+
+  it('reports a debounced edit that could not be sent', async () => {
+    const error = new Error('rejected');
+    persistence.setTextBody.mockRejectedValue(error);
+    type(getBodyModel(REQUEST_ID), 'lost');
+
+    await vi.advanceTimersByTimeAsync(MODEL_EDIT_DEBOUNCE_MS);
+
+    expect(persistence.editFailed).toHaveBeenCalledExactlyOnceWith(REQUEST_ID, 'body', error);
+  });
+
+  it('suspendModelEdits ignores changes until the edits are resumed', () => {
+    const resume = suspendModelEdits(REQUEST_ID);
+    type(getBodyModel(REQUEST_ID), 'while suspended');
+    vi.advanceTimersByTime(MODEL_EDIT_DEBOUNCE_MS);
+
+    expect(persistence.markDraft).not.toHaveBeenCalled();
+    expect(persistence.setTextBody).not.toHaveBeenCalled();
+
+    resume();
+    type(getBodyModel(REQUEST_ID), 'after');
+    vi.advanceTimersByTime(MODEL_EDIT_DEBOUNCE_MS);
+
+    expect(persistence.markDraft).toHaveBeenCalledExactlyOnceWith(REQUEST_ID);
+    expect(persistence.setTextBody).toHaveBeenCalledExactlyOnceWith(REQUEST_ID, 'after');
+  });
+
+  describe('loadModelContent', () => {
+    it('sets the loaded content and does not treat it as an edit', async () => {
+      await loadModelContent(getBodyModel(REQUEST_ID), async () => 'loaded');
+      vi.advanceTimersByTime(MODEL_EDIT_DEBOUNCE_MS);
+
+      expect(getBodyModel(REQUEST_ID).getValue()).toBe('loaded');
+      expect(persistence.markDraft).not.toHaveBeenCalled();
+      expect(persistence.setTextBody).not.toHaveBeenCalled();
+    });
+
+    it('replaces text typed while the content was loading and does not send it', async () => {
+      const { promise, resolve } = Promise.withResolvers<string>();
+      const loaded = loadModelContent(getBodyModel(REQUEST_ID), () => promise);
+      type(getBodyModel(REQUEST_ID), 'x');
+
+      resolve('the whole body');
+      await loaded;
+      vi.advanceTimersByTime(MODEL_EDIT_DEBOUNCE_MS);
+
+      expect(getBodyModel(REQUEST_ID).getValue()).toBe('the whole body');
+      expect(persistence.markDraft).not.toHaveBeenCalled();
+      expect(persistence.setTextBody).not.toHaveBeenCalled();
+    });
+
+    it('keeps the content of the newest load', async () => {
+      const first = Promise.withResolvers<string>();
+      const second = Promise.withResolvers<string>();
+      const loads = [
+        loadModelContent(getBodyModel(REQUEST_ID), () => first.promise),
+        loadModelContent(getBodyModel(REQUEST_ID), () => second.promise),
+      ];
+
+      second.resolve('second');
+      first.resolve('first');
+      await Promise.all(loads);
+
+      expect(getBodyModel(REQUEST_ID).getValue()).toBe('second');
+    });
+
+    it('skips a model that was disposed while its content was loading', async () => {
+      createModelsForRequest('req-2', persistence);
+      const model = getBodyModel('req-2');
+      const { promise, resolve } = Promise.withResolvers<string>();
+      const loaded = loadModelContent(model, () => promise);
+
+      disposeModelsForRequest('req-2');
+      resolve('late');
+
+      await expect(loaded).resolves.toBeUndefined();
+      expect(model.isDisposed()).toBe(true);
+    });
   });
 });

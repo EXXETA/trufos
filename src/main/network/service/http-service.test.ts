@@ -975,6 +975,33 @@ describe('HttpService.sendRequest()', () => {
     expect(getSignal()?.aborted).toBe(true);
   });
 
+  it('does not send a request that was aborted while it was being prepared', async () => {
+    // Arrange: the serial queue of the collection state is busy, so preparing takes a while
+    let releasePrepare!: () => void;
+    const textBody = Readable.from('body');
+    vi.mocked(CollectionStateService.instance.prepareRequest).mockReturnValue(
+      new Promise<void>((resolve) => (releasePrepare = resolve)).then(() => ({
+        request,
+        collectionId: model.collection.id,
+        textBody,
+        scripts: {},
+      }))
+    );
+    const fetchAsync = vi.spyOn(httpService, 'fetchAsync').mockResolvedValue(makeResponse());
+    HistoryService.instance.clear(model.collection.dirPath);
+    const sending = httpService.sendRequest(request.id, 'runner-request-3');
+
+    // Act
+    httpService.abortRequest('runner-request-3');
+    releasePrepare();
+
+    // Assert
+    await expect(sending).resolves.toBeNull();
+    expect(fetchAsync).not.toHaveBeenCalled();
+    expect(textBody.destroyed).toBe(true);
+    expect(HistoryService.instance.list(model.collection.dirPath)).toEqual([]);
+  });
+
   it('resolves an aborted request with null instead of failing', async () => {
     // Arrange: undici rejects with a DOMException, which breaks both logging and IPC serialization
     const getSignal = fetchUntilAborted(

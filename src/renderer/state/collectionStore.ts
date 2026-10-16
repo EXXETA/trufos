@@ -16,6 +16,7 @@ import {
   disposeModelsForRequest,
   flushModelEdits,
   ModelPersistence,
+  suspendModelEdits,
 } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
 import {
@@ -140,12 +141,6 @@ export const createCollectionStore = (
     dispatch(command).catch((error) => showError('Could not change the collection', error));
   };
 
-  /**
-   * The requests whose changes are being discarded. Text typed meanwhile is replaced by the saved
-   * content, so it must not turn them into drafts again.
-   */
-  const discarding = new Set<TrufosId>();
-
   /** Sends the content of the editor models as commands. */
   const modelPersistence: ModelPersistence = {
     setTextBody: (id, text) => dispatch({ type: CommandType.SET_TEXT_BODY, id, text }),
@@ -153,8 +148,14 @@ export const createCollectionStore = (
       dispatch({ type: CommandType.SET_SCRIPT, id, scriptType, text }),
     markDraft: async (id) => {
       const request = get().requests.get(id);
-      if (request != null && !request.draft && !discarding.has(id)) {
-        await dispatch({ type: CommandType.CREATE_DRAFT, id });
+      if (request != null && !request.draft) await dispatch({ type: CommandType.CREATE_DRAFT, id });
+    },
+    editFailed: (id, model, error) => {
+      showError('Could not save the editor change', error);
+      // the editor shows text that is not persisted, so it goes back to what is
+      const request = get().requests.get(id);
+      if (request != null && get().selectedRequestId === id) {
+        loadEditorContent(request, model).catch((e) => showError('Could not load the request', e));
       }
     },
   };
@@ -373,21 +374,18 @@ export const createCollectionStore = (
       discardChanges: reported('Could not discard the changes', async () => {
         const request = selectRequest(get());
         if (request == null) return;
+        // text typed while main discards is replaced by the saved content, so it is not an edit
         cancelModelEdits(request.id);
-        discarding.add(request.id);
+        const resume = suspendModelEdits(request.id);
         try {
           await dispatch({ type: CommandType.DISCARD_REQUEST, id: request.id });
+          // a request that was never saved is gone now; otherwise reload its saved editor content
+          const restored = get().requests.get(request.id);
+          if (restored != null && get().selectedRequestId === request.id) {
+            await loadEditorContent(restored);
+          }
         } finally {
-          discarding.delete(request.id);
-        }
-
-        // a request that was never saved is gone now; otherwise reload its saved editor content
-        const restored = get().requests.get(request.id);
-        if (restored != null && get().selectedRequestId === request.id) {
-          // the text typed while main discarded is replaced, so its edits must not be sent; text
-          // typed while the content loads is kept, see `loadEditorContent`
-          cancelModelEdits(request.id);
-          await loadEditorContent(restored);
+          resume();
         }
       }),
 

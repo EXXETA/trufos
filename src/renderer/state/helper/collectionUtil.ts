@@ -1,56 +1,47 @@
-import type { editor } from 'monaco-editor';
 import { IpcPushStream } from '@/lib/ipc-stream';
-import { getBodyModel, getScriptModel } from '@/lib/monaco/models';
+import { EditedModel, getBodyModel, getScriptModel, loadModelContent } from '@/lib/monaco/models';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
 
 /**
- * Loads the text body and the scripts of a request into its editor models. Replacing the whole
- * content counts as a flush, so it is not sent back to the main process as an edit. A model that
- * was disposed or changed while its content was loading is left as it is.
+ * Loads the text body and the scripts of a request into its editor models, see
+ * {@link loadModelContent}: the loaded content replaces anything typed meanwhile, and a model that
+ * was disposed while its content was loading is left as it is.
  * @param request the request. Its editor models must exist.
+ * @param only loads only this model instead of all
  */
-export async function loadEditorContent(request: TrufosRequest): Promise<void> {
-  await Promise.all([
-    loadTextBody(request),
-    ...Object.values(ScriptType).map((scriptType) => loadScript(request.id, scriptType)),
-  ]);
+export async function loadEditorContent(request: TrufosRequest, only?: EditedModel): Promise<void> {
+  const models: EditedModel[] = only != null ? [only] : ['body', ...Object.values(ScriptType)];
+  await Promise.all(
+    models.map((model) =>
+      model === 'body' ? loadTextBody(request) : loadScript(request.id, model)
+    )
+  );
 }
 
 async function loadTextBody(request: TrufosRequest) {
   const model = getBodyModel(request.id);
   if (request.body.type === RequestBodyType.TEXT) {
-    const version = model.getVersionId();
-    const stream = await IpcPushStream.open(
-      { type: 'request-body', requestId: request.id },
-      'utf-8'
-    );
-    setLoadedValue(model, version, await stream.readAll());
+    await loadModelContent(model, async () => {
+      const stream = await IpcPushStream.open(
+        { type: 'request-body', requestId: request.id },
+        'utf-8'
+      );
+      return await stream.readAll();
+    });
   } else {
     model.setValue('');
   }
 }
 
 async function loadScript(requestId: string, scriptType: ScriptType) {
-  const model = getScriptModel(requestId, scriptType);
-  const version = model.getVersionId();
-  const stream = await IpcPushStream.open(
-    { type: 'script', source: scriptType, requestId },
-    'utf-8'
-  );
-  setLoadedValue(model, version, await stream.readAll());
-}
-
-/**
- * Sets the loaded content of a model, unless the model changed while it was loaded: it was
- * disposed because another request was selected, the user typed into it, or a newer load replaced
- * its content. The user's text then stays, and their pending edit sends it.
- * @param model the model the content was loaded for
- * @param version the version of the model when the load started
- * @param text the loaded content
- */
-function setLoadedValue(model: editor.ITextModel, version: number, text: string) {
-  if (!model.isDisposed() && model.getVersionId() === version) model.setValue(text);
+  await loadModelContent(getScriptModel(requestId, scriptType), async () => {
+    const stream = await IpcPushStream.open(
+      { type: 'script', source: scriptType, requestId },
+      'utf-8'
+    );
+    return await stream.readAll();
+  });
 }
 
 /**

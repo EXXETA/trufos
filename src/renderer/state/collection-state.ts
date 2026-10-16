@@ -77,13 +77,18 @@ export class CollectionState {
       console.warn(
         `Missed a collection update (expected version ${this.confirmed.version + 1}, got ${event.version})`
       );
+      // the snapshot fetched now contains the confirmed command, see above
+      this.removePending(event.commandId);
       void this.resync();
-    } else if (this.pending.length === 1 && this.pending[0].commandId === event.commandId) {
-      // Main confirmed the only pending command. The visible model was built from the confirmed
-      // one with exactly this command, the same way main did, so it already is the confirmed model
-      // and nothing visible changes.
-      this.pending = [];
-      this.confirmed = this.visible = { ...this.visible, version: event.version };
+    } else if (this.pending[0]?.commandId === event.commandId) {
+      // Main confirmed the oldest pending command. The visible model was built from the confirmed
+      // one with exactly this command first, the same way main did, so the confirmed model moves
+      // one step closer to the visible one and nothing visible changes.
+      this.pending.shift();
+      this.confirmed =
+        this.pending.length === 0
+          ? (this.visible = { ...this.visible, version: event.version })
+          : applyPatches(this.confirmed, event.patches);
     } else {
       this.removePending(event.commandId);
       this.setConfirmed(applyPatches(this.confirmed, event.patches));
@@ -96,7 +101,10 @@ export class CollectionState {
    */
   resync(): Promise<void> {
     this.resyncing ??= this.fetchSnapshot()
-      .then((snapshot) => this.setConfirmed(snapshot))
+      .then((snapshot) => {
+        // a snapshot broadcast while this one was fetched is newer, e.g. of another collection
+        if (snapshot.version >= this.confirmed.version) this.setConfirmed(snapshot);
+      })
       .catch((error) => console.error('Could not fetch the collection state', error))
       .finally(() => (this.resyncing = undefined));
     return this.resyncing;

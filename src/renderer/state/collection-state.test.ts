@@ -193,4 +193,78 @@ describe('CollectionState', () => {
     expect(state.model.version).toBe(1);
     expect(state.model.requests.get('r1')!.title).toBe('Renamed');
   });
+
+  it('does not re-apply a command that main confirmed in the event that skipped a version', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const snapshot = vi.spyOn(main, 'getCollectionState');
+    main.broadcast = false;
+    await main.dispatch(foreign({ type: CommandType.RENAME, id: 'r2', title: 'Missed' }));
+    main.broadcast = true;
+
+    await state.dispatch({ type: CommandType.COPY, ids: ['r3'], idMap: { r3: 'r3-copy' } });
+    await vi.waitFor(() => expect(state.model.version).toBe(2));
+
+    expect(snapshot).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining('Missed a collection update')
+    );
+    expect(state.model.requests.get('r2')!.title).toBe('Missed');
+    expect(state.model.childIds.get('col')).toEqual(['f1', 'r3', 'r3-copy']);
+    warn.mockRestore();
+  });
+
+  it('ignores a resynced snapshot that is older than a snapshot received meanwhile', async () => {
+    let releaseSnapshot!: () => void;
+    const stale = structuredClone(main.model);
+    const snapshot = vi
+      .spyOn(main, 'getCollectionState')
+      .mockImplementation(() =>
+        new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() => stale)
+      );
+    const resync = state.resync();
+    const other = makeModel({ id: 'other' });
+    other.version = 5;
+    state.receive({ kind: 'snapshot', model: other });
+
+    releaseSnapshot();
+    await resync;
+
+    expect(snapshot).toHaveBeenCalledOnce();
+    expect(state.model).toBe(other);
+  });
+
+  it('keeps the optimistic model when main confirms the oldest of several pending commands', async () => {
+    const releases: (() => Promise<void>)[] = [];
+    main = new FakeCollectionMain(makeModel());
+    state = new CollectionState(
+      structuredClone(main.model),
+      (envelope) =>
+        new Promise((resolve) => releases.push(() => main.dispatch(envelope).then(resolve))),
+      () => main.getCollectionState(),
+      onChange
+    );
+    main.onEvent((event) => state.receive(event));
+    const first = state.dispatch({ type: CommandType.RENAME, id: 'r1', title: 'First' });
+    const second = state.dispatch({ type: CommandType.RENAME, id: 'r2', title: 'Second' });
+    const optimistic = state.model;
+    expect(onChange).toHaveBeenCalledTimes(2);
+
+    await releases[0]();
+    await first;
+
+    // the visible model already contains both commands, so nothing visible changes
+    expect(state.model).toBe(optimistic);
+    expect(onChange).toHaveBeenCalledTimes(2);
+
+    await releases[1]();
+    await second;
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(state.model.version).toBe(2);
+    expect(state.model.requests.get('r1')!.title).toBe('First');
+    expect(state.model.requests.get('r2')!.title).toBe('Second');
+    // the fast path must not leave the state unable to follow later updates
+    await main.dispatch(foreign({ type: CommandType.RENAME, id: 'r3', title: 'Other' }));
+    expect(state.model.version).toBe(3);
+    expect(state.model.requests.get('r3')!.title).toBe('Other');
+  });
 });

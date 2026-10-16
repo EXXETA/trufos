@@ -65,22 +65,26 @@ renderer: applyPatches(confirmed) ─▶ drop own pending command ─▶ re-appl
   request is written from the current model 2 s after its last edit, or earlier when something
   flushes. Text body and script edits mark the request dirty as well, so the modification time of
   its info file follows them. A request stays dirty until its info file was written: if that
-  fails, the reload after the failure retries it first, so the edit survives if possible. A dirty request that was deleted meanwhile is skipped. Effects that write the info file
-  of a request themselves (creating, saving or discarding a draft) mark it clean, so it is not
-  written twice. A request that becomes a draft gets its draft directory first, whatever the
+  fails, the reload after the failure retries it first, so the edit survives if possible. A dirty
+  request that was deleted meanwhile is skipped. Effects that write the info file of a request
+  themselves (creating, saving or discarding a draft) mark it clean, so it is not written twice. A request that becomes a draft gets its draft directory first, whatever the
   command was; this is derived from the model transition, not restated per command. The service
   itself is command-agnostic: everything runs on one serial queue, in order: writes, readers, and
   loading another collection. Dirty requests are written before a request is sent, before the app
   closes and before the collection changes. If a persistence effect fails, main reloads the
-  collection from disk and broadcasts a snapshot. Commands that arrive while a collection is being
-  loaded are rejected. The debounce only protects against crashes: every path that reads a request
-  from disk flushes first.
+  collection from disk and broadcasts a snapshot; effects that were queued before the failure are
+  skipped, whether or not the reload succeeds, as they were planned from a model that no longer
+  matches the disk. Commands that arrive while a collection is being loaded are rejected. The
+  debounce only protects against crashes: every path that reads a request from disk flushes first.
+  Directory names are chosen so that they neither collide with a known object nor with a directory
+  that happens to exist on disk, e.g. one left over from a crash.
 - **Renderer** (`CollectionState`, mirrored into the zustand collection store) keeps the last
   confirmed model and a queue of pending (sent, unconfirmed) commands. The visible state is the
-  confirmed model with the pending commands re-applied. When main confirms the only pending command,
-  the optimistic model is adopted as the confirmed one (both were computed by the same
-  `applyCommand`), so the common case costs one render, not two. If a command is rejected or a
-  version is skipped, the renderer fetches a fresh snapshot.
+  confirmed model with the pending commands re-applied. When main confirms the oldest pending
+  command, the visible model stays as it is (both were computed by the same `applyCommand`), so
+  the common case costs one render, not two, even while typing. If a command is rejected or a
+  version is skipped, the renderer fetches a fresh snapshot; a snapshot that is older than one
+  broadcast meanwhile is ignored.
 - Opening, creating, importing or closing a collection broadcasts a full snapshot.
 
 ## Drafts
@@ -94,7 +98,10 @@ The text body and the scripts have one owner: the Monaco models in the renderer.
 debounced (1 s) `setTextBody` / `setScript` commands. The first edit sends `createDraft` right away,
 so the request shows as changed at once. The operations that need the editor content flush it
 themselves: sending, saving, copying, switching request or collection, and closing. Disposing a
-Monaco model only frees memory.
+Monaco model only frees memory. While the content of a model is loaded, or while the changes of its
+request are discarded, changes to it are not edits: the loaded content replaces them, and sending
+them would persist a fragment instead of the whole text. If a debounced edit is rejected, the user
+is told and the model is reloaded from disk, so the editor never silently shows unsaved text.
 
 ## Other main services
 

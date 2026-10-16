@@ -8,7 +8,7 @@ import { Readable } from 'node:stream';
 import { text } from 'node:stream/consumers';
 import { z } from 'zod';
 import { TrufosObject } from 'shim/objects';
-import { Collection } from 'shim/objects/collection';
+import { Collection, CollectionBase } from 'shim/objects/collection';
 import { Folder } from 'shim/objects/folder';
 import {
   getInlineTextBody,
@@ -35,7 +35,7 @@ import {
 import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
 import { SettingsService } from './settings-service';
-import { sanitizeTitle, uniqueName } from 'shim/string';
+import { sanitizeTitle, uniqueNameAsync } from 'shim/string';
 import {
   DRAFT_DIR_NAME,
   getInfoFileName,
@@ -110,7 +110,7 @@ export class PersistenceService {
 
     // keep the directory name the object already has, suffixing it if the new parent holds a
     // sibling with the same name — renaming onto an existing directory would fail or replace it
-    const dirName = uniqueName(path.basename(oldDirPath), (name) =>
+    const dirName = await uniqueNameAsync(path.basename(oldDirPath), (name) =>
       this.isDirPathTaken(path.join(newParentDirPath, name))
     );
     const newDirPath = path.join(newParentDirPath, dirName);
@@ -133,9 +133,9 @@ export class PersistenceService {
   ): Promise<void> {
     const oldDirPath = this.getDirPath(node.id);
     const parentDirPath = path.dirname(oldDirPath);
-    const dirName = uniqueName(sanitizeTitle(node.title), (name) => {
+    const dirName = await uniqueNameAsync(sanitizeTitle(node.title), async (name) => {
       const dirPath = path.join(parentDirPath, name);
-      return dirPath !== oldDirPath && this.isDirPathTaken(dirPath);
+      return dirPath !== oldDirPath && (await this.isDirPathTaken(dirPath));
     });
     const newDirPath = path.join(parentDirPath, dirName);
 
@@ -161,7 +161,7 @@ export class PersistenceService {
    * @param request the request to save
    */
   public async saveRequestInfo(request: TrufosRequest): Promise<void> {
-    await this.saveInfoFile(request, this.getOrCreateDirPath(request, true));
+    await this.saveInfoFile(request, await this.getOrCreateDirPath(request, true));
   }
 
   /**
@@ -170,7 +170,7 @@ export class PersistenceService {
    * @param request the request in its draft state
    */
   public async createDraft(request: TrufosRequest): Promise<void> {
-    const dirPath = this.getOrCreateDirPath(request);
+    const dirPath = await this.getOrCreateDirPath(request);
     const draftDirPath = this.getDraftDirPath(dirPath);
     logger.info('Creating draft of request at', dirPath);
     await fs.mkdir(draftDirPath, { recursive: true });
@@ -186,7 +186,7 @@ export class PersistenceService {
    * @param text the text body
    */
   public async writeTextBody(request: TrufosRequest, text: string): Promise<void> {
-    const dirPath = this.getOrCreateDirPath(request, true);
+    const dirPath = await this.getOrCreateDirPath(request, true);
     await fs.mkdir(dirPath, { recursive: true });
     await this.replaceFile(path.join(dirPath, TEXT_BODY_FILE_NAME), text);
   }
@@ -198,7 +198,7 @@ export class PersistenceService {
    * @param script the source code of the script
    */
   public async saveScript(request: TrufosRequest, type: ScriptType, script: string): Promise<void> {
-    const filePath = this.getScriptFilePath(request, type);
+    const filePath = await this.getScriptFilePath(request, type);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, script);
   }
@@ -239,9 +239,9 @@ export class PersistenceService {
    * @param copy the copy of the request
    */
   public async copyRequestFiles(source: TrufosRequest, copy: TrufosRequest): Promise<void> {
-    const targetDirPath = this.getOrCreateDirPath(copy, true);
+    const targetDirPath = await this.getOrCreateDirPath(copy, true);
     await fs.mkdir(targetDirPath, { recursive: true });
-    await this.copyContentFiles(this.getOrCreateDirPath(source, true), targetDirPath);
+    await this.copyContentFiles(await this.getOrCreateDirPath(source, true), targetDirPath);
   }
 
   /**
@@ -282,7 +282,7 @@ export class PersistenceService {
    * @param collection the collection to save
    */
   public async saveCollectionInfo(collection: CollectionInfo): Promise<void> {
-    await this.saveInfoFile(collection, this.getOrCreateDirPath(collection));
+    await this.saveInfoFile(collection, await this.getOrCreateDirPath(collection));
   }
 
   /**
@@ -290,7 +290,7 @@ export class PersistenceService {
    * @param folder The folder to save.
    */
   public async saveFolder(folder: FolderInfo): Promise<void> {
-    await this.saveInfoFile(folder, this.getOrCreateDirPath(folder));
+    await this.saveInfoFile(folder, await this.getOrCreateDirPath(folder));
   }
 
   /**
@@ -471,6 +471,19 @@ export class PersistenceService {
 
     const lastModified = await this.getInfoFileModificationTime(dirPath, type);
     return fromCollectionInfoFile(info, lastModified, dirPath, children);
+  }
+
+  /**
+   * Reads the basic information of the collection at the given directory. Unlike
+   * {@link loadCollection}, this does not register the collection's ID, so listing other open
+   * collections cannot change where the files of the open collection are written, even if another
+   * collection has the same ID (e.g. an imported export of it).
+   * @param dirPath the directory path where the collection is located
+   */
+  public async loadCollectionBase(dirPath: string): Promise<CollectionBase> {
+    dirPath = this.normalizeDirPath(dirPath);
+    const info = await this.readInfoFile(dirPath, 'collection');
+    return { id: info.id, title: info.title, dirPath };
   }
 
   /**
@@ -697,10 +710,10 @@ export class PersistenceService {
    * @param respectDraft whether to return the draft directory path for requests with draft status
    * @returns the directory path of the object
    */
-  private getOrCreateDirPath(object: InfoObject, respectDraft = false) {
+  private async getOrCreateDirPath(object: InfoObject, respectDraft = false) {
     let dirPath = this.idToPathMap.get(object.id);
     if (dirPath == null) {
-      dirPath = object.type === 'collection' ? object.dirPath : this.createDirPath(object);
+      dirPath = object.type === 'collection' ? object.dirPath : await this.createDirPath(object);
       this.idToPathMap.set(object.id, dirPath);
     }
 
@@ -712,9 +725,9 @@ export class PersistenceService {
   }
 
   /** Derives a new, unused directory path for a new folder or request from its parent. */
-  private createDirPath(node: FolderInfo | TrufosRequest) {
+  private async createDirPath(node: FolderInfo | TrufosRequest) {
     const parentDirPath = this.getDirPath(node.parentId);
-    const dirName = uniqueName(sanitizeTitle(node.title), (name) =>
+    const dirName = await uniqueNameAsync(sanitizeTitle(node.title), (name) =>
       this.isDirPathTaken(path.join(parentDirPath, name))
     );
     return path.join(parentDirPath, dirName);
@@ -758,8 +771,8 @@ export class PersistenceService {
     }
   }
 
-  private getScriptFilePath(request: TrufosRequest, type: ScriptType) {
-    return path.join(this.getOrCreateDirPath(request, true), getScriptFileName(type));
+  private async getScriptFilePath(request: TrufosRequest, type: ScriptType) {
+    return path.join(await this.getOrCreateDirPath(request, true), getScriptFileName(type));
   }
 
   /**
@@ -772,8 +785,15 @@ export class PersistenceService {
     return request.draft ? this.getDraftDirPath(dirPath) : dirPath;
   }
 
-  private isDirPathTaken(targetDirPath: string) {
-    return this.idToPathMap.values().some((path) => path === targetDirPath);
+  /**
+   * Whether a directory is used by a known object or exists on disk, e.g. left over from a crash.
+   * Writing into or renaming onto such a directory would mix up or fail, so a free name is used.
+   */
+  private async isDirPathTaken(targetDirPath: string) {
+    return (
+      this.idToPathMap.values().some((path) => path === targetDirPath) ||
+      (await exists(targetDirPath))
+    );
   }
 
   /**

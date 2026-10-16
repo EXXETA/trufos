@@ -16,6 +16,7 @@ import {
   flushModelEdits,
   getBodyModel,
   getScriptModel,
+  MODEL_EDIT_DEBOUNCE_MS,
 } from '@/lib/monaco/models';
 import { CollectionCommand, CommandType, normalizeCollection } from 'shim/collection-model';
 import { Collection } from 'shim/objects/collection';
@@ -821,6 +822,57 @@ describe('editor models', () => {
       { type: CommandType.DISCARD_REQUEST, id: 'r1' },
     ]);
     expect(ctx.store.getState().requests.get('r1')!.draft).toBe(false);
+  });
+
+  it('does not send text typed while changes are discarded, even if it is flushed meanwhile', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'changed');
+    let releaseDiscard!: () => void;
+    const dispatch = ctx.main.dispatch;
+    ctx.main.dispatch = async (envelope) => {
+      if (envelope.command.type === CommandType.DISCARD_REQUEST) {
+        await new Promise<void>((resolve) => (releaseDiscard = resolve));
+      }
+      return await dispatch(envelope);
+    };
+
+    const discarded = ctx.store.getState().discardChanges();
+    // the debounce timer of this text fires before main discarded the changes
+    type(getBodyModel('r1'), 'typed meanwhile');
+    await flushModelEdits('r1');
+    releaseDiscard();
+    await expect(discarded).resolves.toBe(true);
+
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.CREATE_DRAFT, id: 'r1' },
+      { type: CommandType.DISCARD_REQUEST, id: 'r1' },
+    ]);
+    expect(ctx.store.getState().requests.get('r1')!.draft).toBe(false);
+  });
+
+  it('shows an error and reloads the editor content if a debounced edit is rejected', async () => {
+    vi.useFakeTimers();
+    try {
+      const ctx = setup();
+      ctx.store.getState().setSelectedRequest('r1');
+      type(getBodyModel('r1'), 'not persisted');
+      ctx.main.rejectNext = new Error('rejected');
+
+      await vi.advanceTimersByTimeAsync(MODEL_EDIT_DEBOUNCE_MS);
+
+      expect(ctx.commands()).toEqual([
+        { type: CommandType.CREATE_DRAFT, id: 'r1' },
+        { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'not persisted' },
+      ]);
+      expect(showError).toHaveBeenCalledWith(expect.any(String), expect.any(Error));
+      expect(loadEditorContent).toHaveBeenCalledWith(
+        ctx.store.getState().requests.get('r1'),
+        'body'
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not mark a draft request as draft again', async () => {

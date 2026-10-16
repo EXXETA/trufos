@@ -152,8 +152,7 @@ export class CollectionStateService
 
     for (const dirPath of settingsService.settings.collections) {
       try {
-        const collection = await persistenceService.loadCollection(dirPath, false);
-        collections.push({ id: collection.id, title: collection.title, dirPath });
+        collections.push(await persistenceService.loadCollectionBase(dirPath));
       } catch (e) {
         logger.error(`Failed to load collection at ${dirPath}:`, e);
         await this.closeCollection(dirPath).catch(logger.error);
@@ -342,6 +341,8 @@ export class CollectionStateService
       if (dirPath == null) return;
       await this.loadModel(dirPath).catch((error) => {
         logger.error(`Failed to reload the collection at ${dirPath}:`, error);
+        // the model is known to differ from the disk, so nothing planned from it may be written
+        this.generation++;
       });
     } finally {
       this.loading--;

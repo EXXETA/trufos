@@ -8,7 +8,6 @@ const { bodyModel, scriptModel, openMock } = vi.hoisted(() => {
   const fakeModel = () => ({
     setValue: vi.fn(),
     isDisposed: vi.fn(() => false),
-    getVersionId: vi.fn(() => 1),
   });
   return { bodyModel: fakeModel(), scriptModel: fakeModel(), openMock: vi.fn() };
 });
@@ -18,6 +17,11 @@ const scriptSetValue = scriptModel.setValue;
 vi.mock('@/lib/monaco/models', () => ({
   getBodyModel: vi.fn(() => bodyModel),
   getScriptModel: vi.fn(() => scriptModel),
+  // the loading semantics are tested with the real models, see models.test.ts
+  loadModelContent: vi.fn(async (model: typeof bodyModel, load: () => Promise<string>) => {
+    const text = await load();
+    if (!model.isDisposed()) model.setValue(text);
+  }),
 }));
 
 vi.mock('monaco-editor', () => ({
@@ -45,7 +49,6 @@ describe('loadEditorContent', () => {
     vi.clearAllMocks();
     for (const model of [bodyModel, scriptModel]) {
       model.isDisposed.mockReturnValue(false);
-      model.getVersionId.mockReturnValue(1);
     }
     openMock.mockImplementation(async (input: { type: string; source?: string }) => ({
       readAll: async () => input.source ?? 'body',
@@ -92,16 +95,26 @@ describe('loadEditorContent', () => {
     expect(scriptSetValue).not.toHaveBeenCalled();
   });
 
-  it('keeps text that was typed while the content was loading', async () => {
-    const finishLoading = holdStreams();
+  it('loads only the given model', async () => {
+    await loadEditorContent(makeRequest('req-1', 'col-1'), ScriptType.PRE_REQUEST);
 
-    const loaded = loadEditorContent(makeRequest('req-1', 'col-1'));
-    bodyModel.getVersionId.mockReturnValue(2);
-    finishLoading();
-    await loaded;
-
+    expect(openMock).toHaveBeenCalledExactlyOnceWith(
+      { type: 'script', source: ScriptType.PRE_REQUEST, requestId: 'req-1' },
+      'utf-8'
+    );
     expect(bodySetValue).not.toHaveBeenCalled();
-    expect(scriptSetValue).toHaveBeenCalledTimes(Object.values(ScriptType).length);
+    expect(scriptSetValue).toHaveBeenCalledExactlyOnceWith(ScriptType.PRE_REQUEST);
+  });
+
+  it('loads only the text body if asked to', async () => {
+    await loadEditorContent(makeRequest('req-1', 'col-1'), 'body');
+
+    expect(openMock).toHaveBeenCalledExactlyOnceWith(
+      { type: 'request-body', requestId: 'req-1' },
+      'utf-8'
+    );
+    expect(bodySetValue).toHaveBeenCalledExactlyOnceWith('body');
+    expect(scriptSetValue).not.toHaveBeenCalled();
   });
 });
 
