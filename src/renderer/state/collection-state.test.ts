@@ -186,12 +186,74 @@ describe('CollectionState', () => {
     expect(state.model).toBe(other);
   });
 
-  it('resyncs if main resolves a command without broadcasting it', async () => {
-    main.broadcast = false;
+  it('keeps a command pending if main replies before its patches arrive', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const snapshot = vi.spyOn(main, 'getCollectionState');
+    main.holdBroadcasts = true;
+
     await state.dispatch({ type: CommandType.RENAME, id: 'r1', title: 'Renamed' });
 
+    // the reply is an acknowledgement, not a reason to roll the visible model back
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(state.model.requests.get('r1')!.title).toBe('Renamed');
+    expect(snapshot).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+
+    main.flushBroadcasts();
+    expect(onChange).toHaveBeenCalledTimes(1);
     expect(state.model.version).toBe(1);
     expect(state.model.requests.get('r1')!.title).toBe('Renamed');
+    // the fast path must not leave the state unable to follow later updates
+    main.holdBroadcasts = false;
+    await main.dispatch(foreign({ type: CommandType.RENAME, id: 'r2', title: 'Other' }));
+    expect(state.model.version).toBe(2);
+    expect(state.model.requests.get('r2')!.title).toBe('Other');
+    warn.mockRestore();
+  });
+
+  it('does not lose keystrokes if main replies before its patches arrive', async () => {
+    main.holdBroadcasts = true;
+    const url = (base: string) => ({ ...state.model.requests.get('r1')!.url, base });
+
+    const first = state.dispatch({
+      type: CommandType.EDIT_REQUEST,
+      id: 'r1',
+      changes: { url: url('h') },
+    });
+    await first;
+    const second = state.dispatch({
+      type: CommandType.EDIT_REQUEST,
+      id: 'r1',
+      changes: { url: url('ht') },
+    });
+    main.flushBroadcasts();
+    await second;
+    main.flushBroadcasts();
+
+    expect(onChange.mock.calls.map(([model]) => model.requests.get('r1')!.url.base)).toEqual([
+      'h',
+      'ht',
+    ]);
+    expect(state.model.requests.get('r1')!.url.base).toBe('ht');
+    expect(state.model.version).toBe(2);
+  });
+
+  it('does not re-apply an acknowledged command onto a resynced snapshot', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    main.holdBroadcasts = true;
+    await state.dispatch({ type: CommandType.COPY, ids: ['r3'], idMap: { r3: 'r3-copy' } });
+
+    // the snapshot is fetched after main acknowledged the command, so it contains it
+    await state.resync();
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(state.model.childIds.get('col')).toEqual(['f1', 'r3', 'r3-copy']);
+    expect(state.model.version).toBe(1);
+    // the late broadcast of the acknowledged command is not an update that was missed
+    main.flushBroadcasts();
+    expect(warn).not.toHaveBeenCalled();
+    expect(state.model.version).toBe(1);
+    warn.mockRestore();
   });
 
   it('does not re-apply a command that main confirmed in the event that skipped a version', async () => {

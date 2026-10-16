@@ -28,6 +28,12 @@ export class CollectionState {
   private confirmed: CollectionModel;
   private visible: CollectionModel;
   private pending: CommandEnvelope[] = [];
+  /**
+   * The pending commands main has replied to, but whose patches did not arrive yet. The IPC does
+   * not order a reply and a broadcast, so a reply can come first. Such a command is already part
+   * of every snapshot fetched from now on.
+   */
+  private readonly acknowledged = new Set<string>();
   /** Set while a snapshot is fetched. Patches received meanwhile are part of that snapshot. */
   private resyncing?: Promise<void>;
 
@@ -67,7 +73,11 @@ export class CollectionState {
   receive(event: CollectionStateEvent): void {
     if (event.kind === 'snapshot') {
       this.pending = [];
+      this.acknowledged.clear();
       this.setConfirmed(event.model);
+    } else if (event.version <= this.confirmed.version) {
+      // the patches of a command that a snapshot already contained, see `acknowledged`
+      this.removePending(event.commandId);
     } else if (this.resyncing != null) {
       // The snapshot being fetched already contains these patches, so they are not applied. The
       // command they confirm must not stay pending though, or it would be applied a second time
@@ -84,7 +94,7 @@ export class CollectionState {
       // Main confirmed the oldest pending command. The visible model was built from the confirmed
       // one with exactly this command first, the same way main did, so the confirmed model moves
       // one step closer to the visible one and nothing visible changes.
-      this.pending.shift();
+      this.removePending(event.commandId);
       this.confirmed =
         this.pending.length === 0
           ? (this.visible = { ...this.visible, version: event.version })
@@ -100,10 +110,15 @@ export class CollectionState {
    * still in flight on top of it.
    */
   resync(): Promise<void> {
-    this.resyncing ??= this.fetchSnapshot()
+    if (this.resyncing != null) return this.resyncing;
+    // main applied these before it gets the request, so the snapshot contains them
+    const contained = [...this.acknowledged];
+    this.resyncing = this.fetchSnapshot()
       .then((snapshot) => {
         // a snapshot broadcast while this one was fetched is newer, e.g. of another collection
-        if (snapshot.version >= this.confirmed.version) this.setConfirmed(snapshot);
+        if (snapshot.version < this.confirmed.version) return;
+        for (const commandId of contained) this.removePending(commandId);
+        this.setConfirmed(snapshot);
       })
       .catch((error) => console.error('Could not fetch the collection state', error))
       .finally(() => (this.resyncing = undefined));
@@ -119,16 +134,15 @@ export class CollectionState {
       throw error;
     }
 
-    // main broadcasts the patches before it resolves, so the command is normally confirmed by now
-    if (this.removePending(envelope.commandId)) {
-      console.warn('Command', envelope.commandId, 'was applied without a matching update');
-      this.setConfirmed(this.confirmed);
-      await this.resync();
+    // main applied the command, but its patches may still be on their way, see `acknowledged`
+    if (this.pending.some((pending) => pending.commandId === envelope.commandId)) {
+      this.acknowledged.add(envelope.commandId);
     }
   }
 
   /** Removes a pending command without recomputing the visible model. Returns false if absent. */
   private removePending(commandId: string): boolean {
+    this.acknowledged.delete(commandId);
     const index = this.pending.findIndex((envelope) => envelope.commandId === commandId);
     if (index === -1) return false;
     this.pending.splice(index, 1);

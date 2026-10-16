@@ -82,9 +82,12 @@ renderer: applyPatches(confirmed) ─▶ drop own pending command ─▶ re-appl
   confirmed model and a queue of pending (sent, unconfirmed) commands. The visible state is the
   confirmed model with the pending commands re-applied. When main confirms the oldest pending
   command, the visible model stays as it is (both were computed by the same `applyCommand`), so
-  the common case costs one render, not two, even while typing. If a command is rejected or a
-  version is skipped, the renderer fetches a fresh snapshot; a snapshot that is older than one
-  broadcast meanwhile is ignored.
+  the common case costs one render, not two, even while typing. The IPC does not order the reply
+  of a dispatch and the broadcast of its patches, so the reply can arrive first: the command then
+  stays pending as acknowledged until its patches arrive, and a snapshot fetched after the
+  acknowledgement already contains it. If a command is rejected or a version is skipped, the
+  renderer fetches a fresh snapshot; a snapshot that is older than one broadcast meanwhile is
+  ignored.
 - Opening, creating, importing or closing a collection broadcasts a full snapshot.
 
 ## Drafts

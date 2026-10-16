@@ -24,6 +24,12 @@ export class FakeCollectionMain {
   rejectNext?: Error;
   /** If false, dispatches are applied but no patches are broadcast. */
   broadcast = true;
+  /**
+   * If true, broadcasts are held back until {@link flushBroadcasts} is called. The IPC does not
+   * order the reply of a dispatch and the broadcast of its patches, so the reply can come first.
+   */
+  holdBroadcasts = false;
+  private readonly held: CollectionStateEvent[] = [];
 
   constructor(public model: CollectionModel) {}
 
@@ -38,14 +44,21 @@ export class FakeCollectionMain {
     const [model, patches] = applyCommandWithPatches(this.model, envelope);
     this.model = model;
     if (this.broadcast) {
-      this.emit({
+      const event: CollectionStateEvent = {
         kind: 'patches',
         version: model.version,
         patches,
         commandId: envelope.commandId,
-      });
+      };
+      if (this.holdBroadcasts) this.held.push(event);
+      else this.emit(event);
     }
   };
+
+  /** Broadcasts the events held back by {@link holdBroadcasts}, in order. */
+  flushBroadcasts(): void {
+    for (const event of this.held.splice(0)) this.emit(event);
+  }
 
   /** Implements `IEventService.getCollectionState`. */
   getCollectionState = async (): Promise<CollectionModel> => structuredClone(this.model);
