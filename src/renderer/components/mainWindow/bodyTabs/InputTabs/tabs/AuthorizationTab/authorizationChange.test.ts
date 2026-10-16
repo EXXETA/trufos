@@ -20,13 +20,19 @@ describe('applyAuthorizationChange', () => {
     });
   });
 
+  it('removes the authorization when the type changes to none', () => {
+    const basic = createDefaultAuthorization(AuthorizationType.BASIC);
+
+    expect(applyAuthorizationChange(basic, { type: 'none' })).toBeNull();
+  });
+
   it('keeps the shared fields when the method changes', () => {
     const oauth = applyAuthorizationChange(createDefaultAuthorization(AuthorizationType.OAUTH2), {
       clientId: 'client',
       tokens: { access_token: 'a', token_type: 'bearer' },
     });
 
-    const changed = applyAuthorizationChange(oauth, {
+    const changed = applyAuthorizationChange(oauth ?? undefined, {
       method: OAuth2Method.AUTHORIZATION_CODE_PKCE,
     });
 

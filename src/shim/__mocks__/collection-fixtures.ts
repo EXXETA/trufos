@@ -1,13 +1,12 @@
 /*
- * Builders for the objects of a collection, shared by the tests of all processes. Only tests import
- * this module.
+ * Builders for the objects of a collection, shared by the tests of all processes.
  */
 import { Collection } from '../objects/collection';
 import { Folder } from '../objects/folder';
 import { RequestBodyType, TrufosRequest } from '../objects/request';
 import { RequestMethod } from '../objects/request-method';
 import { parseUrl } from '../objects/url';
-import { CollectionModel, normalizeCollection } from './model';
+import { CollectionModel, normalizeCollection } from '../collection-model/model';
 
 export function makeRequest(
   id: string,

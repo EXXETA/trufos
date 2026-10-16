@@ -26,6 +26,7 @@ import { mapRequestError } from 'main/network/service/request-error';
 import type { RequestRecorder, ScriptLogger } from 'main/network/service/request-recorder';
 import { copyRequestBody } from 'main/network/service/request-body-copy';
 import {
+  CollectionChangedError,
   CollectionStateService,
   type PreparedRequest,
 } from 'main/collection-state/collection-state-service';
@@ -226,7 +227,16 @@ export class HttpService {
     const duration = getDurationFromNow(now);
     logger.info(`Received response in ${duration}ms`);
 
-    await this.runScript(scripts, ScriptType.POST_RESPONSE, recorder.scriptLog, model);
+    // the response is received already, so it is kept even if the script cannot run anymore
+    await this.runScript(scripts, ScriptType.POST_RESPONSE, recorder.scriptLog, model).catch(
+      (error: unknown) => {
+        if (!(error instanceof CollectionChangedError)) throw error;
+        const message =
+          'The post-response script was not run, as another collection was opened while the request was sent';
+        logger.warn(message);
+        recorder.scriptLog({ script: ScriptType.POST_RESPONSE, level: 'warn', args: [message] });
+      }
+    );
 
     // write the response body to an encrypted temporary file
     let responseBody: StoredBody | undefined;

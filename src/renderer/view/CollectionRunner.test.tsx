@@ -11,7 +11,7 @@ import {
   makeCollection,
   makeFolder as makeSharedFolder,
   makeRequest as makeSharedRequest,
-} from 'shim/collection-model/fixtures';
+} from 'shim/__mocks__/collection-fixtures';
 
 const sendRequestMock =
   vi.fn<(requestId: string, signal?: AbortSignal) => Promise<TrufosResponse | null>>();

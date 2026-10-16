@@ -20,7 +20,7 @@ const persistence = {
 
 const REQUEST_ID = 'req-1';
 
-/** Simulates typing, which, unlike `setValue`, is not a flush. */
+/** Simulates typing. */
 const type = (model: ReturnType<typeof getBodyModel>, text: string) =>
   model.applyEdits([{ range: model.getFullModelRange(), text }]);
 
@@ -61,15 +61,6 @@ describe('editor models', () => {
       ScriptType.POST_RESPONSE,
       'test()'
     );
-  });
-
-  it('does not send content that was loaded', () => {
-    getBodyModel(REQUEST_ID).setValue('loaded');
-
-    vi.advanceTimersByTime(MODEL_EDIT_DEBOUNCE_MS);
-
-    expect(persistence.markDraft).not.toHaveBeenCalled();
-    expect(persistence.setTextBody).not.toHaveBeenCalled();
   });
 
   it('flushModelEdits sends pending edits at once and only once', async () => {

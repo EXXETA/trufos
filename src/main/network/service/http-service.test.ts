@@ -675,6 +675,38 @@ describe('HttpService', () => {
     expect(recorder.sent).not.toHaveBeenCalled();
   });
 
+  it('fetchAsync() should keep the response if the collection changed before the post-response script', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/closed-after-send');
+    mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'POST' }).reply(200, 'kept');
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    vi.spyOn(PersistenceService.instance, 'loadScript').mockImplementation(async (_, type) =>
+      type === ScriptType.POST_RESPONSE ? (Readable.from('post') as fs.ReadStream) : undefined
+    );
+    const closed = { ...model, collection: { ...model.collection, id: 'closed-collection' } };
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Closed After Send',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+    };
+
+    // Act
+    const response = await httpService.fetchAsync(await prepare(request, closed), recorder);
+
+    // Assert
+    expect(response.metaInfo.status).toBe(200);
+    expect(await readText(responseBodyService.openBody(response.body!.id)!)).toBe('kept');
+    expect(recorder.scriptLog).toHaveBeenCalledWith(
+      expect.objectContaining({ script: ScriptType.POST_RESPONSE, level: 'warn' })
+    );
+  });
+
   it('fetchAsync() should report the request exactly as it is sent to the recorder', async () => {
     // Arrange
     const url = new URL('https://example.com/api/recorded');

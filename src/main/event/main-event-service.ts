@@ -142,16 +142,16 @@ export class MainEventService implements IEventService {
     return app.getVersion();
   }
 
+  // the variables are read on the queue, so the edits the renderer dispatched before are applied
   async getActiveEnvironmentVariables() {
-    return getVariables(collectionState.model);
+    return await collectionState.read(getVariables);
   }
 
   async getVariable(key: string) {
-    return getVariable(collectionState.model, key);
+    return await collectionState.read((model) => getVariable(model, key));
   }
 
   async resolveVariablesInString(string: string) {
-    // on the queue, so the variable edits the renderer dispatched before are applied
     return await collectionState
       .read((model) => resolveVariablesInString(model, string, true))
       .catch(() => null);

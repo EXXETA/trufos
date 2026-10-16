@@ -112,8 +112,14 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
     }
     case CommandType.UPDATE_COLLECTION: {
       assignChanges(model.collection, command.changes);
-      if (command.selectedEnvironmentKey !== undefined) {
-        selectEnvironment(model, command.selectedEnvironmentKey ?? undefined);
+      const key = command.selectedEnvironmentKey;
+      if (key === null) {
+        model.selectedEnvironmentKey = undefined;
+      } else if (key !== undefined) {
+        if (model.collection.environments[key] == null) {
+          throw new CommandError(`Environment ${key} does not exist`);
+        }
+        model.selectedEnvironmentKey = key;
       } else if (model.selectedEnvironmentKey != null) {
         // removing the selected environment selects another one, but "none" stays selected
         model.selectedEnvironmentKey = getValidEnvironmentKey(
@@ -123,18 +129,7 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       }
       return;
     }
-    case CommandType.SELECT_ENVIRONMENT:
-      selectEnvironment(model, command.key);
-      return;
   }
-}
-
-/** Selects an environment, or none if the key is undefined. */
-function selectEnvironment(model: ModelDraft, key: string | undefined) {
-  if (key != null && model.collection.environments[key] == null) {
-    throw new CommandError(`Environment ${key} does not exist`);
-  }
-  model.selectedEnvironmentKey = key;
 }
 
 function assertNewId(model: ModelDraft, id: string) {

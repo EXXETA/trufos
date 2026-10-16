@@ -12,7 +12,7 @@ import {
   normalizeCollection,
   walkTree,
 } from './model';
-import { makeExampleCollection, makeRequest } from './fixtures';
+import { makeExampleCollection, makeRequest } from '../__mocks__/collection-fixtures';
 
 /** See {@link makeExampleCollection}. */
 const collection = makeExampleCollection({ title: 'Collection' });

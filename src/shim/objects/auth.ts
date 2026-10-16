@@ -227,17 +227,15 @@ const OAUTH1_DEFAULTS: { [M in OAuth1Method]: OAuth1AuthorizationInformation & {
   },
 };
 
-/** Returns the OAuth method of an authorization, if it has one. */
-export function getMethod(auth: object | undefined): string | undefined {
-  return auth != null && 'method' in auth && typeof auth.method === 'string'
-    ? auth.method
-    : undefined;
-}
+/** The method of an OAuth authorization. */
+export const AuthorizationMethod = z.union([z.enum(OAuth2Method), z.enum(OAuth1Method)]);
+export type AuthorizationMethod = z.infer<typeof AuthorizationMethod>;
 
-function getDefault<T extends object>(defaults: Record<string, T>, method: string): T {
-  const entry = Object.entries(defaults).find(([key]) => key === method);
-  if (entry == null) throw new Error(`Unknown authorization method ${method}`);
-  return { ...entry[1] };
+/** Returns the OAuth method of an authorization, if it has one. */
+export function getMethod(
+  auth: AuthorizationInformation | undefined
+): AuthorizationMethod | undefined {
+  return auth != null && 'method' in auth ? auth.method : undefined;
 }
 
 /**
@@ -249,7 +247,7 @@ function getDefault<T extends object>(defaults: Record<string, T>, method: strin
  */
 export function createDefaultAuthorization(
   type: AuthorizationType,
-  method?: string
+  method?: AuthorizationMethod
 ): AuthorizationInformation {
   switch (type) {
     case AuthorizationType.INHERIT:
@@ -258,9 +256,17 @@ export function createDefaultAuthorization(
       return { type, token: '' };
     case AuthorizationType.BASIC:
       return { type, username: '', password: '' };
-    case AuthorizationType.OAUTH2:
-      return getDefault(OAUTH2_DEFAULTS, method ?? OAuth2Method.CLIENT_CREDENTIALS);
-    case AuthorizationType.OAUTH1:
-      return getDefault(OAUTH1_DEFAULTS, method ?? OAuth1Method.EXISTING_TOKEN);
+    case AuthorizationType.OAUTH2: {
+      const oauth2Method = z
+        .enum(OAuth2Method)
+        .safeParse(method ?? OAuth2Method.CLIENT_CREDENTIALS);
+      if (!oauth2Method.success) throw new Error(`Unknown OAuth 2.0 method ${method}`);
+      return { ...OAUTH2_DEFAULTS[oauth2Method.data] };
+    }
+    case AuthorizationType.OAUTH1: {
+      const oauth1Method = z.enum(OAuth1Method).safeParse(method ?? OAuth1Method.EXISTING_TOKEN);
+      if (!oauth1Method.success) throw new Error(`Unknown OAuth 1.0 method ${method}`);
+      return { ...OAUTH1_DEFAULTS[oauth1Method.data] };
+    }
   }
 }

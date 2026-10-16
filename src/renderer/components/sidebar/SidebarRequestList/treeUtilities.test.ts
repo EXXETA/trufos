@@ -1,9 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { flattenTree, getMaxTimestamps, getMoveIndex, getRangeSelection } from './treeUtilities';
+import {
+  flattenTree,
+  getMaxTimestamps,
+  getMoveIndex,
+  getParentIds,
+  getRangeSelection,
+  getSortFields,
+  getTopLevelIds,
+  isSelfOrDescendant,
+  selectRequestSortFields,
+} from './treeUtilities';
 import { CollectionModel, normalizeCollection } from 'shim/collection-model';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
-import { makeCollection, makeFolder, makeRequest } from 'shim/collection-model/fixtures';
+import { makeCollection, makeFolder, makeRequest } from 'shim/__mocks__/collection-fixtures';
 
 const request = (id: string, parentId: string, lastModified = 0): TrufosRequest =>
   makeRequest(id, parentId, { lastModified });
@@ -18,11 +28,45 @@ const folder = (
 const tree = (children: Folder['children']): CollectionModel =>
   normalizeCollection(makeCollection('col', children));
 
+const sortFieldsOf = (t: CollectionModel) => getSortFields(t, selectRequestSortFields(t.requests));
+
+describe('selectRequestSortFields', () => {
+  it('only changes when a sort field of a request changes', () => {
+    const t = tree([request('req-1', 'col', 1)]);
+    const edited = new Map(t.requests);
+    edited.set('req-1', { ...t.requests.get('req-1')!, url: { base: 'http://edited', query: [] } });
+
+    expect(selectRequestSortFields(edited)).toEqual(selectRequestSortFields(t.requests));
+    expect(getSortFields(t, selectRequestSortFields(t.requests)).get('req-1')).toEqual({
+      title: 'req-1',
+      lastModified: 1,
+    });
+  });
+});
+
+describe('parent IDs', () => {
+  const t = tree([
+    folder('outer', 'col', [folder('inner', 'outer', [request('nested', 'inner')])]),
+    request('top', 'col'),
+  ]);
+  const parentIds = getParentIds(t);
+
+  it('keeps only the selected items that are not inside another selected folder', () => {
+    expect(getTopLevelIds(parentIds, ['nested', 'outer', 'top'])).toEqual(['outer', 'top']);
+  });
+
+  it('tells whether an item is inside a folder', () => {
+    expect(isSelfOrDescendant(parentIds, 'nested', 'outer')).toBe(true);
+    expect(isSelfOrDescendant(parentIds, 'outer', 'outer')).toBe(true);
+    expect(isSelfOrDescendant(parentIds, 'top', 'outer')).toBe(false);
+  });
+});
+
 describe('getMaxTimestamps', () => {
   it('returns the timestamp for a request', () => {
     const t = tree([request('req-1', 'col', 1000)]);
 
-    expect(getMaxTimestamps(t, 'col').get('req-1')).toBe(1000);
+    expect(getMaxTimestamps(t, 'col', sortFieldsOf(t)).get('req-1')).toBe(1000);
   });
 
   it('returns max timestamp of direct children for a folder', () => {
@@ -33,13 +77,13 @@ describe('getMaxTimestamps', () => {
       ]),
     ]);
 
-    expect(getMaxTimestamps(t, 'col').get('folder-1')).toBe(1500);
+    expect(getMaxTimestamps(t, 'col', sortFieldsOf(t)).get('folder-1')).toBe(1500);
   });
 
   it('returns the folder timestamp for an empty folder', () => {
     const t = tree([folder('folder-1', 'col', [], 42)]);
 
-    expect(getMaxTimestamps(t, 'col').get('folder-1')).toBe(42);
+    expect(getMaxTimestamps(t, 'col', sortFieldsOf(t)).get('folder-1')).toBe(42);
   });
 
   it('returns max timestamp recursively for nested folders', () => {
@@ -50,7 +94,7 @@ describe('getMaxTimestamps', () => {
       ]),
     ]);
 
-    const timestamps = getMaxTimestamps(t, 'col');
+    const timestamps = getMaxTimestamps(t, 'col', sortFieldsOf(t));
     expect(timestamps.get('outer')).toBe(9000);
     expect(timestamps.get('inner')).toBe(9000);
     expect(timestamps.get('req-1')).toBe(100);

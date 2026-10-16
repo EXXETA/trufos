@@ -5,7 +5,7 @@ import { AuthorizationType } from '../objects/auth';
 import { applyCommand, applyCommandTo } from './apply-command';
 import { CollectionCommand, CommandError, CommandType } from './commands';
 import { CollectionModel } from './model';
-import { makeModel, makeRequest } from './fixtures';
+import { makeModel, makeRequest } from '../__mocks__/collection-fixtures';
 
 const TIMESTAMP = 1_000;
 
@@ -271,20 +271,32 @@ describe('applyCommand', () => {
   });
 
   it('keeps the environment selection valid when environments change', () => {
-    let model = apply(createModel(), { type: CommandType.SELECT_ENVIRONMENT, key: 'prod' });
+    let model = apply(createModel(), {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: {},
+      selectedEnvironmentKey: 'prod',
+    });
     expect(model.selectedEnvironmentKey).toBe('prod');
     model = apply(model, {
       type: CommandType.UPDATE_COLLECTION,
       changes: { environments: { dev: { variables: {} } } },
     });
     expect(model.selectedEnvironmentKey).toBe('dev');
-    expect(() => apply(model, { type: CommandType.SELECT_ENVIRONMENT, key: 'missing' })).toThrow(
-      CommandError
-    );
+    expect(() =>
+      apply(model, {
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {},
+        selectedEnvironmentKey: 'missing',
+      })
+    ).toThrow(CommandError);
   });
 
   it('keeps no environment selected when the collection changes', () => {
-    let model = apply(createModel(), { type: CommandType.SELECT_ENVIRONMENT });
+    let model = apply(createModel(), {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: {},
+      selectedEnvironmentKey: null,
+    });
     model = apply(model, {
       type: CommandType.UPDATE_COLLECTION,
       changes: { variables: { a: { value: '1' } } },

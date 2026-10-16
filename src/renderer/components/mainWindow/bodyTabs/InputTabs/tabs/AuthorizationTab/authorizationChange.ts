@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import {
   AuthorizationInformation,
+  AuthorizationMethod,
   AuthorizationType,
   createDefaultAuthorization,
   getMethod,
 } from 'shim/objects/auth';
+import { AUTHORIZATION_NONE } from './forms';
 
-const OptionalAuthorizationType = z.enum(AuthorizationType).optional();
+const ChangedType = z.union([z.enum(AuthorizationType), z.literal(AUTHORIZATION_NONE)]).optional();
+const ChangedMethod = AuthorizationMethod.optional();
 
 /**
  * Applies a change made in the authorization form. If the type or the OAuth method changes, the
@@ -14,17 +17,21 @@ const OptionalAuthorizationType = z.enum(AuthorizationType).optional();
  * new method share. The result is always a complete, valid authorization.
  * @param current the current authorization
  * @param delta the changed fields, as the form reports them
+ * @returns the changed authorization, or null if the type was changed to none
  * @throws Error if the change makes the authorization invalid
  */
 export function applyAuthorizationChange(
   current: AuthorizationInformation | undefined,
   delta: Readonly<Record<string, unknown>>
-): AuthorizationInformation {
-  const type = OptionalAuthorizationType.parse(delta.type) ?? current?.type;
+): AuthorizationInformation | null {
+  const changedType = ChangedType.parse(delta.type);
+  if (changedType === AUTHORIZATION_NONE) return null;
+  const type = changedType ?? current?.type;
   if (type == null) throw new Error('The authorization type is missing');
 
   const currentMethod = getMethod(current);
-  const method = getMethod(delta) ?? (current?.type === type ? currentMethod : undefined);
+  const method =
+    ChangedMethod.parse(delta.method) ?? (current?.type === type ? currentMethod : undefined);
   if (current != null && current.type === type && method === currentMethod) {
     return AuthorizationInformation.parse({ ...current, ...delta });
   }

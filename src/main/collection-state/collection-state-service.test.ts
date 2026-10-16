@@ -16,7 +16,7 @@ import {
 import { Collection } from 'shim/objects/collection';
 import { TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
-import { makeCollection, makeRequest } from 'shim/collection-model/fixtures';
+import { makeCollection, makeRequest } from 'shim/__mocks__/collection-fixtures';
 import type {
   CollectionStateService,
   REQUEST_INFO_DEBOUNCE_MS as DebounceMs,
@@ -126,7 +126,11 @@ describe('CollectionStateService', () => {
 
     it('keeps the selected environment when the same collection is reloaded', async () => {
       // Arrange
-      await apply({ type: CommandType.SELECT_ENVIRONMENT, key: 'prod' });
+      await apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {},
+        selectedEnvironmentKey: 'prod',
+      });
 
       // Act
       await service.load(firstDirPath);

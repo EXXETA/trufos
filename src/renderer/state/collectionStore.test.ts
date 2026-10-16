@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCollectionStore } from './collectionStore';
 import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
-import { makeCollection, makeFolder, makeRequest } from 'shim/collection-model/fixtures';
+import { makeCollection, makeFolder, makeRequest } from 'shim/__mocks__/collection-fixtures';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { HttpService } from '@/services/http/http-service';
 import { showError } from '@/error/errorHandler';
@@ -312,6 +312,24 @@ describe('creating and changing items', () => {
     ]);
     expect(childIds(ctx, 'G')).toEqual(['r3', 'r2']);
     expect(ctx.store.getState().openFolders.has('G')).toBe(true);
+  });
+
+  it('selects an environment, or none, without changing the collection', async () => {
+    const ctx = setup({
+      ...defaultCollection(),
+      environments: { dev: { variables: {} }, prod: { variables: {} } },
+    });
+    const { selectEnvironment } = ctx.store.getState();
+
+    await selectEnvironment('prod');
+    expect(ctx.store.getState().selectedEnvironmentKey).toBe('prod');
+    await selectEnvironment(undefined);
+
+    expect(ctx.store.getState().selectedEnvironmentKey).toBeUndefined();
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.UPDATE_COLLECTION, changes: {}, selectedEnvironmentKey: 'prod' },
+      { type: CommandType.UPDATE_COLLECTION, changes: {}, selectedEnvironmentKey: null },
+    ]);
   });
 
   it('changes the collection settings', async () => {
@@ -750,6 +768,32 @@ describe('editor models', () => {
       readAll: async () => content,
     } as Awaited<ReturnType<typeof IpcPushStream.open>>);
   };
+
+  it('discards a request that was never saved without an error', async () => {
+    const ctx = setup();
+    await loadEditorContentFor('');
+    await ctx.store.getState().addNewRequest('New');
+    const id = ctx.store.getState().selectedRequestId!;
+
+    await expect(ctx.store.getState().discardChanges()).resolves.toBe(true);
+
+    expect(ctx.store.getState().requests.has(id)).toBe(false);
+    expect(showError).not.toHaveBeenCalled();
+  });
+
+  it('reloads the draft into the editor if discarding is rejected', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'changed');
+    await loadEditorContentFor('persisted draft');
+    ctx.main.rejectNext = new Error('rejected');
+
+    const discarded = ctx.store.getState().discardChanges();
+    type(getBodyModel('r1'), 'typed meanwhile');
+
+    await expect(discarded).resolves.toBe(false);
+    await vi.waitFor(() => expect(getBodyModel('r1').getValue()).toBe('persisted draft'));
+  });
 
   it('does not send text typed while changes are discarded', async () => {
     const ctx = setup();

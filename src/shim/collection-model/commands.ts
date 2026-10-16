@@ -51,7 +51,6 @@ export enum CommandType {
   SAVE_REQUEST = 'saveRequest',
   DISCARD_REQUEST = 'discardRequest',
   UPDATE_COLLECTION = 'updateCollection',
-  SELECT_ENVIRONMENT = 'selectEnvironment',
 }
 
 /**
@@ -118,12 +117,11 @@ export const CollectionCommand = z.discriminatedUnion('type', [
     changes: CollectionChanges,
     /**
      * The environment to select once the changes are applied, `null` for none. Undefined keeps
-     * the selection, unless the selected environment is removed.
+     * the selection, unless the selected environment is removed. The selection is not persisted,
+     * so a command that only selects an environment has empty `changes`.
      */
     selectedEnvironmentKey: z.string().nullable().optional(),
   }),
-  /** Selects an environment, or none. The selection is not persisted. */
-  z.object({ type: z.literal(CommandType.SELECT_ENVIRONMENT), key: z.string().optional() }),
 ]);
 export type CollectionCommand = z.infer<typeof CollectionCommand>;
 

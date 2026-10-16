@@ -7,11 +7,20 @@ import {
   OAuth2PKCECodeChallengeMethod,
 } from 'shim/objects/auth';
 import { AuthorizationTab } from './AuthorizationTab';
+import { showError } from '@/error/errorHandler';
+import { applyAuthorizationChange } from './authorizationChange';
 
 const { actions, state } = vi.hoisted(() => ({
   actions: { updateRequest: vi.fn() },
   state: { auth: undefined as AuthorizationInformation | undefined },
 }));
+
+vi.mock('@/error/errorHandler', () => ({ showError: vi.fn() }));
+
+vi.mock('./authorizationChange', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./authorizationChange')>();
+  return { applyAuthorizationChange: vi.fn(actual.applyAuthorizationChange) };
+});
 
 vi.mock('@/state/collectionStore', () => ({
   useCollectionActions: () => actions,
@@ -35,6 +44,22 @@ describe('AuthorizationTab', () => {
     expect(actions.updateRequest).toHaveBeenCalledExactlyOnceWith({
       auth: { type: AuthorizationType.BASIC, username: 'user', password: 'secret' },
     });
+  });
+
+  it('shows an error instead of applying an invalid change', () => {
+    state.auth = { type: AuthorizationType.BASIC, username: 'user', password: '' };
+    const error = new Error('invalid');
+    vi.mocked(applyAuthorizationChange).mockImplementationOnce(() => {
+      throw error;
+    });
+    render(<AuthorizationTab />);
+
+    fireEvent.change(screen.getByPlaceholderText('Enter password'), {
+      target: { value: 'secret' },
+    });
+
+    expect(actions.updateRequest).not.toHaveBeenCalled();
+    expect(showError).toHaveBeenCalledWith(expect.any(String), error);
   });
 
   it('shows the default of a field the authorization does not have', () => {

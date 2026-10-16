@@ -1,6 +1,7 @@
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { createDefaultAuthorization, getMethod } from 'shim/objects';
 import { useMemo } from 'react';
+import { showError } from '@/error/errorHandler';
 import { ModularForm } from './ModularForm';
 import { AUTHORIZATION_NONE, getAuthorizationForm } from './forms';
 import { applyAuthorizationChange } from './authorizationChange';
@@ -24,12 +25,13 @@ export const AuthorizationTab = () => {
         <ModularForm
           config={form}
           data={data}
-          onDataChanged={(delta) =>
-            updateRequest({
-              auth:
-                delta.type === AUTHORIZATION_NONE ? null : applyAuthorizationChange(auth, delta),
-            })
-          }
+          onDataChanged={(delta) => {
+            try {
+              updateRequest({ auth: applyAuthorizationChange(auth, delta) });
+            } catch (error) {
+              showError('The authorization is invalid', error);
+            }
+          }}
         />
       </div>
     </div>

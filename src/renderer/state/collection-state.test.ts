@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { CollectionState } from './collection-state';
 import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
-import { makeModel } from 'shim/collection-model/fixtures';
+import { makeModel } from 'shim/__mocks__/collection-fixtures';
 import {
   CollectionCommand,
   CollectionModel,

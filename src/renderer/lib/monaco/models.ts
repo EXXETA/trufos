@@ -101,6 +101,11 @@ export function createModelsForRequest(
   return models;
 }
 
+/** Returns true if the models of the request exist, see {@link createModelsForRequest}. */
+export function hasModelsForRequest(requestId: string): boolean {
+  return registry.has(requestId);
+}
+
 export function getBodyModel(requestId: string): editor.ITextModel {
   return registry.get(requestId)!.body;
 }
@@ -200,9 +205,9 @@ function trackEdits(
   };
 
   // the listener is disposed together with the model
-  model.onDidChangeContent((event) => {
-    // a flush replaces the whole content, i.e. the content was loaded and not edited
-    if (event.isFlush || loading.has(model)) return;
+  model.onDidChangeContent(() => {
+    // the content is loaded, not edited
+    if (loading.has(model)) return;
 
     let edits = pendingEdits.get(requestId);
     if (edits == null) {

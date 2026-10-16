@@ -377,9 +377,14 @@ export const createCollectionStore = (
         if (request == null) return;
         cancelModelEdits(request.id);
         const discarded = dispatch({ type: CommandType.DISCARD_REQUEST, id: request.id });
-        // the saved content is loaded once main discarded the changes, so text typed meanwhile is
-        // replaced instead of sent. A request that was never saved gets empty editors.
-        await Promise.all([discarded, loadEditorContent(request.id, { after: discarded })]);
+        // The content is loaded from main once the discard settled, so text typed meanwhile is
+        // replaced instead of sent. If the discard is rejected, the editors show the draft again
+        // instead of text that is not persisted. A request that was never saved is gone with its
+        // editor models, so nothing is loaded.
+        await Promise.all([
+          discarded,
+          loadEditorContent(request.id, { after: discarded.catch(() => undefined) }),
+        ]);
       }),
 
       saveRequest: reported('Could not save the request', async (id) => {
@@ -484,7 +489,11 @@ export const createCollectionStore = (
       ),
 
       selectEnvironment: reported('Could not select the environment', async (key) => {
-        await dispatch({ type: CommandType.SELECT_ENVIRONMENT, key });
+        await dispatch({
+          type: CommandType.UPDATE_COLLECTION,
+          changes: {},
+          selectedEnvironmentKey: key ?? null,
+        });
       }),
 
       closeCollection: reported('Could not close the collection', async (dirPath) => {

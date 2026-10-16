@@ -15,7 +15,7 @@ import { TEXT_BODY_FILE_NAME } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
-import { makeExampleCollection, makeRequest } from 'shim/collection-model/fixtures';
+import { makeExampleCollection, makeRequest } from 'shim/__mocks__/collection-fixtures';
 import type { getCommandEffects as getCommandEffectsType } from './command-effects';
 
 // both are loaded fresh for every test, as the persistence service remembers the directories of
@@ -502,13 +502,17 @@ describe('getCommandEffects()', () => {
     expect(persisted(loaded)).toEqual(persisted({ ...next, selectedEnvironmentKey: undefined }));
   });
 
-  it('selectEnvironment persists nothing', async () => {
+  it('selecting an environment persists nothing', async () => {
     // Arrange
     const current = await run(model, {
       type: CommandType.UPDATE_COLLECTION,
       changes: { environments: { dev: { variables: {} }, prod: { variables: {} } } },
     });
-    const command: CollectionCommand = { type: CommandType.SELECT_ENVIRONMENT, key: 'prod' };
+    const command: CollectionCommand = {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: {},
+      selectedEnvironmentKey: 'prod',
+    };
 
     // Act
     const effects = getCommandEffects(

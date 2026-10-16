@@ -15,6 +15,7 @@ const scriptSetValue = scriptModel.setValue;
 vi.mock('@/lib/monaco/models', () => ({
   getBodyModel: vi.fn(() => bodyModel),
   getScriptModel: vi.fn(() => scriptModel),
+  hasModelsForRequest: vi.fn((requestId: string) => requestId !== 'deleted'),
   // the loading semantics are tested with the real models, see models.test.ts
   loadModelContent: vi.fn(async (model: typeof bodyModel, load: () => Promise<string>) => {
     const text = await load();
@@ -65,6 +66,13 @@ describe('loadEditorContent', () => {
       );
       expect(scriptSetValue).toHaveBeenCalledWith(scriptType);
     }
+  });
+
+  it('loads nothing for a request without editor models', async () => {
+    await loadEditorContent('deleted');
+
+    expect(openMock).not.toHaveBeenCalled();
+    expect(bodySetValue).not.toHaveBeenCalled();
   });
 
   it('reads the content only once the given promise settled', async () => {

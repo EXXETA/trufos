@@ -126,33 +126,51 @@ export class CollectionState {
     this.resyncing = this.fetchSnapshot().then(
       (snapshot) => {
         this.resyncing = undefined;
-        const buffered = this.buffered;
-        this.buffered = [];
-        // a snapshot broadcast while this one was fetched is newer, e.g. of another collection
-        if (snapshot.version >= this.confirmed.version) {
-          const contained = new Set(
-            buffered
-              .filter((event) => event.version <= snapshot.version)
-              .map((event) => event.commandId)
-          );
-          this.pending = this.pending.filter(
-            ({ envelope, appliedVersion }) =>
-              !contained.has(envelope.commandId) &&
-              (appliedVersion == null || appliedVersion > snapshot.version)
-          );
-          this.setConfirmed(snapshot);
-        }
-        for (const event of buffered) this.receive(event);
+        this.rebaseOnto(snapshot, this.takeBuffered());
       },
       (error: unknown) => {
         this.resyncing = undefined;
-        this.buffered = [];
+        // Without a snapshot, the held back patches cannot be applied. Dropping them leaves a gap
+        // in the versions, so the next broadcast resyncs again.
+        this.takeBuffered();
         console.error('Could not fetch the collection state', error);
         // at least drop the pending commands that were removed meanwhile, e.g. rejected ones
         this.setConfirmed(this.confirmed);
       }
     );
     return this.resyncing;
+  }
+
+  /** Returns the patches held back during a resync and forgets them. */
+  private takeBuffered(): PatchesEvent[] {
+    const buffered = this.buffered;
+    this.buffered = [];
+    return buffered;
+  }
+
+  /**
+   * Makes a fetched snapshot the confirmed model and applies what happened since on top of it.
+   * @param snapshot the fetched snapshot. It is ignored if it is older than the confirmed model,
+   * e.g. because a snapshot of another collection was broadcast while it was fetched.
+   * @param buffered the patches that arrived while the snapshot was fetched
+   */
+  private rebaseOnto(snapshot: CollectionModel, buffered: PatchesEvent[]) {
+    if (snapshot.version >= this.confirmed.version) {
+      // A pending command is part of the snapshot if main replied with a version the snapshot
+      // has, or if its patches arrived and are part of the snapshot. Re-applying it on top would
+      // apply it twice.
+      const contained = new Set(
+        buffered.filter((event) => event.version <= snapshot.version).map((e) => e.commandId)
+      );
+      this.pending = this.pending.filter(
+        ({ envelope, appliedVersion }) =>
+          !contained.has(envelope.commandId) &&
+          (appliedVersion == null || appliedVersion > snapshot.version)
+      );
+      this.setConfirmed(snapshot);
+    }
+    // patches the snapshot already contains only confirm their command, the others are applied
+    for (const event of buffered) this.receive(event);
   }
 
   private async sendPending(pending: PendingCommand): Promise<void> {

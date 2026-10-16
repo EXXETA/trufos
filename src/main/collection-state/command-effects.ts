@@ -192,9 +192,8 @@ function getSpecificEffects(
       };
     }
     case CommandType.UPDATE_COLLECTION:
+      // the selected environment is not persisted, so selecting one writes nothing
+      if (next.collection === prev.collection) return {};
       return { immediate: () => persistenceService.saveCollectionInfo(next.collection) };
-    case CommandType.SELECT_ENVIRONMENT:
-      // the selected environment is not persisted
-      return {};
   }
 }

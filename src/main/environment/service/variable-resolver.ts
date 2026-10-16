@@ -83,25 +83,20 @@ export function resolveVariablesInString(
 }
 
 /**
- * Recursively sets variables in the given object. Only string values are processed.
- * @param object The object to set variables in.
- * @returns The object with variables set.
+ * Returns a copy of the authorization with the variables resolved in its string fields. Nested
+ * objects, i.e. retrieved OAuth tokens, are kept as they are.
  */
-async function resolveVariablesRecursive<T extends object>(
+async function resolveVariablesInAuth<T extends AuthorizationInformation>(
   model: CollectionModel,
-  object: T
+  auth: T
 ): Promise<T> {
-  for (const [key, value] of Object.entries(object)) {
+  const resolved = { ...auth };
+  for (const [key, value] of Object.entries(auth)) {
     if (typeof value === 'string') {
-      // @ts-expect-error - value is a string, so this is valid
-      object[key] = await resolveVariablesInString(model, value);
-    } else if (typeof value === 'object' && value !== null) {
-      // @ts-expect-error - value is an object, so this is valid
-      object[key] = await resolveVariablesRecursive(model, value);
+      Object.assign(resolved, { [key]: await resolveVariablesInString(model, value) });
     }
   }
-
-  return object;
+  return resolved;
 }
 
 /**
@@ -123,8 +118,7 @@ export async function getAuthorizationHeader(
   } else if (auth.type === AuthorizationType.INHERIT) {
     return getAuthorizationHeader(model, model.collection.auth, context);
   } else {
-    // the auth comes from the model, which is frozen, so the variables are set on a copy
-    const resolved = await resolveVariablesRecursive(model, structuredClone(auth));
+    const resolved = await resolveVariablesInAuth(model, auth);
     return await createAuthStrategy(resolved).getAuthHeader(context);
   }
 }

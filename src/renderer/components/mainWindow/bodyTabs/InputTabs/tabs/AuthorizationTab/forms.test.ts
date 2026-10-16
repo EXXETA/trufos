@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   AuthorizationInformation,
+  AuthorizationMethod,
   AuthorizationType,
   createDefaultAuthorization,
   getMethod,
@@ -9,17 +10,17 @@ import {
 } from 'shim/objects/auth';
 import { getAuthorizationForm } from './forms';
 
-const DEFAULTS: [AuthorizationType, string | undefined][] = [
+const DEFAULTS: [AuthorizationType, AuthorizationMethod | undefined][] = [
   [AuthorizationType.INHERIT, undefined],
   [AuthorizationType.BEARER, undefined],
   [AuthorizationType.BASIC, undefined],
   [AuthorizationType.OAUTH2, undefined],
-  ...Object.values(OAuth2Method).map((method): [AuthorizationType, string] => [
+  ...Object.values(OAuth2Method).map((method): [AuthorizationType, AuthorizationMethod] => [
     AuthorizationType.OAUTH2,
     method,
   ]),
   [AuthorizationType.OAUTH1, undefined],
-  ...Object.values(OAuth1Method).map((method): [AuthorizationType, string] => [
+  ...Object.values(OAuth1Method).map((method): [AuthorizationType, AuthorizationMethod] => [
     AuthorizationType.OAUTH1,
     method,
   ]),
