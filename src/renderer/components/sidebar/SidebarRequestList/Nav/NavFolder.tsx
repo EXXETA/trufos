@@ -22,7 +22,7 @@ const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
 export const NavFolder = ({ folderId, depth = 0, onCreateItem, onItemClick }: NavFolderProps) => {
   const { setFolderOpen, setFolderClose, renameItem } = useCollectionActions();
-  const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
+  const isFolderOpen = useCollectionStore((state) => state.openFolders.has(folderId));
   const isSelected = useCollectionStore((state) => state.selectedIds.has(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
   const [isEditing, setIsEditing] = useState(false);

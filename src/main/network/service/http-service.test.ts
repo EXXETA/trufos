@@ -1,5 +1,5 @@
 import { HttpService, PreparedRequest } from './http-service';
-import { MockAgent, FormData } from 'undici';
+import { Dispatcher, MockAgent, FormData } from 'undici';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
@@ -48,6 +48,7 @@ const model = normalizeCollection({
 async function prepare(request: TrufosRequest): Promise<PreparedRequest> {
   return {
     request,
+    collectionId: model.collection.id,
     ...(await PersistenceService.instance.openRequestFiles(request)),
   };
 }
@@ -650,6 +651,42 @@ describe('HttpService', () => {
     expect(await readText(responseBodyService.openBody(bodyCopy!.id)!)).toEqual('prepared body');
   });
 
+  it('fetchAsync() should not send a request whose collection was closed meanwhile', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/closed');
+    const dispatcherProvider = vi.fn(() => Promise.resolve<Dispatcher>(mockAgent));
+    const httpService = new HttpService(dispatcherProvider);
+    vi.spyOn(PersistenceService.instance, 'loadScript').mockImplementation(async (_, type) =>
+      type === ScriptType.PRE_REQUEST ? (Readable.from('pre') as fs.ReadStream) : undefined
+    );
+    const executeSpy = vi.spyOn(ScriptingService.instance, 'executeScript');
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Closed Collection',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+    };
+    const prepared = { ...(await prepare(request)), collectionId: 'closed-collection' };
+
+    // Act & Assert
+    await expect(httpService.fetchAsync(prepared, recorder)).rejects.toMatchObject({
+      title: 'Collection Changed',
+    });
+    expect(executeSpy).toHaveBeenCalledWith(
+      'pre',
+      ScriptType.PRE_REQUEST,
+      expect.any(Function),
+      'closed-collection'
+    );
+    expect(dispatcherProvider).not.toHaveBeenCalled();
+    expect(recorder.sent).not.toHaveBeenCalled();
+  });
+
   it('fetchAsync() should report the request exactly as it is sent to the recorder', async () => {
     // Arrange
     const url = new URL('https://example.com/api/recorded');
@@ -818,13 +855,19 @@ describe('HttpService.sendRequest()', () => {
     vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(model);
     vi.spyOn(CollectionStateService.instance, 'prepareRequest').mockResolvedValue({
       request,
+      collectionId: model.collection.id,
       scripts: {},
     });
   });
 
   it('sends the prepared request', async () => {
     // Arrange
-    const prepared = { request, textBody: Readable.from('body'), scripts: {} };
+    const prepared = {
+      request,
+      collectionId: model.collection.id,
+      textBody: Readable.from('body'),
+      scripts: {},
+    };
     vi.mocked(CollectionStateService.instance.prepareRequest).mockResolvedValue(prepared);
     const fetchAsync = vi.spyOn(httpService, 'fetchAsync').mockResolvedValue(makeResponse());
 
@@ -912,6 +955,7 @@ describe('HttpService.sendRequest()', () => {
     for (const textBody of textBodies) {
       vi.mocked(CollectionStateService.instance.prepareRequest).mockResolvedValueOnce({
         request,
+        collectionId: model.collection.id,
         textBody,
         scripts: {},
       });

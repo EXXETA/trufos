@@ -42,6 +42,11 @@ declare type HttpHeaders = Record<string, string[]>;
  */
 export interface PreparedRequest extends RequestFiles {
   request: TrufosRequest;
+  /**
+   * The ID of the collection the request belongs to. If another collection is opened while the
+   * request is sent, its scripts are not run and it is not dispatched.
+   */
+  collectionId: TrufosId;
 }
 declare type DispatcherProvider = (clientCertificate?: ClientCertificate) => Promise<Dispatcher>;
 
@@ -141,7 +146,7 @@ export class HttpService {
   }
 
   private async doFetchAsync(
-    { request, textBody, scripts }: PreparedRequest,
+    { request, textBody, scripts, collectionId }: PreparedRequest,
     recorder: RequestRecorder,
     signal?: AbortSignal
   ) {
@@ -187,7 +192,16 @@ export class HttpService {
       this.trufosHeadersToUndiciHeaders(request.headers)
     );
 
-    await this.runScript(scripts, ScriptType.PRE_REQUEST, recorder.scriptLog);
+    await this.runScript(scripts, ScriptType.PRE_REQUEST, recorder.scriptLog, collectionId);
+
+    // the variables and the client certificate are read from the open collection
+    const { collection } = collectionState.model;
+    if (collection.id !== collectionId) {
+      throw new DisplayableError(
+        'Another collection was opened before the request was sent. Please send it again.',
+        'Collection Changed'
+      );
+    }
 
     const [body, size] = await this.readBody(request, textBody);
     const sentHeaders = withoutUnsetHeaders({
@@ -203,9 +217,7 @@ export class HttpService {
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
-      dispatcher: await this._dispatcherProvider(
-        collectionState.model.collection.clientCertificate
-      ),
+      dispatcher: await this._dispatcherProvider(collection.clientCertificate),
       method: request.method,
       headers: sentHeaders,
       body: sentBody,
@@ -215,7 +227,7 @@ export class HttpService {
     const duration = getDurationFromNow(now);
     logger.info(`Received response in ${duration}ms`);
 
-    await this.runScript(scripts, ScriptType.POST_RESPONSE, recorder.scriptLog);
+    await this.runScript(scripts, ScriptType.POST_RESPONSE, recorder.scriptLog, collectionId);
 
     // write the response body to an encrypted temporary file
     let responseBody: StoredBody | undefined;
@@ -350,10 +362,11 @@ export class HttpService {
   private async runScript(
     scripts: PreparedRequest['scripts'],
     type: ScriptType,
-    log: ScriptLogger
+    log: ScriptLogger,
+    collectionId: TrufosId
   ) {
     const script = scripts[type];
-    if (script != null) await scriptingService.executeScript(script, type, log);
+    if (script != null) await scriptingService.executeScript(script, type, log, collectionId);
   }
 }
 

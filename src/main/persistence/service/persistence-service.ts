@@ -180,26 +180,15 @@ export class PersistenceService {
 
   /**
    * Writes the text body of a request. A request with a draft is written into its draft directory.
-   *
-   * The body is written to a temporary file that then replaces the body file, so a request that is
-   * being sent keeps streaming the body it was sent with. The temporary file has to be next to the
-   * body file, as only a file of the same volume can replace it. It is a dotfile, and one left
-   * behind by a crash is deleted with the draft directory or when the request is saved.
-   *
+   * The body file is replaced, see {@link replaceFile}, so a request that is being sent keeps
+   * streaming the body it was sent with.
    * @param request the request to write the text body of
    * @param text the text body
    */
   public async writeTextBody(request: TrufosRequest, text: string): Promise<void> {
     const dirPath = this.getOrCreateDirPath(request, true);
     await fs.mkdir(dirPath, { recursive: true });
-    const tempFilePath = path.join(dirPath, `.${TEXT_BODY_FILE_NAME}.${randomUUID()}.tmp`);
-    try {
-      await fs.writeFile(tempFilePath, text);
-      await fs.rename(tempFilePath, path.join(dirPath, TEXT_BODY_FILE_NAME));
-    } catch (error) {
-      await fs.rm(tempFilePath, { force: true });
-      throw error;
-    }
+    await this.replaceFile(path.join(dirPath, TEXT_BODY_FILE_NAME), text);
   }
 
   /**
@@ -364,7 +353,11 @@ export class PersistenceService {
       fs.readdir(draftDirPath),
     ]);
     await Promise.all(
-      draftFiles.map((file) => fs.rename(path.join(draftDirPath, file), path.join(dirPath, file)))
+      draftFiles.map((file) =>
+        this.isReplacementFile(file)
+          ? fs.rm(path.join(draftDirPath, file), { force: true })
+          : fs.rename(path.join(draftDirPath, file), path.join(dirPath, file))
+      )
     );
     await Promise.all(
       savedFiles
@@ -793,7 +786,37 @@ export class PersistenceService {
     return dirPath;
   }
 
+  /** Writes a JSON file by replacing it, see {@link replaceFile}. */
   private async writeJson(filePath: string, value: unknown) {
-    await fs.writeFile(filePath, JSON.stringify(value, null, 2));
+    await this.replaceFile(filePath, JSON.stringify(value, null, 2));
+  }
+
+  /**
+   * Writes a file by writing a temporary file that then replaces it. So readers and a crash see
+   * either the old or the new content, never a half-written file, and a stream opened before keeps
+   * reading the old content. The temporary file has to be next to the target, as only a file of
+   * the same volume can replace it. It is a dotfile that loading ignores. One left behind by a crash
+   * in a request directory is deleted with the draft directory or when the request is saved, see
+   * {@link isReplacementFile}.
+   * @param filePath the file to write
+   * @param data the new content of the file
+   */
+  private async replaceFile(filePath: string, data: string) {
+    const { dir, base } = path.parse(filePath);
+    const tempFilePath = path.join(dir, `.${base}.${randomUUID()}.tmp`);
+    try {
+      await fs.writeFile(tempFilePath, data);
+      await fs.rename(tempFilePath, filePath);
+    } catch (error) {
+      await fs.rm(tempFilePath, { force: true });
+      throw error;
+    }
+  }
+
+  /** Returns true if the file name is the one of a temporary file of {@link replaceFile}. */
+  private isReplacementFile(fileName: string) {
+    return /^\..+\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/.test(
+      fileName
+    );
   }
 }

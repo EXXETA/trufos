@@ -4,15 +4,20 @@ import { RequestBodyType } from 'shim/objects/request';
 import { makeRequest } from '@/__mocks__/fake-collection-main';
 import { getMoveIndex, loadEditorContent } from './collectionUtil';
 
-const { bodySetValue, scriptSetValue, openMock } = vi.hoisted(() => ({
-  bodySetValue: vi.fn(),
-  scriptSetValue: vi.fn(),
-  openMock: vi.fn(),
-}));
+const { bodyModel, scriptModel, openMock } = vi.hoisted(() => {
+  const fakeModel = () => ({
+    setValue: vi.fn(),
+    isDisposed: vi.fn(() => false),
+    getVersionId: vi.fn(() => 1),
+  });
+  return { bodyModel: fakeModel(), scriptModel: fakeModel(), openMock: vi.fn() };
+});
+const bodySetValue = bodyModel.setValue;
+const scriptSetValue = scriptModel.setValue;
 
 vi.mock('@/lib/monaco/models', () => ({
-  getBodyModel: vi.fn(() => ({ setValue: bodySetValue })),
-  getScriptModel: vi.fn(() => ({ setValue: scriptSetValue })),
+  getBodyModel: vi.fn(() => bodyModel),
+  getScriptModel: vi.fn(() => scriptModel),
 }));
 
 vi.mock('monaco-editor', () => ({
@@ -26,8 +31,22 @@ vi.mock('@/lib/ipc-stream', () => ({
 }));
 
 describe('loadEditorContent', () => {
+  /** Lets every stream opened from now on wait until the returned function is called. */
+  const holdStreams = () => {
+    const { promise, resolve } = Promise.withResolvers<void>();
+    openMock.mockImplementation(async (input: { source?: string }) => {
+      await promise;
+      return { readAll: async () => input.source ?? 'body' };
+    });
+    return () => resolve();
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
+    for (const model of [bodyModel, scriptModel]) {
+      model.isDisposed.mockReturnValue(false);
+      model.getVersionId.mockReturnValue(1);
+    }
     openMock.mockImplementation(async (input: { type: string; source?: string }) => ({
       readAll: async () => input.source ?? 'body',
     }));
@@ -57,6 +76,32 @@ describe('loadEditorContent', () => {
       'utf-8'
     );
     expect(bodySetValue).toHaveBeenCalledWith('');
+  });
+
+  it('skips models that were disposed while the content was loading', async () => {
+    const finishLoading = holdStreams();
+
+    const loaded = loadEditorContent(makeRequest('req-1', 'col-1'));
+    // another request is selected meanwhile, which disposes the models of this one
+    bodyModel.isDisposed.mockReturnValue(true);
+    scriptModel.isDisposed.mockReturnValue(true);
+    finishLoading();
+
+    await expect(loaded).resolves.toBeUndefined();
+    expect(bodySetValue).not.toHaveBeenCalled();
+    expect(scriptSetValue).not.toHaveBeenCalled();
+  });
+
+  it('keeps text that was typed while the content was loading', async () => {
+    const finishLoading = holdStreams();
+
+    const loaded = loadEditorContent(makeRequest('req-1', 'col-1'));
+    bodyModel.getVersionId.mockReturnValue(2);
+    finishLoading();
+    await loaded;
+
+    expect(bodySetValue).not.toHaveBeenCalled();
+    expect(scriptSetValue).toHaveBeenCalledTimes(Object.values(ScriptType).length);
   });
 });
 

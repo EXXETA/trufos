@@ -175,11 +175,6 @@ export interface CollectionStateActions {
   deleteHeader(index: number): void;
 
   /**
-   * Clear all headers from the currently selected request and add a new empty header
-   */
-  clearHeaders(): void;
-
-  /**
    * Add a new query parameter to the currently selected request
    */
   addQueryParam(): void;
@@ -198,7 +193,7 @@ export interface CollectionStateActions {
   deleteQueryParam(index: number): void;
 
   /**
-   * Clear all query parameters from the currently selected request and add a new empty query parameter
+   * Remove all query parameters from the currently selected request
    */
   clearQueryParams(): void;
 
@@ -220,21 +215,14 @@ export interface CollectionStateActions {
    */
   addNewFolder(title?: string, parentId?: string): Promise<boolean>;
 
-  /** For functionality of the sidebar */
   /**
-   * needed for rerendering of th sidebar
-   * @param id the folder id
-   */
-  isFolderOpen(id: TrufosId): boolean;
-
-  /**
-   * must be set manually that the rendering of the sidebar open the folders correctly
+   * Open a folder in the sidebar
    * @param id the folder id
    */
   setFolderOpen(id: TrufosId): void;
 
   /**
-   * needed for rerendering of the sidebar
+   * Close a folder in the sidebar
    * @param id the folder id
    */
   setFolderClose(id: TrufosId): void;

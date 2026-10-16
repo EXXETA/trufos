@@ -944,6 +944,25 @@ describe('PersistenceService', () => {
     expect((await fs.readdir(dirPath)).filter((file) => file.startsWith('.'))).toEqual([]);
   });
 
+  it('saveRequestInfo() should keep the old info file if it cannot be replaced', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    const dirPath = path.join(collection.dirPath, request.title);
+    const infoFilePath = path.join(dirPath, getInfoFileName('request'));
+    const before = await readFile(infoFilePath, 'utf-8');
+    vi.spyOn(fs, 'rename').mockRejectedValueOnce(new Error('rename failed'));
+
+    // Act
+    const writing = persistenceService.saveRequestInfo({ ...request, method: RequestMethod.PUT });
+
+    // Assert
+    await expect(writing).rejects.toThrow('rename failed');
+    expect(await readFile(infoFilePath, 'utf-8')).toBe(before);
+    expect((await fs.readdir(dirPath)).filter((file) => file.endsWith('.tmp'))).toEqual([]);
+  });
+
   it('saveRequestInfo() should save the metadata of the request without touching its body', async () => {
     // Arrange
     const request = getExampleRequest(collection.id);
@@ -1160,6 +1179,26 @@ describe('PersistenceService', () => {
     );
     const saved = await persistenceService.loadSavedRequest(request.id, collection.id);
     expect(saved).not.toHaveProperty('auth');
+  });
+
+  it('saveChanges() should delete temporary files left behind instead of saving them', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    const draft = freeze({ ...request, draft: true }, true);
+    await persistenceService.createDraft(draft);
+    const dirPath = path.join(collection.dirPath, request.title);
+    const tempFileName = `.${TEXT_BODY_FILE_NAME}.${randomUUID()}.tmp`;
+    await writeFile(path.join(dirPath, DRAFT_DIR_NAME, tempFileName), 'crashed');
+
+    // Act
+    await persistenceService.saveChanges(freeze({ ...draft, draft: false }, true));
+
+    // Assert
+    expect(await exists(path.join(dirPath, DRAFT_DIR_NAME))).toBe(false);
+    expect(await exists(path.join(dirPath, tempFileName))).toBe(false);
+    expect(await exists(path.join(dirPath, getInfoFileName('request')))).toBe(true);
   });
 
   it('saveChanges() should do nothing for a request without a draft', async () => {

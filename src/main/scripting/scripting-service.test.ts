@@ -9,16 +9,18 @@ import { CollectionCommand, CommandType } from 'shim/collection-model';
 import { freeze } from 'immer';
 
 const log = vi.fn<ScriptLogger>();
+const COLLECTION_ID = 'collection';
 
 const mockState = vi.hoisted(() => {
   const state: {
     collection: {
+      id: string;
       variables: VariableMap;
       environments: Record<string, { variables: VariableMap }>;
     };
     selectedEnvironmentKey?: string;
   } = {
-    collection: { variables: {}, environments: {} },
+    collection: { id: 'collection', variables: {}, environments: {} },
     selectedEnvironmentKey: 'dev',
   };
 
@@ -31,6 +33,7 @@ const mockState = vi.hoisted(() => {
       if (command.type !== CommandType.UPDATE_COLLECTION) return Promise.resolve();
       const { variables, environments } = command.changes;
       state.collection = {
+        ...state.collection,
         variables: variables ?? state.collection.variables,
         environments: environments ?? state.collection.environments,
       };
@@ -49,7 +52,7 @@ vi.mock('main/collection-state/collection-state-service', () => ({
 
 /** Runs a pre-request script and expects it to not report an error. */
 async function expectNoError(service: ScriptingService, code: string) {
-  await service.executeScript(code, ScriptType.PRE_REQUEST, log);
+  await service.executeScript(code, ScriptType.PRE_REQUEST, log, COLLECTION_ID);
   expect(log).not.toHaveBeenCalledWith(expect.objectContaining({ level: 'error' }));
 }
 
@@ -61,6 +64,7 @@ describe('ScriptingService', () => {
     vol.reset();
 
     mockState.state.collection = {
+      id: COLLECTION_ID,
       variables: {
         testVar: { value: 'testValue' },
         count: { value: '42' },
@@ -86,7 +90,7 @@ describe('ScriptingService', () => {
       const code = 'const x = 1 + 1; console.log(x);';
 
       // Act
-      await service.executeScript(code, ScriptType.PRE_REQUEST, log);
+      await service.executeScript(code, ScriptType.PRE_REQUEST, log, COLLECTION_ID);
 
       // Assert
       await expectNoError(service, code);
@@ -150,7 +154,12 @@ describe('ScriptingService', () => {
       // Arrange
 
       // Act
-      await service.executeScript(`console.${method}('token', 42);`, ScriptType.PRE_REQUEST, log);
+      await service.executeScript(
+        `console.${method}('token', 42);`,
+        ScriptType.PRE_REQUEST,
+        log,
+        COLLECTION_ID
+      );
 
       // Assert
       expect(log).toHaveBeenCalledWith({
@@ -165,7 +174,8 @@ describe('ScriptingService', () => {
       await service.executeScript(
         `console.log('before'); trufos.setCollectionVariable('after', 'yes');`,
         ScriptType.PRE_REQUEST,
-        log
+        log,
+        COLLECTION_ID
       );
 
       // Assert
@@ -180,7 +190,8 @@ describe('ScriptingService', () => {
       await service.executeScript(
         `console.log('super-secret-token');`,
         ScriptType.PRE_REQUEST,
-        log
+        log,
+        COLLECTION_ID
       );
 
       // Assert
@@ -197,7 +208,8 @@ describe('ScriptingService', () => {
       await service.executeScript(
         `throw new Error('super-secret-token');`,
         ScriptType.POST_RESPONSE,
-        log
+        log,
+        COLLECTION_ID
       );
 
       // Assert
@@ -250,7 +262,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act
-      await service.executeScript(code, ScriptType.PRE_REQUEST, log);
+      await service.executeScript(code, ScriptType.PRE_REQUEST, log, COLLECTION_ID);
 
       // Assert
       expect(mockState.state.collection.variables.testVar.value).toBe('modified');
@@ -266,7 +278,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act
-      await service.executeScript(code, ScriptType.PRE_REQUEST, log);
+      await service.executeScript(code, ScriptType.PRE_REQUEST, log, COLLECTION_ID);
 
       // Assert
       expect(mockState.state.collection.variables.testVar.value).toBe('modified');
@@ -319,7 +331,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act
-      await service.executeScript(code, ScriptType.PRE_REQUEST, log);
+      await service.executeScript(code, ScriptType.PRE_REQUEST, log, COLLECTION_ID);
 
       // Assert
       expect(mockState.state.collection.environments.dev.variables.baseUrl.value).toBe(
@@ -336,7 +348,7 @@ describe('ScriptingService', () => {
       `;
 
       // Act
-      await service.executeScript(code, ScriptType.PRE_REQUEST, log);
+      await service.executeScript(code, ScriptType.PRE_REQUEST, log, COLLECTION_ID);
 
       // Assert
       expect(mockState.state.collection.environments.dev.variables.baseUrl.value).toBe(
@@ -360,7 +372,8 @@ describe('ScriptingService', () => {
         trufos.setCollectionVariable('b', '2');
       `,
         ScriptType.PRE_REQUEST,
-        log
+        log,
+        COLLECTION_ID
       );
 
       expect(mockState.collectionState.apply).toHaveBeenCalledOnce();
@@ -376,7 +389,8 @@ describe('ScriptingService', () => {
       await service.executeScript(
         `trufos.setEnvironmentVariable('baseUrl', 'http://localhost:9000');`,
         ScriptType.PRE_REQUEST,
-        log
+        log,
+        COLLECTION_ID
       );
 
       expect(mockState.collectionState.apply).toHaveBeenCalledOnce();
@@ -389,7 +403,7 @@ describe('ScriptingService', () => {
     });
 
     it('should not apply anything when no variables are set', async () => {
-      await service.executeScript(`const x = 1 + 1;`, ScriptType.PRE_REQUEST, log);
+      await service.executeScript(`const x = 1 + 1;`, ScriptType.PRE_REQUEST, log, COLLECTION_ID);
 
       expect(mockState.collectionState.apply).not.toHaveBeenCalled();
     });
@@ -398,10 +412,31 @@ describe('ScriptingService', () => {
       await service.executeScript(
         `trufos.setEnvironmentVariable('a', 'b', 'missing');`,
         ScriptType.PRE_REQUEST,
-        log
+        log,
+        COLLECTION_ID
       );
 
       expect(mockState.collectionState.apply).not.toHaveBeenCalled();
+    });
+
+    it('should not run the script when another collection was opened meanwhile', async () => {
+      // Arrange
+      const warn = vi.spyOn(logger, 'warn');
+
+      // Act
+      await service.executeScript(
+        `console.log('ran'); trufos.setCollectionVariable('a', 'b');`,
+        ScriptType.POST_RESPONSE,
+        log,
+        'closed-collection'
+      );
+
+      // Assert
+      expect(mockState.collectionState.apply).not.toHaveBeenCalled();
+      expect(log).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ script: ScriptType.POST_RESPONSE, level: 'warn' })
+      );
+      expect(warn).toHaveBeenCalled();
     });
 
     it('should let a script read its own writes without modifying the frozen model', async () => {
@@ -434,7 +469,8 @@ describe('ScriptingService', () => {
         trufos.setEnvironmentVariable('b', '2');
       `,
         ScriptType.PRE_REQUEST,
-        log
+        log,
+        COLLECTION_ID
       );
 
       // Assert
@@ -461,7 +497,8 @@ describe('ScriptingService', () => {
       await service.executeScript(
         `trufos.setCollectionVariable('a', 'b');`,
         ScriptType.PRE_REQUEST,
-        log
+        log,
+        COLLECTION_ID
       );
 
       // Assert
@@ -479,7 +516,8 @@ describe('ScriptingService', () => {
       await service.executeScript(
         `trufos.setCollectionVariable('a', 'b');`,
         ScriptType.PRE_REQUEST,
-        log
+        log,
+        COLLECTION_ID
       );
       await new Promise((resolve) => setImmediate(resolve));
 
@@ -503,7 +541,7 @@ describe('ScriptingService', () => {
       // Arrange
 
       // Act - First script: define a global variable
-      await service.executeScript('globalVar = 42;', ScriptType.PRE_REQUEST, log);
+      await service.executeScript('globalVar = 42;', ScriptType.PRE_REQUEST, log, COLLECTION_ID);
 
       // Second script: try to access the variable from the first script
       const accessCode = `
@@ -541,7 +579,12 @@ describe('ScriptingService', () => {
       // Arrange
 
       // Act - First script: declare a const variable
-      await service.executeScript('const key = "counter";', ScriptType.PRE_REQUEST, log);
+      await service.executeScript(
+        'const key = "counter";',
+        ScriptType.PRE_REQUEST,
+        log,
+        COLLECTION_ID
+      );
 
       // Second script: declare same const variable - should NOT throw "already declared" error
       const secondCode = `const key = "counter";`;
@@ -557,7 +600,8 @@ describe('ScriptingService', () => {
       await service.executeScript(
         `trufos.setCollectionVariable('counter', '1');`,
         ScriptType.PRE_REQUEST,
-        log
+        log,
+        COLLECTION_ID
       );
 
       // Verify the collection variable was set

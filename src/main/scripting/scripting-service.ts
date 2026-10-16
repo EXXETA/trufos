@@ -7,6 +7,7 @@ import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-uti
 import type { ScriptLogger } from 'main/network/service/request-recorder';
 import { ScriptLog } from 'shim/history';
 import { CollectionChanges, CollectionInfo, CommandType } from 'shim/collection-model';
+import { TrufosId } from 'shim/objects/id';
 
 const collectionState = CollectionStateService.instance;
 
@@ -98,8 +99,23 @@ export class ScriptingService {
    * @param code the source code of the script
    * @param type the type of the script, used to label its console output
    * @param log receives the console output and errors of the script
+   * @param collectionId the collection the script belongs to. If another collection is open, the
+   * script is not run, as it would read and change the variables of that collection.
    */
-  public async executeScript(code: string, type: ScriptType, log: ScriptLogger): Promise<void> {
+  public async executeScript(
+    code: string,
+    type: ScriptType,
+    log: ScriptLogger,
+    collectionId: TrufosId
+  ): Promise<void> {
+    if (collectionState.model.collection.id !== collectionId) {
+      const message =
+        'The script was not run, as another collection was opened while the request was sent';
+      logger.warn(message);
+      log({ script: type, level: 'warn', args: [message] });
+      return;
+    }
+
     let script: Script;
     try {
       const now = getSteadyTimestamp();

@@ -1,3 +1,4 @@
+import type { editor } from 'monaco-editor';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import { getBodyModel, getScriptModel } from '@/lib/monaco/models';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
@@ -5,7 +6,8 @@ import { ScriptType } from 'shim/scripting';
 
 /**
  * Loads the text body and the scripts of a request into its editor models. Replacing the whole
- * content counts as a flush, so it is not sent back to the main process as an edit.
+ * content counts as a flush, so it is not sent back to the main process as an edit. A model that
+ * was disposed or changed while its content was loading is left as it is.
  * @param request the request. Its editor models must exist.
  */
 export async function loadEditorContent(request: TrufosRequest): Promise<void> {
@@ -18,22 +20,37 @@ export async function loadEditorContent(request: TrufosRequest): Promise<void> {
 async function loadTextBody(request: TrufosRequest) {
   const model = getBodyModel(request.id);
   if (request.body.type === RequestBodyType.TEXT) {
+    const version = model.getVersionId();
     const stream = await IpcPushStream.open(
       { type: 'request-body', requestId: request.id },
       'utf-8'
     );
-    model.setValue(await stream.readAll());
+    setLoadedValue(model, version, await stream.readAll());
   } else {
     model.setValue('');
   }
 }
 
 async function loadScript(requestId: string, scriptType: ScriptType) {
+  const model = getScriptModel(requestId, scriptType);
+  const version = model.getVersionId();
   const stream = await IpcPushStream.open(
     { type: 'script', source: scriptType, requestId },
     'utf-8'
   );
-  getScriptModel(requestId, scriptType).setValue(await stream.readAll());
+  setLoadedValue(model, version, await stream.readAll());
+}
+
+/**
+ * Sets the loaded content of a model, unless the model changed while it was loaded: it was
+ * disposed because another request was selected, the user typed into it, or a newer load replaced
+ * its content. The user's text then stays, and their pending edit sends it.
+ * @param model the model the content was loaded for
+ * @param version the version of the model when the load started
+ * @param text the loaded content
+ */
+function setLoadedValue(model: editor.ITextModel, version: number, text: string) {
+  if (!model.isDisposed() && model.getVersionId() === version) model.setValue(text);
 }
 
 /**

@@ -140,6 +140,12 @@ export const createCollectionStore = (
     dispatch(command).catch((error) => showError('Could not change the collection', error));
   };
 
+  /**
+   * The requests whose changes are being discarded. Text typed meanwhile is replaced by the saved
+   * content, so it must not turn them into drafts again.
+   */
+  const discarding = new Set<TrufosId>();
+
   /** Sends the content of the editor models as commands. */
   const modelPersistence: ModelPersistence = {
     setTextBody: (id, text) => dispatch({ type: CommandType.SET_TEXT_BODY, id, text }),
@@ -147,7 +153,7 @@ export const createCollectionStore = (
       dispatch({ type: CommandType.SET_SCRIPT, id, scriptType, text }),
     markDraft: async (id) => {
       const request = get().requests.get(id);
-      if (request != null && !request.draft) {
+      if (request != null && !request.draft && !discarding.has(id)) {
         await dispatch({ type: CommandType.CREATE_DRAFT, id });
       }
     },
@@ -226,10 +232,15 @@ export const createCollectionStore = (
   };
 
   /**
-   * Deletes requests and folders. If the selected request is one of them, it is deselected and its
-   * editor changes are dropped when the store syncs with the model, see {@link syncWithModel}.
+   * Deletes requests and folders. If the selected request is one of them, it is deselected when the
+   * store syncs with the model, see {@link syncWithModel}. Its editor changes are sent first, so
+   * nothing is lost if main rejects the delete; main applies them before the delete, in order.
    */
-  const deleteItems = (ids: TrufosId[]) => dispatch({ type: CommandType.DELETE, ids });
+  const deleteItems = async (ids: TrufosId[]) => {
+    const deletedIds = ids.flatMap((id) => [id, ...getDescendantIds(get(), id)]);
+    const flushed = deletedIds.map((id) => flushModelEdits(id));
+    await Promise.all([...flushed, dispatch({ type: CommandType.DELETE, ids })]);
+  };
 
   /** Copies requests and folders. Main copies their files, so the editor changes are sent first. */
   const copyItems = async (ids: TrufosId[]) => {
@@ -363,11 +374,19 @@ export const createCollectionStore = (
         const request = selectRequest(get());
         if (request == null) return;
         cancelModelEdits(request.id);
-        await dispatch({ type: CommandType.DISCARD_REQUEST, id: request.id });
+        discarding.add(request.id);
+        try {
+          await dispatch({ type: CommandType.DISCARD_REQUEST, id: request.id });
+        } finally {
+          discarding.delete(request.id);
+        }
 
         // a request that was never saved is gone now; otherwise reload its saved editor content
         const restored = get().requests.get(request.id);
         if (restored != null && get().selectedRequestId === request.id) {
+          // the text typed while main discarded is replaced, so its edits must not be sent; text
+          // typed while the content loads is kept, see `loadEditorContent`
+          cancelModelEdits(request.id);
           await loadEditorContent(restored);
         }
       }),
@@ -396,8 +415,6 @@ export const createCollectionStore = (
         editSelectedRequest('headers', (headers) => {
           headers.splice(index, 1);
         }),
-
-      clearHeaders: () => editRequest({ headers: [] }),
 
       addQueryParam: () =>
         editSelectedRequest('url', (url) => {
@@ -455,8 +472,6 @@ export const createCollectionStore = (
         await dispatch({ type: CommandType.CREATE_FOLDER, folder });
         revealFolder(folder.parentId);
       }),
-
-      isFolderOpen: (id) => get().openFolders.has(id),
 
       setFolderOpen: (id) => {
         set((state) => {
@@ -586,7 +601,12 @@ export const useCollectionTree = (): CollectionTree => {
   return useMemo(() => ({ childIds, folders, requests }), [childIds, folders, requests]);
 };
 
-export const selectQueryParams = (state: CollectionStoreState) => selectRequest(state)!.url.query;
+/** Returned while no request is selected, so the selector stays stable. */
+const NO_QUERY_PARAMS: Readonly<TrufosRequest['url']['query']> = Object.freeze([]);
+
+export const selectQueryParams = (
+  state: CollectionStoreState
+): Readonly<TrufosRequest['url']['query']> => selectRequest(state)?.url.query ?? NO_QUERY_PARAMS;
 
 export const selectRequest = (
   state: CollectionStoreState,

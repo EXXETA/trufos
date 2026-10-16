@@ -381,6 +381,36 @@ describe('CollectionStateService', () => {
       );
     });
 
+    it('does not write an info file again that creating or saving a draft wrote', async () => {
+      // Arrange
+      const saveRequestInfo = vi.spyOn(persistenceService, 'saveRequestInfo');
+
+      // Act: the first edit creates the draft, which writes the info file of the edit
+      await service.apply({
+        type: CommandType.EDIT_REQUEST,
+        id: 'r1',
+        changes: { method: RequestMethod.PUT },
+      });
+      await service.flush();
+
+      // Assert
+      expect(saveRequestInfo).not.toHaveBeenCalled();
+      expect(await readRequestInfo('r1', DRAFT_DIR_NAME)).toMatchObject({ method: 'PUT' });
+
+      // Act: saving writes the pending edit itself
+      await service.apply({
+        type: CommandType.EDIT_REQUEST,
+        id: 'r1',
+        changes: { method: RequestMethod.POST },
+      });
+      await service.apply({ type: CommandType.SAVE_REQUEST, id: 'r1' });
+      await service.flush();
+
+      // Assert
+      expect(saveRequestInfo).toHaveBeenCalledOnce();
+      expect(await readRequestInfo('r1')).toMatchObject({ method: 'POST' });
+    });
+
     it('keeps the saved state when a draft with pending edits is discarded', async () => {
       // Arrange
       await service.apply({ type: CommandType.EDIT_REQUEST, id: 'r1', changes: {} });
@@ -691,7 +721,11 @@ describe('CollectionStateService', () => {
       prepared.textBody?.destroy();
 
       // Assert
-      expect(prepared).toMatchObject({ request: { id: 'r1' }, scripts: {} });
+      expect(prepared).toMatchObject({
+        request: { id: 'r1' },
+        collectionId: 'first',
+        scripts: {},
+      });
       await expect(service.prepareRequest('missing')).rejects.toThrow(
         'Request missing does not exist'
       );

@@ -87,13 +87,22 @@ async function reload(): Promise<CollectionModel> {
   return model;
 }
 
-/** Applies a command and runs every write of its effects, including the delayed one. */
+/**
+ * Applies a command and runs every write of its effects, including the delayed one unless the
+ * request is clean, like the `CollectionStateService` does.
+ */
 async function run(model: CollectionModel, command: CollectionCommand) {
   const next = applyCommandTo(model, { commandId: 'cmd', timestamp: 1, command });
-  const effects = getCommandEffects(model, next, command);
-  await effects.immediate?.();
+  const {
+    immediate,
+    dirtyRequestId,
+    cleanRequestIds = [],
+  } = getCommandEffects(model, next, command);
+  await immediate?.();
   const dirty =
-    effects.dirtyRequestId == null ? undefined : next.requests.get(effects.dirtyRequestId);
+    dirtyRequestId == null || cleanRequestIds.includes(dirtyRequestId)
+      ? undefined
+      : next.requests.get(dirtyRequestId);
   if (dirty != null) await persistenceService.saveRequestInfo(dirty);
   return next;
 }
@@ -191,6 +200,20 @@ describe('getCommandEffects()', () => {
       method: RequestMethod.POST,
     });
     expect(persisted(await reload())).toEqual(persisted(next));
+  });
+
+  it('only creates the draft directory of a request that just became a draft', async () => {
+    // Arrange
+    const current = await run(model, { type: CommandType.CREATE_DRAFT, id: 'r3' });
+    const createDraft = vi.spyOn(persistenceService, 'createDraft');
+
+    // Act
+    await run(current, { type: CommandType.RENAME, id: 'r3', title: 'Renamed' });
+    await run(current, { type: CommandType.CREATE_DRAFT, id: 'r1' });
+
+    // Assert
+    expect(createDraft).toHaveBeenCalledOnce();
+    expect(createDraft).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1', draft: true }));
   });
 
   it('rename of a never saved draft only writes the draft', async () => {
@@ -371,7 +394,8 @@ describe('getCommandEffects()', () => {
     );
     await effects.immediate?.();
 
-    // Assert
+    // Assert: creating the draft writes the edit, so it is not written again later
+    expect(effects.cleanRequestIds).toEqual(['r3']);
     expect(await readText('r3', DRAFT_DIR_NAME, TEXT_BODY_FILE_NAME)).toBe('saved body');
     expect(await readText('r3', DRAFT_DIR_NAME, getScriptFileName(ScriptType.POST_RESPONSE))).toBe(
       'post'
@@ -439,9 +463,11 @@ describe('getCommandEffects()', () => {
     });
 
     // Act
-    const next = await run(current, { type: CommandType.SAVE_REQUEST, id: 'r3' });
+    const command: CollectionCommand = { type: CommandType.SAVE_REQUEST, id: 'r3' };
+    const next = await run(current, command);
 
     // Assert
+    expect(getCommandEffects(current, next, command).cleanRequestIds).toEqual(['r3']);
     expect(await exists(path.join(dirPath, 'r3', DRAFT_DIR_NAME))).toBe(false);
     expect(await readText('r3', TEXT_BODY_FILE_NAME)).toBe('draft body');
     expect(persisted(await reload())).toEqual(persisted(next));

@@ -19,6 +19,11 @@ export interface CommandEffects {
   immediate?: () => Promise<void>;
   /** A request whose info file is written later, as it is changed by frequent edits. */
   dirtyRequestId?: TrufosId;
+  /**
+   * Requests whose info file matches `next` once the immediate writes are done. A delayed write of
+   * them is redundant and dropped, even if one of them is the {@link dirtyRequestId}.
+   */
+  cleanRequestIds?: TrufosId[];
 }
 
 /**
@@ -37,26 +42,27 @@ export function getCommandEffects(
   const effects = getSpecificEffects(prev, next, command);
 
   // whatever the command was, a request that just became a draft needs its draft directory
-  // before anything is written into it
+  // before anything is written into it. That writes its info file as well.
   const drafts = getCreatedDrafts(prev, next);
   if (drafts.length === 0) return effects;
-  const { immediate } = effects;
+  const { immediate, cleanRequestIds = [] } = effects;
   return {
     ...effects,
     immediate: async () => {
       for (const draft of drafts) await persistenceService.createDraft(draft);
       await immediate?.();
     },
+    cleanRequestIds: [...cleanRequestIds, ...drafts.map((draft) => draft.id)],
   };
 }
 
 /** Returns the requests that are a draft in `next`, but were an existing non-draft in `prev`. */
 function getCreatedDrafts(prev: CollectionModel, next: CollectionModel): TrufosRequest[] {
-  if (prev.requests === next.requests) return [];
-  return [...next.requests.values()].filter((request) => {
-    const before = prev.requests.get(request.id);
-    return request.draft && before != null && !before.draft;
-  });
+  // a request that becomes a draft gets a saved state, so only these few have to be looked at
+  if (prev.savedRequests === next.savedRequests) return [];
+  return [...next.savedRequests.keys()]
+    .filter((id) => !prev.savedRequests.has(id))
+    .map((id) => getExistingRequest(next, id));
 }
 
 function getSpecificEffects(
@@ -163,6 +169,7 @@ function getSpecificEffects(
           await persistenceService.saveRequestInfo(draft);
           await persistenceService.saveChanges(request);
         },
+        cleanRequestIds: [command.id],
       };
     }
     case CommandType.DISCARD_REQUEST: {
@@ -174,6 +181,8 @@ function getSpecificEffects(
           await persistenceService.discardChanges(draft);
           if (removed) await saveOrders([draft.parentId]);
         },
+        // the saved info file is the one of the restored request
+        cleanRequestIds: [command.id],
       };
     }
     case CommandType.UPDATE_COLLECTION:

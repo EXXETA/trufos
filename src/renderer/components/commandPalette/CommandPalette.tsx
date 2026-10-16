@@ -157,14 +157,12 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   }, [saveRequest, onClose]);
 
   const handleNewRequest = useCallback(() => {
-    if (collection == null) return;
     runAndClose(() => requestCreateItem({ type: 'request', parentId: collection.id }));
-  }, [collection, runAndClose, requestCreateItem]);
+  }, [collection.id, runAndClose, requestCreateItem]);
 
   const handleNewFolder = useCallback(() => {
-    if (collection == null) return;
     runAndClose(() => requestCreateItem({ type: 'folder', parentId: collection.id }));
-  }, [collection, runAndClose, requestCreateItem]);
+  }, [collection.id, runAndClose, requestCreateItem]);
 
   const renderEnvironmentItem = (key: string) => (
     <CommandItem
@@ -205,7 +203,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   const canSendRequest = currentRequest != null;
   const canSaveRequest = !!currentRequest?.draft;
-  const canCreateRequest = collection != null;
 
   const actionItems: ActionItem[] = [
     {
@@ -232,7 +229,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       icon: Plus,
       label: 'New request',
       hotkey: HOTKEYS.newRequest,
-      disabled: !canCreateRequest,
       onSelect: handleNewRequest,
     },
     {
@@ -292,7 +288,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     [
       { keys: HOTKEYS.sendRequest, handler: handleSend, enabled: canSendRequest },
       { keys: HOTKEYS.saveRequest, handler: handleSave, enabled: canSaveRequest },
-      { keys: HOTKEYS.newRequest, handler: handleNewRequest, enabled: canCreateRequest },
+      { keys: HOTKEYS.newRequest, handler: handleNewRequest },
       { keys: HOTKEYS.cyclePaletteTabForward, handler: cycleTabForward },
       { keys: HOTKEYS.cyclePaletteTabForwardTab, handler: cycleTabForward },
       { keys: HOTKEYS.cyclePaletteTabBackward, handler: cycleTabBackward },
@@ -409,7 +405,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                       {requestGroups.map((group, i) => (
                         <Fragment key={group.id ?? '__root__'}>
                           {i > 0 && <CommandSeparator key={`sep-${i}`} className="col-span-full" />}
-                          <RequestCommandGroup heading={group.label ?? `${collection?.title} root`}>
+                          <RequestCommandGroup heading={group.label ?? `${collection.title} root`}>
                             {group.requests.map(renderRequestItem)}
                           </RequestCommandGroup>
                         </Fragment>

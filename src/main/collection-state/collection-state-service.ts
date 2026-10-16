@@ -41,8 +41,8 @@ const noop = () => {};
  *
  * Persistence effects run one after another on a serial queue, together with everything else that
  * touches the files of the collection: readers and loading another collection. The info files of
- * edited requests are written with a delay, see {@link REQUEST_INFO_DEBOUNCE_MS}. If an effect fails, the collection is reloaded from disk and
- * broadcast as a snapshot.
+ * edited requests are written with a delay, see {@link REQUEST_INFO_DEBOUNCE_MS}. If an effect
+ * fails, the collection is reloaded from disk and broadcast as a snapshot.
  */
 export class CollectionStateService
   extends EventEmitter<CollectionStateServiceEvents>
@@ -203,6 +203,7 @@ export class CollectionStateService
 
     const effects = getCommandEffects(prev, next, envelope.command);
     if (effects.dirtyRequestId != null) this.markDirty(effects.dirtyRequestId);
+    for (const id of effects.cleanRequestIds ?? []) this.markClean(id);
     return effects.immediate == null
       ? Promise.resolve()
       : this.enqueue(effects.immediate, generation);
@@ -242,6 +243,7 @@ export class CollectionStateService
   public async prepareRequest(id: TrufosId): Promise<PreparedRequest> {
     const prepared = await this.readRequest(id, async (request) => ({
       request,
+      collectionId: this.model.collection.id,
       ...(await persistenceService.openRequestFiles(request)),
     }));
     if (prepared == null) throw new Error(`Request ${id} does not exist`);
@@ -249,8 +251,8 @@ export class CollectionStateService
   }
 
   /**
-   * Runs a task that loads a collection on the queue, after the dirty requests are written. Commands are
-   * rejected from now on until the task has settled.
+   * Runs a task that loads a collection on the queue, after the dirty requests are written.
+   * Commands are rejected from now on until the task has settled.
    */
   private exclusive<T>(task: () => Promise<T>): Promise<T> {
     this.enqueueDirtyWrites();
@@ -272,6 +274,12 @@ export class CollectionStateService
     this.dirtyRequests.set(id, timer);
   }
 
+  /** Drops the delayed write of a request whose info file is written otherwise. */
+  private markClean(id: TrufosId) {
+    clearTimeout(this.dirtyRequests.get(id));
+    this.dirtyRequests.delete(id);
+  }
+
   /** Queues writing the info files of the given dirty requests, of all by default. */
   private enqueueDirtyWrites(ids = [...this.dirtyRequests.keys()]) {
     if (ids.length === 0) return;
@@ -286,8 +294,7 @@ export class CollectionStateService
   private async writeDirtyRequests(ids: TrufosId[]) {
     for (const id of ids) {
       if (!this.dirtyRequests.has(id)) continue;
-      clearTimeout(this.dirtyRequests.get(id));
-      this.dirtyRequests.delete(id);
+      this.markClean(id);
       const request = this.model.requests.get(id);
       if (request != null) await persistenceService.saveRequestInfo(request);
     }

@@ -86,7 +86,8 @@ const setup = (collection: Collection = defaultCollection(), savedRequests = [])
   const main = new FakeCollectionMain(normalizeCollection(collection, savedRequests));
   const { store, collectionState } = createCollectionStore(
     structuredClone(main.model),
-    main.dispatch,
+    // looked up per call, so tests can replace it
+    (envelope) => main.dispatch(envelope),
     main.getCollectionState
   );
   main.onEvent((event) => collectionState.receive(event));
@@ -136,16 +137,13 @@ describe('request edits', () => {
   });
 
   it('header actions send the complete new header list', () => {
-    const { addHeader, updateHeader, deleteHeader, clearHeaders } = ctx.store.getState();
+    const { addHeader, updateHeader, deleteHeader } = ctx.store.getState();
 
     addHeader();
     updateHeader(0, { key: 'X-Test', value: '1' });
     addHeader();
     deleteHeader(1);
     expect(request().headers).toEqual([{ key: 'X-Test', value: '1', isActive: true }]);
-
-    clearHeaders();
-    expect(request().headers).toEqual([]);
     expect(ctx.commands().every((command) => command.type === CommandType.EDIT_REQUEST)).toBe(true);
   });
 
@@ -472,7 +470,7 @@ describe('selected request', () => {
     await ctx.store.getState().deleteItem('r3');
 
     expect(disposeModelsForRequest).toHaveBeenCalledWith('r3');
-    expect(flushModelEdits).not.toHaveBeenCalled();
+    expect(flushModelEdits).toHaveBeenCalledWith('r3');
     expect(ctx.store.getState().selectedRequestId).toBeUndefined();
     expect(ctx.commands()).toEqual([{ type: CommandType.DELETE, ids: ['r3'] }]);
   });
@@ -765,6 +763,64 @@ describe('editor models', () => {
       },
     ]);
     expect(ctx.store.getState().requests.get('r1')!.draft).toBe(true);
+  });
+
+  /** Lets main reject every command of the given type. */
+  const rejectCommands = ({ main }: Setup, type: CommandType) => {
+    const dispatch = main.dispatch;
+    main.dispatch = async (envelope) => {
+      if (envelope.command.type !== type) return await dispatch(envelope);
+      main.received.push(envelope);
+      throw new Error('rejected');
+    };
+  };
+
+  it('sends the editor changes before a delete, so a rejected delete loses nothing', async () => {
+    const ctx = setup();
+    rejectCommands(ctx, CommandType.DELETE);
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'body');
+
+    await expect(ctx.store.getState().deleteItem('r1')).resolves.toBe(false);
+
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.CREATE_DRAFT, id: 'r1' },
+      { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'body' },
+      { type: CommandType.DELETE, ids: ['r1'] },
+    ]);
+    expect(ctx.store.getState().requests.get('r1')!.draft).toBe(true);
+  });
+
+  it('sends the editor changes of a request inside a deleted folder first', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'body');
+
+    await ctx.store.getState().deleteItem('F');
+
+    expect(ctx.commands().slice(1)).toEqual([
+      { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'body' },
+      { type: CommandType.DELETE, ids: ['F'] },
+    ]);
+    expect(ctx.store.getState().requests.has('r1')).toBe(false);
+  });
+
+  it('does not send text typed while changes are discarded', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'changed');
+
+    const discarded = ctx.store.getState().discardChanges();
+    // the editor content is only reloaded once main discarded the changes
+    type(getBodyModel('r1'), 'typed meanwhile');
+    await expect(discarded).resolves.toBe(true);
+    await flushModelEdits('r1');
+
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.CREATE_DRAFT, id: 'r1' },
+      { type: CommandType.DISCARD_REQUEST, id: 'r1' },
+    ]);
+    expect(ctx.store.getState().requests.get('r1')!.draft).toBe(false);
   });
 
   it('does not mark a draft request as draft again', async () => {

@@ -100,7 +100,7 @@ Key renderer directories:
 - **All temporary files go through `FileSystemService`** (`src/main/filesystem/`, e.g.
   `temporaryFile()`), so they are named, protected and cleaned up in one place. Do not create
   temporary files ad hoc. The only exception is a file that replaces another one by renaming (see
-  `PersistenceService.writeTextBody()`): it has to be on the same volume, so it is created next to
+  `PersistenceService.replaceFile()`): it has to be on the same volume, so it is created next to
   the target as a dotfile.
 
 ## Development Commands
