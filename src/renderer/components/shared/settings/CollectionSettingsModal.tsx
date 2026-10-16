@@ -36,7 +36,7 @@ type CollectionDraft = {
 };
 
 export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsModalProps) => {
-  const { updateCollection, selectEnvironment } = useCollectionActions();
+  const { updateCollection } = useCollectionActions();
 
   const variables = useCollectionStore((s) => s.collection.variables);
   const environments = useCollectionStore((s) => s.collection.environments);
@@ -86,12 +86,13 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
     if (isChanged('environments')) changes.environments = draft.environments;
     if (isChanged('clientCertificate')) changes.clientCertificate = draft.clientCertificate;
 
-    // the dialog stays open if saving failed. The environments must exist before one of them can
-    // be selected.
-    if (Object.keys(changes).length > 0 && !(await updateCollection(changes))) return;
-    if (isChanged('selectedEnvironment') && !(await selectEnvironment(draft.selectedEnvironment))) {
-      return;
-    }
+    const selectedEnvironmentKey = isChanged('selectedEnvironment')
+      ? (draft.selectedEnvironment ?? null)
+      : undefined;
+
+    // the dialog stays open if saving failed
+    const isUnchanged = Object.keys(changes).length === 0 && selectedEnvironmentKey === undefined;
+    if (!isUnchanged && !(await updateCollection(changes, selectedEnvironmentKey))) return;
     onClose();
   };
 

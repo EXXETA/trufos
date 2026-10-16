@@ -132,6 +132,12 @@ export type CollectionNodes = Pick<CollectionModel, 'folders' | 'requests'>;
 /** The parts of the {@link CollectionModel} that describe its tree. */
 export type CollectionTree = CollectionNodes & Pick<CollectionModel, 'childIds'>;
 
+/**
+ * The structure of the {@link CollectionTree}: the order and nesting of its nodes and which of them
+ * are folders. It does not change when a request is edited.
+ */
+export type CollectionStructure = Pick<CollectionModel, 'childIds' | 'folders'>;
+
 /** A node of the {@link CollectionTree}. */
 export type TreeNode = FolderInfo | TrufosRequest;
 
@@ -170,6 +176,32 @@ export function getChildren(tree: CollectionTree, parentId: string): TreeNode[] 
   return (tree.childIds.get(parentId) ?? [])
     .map((id) => getNode(tree, id))
     .filter((child) => child != null);
+}
+
+/**
+ * Visits the descendants of the collection or of a folder depth first, parents before children.
+ * Only the structure of the tree is read, so the visitor looks up the nodes it needs itself.
+ * @param tree the structure of the tree
+ * @param parentId where to start. The parent itself is not visited.
+ * @param visit called with the ID of every node, its depth (0 for the children of the parent) and
+ * the IDs of its ancestor folders below the parent, outermost first. Returning false skips the
+ * children of a folder.
+ * @param compare sorts the children of each parent by ID. They keep their order if not given.
+ */
+export function walkTree(
+  tree: CollectionStructure,
+  parentId: string,
+  visit: (id: string, depth: number, ancestorIds: readonly string[]) => boolean | void,
+  compare?: (a: string, b: string) => number
+): void {
+  const walk = (id: string, ancestorIds: readonly string[]) => {
+    const childIds = tree.childIds.get(id) ?? [];
+    for (const childId of compare != null ? childIds.toSorted(compare) : childIds) {
+      const descend = visit(childId, ancestorIds.length, ancestorIds) !== false;
+      if (descend && tree.folders.has(childId)) walk(childId, [...ancestorIds, childId]);
+    }
+  };
+  walk(parentId, []);
 }
 
 /** Returns the IDs of all descendants of the given parent, depth first, parents before children. */

@@ -57,41 +57,54 @@ main: Zod parse ─▶ produceWithPatches(applyCommand) ─▶ broadcast {patche
 renderer: applyPatches(confirmed) ─▶ drop own pending command ─▶ re-apply remaining pending
 ```
 
-- **Main** (`CollectionStateService`) validates, applies, broadcasts and persists. Which files a
-  command writes is decided by `getCommandEffects()`
-  (`src/main/collection-state/command-effects.ts`), the only place that knows what a command type
-  means for the disk. It returns `immediate` writes (structural operations: create, move, rename,
-  delete, copy, save, discard) and, for request edits, a `dirtyRequestId`: the info file of a dirty
-  request is written from the current model 2 s after its last edit, or earlier when something
-  flushes. Text body and script edits mark the request dirty as well, so the modification time of
-  its info file follows them. A request stays dirty until its info file was written: if that
-  fails, the reload after the failure retries it first, so the edit survives if possible. A dirty
-  request that was deleted meanwhile is skipped. Effects that write the info file of a request
-  themselves (creating, saving or discarding a draft) mark it clean, so it is not written twice. A request that becomes a draft gets its draft directory first, whatever the
-  command was; this is derived from the model transition, not restated per command. The service
-  itself is command-agnostic: everything that changes the model or touches the files runs as one
-  task after another on a single queue (`SerialQueue`, `src/main/util/serial-queue.ts`): applying a command
-  together with its immediate effect, delayed writes, readers, and loading another collection.
-  Because a command is applied on the queue, an effect is always written from the model it was
-  planned from and nothing has to be skipped or rolled back later. Dirty requests are written
-  before a request is sent, before the app closes and before the collection changes. If a
-  persistence effect fails, main reloads the collection from disk and broadcasts a snapshot before
-  the next task runs. A command that was dispatched while a collection is loaded is applied to the
-  loaded model afterwards, or rejected if another collection is open by then. The debounce only
-  protects against crashes: every path that reads a request from disk flushes first.
-  Directory names are chosen so that they neither collide with a known object nor with a directory
-  that happens to exist on disk, e.g. one left over from a crash.
-- **Renderer** (`CollectionState`, mirrored into the zustand collection store) keeps the last
-  confirmed model and a queue of pending (sent, unconfirmed) commands. The visible state is the
-  confirmed model with the pending commands re-applied. When main confirms the oldest pending
-  command, the visible model stays as it is (both were computed by the same `applyCommand`), so
-  the common case costs one render, not two, even while typing. The IPC does not order the reply
-  of a dispatch and the broadcast of its patches, so the reply can arrive first: the command then
-  stays pending as acknowledged until its patches arrive, and a snapshot fetched after the
-  acknowledgement already contains it. If a command is rejected or a version is skipped, the
-  renderer fetches a fresh snapshot; a snapshot that is older than one broadcast meanwhile is
-  ignored.
-- Opening, creating, importing or closing a collection broadcasts a full snapshot.
+### Main
+
+`CollectionStateService` validates, applies, broadcasts and persists.
+
+- **One queue.** The service is command-agnostic. Everything that changes the model or touches
+  the files runs as one task after another on a single queue (`SerialQueue`,
+  `src/main/util/serial-queue.ts`): applying a command together with its immediate effect,
+  delayed writes, readers, and loading another collection. So an effect is always written from the
+  model it was planned from, and nothing has to be skipped or rolled back later.
+- **Effects.** `getCommandEffects()` (`src/main/collection-state/command-effects.ts`) is the only
+  place that knows what a command type means for the disk. It returns `immediate` writes for
+  structural operations (create, move, rename, delete, copy, save, discard) and, for request
+  edits, a `dirtyRequestId`. A request that becomes a draft gets its draft directory first,
+  whatever the command was; this is derived from the model transition, not restated per command.
+- **Dirty requests.** The info file of a dirty request is written from the current model 2 s after
+  its last edit, or earlier when something flushes: before a request is sent, before the app
+  closes and before the collection changes. Text body and script edits mark the request dirty as
+  well, so the modification time of its info file follows them. A request stays dirty until its
+  info file was written; a dirty request that was deleted meanwhile is skipped. Effects that write
+  the info file themselves (creating, saving or discarding a draft) mark it clean, so it is not
+  written twice. The debounce only protects against crashes: every path that reads a request from
+  disk flushes first.
+- **Failures.** If a persistence effect fails, main reloads the collection from disk and
+  broadcasts a snapshot before the next task runs. The reload writes the dirty requests first, so
+  their edits survive if possible.
+- **Collection changes.** A command that was dispatched while a collection is loaded is applied to
+  the loaded model afterwards, or rejected with a `CollectionChangedError` if another collection
+  is open by then. Opening, creating or closing a collection broadcasts a full snapshot. An import
+  only writes the collection; the renderer then opens it.
+- Directory names are chosen so that they neither collide with a known object nor with a
+  directory that happens to exist on disk, e.g. one left over from a crash.
+
+### Renderer
+
+`CollectionState`, mirrored into the zustand collection store, keeps the last confirmed model and
+the pending (sent, unconfirmed) commands. The visible state is the confirmed model with the
+pending commands re-applied.
+
+- **Confirmation.** When main confirms the oldest pending command, the visible model stays as it
+  is (both were computed by the same `applyCommand`), so the common case costs one render, not
+  two, even while typing.
+- **Replies before patches.** The IPC does not order the reply of a dispatch and the broadcast of
+  its patches, so the reply can arrive first. The reply carries the version main applied the
+  command as; the command stays pending until its patches arrive, and a snapshot of that version
+  or later already contains it.
+- **Resync.** If a command is rejected or a version is skipped, the renderer fetches a fresh
+  snapshot. Patches that arrive meanwhile are held back and applied on top of it, unless it
+  already contains them. A snapshot that is older than one broadcast meanwhile is ignored.
 
 ## Drafts
 
@@ -104,29 +117,33 @@ The text body and the scripts have one owner: the Monaco models in the renderer.
 debounced (1 s) `setTextBody` / `setScript` commands. The first edit sends `createDraft` right away,
 so the request shows as changed at once. The operations that need the editor content flush it
 themselves: sending, saving, copying, switching request or collection, and closing. Disposing a
-Monaco model only frees memory. While the content of a model is loaded, or while the changes of its
-request are discarded, changes to it are not edits: the loaded content replaces them, and sending
-them would persist a fragment instead of the whole text. If a debounced edit is rejected, the user
-is told and the model is reloaded from disk, so the editor never silently shows unsaved text.
+Monaco model only frees memory. While the content of a model is loaded, changes to it are not edits:
+the loaded content replaces them, and sending them would persist a fragment instead of the whole
+text. Discarding the changes of a request uses the same rule: the saved content is loaded once main
+discarded the changes, so text typed meanwhile is replaced instead of sent. If a debounced edit is
+rejected, the user is told and the model is reloaded from disk, so the editor never silently shows
+unsaved text.
 
 ## Other main services
 
-- `EnvironmentService` resolves variables and authorization from the model.
+- `variable-resolver.ts` (`src/main/environment/service/`) resolves variables and authorization
+  from a model it is given; it never reads the current model itself.
 - `ScriptingService` runs a script against an Immer draft of the collection. The script and the
   one `updateCollection` command for the variables it changed run as a single task on the
   collection state's queue (`CollectionStateService.applyTo()`), so the model cannot change in
-  between, and the check that the request's collection is still open happens on the queue as
-  well. The script waits for the collection file to be written; a failure is only logged.
+  between. `applyTo()` returns the model after the command. If another collection is open by
+  then, it throws a `CollectionChangedError`, as `dispatch()` does; this is the only place that
+  rule lives. The script waits for the collection file to be written; a failure is only logged.
 - `HttpService.sendRequest()` and `stream-open` take request ids; main looks the request up in its
   model (`CollectionStateService.prepareRequest()` and `readRequest()`) and opens its files on the
-  persistence queue, so no write interleaves. Everything else a request needs, e.g. variables and
-  the client certificate, is read from the current model while it is sent. The prepared request
-  carries the id of its collection: if another collection was opened meanwhile, its scripts are not
-  run (a warning goes to the script log) and it fails instead of being dispatched.
-  `PersistenceService` opens a file before it returns the stream, so once a reader got its stream,
-  later writes cannot change what it reads. A request reads its scripts and opens its text body
-  before it is sent (`PersistenceService.openRequestFiles()`), together with the collection it
-  belongs to; the body is streamed, never read into memory. Text bodies and JSON files are written
+  persistence queue, so no write interleaves. The prepared request carries the model it was taken
+  from. The pre-request script runs first and returns the model it left behind; the URL,
+  authorization, headers, body variables and client certificate are all resolved from that one
+  model, so a token the script sets is used by the request. `PersistenceService` opens a file before
+  it returns the stream, so once a reader got its stream, later writes cannot change what it reads.
+  A request reads its scripts and opens its text body before it is sent
+  (`PersistenceService.openRequestFiles()`), together with the model it belongs to; the body is
+  streamed, never read into memory. Text bodies, scripts, JSON files and secrets files are written
   atomically (a temporary file replaces the target, `FileSystemService.replaceFile()`), so readers
   never see a half-written file and a request that is being sent keeps streaming the body it was
   sent with.

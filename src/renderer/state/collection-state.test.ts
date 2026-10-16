@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { CollectionState } from './collection-state';
-import { FakeCollectionMain, makeModel } from '@/__mocks__/fake-collection-main';
+import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
+import { makeModel } from 'shim/collection-model/fixtures';
 import {
   CollectionCommand,
   CollectionModel,
@@ -254,6 +255,47 @@ describe('CollectionState', () => {
     expect(warn).not.toHaveBeenCalled();
     expect(state.model.version).toBe(1);
     warn.mockRestore();
+  });
+
+  it('does not re-apply a command acknowledged while a snapshot containing it is fetched', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let releaseSnapshot!: () => void;
+    vi.spyOn(main, 'getCollectionState').mockImplementation(() =>
+      new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() =>
+        structuredClone(main.model)
+      )
+    );
+    main.holdBroadcasts = true;
+    const resync = state.resync();
+
+    await state.dispatch({ type: CommandType.COPY, ids: ['r3'], idMap: { r3: 'r3-copy' } });
+    releaseSnapshot();
+    await resync;
+    main.flushBroadcasts();
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(state.model.childIds.get('col')).toEqual(['f1', 'r3', 'r3-copy']);
+    expect(state.model.version).toBe(1);
+    warn.mockRestore();
+  });
+
+  it('keeps a command acknowledged while an older snapshot is fetched', async () => {
+    let releaseSnapshot!: () => void;
+    const stale = structuredClone(main.model);
+    vi.spyOn(main, 'getCollectionState').mockImplementation(() =>
+      new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() => stale)
+    );
+    main.holdBroadcasts = true;
+    const resync = state.resync();
+
+    await state.dispatch({ type: CommandType.RENAME, id: 'r1', title: 'Renamed' });
+    releaseSnapshot();
+    await resync;
+
+    expect(state.model.requests.get('r1')!.title).toBe('Renamed');
+    main.flushBroadcasts();
+    expect(state.model.version).toBe(1);
+    expect(state.model.requests.get('r1')!.title).toBe('Renamed');
   });
 
   it('does not re-apply a command that main confirmed in the event that skipped a version', async () => {

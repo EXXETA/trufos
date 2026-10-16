@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
-import { RequestBodyType, TrufosRequest } from '../objects/request';
 import { RequestMethod } from '../objects/request-method';
-import { parseUrl } from '../objects/url';
 import { AuthorizationType } from '../objects/auth';
-import { Collection } from '../objects/collection';
 import {
   assignChanges,
   getAncestorIds,
@@ -13,66 +10,20 @@ import {
   getTopLevelIds,
   isSelfOrDescendant,
   normalizeCollection,
+  walkTree,
 } from './model';
+import { makeExampleCollection, makeRequest } from './fixtures';
 
-function request(id: string, parentId: string): TrufosRequest {
-  return {
-    id,
-    parentId,
-    type: 'request',
-    lastModified: 0,
-    title: id,
-    url: parseUrl('http://example.com'),
-    method: RequestMethod.GET,
-    headers: [],
-    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-    draft: false,
-  };
-}
-
-/**
- * col
- * ├── f1
- * │   ├── r1
- * │   └── f2
- * │       └── r2
- * └── r3
- */
-const collection: Collection = {
-  id: 'col',
-  type: 'collection',
-  title: 'Collection',
-  dirPath: '/col',
-  lastModified: 0,
-  variables: {},
-  environments: {},
-  children: [
-    {
-      id: 'f1',
-      parentId: 'col',
-      type: 'folder',
-      lastModified: 0,
-      title: 'f1',
-      children: [
-        request('r1', 'f1'),
-        {
-          id: 'f2',
-          parentId: 'f1',
-          type: 'folder',
-          lastModified: 0,
-          title: 'f2',
-          children: [request('r2', 'f2')],
-        },
-      ],
-    },
-    request('r3', 'col'),
-  ],
-};
+/** See {@link makeExampleCollection}. */
+const collection = makeExampleCollection({ title: 'Collection' });
 
 describe('assignChanges()', () => {
   it('replaces, removes and keeps fields depending on the change', () => {
     // Arrange
-    const base = { ...request('r1', 'col'), auth: { type: AuthorizationType.INHERIT } as const };
+    const base = {
+      ...makeRequest('r1', 'col'),
+      auth: { type: AuthorizationType.INHERIT } as const,
+    };
 
     // Act
     const changed = produce(base, (draft) =>
@@ -86,7 +37,7 @@ describe('assignChanges()', () => {
   });
 
   it('changes nothing for empty changes', () => {
-    const base = request('r1', 'col');
+    const base = makeRequest('r1', 'col');
 
     expect(produce(base, (draft) => assignChanges(draft, {}))).toBe(base);
   });
@@ -112,6 +63,40 @@ describe('getChildren()', () => {
 describe('getDescendantIds()', () => {
   it('lists parents before their children', () => {
     expect(getDescendantIds(normalizeCollection(collection), 'f1')).toEqual(['r1', 'f2', 'r2']);
+  });
+});
+
+describe('walkTree()', () => {
+  it('visits parents before their children with their depth and ancestors', () => {
+    const visited: [string, number, readonly string[]][] = [];
+
+    walkTree(normalizeCollection(collection), 'col', (id, depth, ancestorIds) => {
+      visited.push([id, depth, ancestorIds]);
+    });
+
+    expect(visited).toEqual([
+      ['f1', 0, []],
+      ['r1', 1, ['f1']],
+      ['f2', 1, ['f1']],
+      ['r2', 2, ['f1', 'f2']],
+      ['r3', 0, []],
+    ]);
+  });
+
+  it('skips the children of a folder if the visitor returns false and sorts the children', () => {
+    const visited: string[] = [];
+
+    walkTree(
+      normalizeCollection(collection),
+      'col',
+      (id) => {
+        visited.push(id);
+        return id !== 'f2';
+      },
+      (a, b) => b.localeCompare(a)
+    );
+
+    expect(visited).toEqual(['r3', 'f1', 'r1', 'f2']);
   });
 });
 

@@ -7,14 +7,30 @@ import {
   CommandEnvelope,
 } from 'shim/collection-model';
 
-/** Sends a command to the main process. Resolves after main applied and broadcast it. */
-export type SendCommand = (envelope: CommandEnvelope) => Promise<void>;
+/**
+ * Sends a command to the main process. Resolves with the model version main applied it as, which
+ * may be before its patches arrive.
+ */
+export type SendCommand = (envelope: CommandEnvelope) => Promise<number>;
 
 /** Fetches the complete state of the open collection from the main process. */
 export type FetchSnapshot = () => Promise<CollectionModel>;
 
 /** Called with the new visible model whenever it changes. */
 export type OnModelChange = (model: CollectionModel) => void;
+
+/** A command that was sent but whose patches did not arrive yet. */
+interface PendingCommand {
+  envelope: CommandEnvelope;
+  /**
+   * The version main applied the command as, once main replied. The IPC does not order a reply
+   * and a broadcast, so the reply can come before the patches. Every snapshot of this version or
+   * later contains the command.
+   */
+  appliedVersion?: number;
+}
+
+type PatchesEvent = Extract<CollectionStateEvent, { kind: 'patches' }>;
 
 /**
  * The renderer's state of the open collection. The main process owns the {@link CollectionModel};
@@ -27,15 +43,14 @@ export type OnModelChange = (model: CollectionModel) => void;
 export class CollectionState {
   private confirmed: CollectionModel;
   private visible: CollectionModel;
-  private pending: CommandEnvelope[] = [];
-  /**
-   * The pending commands main has replied to, but whose patches did not arrive yet. The IPC does
-   * not order a reply and a broadcast, so a reply can come first. Such a command is already part
-   * of every snapshot fetched from now on.
-   */
-  private readonly acknowledged = new Set<string>();
-  /** Set while a snapshot is fetched. Patches received meanwhile are part of that snapshot. */
+  private pending: PendingCommand[] = [];
+  /** Set while a snapshot is fetched. */
   private resyncing?: Promise<void>;
+  /**
+   * The patches received while a snapshot is fetched. Those the snapshot does not contain yet are
+   * applied on top of it.
+   */
+  private buffered: PatchesEvent[] = [];
 
   constructor(
     snapshot: CollectionModel,
@@ -64,33 +79,30 @@ export class CollectionState {
       command,
     };
     this.visible = applyCommandTo(this.visible, envelope);
-    this.pending.push(envelope);
+    const pending: PendingCommand = { envelope };
+    this.pending.push(pending);
     this.onChange(this.visible);
-    return this.sendPending(envelope);
+    return this.sendPending(pending);
   }
 
   /** Applies a {@link CollectionStateEvent} broadcast by the main process. */
   receive(event: CollectionStateEvent): void {
     if (event.kind === 'snapshot') {
       this.pending = [];
-      this.acknowledged.clear();
+      this.buffered = [];
       this.setConfirmed(event.model);
     } else if (event.version <= this.confirmed.version) {
-      // the patches of a command that a snapshot already contained, see `acknowledged`
+      // the patches of a command that a snapshot already contained
       this.removePending(event.commandId);
     } else if (this.resyncing != null) {
-      // The snapshot being fetched already contains these patches, so they are not applied. The
-      // command they confirm must not stay pending though, or it would be applied a second time
-      // on top of the snapshot. The visible model keeps it until the snapshot arrives.
-      this.removePending(event.commandId);
+      this.buffered.push(event);
     } else if (event.version !== this.confirmed.version + 1) {
       console.warn(
         `Missed a collection update (expected version ${this.confirmed.version + 1}, got ${event.version})`
       );
-      // the snapshot fetched now contains the confirmed command, see above
-      this.removePending(event.commandId);
+      this.buffered.push(event);
       void this.resync();
-    } else if (this.pending[0]?.commandId === event.commandId) {
+    } else if (this.pending[0]?.envelope.commandId === event.commandId) {
       // Main confirmed the oldest pending command. The visible model was built from the confirmed
       // one with exactly this command first, the same way main did, so the confirmed model moves
       // one step closer to the visible one and nothing visible changes.
@@ -111,49 +123,58 @@ export class CollectionState {
    */
   resync(): Promise<void> {
     if (this.resyncing != null) return this.resyncing;
-    // main applied these before it gets the request, so the snapshot contains them
-    const contained = [...this.acknowledged];
-    this.resyncing = this.fetchSnapshot()
-      .then((snapshot) => {
+    this.resyncing = this.fetchSnapshot().then(
+      (snapshot) => {
+        this.resyncing = undefined;
+        const buffered = this.buffered;
+        this.buffered = [];
         // a snapshot broadcast while this one was fetched is newer, e.g. of another collection
-        if (snapshot.version < this.confirmed.version) return;
-        for (const commandId of contained) this.removePending(commandId);
-        this.setConfirmed(snapshot);
-      })
-      .catch((error) => console.error('Could not fetch the collection state', error))
-      .finally(() => (this.resyncing = undefined));
+        if (snapshot.version >= this.confirmed.version) {
+          const contained = new Set(
+            buffered
+              .filter((event) => event.version <= snapshot.version)
+              .map((event) => event.commandId)
+          );
+          this.pending = this.pending.filter(
+            ({ envelope, appliedVersion }) =>
+              !contained.has(envelope.commandId) &&
+              (appliedVersion == null || appliedVersion > snapshot.version)
+          );
+          this.setConfirmed(snapshot);
+        }
+        for (const event of buffered) this.receive(event);
+      },
+      (error: unknown) => {
+        this.resyncing = undefined;
+        this.buffered = [];
+        console.error('Could not fetch the collection state', error);
+        // at least drop the pending commands that were removed meanwhile, e.g. rejected ones
+        this.setConfirmed(this.confirmed);
+      }
+    );
     return this.resyncing;
   }
 
-  private async sendPending(envelope: CommandEnvelope): Promise<void> {
+  private async sendPending(pending: PendingCommand): Promise<void> {
     try {
-      await this.send(envelope);
+      pending.appliedVersion = await this.send(pending.envelope);
     } catch (error) {
-      if (this.removePending(envelope.commandId)) this.setConfirmed(this.confirmed);
+      this.removePending(pending.envelope.commandId);
       await this.resync();
       throw error;
     }
-
-    // main applied the command, but its patches may still be on their way, see `acknowledged`
-    if (this.pending.some((pending) => pending.commandId === envelope.commandId)) {
-      this.acknowledged.add(envelope.commandId);
-    }
   }
 
-  /** Removes a pending command without recomputing the visible model. Returns false if absent. */
-  private removePending(commandId: string): boolean {
-    this.acknowledged.delete(commandId);
-    const index = this.pending.findIndex((envelope) => envelope.commandId === commandId);
-    if (index === -1) return false;
-    this.pending.splice(index, 1);
-    return true;
+  /** Removes a pending command without recomputing the visible model. */
+  private removePending(commandId: string) {
+    this.pending = this.pending.filter(({ envelope }) => envelope.commandId !== commandId);
   }
 
   /** Replaces the confirmed model and rebases the pending commands onto it. */
   private setConfirmed(model: CollectionModel) {
     this.confirmed = model;
     let visible = model;
-    this.pending = this.pending.filter((envelope) => {
+    this.pending = this.pending.filter(({ envelope }) => {
       try {
         visible = applyCommandTo(visible, envelope);
         return true;

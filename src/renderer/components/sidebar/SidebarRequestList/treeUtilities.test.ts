@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { flattenTree, getMaxTimestamps, getRangeSelection } from './treeUtilities';
+import { flattenTree, getMaxTimestamps, getMoveIndex, getRangeSelection } from './treeUtilities';
 import { CollectionModel, normalizeCollection } from 'shim/collection-model';
 import { Folder } from 'shim/objects/folder';
 import { TrufosRequest } from 'shim/objects/request';
-import { makeCollection, makeFolder, makeRequest } from '@/__mocks__/fake-collection-main';
+import { makeCollection, makeFolder, makeRequest } from 'shim/collection-model/fixtures';
 
 const request = (id: string, parentId: string, lastModified = 0): TrufosRequest =>
   makeRequest(id, parentId, { lastModified });
@@ -76,7 +76,7 @@ describe('flattenTree', () => {
   });
 
   it('sorts the children of each parent with the given function', () => {
-    const items = flattenTree(t, 'col', new Set(), (a, b) => a.title.localeCompare(b.title));
+    const items = flattenTree(t, 'col', new Set(), (a, b) => a.localeCompare(b));
 
     expect(items.map(({ id }) => id)).toEqual(['a-request', 'b-folder']);
   });
@@ -103,5 +103,27 @@ describe('getRangeSelection', () => {
 
   it('falls back to just the target when the target is not found', () => {
     expect(getRangeSelection(ORDERED_IDS, 'b', 'missing')).toEqual(['missing']);
+  });
+});
+
+describe('getMoveIndex', () => {
+  it('returns the drop index when only the dragged item moves', () => {
+    // [p, a, q, b]: b dropped between a and q
+    expect(getMoveIndex(['p', 'a', 'q', 'b'], 'b', 2, new Set(['b']))).toBe(2);
+  });
+
+  it('places the group after the last sibling before the drop position that stays', () => {
+    // [p, b, q, c, r, a, s]: a dropped between b and q, b and c move along
+    expect(
+      getMoveIndex(['p', 'b', 'q', 'c', 'r', 'a', 's'], 'a', 2, new Set(['a', 'b', 'c']))
+    ).toBe(1);
+  });
+
+  it('returns 0 when no staying sibling is before the drop position', () => {
+    expect(getMoveIndex(['b', 'p'], 'a', 1, new Set(['a', 'b']))).toBe(0);
+  });
+
+  it('works for a dragged item from another parent', () => {
+    expect(getMoveIndex(['p', 'q'], 'x', 1, new Set(['x', 'y']))).toBe(1);
   });
 });

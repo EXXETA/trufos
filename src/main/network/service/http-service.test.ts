@@ -1,4 +1,4 @@
-import { HttpService, PreparedRequest } from './http-service';
+import { HttpService } from './http-service';
 import { Dispatcher, MockAgent, FormData } from 'undici';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -11,9 +11,7 @@ import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { AuthorizationType } from 'shim/objects';
-import { EnvironmentService } from 'main/environment/service/environment-service';
 import { DisplayableError } from 'shim/error/DisplayableError';
-import { TemplateReplaceStream, UnmatchedVariableError } from 'template-replace-stream';
 import { BodyStore } from 'main/network/service/body-store';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { ScriptingService } from 'main/scripting/scripting-service';
@@ -22,8 +20,12 @@ import { text as readText } from 'node:stream/consumers';
 import type { RequestRecorder } from 'main/network/service/request-recorder';
 import type { BodyCopy } from 'main/network/service/request-body-copy';
 import { ScriptType } from 'shim/scripting';
-import { CollectionStateService } from 'main/collection-state/collection-state-service';
-import { normalizeCollection } from 'shim/collection-model';
+import {
+  CollectionChangedError,
+  CollectionStateService,
+  type PreparedRequest,
+} from 'main/collection-state/collection-state-service';
+import { type CollectionModel, normalizeCollection } from 'shim/collection-model';
 import { freeze } from 'immer';
 import { HistoryService } from 'main/history/history-service';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
@@ -31,7 +33,6 @@ import type { TrufosResponse } from 'shim/objects/response';
 
 const mockAgent = new MockAgent({ connections: 1 });
 const recorder = { sent: vi.fn(), scriptLog: vi.fn() } satisfies RequestRecorder;
-const environmentService = EnvironmentService.instance;
 const model = normalizeCollection({
   id: randomUUID(),
   type: 'collection',
@@ -44,11 +45,22 @@ const model = normalizeCollection({
   children: [],
 });
 
+/** Returns the model with the given collection variables. */
+function withVariables(variables: Map<string, string>): CollectionModel {
+  const collectionVariables = Object.fromEntries(
+    [...variables].map(([key, value]) => [key, { value }])
+  );
+  return { ...model, collection: { ...model.collection, variables: collectionVariables } };
+}
+
 /** Prepares a request the way `CollectionStateService.prepareRequest()` does. */
-async function prepare(request: TrufosRequest): Promise<PreparedRequest> {
+async function prepare(
+  request: TrufosRequest,
+  preparedModel: CollectionModel = model
+): Promise<PreparedRequest> {
   return {
     request,
-    collectionId: model.collection.id,
+    model: preparedModel,
     ...(await PersistenceService.instance.openRequestFiles(request)),
   };
 }
@@ -66,12 +78,11 @@ describe('HttpService', () => {
     // @ts-expect-error loadScript mock returns null but type expects ReadStream | null
     vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
     vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockResolvedValue(undefined);
-    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(model);
     vi.spyOn(CollectionStateService.instance, 'applyTo').mockImplementation(
       async (collectionId, plan) => {
-        if (model.collection.id !== collectionId) return false;
+        if (model.collection.id !== collectionId) throw new CollectionChangedError();
         plan(model);
-        return true;
+        return model;
       }
     );
   });
@@ -231,12 +242,6 @@ describe('HttpService', () => {
       ['resource', 'data'],
     ]);
 
-    const spy = vi
-      .spyOn(environmentService, 'setVariablesInString')
-      .mockImplementation((input: string) =>
-        TemplateReplaceStream.replaceStringAsync(input, variables)
-      );
-
     const rawUrl = 'https://{{host}}/{{basePath}}/{{resource}}';
     const expectedFinalUrl = 'https://dev.example.com/api/data';
     const urlObj = new URL(expectedFinalUrl);
@@ -255,22 +260,17 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request, withVariables(variables)), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
     // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.origin + lastCall.path).toEqual(expectedFinalUrl);
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
   });
 
   it('fetchAsync() should convert an undefined URL variable into a DisplayableError', async () => {
     // Arrange
-    const spy = vi
-      .spyOn(environmentService, 'setVariablesInString')
-      .mockRejectedValue(new UnmatchedVariableError('baseUrl'));
     const httpService = new HttpService(() => Promise.resolve(mockAgent));
     const request: TrufosRequest = {
       id: randomUUID(),
@@ -290,7 +290,6 @@ describe('HttpService', () => {
       title: 'Undefined Variable',
       description: expect.stringContaining('baseUrl'),
     });
-    spy.mockRestore();
   });
 
   it('fetchAsync() should replace variables inside header values', async () => {
@@ -299,11 +298,6 @@ describe('HttpService', () => {
       ['apiVersion', 'v1'],
       ['token', 'staging-token'],
     ]);
-    const spy = vi
-      .spyOn(environmentService, 'setVariablesInString')
-      .mockImplementation((input: string) =>
-        TemplateReplaceStream.replaceStringAsync(input, variables)
-      );
 
     const finalUrl = new URL('https://example.com/test');
     const httpService = setupMockHttpService(finalUrl, 'OK');
@@ -324,7 +318,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request, withVariables(variables)), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
@@ -333,8 +327,6 @@ describe('HttpService', () => {
     expect(lastCall.headers['x-api-version']).toEqual(['v1']);
     // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.headers.authorization).toEqual(['Bearer staging-token']);
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
   });
 
   it('fetchAsync() should support multiple header values with variable replacement', async () => {
@@ -343,11 +335,6 @@ describe('HttpService', () => {
       ['trace1', 'abc'],
       ['trace2', 'def'],
     ]);
-    const spy = vi
-      .spyOn(environmentService, 'setVariablesInString')
-      .mockImplementation((input: string) =>
-        TemplateReplaceStream.replaceStringAsync(input, variables)
-      );
 
     const finalUrl = new URL('https://example.com/multi');
     const httpService = setupMockHttpService(finalUrl, 'OK');
@@ -368,15 +355,13 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request, withVariables(variables)), recorder);
 
     // Assert
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
     // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(lastCall.headers['x-trace-id']).toEqual(['abc', 'def']);
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
   });
 
   it('fetchAsync() should skip headers with a blank key', async () => {
@@ -521,11 +506,6 @@ describe('HttpService', () => {
       ['username', 'alice'],
       ['token', 'secret123'],
     ]);
-    const spy = vi
-      .spyOn(environmentService, 'setVariablesInString')
-      .mockImplementation((input: string) =>
-        TemplateReplaceStream.replaceStringAsync(input, variables)
-      );
 
     const url = new URL('https://example.com/formvars');
     const mockClient = mockAgent.get(url.origin);
@@ -558,7 +538,7 @@ describe('HttpService', () => {
     };
 
     // Act
-    await httpService.fetchAsync(await prepare(request), recorder);
+    await httpService.fetchAsync(await prepare(request, withVariables(variables)), recorder);
 
     // Assert
     // @ts-expect-error getCallHistory() return type may not have lastCall
@@ -567,7 +547,6 @@ describe('HttpService', () => {
     // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     const body: FormData = lastCall.body as unknown as FormData;
     expect(body).toBeInstanceOf(FormData);
-    expect(spy).toHaveBeenCalled();
     expect(body.get('user')).toEqual('alice');
     expect(body.get('apikey')).toEqual('secret123');
   });
@@ -641,7 +620,7 @@ describe('HttpService', () => {
     );
     const executeSpy = vi
       .spyOn(ScriptingService.instance, 'executeScript')
-      .mockResolvedValue(undefined);
+      .mockImplementation(async (_code, _type, _log, scriptModel) => scriptModel);
     const prepared = await prepare(request);
 
     // the files of the request change after it was prepared
@@ -679,7 +658,8 @@ describe('HttpService', () => {
       headers: [],
       body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
     };
-    const prepared = { ...(await prepare(request)), collectionId: 'closed-collection' };
+    const closed = { ...model, collection: { ...model.collection, id: 'closed-collection' } };
+    const prepared = await prepare(request, closed);
 
     // Act & Assert
     await expect(httpService.fetchAsync(prepared, recorder)).rejects.toMatchObject({
@@ -689,7 +669,7 @@ describe('HttpService', () => {
       'pre',
       ScriptType.PRE_REQUEST,
       expect.any(Function),
-      'closed-collection'
+      closed
     );
     expect(dispatcherProvider).not.toHaveBeenCalled();
     expect(recorder.sent).not.toHaveBeenCalled();
@@ -847,16 +827,59 @@ describe('HttpService', () => {
       headers: [],
       body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
     };
-    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue({
+    const certificateModel = {
       ...model,
       collection: { ...model.collection, clientCertificate },
-    });
+    };
+
+    // Act
+    await httpService.fetchAsync(await prepare(request, certificateModel), recorder);
+
+    // Assert
+    expect(dispatcherProvider).toHaveBeenCalledWith(clientCertificate);
+  });
+
+  it('fetchAsync() should resolve the URL, auth and headers with the variables the pre-request script set', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/scripted');
+    mockAgent.get(url.origin).intercept({ path: url.pathname }).reply(200, 'OK');
+    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    vi.spyOn(PersistenceService.instance, 'loadScript').mockImplementation(async (_, type) =>
+      type === ScriptType.PRE_REQUEST ? (Readable.from('pre') as fs.ReadStream) : undefined
+    );
+    const scripted = withVariables(
+      new Map([
+        ['path', 'scripted'],
+        ['token', 'from-script'],
+      ])
+    );
+    vi.spyOn(ScriptingService.instance, 'executeScript').mockImplementation(
+      async (_code, type, _log, scriptModel) =>
+        type === ScriptType.PRE_REQUEST ? scripted : scriptModel
+    );
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Scripted Request',
+      url: parseUrl('https://example.com/api/{{ path }}'),
+      method: RequestMethod.GET,
+      headers: [{ key: 'X-Token', value: '{{ token }}', isActive: true }],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+      auth: { type: AuthorizationType.BEARER, token: '{{ token }}' },
+    };
 
     // Act
     await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
-    expect(dispatcherProvider).toHaveBeenCalledWith(clientCertificate);
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall?.path).toBe(url.pathname);
+    expect(lastCall?.headers).toMatchObject({
+      'x-token': ['from-script'],
+      authorization: 'Bearer from-script',
+    });
   });
 });
 
@@ -900,10 +923,9 @@ describe('HttpService.sendRequest()', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     httpService = new HttpService(() => Promise.resolve(mockAgent));
-    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(model);
     vi.spyOn(CollectionStateService.instance, 'prepareRequest').mockResolvedValue({
       request,
-      collectionId: model.collection.id,
+      model,
       scripts: {},
     });
   });
@@ -912,7 +934,7 @@ describe('HttpService.sendRequest()', () => {
     // Arrange
     const prepared = {
       request,
-      collectionId: model.collection.id,
+      model,
       textBody: Readable.from('body'),
       scripts: {},
     };
@@ -982,6 +1004,25 @@ describe('HttpService.sendRequest()', () => {
     expect(getSignal()?.aborted).toBe(true);
   });
 
+  it('keeps the abort key of a later send that reuses it', async () => {
+    // Arrange
+    const getSignal = fetchUntilAborted(() => new Error('aborted'));
+    const first = httpService.sendRequest(request.id, 'shared-key');
+    await vi.waitFor(() => expect(getSignal()).toBeDefined());
+    const firstSignal = getSignal();
+    const second = httpService.sendRequest(request.id, 'shared-key');
+    await vi.waitFor(() => expect(getSignal()).not.toBe(firstSignal));
+    firstSignal?.dispatchEvent(new Event('abort'));
+    await first.catch(() => undefined);
+
+    // Act
+    httpService.abortRequest('shared-key');
+
+    // Assert
+    await expect(second).resolves.toBeNull();
+    expect(getSignal()?.aborted).toBe(true);
+  });
+
   it('does not send a request that was aborted while it was being prepared', async () => {
     // Arrange: the serial queue of the collection state is busy, so preparing takes a while
     let releasePrepare!: () => void;
@@ -989,7 +1030,7 @@ describe('HttpService.sendRequest()', () => {
     vi.mocked(CollectionStateService.instance.prepareRequest).mockReturnValue(
       new Promise<void>((resolve) => (releasePrepare = resolve)).then(() => ({
         request,
-        collectionId: model.collection.id,
+        model,
         textBody,
         scripts: {},
       }))
@@ -1030,7 +1071,7 @@ describe('HttpService.sendRequest()', () => {
     for (const textBody of textBodies) {
       vi.mocked(CollectionStateService.instance.prepareRequest).mockResolvedValueOnce({
         request,
-        collectionId: model.collection.id,
+        model,
         textBody,
         scripts: {},
       });

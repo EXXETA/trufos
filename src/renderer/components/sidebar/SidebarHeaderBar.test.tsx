@@ -2,7 +2,7 @@ import { render, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SidebarHeaderBar } from './SidebarHeaderBar';
-import { SortMode, SORT_CYCLE } from './SidebarRequestList/treeUtilities';
+import { SortMode, SORT_CYCLE } from '@/state/interface/SortMode';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useViewStore } from '@/state/viewStore';
 import { useHistoryStore } from '@/state/historyStore';

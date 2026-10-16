@@ -1,4 +1,4 @@
-import { TrufosResponse, Collection, CollectionBase, VariableObject } from './objects';
+import { TrufosResponse, CollectionBase, VariableObject } from './objects';
 import type { CollectionModel, CollectionStateEvent, CommandEnvelope } from './collection-model';
 import { AppSettings } from './app-settings';
 import { HistoryEntry, HistoryEntrySummary } from './history';
@@ -40,8 +40,9 @@ export enum RendererEvent {
 
 /**
  * The payload of every {@link MainProcessEvent}. Sender and listener are both typed from this map,
- * so they cannot disagree. A type is no runtime guarantee though: listeners still validate payloads
- * they take over into state.
+ * so they cannot disagree. Listeners do not validate the payloads: the main process is the trusted
+ * side and builds them from data it validated already, e.g. the collection state from validated
+ * commands.
  */
 export interface MainProcessEventPayloads {
   [MainProcessEvent.BeforeClose]: [];
@@ -78,7 +79,8 @@ export interface ImportWarning {
 }
 
 export interface ImportResult {
-  collection: Collection;
+  /** The directory the collection was imported into. Open it to make it the current one. */
+  dirPath: string;
   warnings: ImportWarning[];
 }
 
@@ -103,11 +105,13 @@ export interface IEventService {
 
   /**
    * Applies a command to the open collection and persists the change. The resulting patches are
-   * broadcast as {@link MainProcessEvent.CollectionStateChanged} before this resolves.
+   * broadcast as {@link MainProcessEvent.CollectionStateChanged}. The IPC does not order the reply
+   * and the broadcast, so this may resolve before the patches arrive.
    * @param envelope The command to apply.
+   * @returns the model version the command was applied as
    * @throws if the command is invalid or cannot be applied
    */
-  dispatch(envelope: CommandEnvelope): Promise<void>;
+  dispatch(envelope: CommandEnvelope): Promise<number>;
 
   /**
    * Lists all recently opened collections.

@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { TrufosId } from './objects/id';
 import { ScriptType } from './scripting';
 
 /**
@@ -6,10 +8,25 @@ import { ScriptType } from './scripting';
  * collection, from its draft if it has one. A `body` input streams a body stored in the main
  * process by its ID, e.g. one of the request history.
  */
-export type StreamInput =
-  | string
-  | { type: 'request-body'; requestId: string }
-  | { type: 'script'; source: ScriptType; requestId: string }
-  | { type: 'body'; id: string };
+export const StreamInput = z.union([
+  z.string().min(1),
+  z.object({ type: z.literal('request-body'), requestId: TrufosId }),
+  z.object({ type: z.literal('script'), source: z.enum(ScriptType), requestId: TrufosId }),
+  z.object({ type: z.literal('body'), id: z.string().min(1) }),
+]);
+export type StreamInput = z.infer<typeof StreamInput>;
 
-export type StringBufferEncoding = Exclude<BufferEncoding, 'binary'>;
+export const StringBufferEncoding = z.enum([
+  'ascii',
+  'utf8',
+  'utf-8',
+  'utf16le',
+  'utf-16le',
+  'ucs2',
+  'ucs-2',
+  'base64',
+  'base64url',
+  'latin1',
+  'hex',
+] as const satisfies Exclude<BufferEncoding, 'binary'>[]);
+export type StringBufferEncoding = z.infer<typeof StringBufferEncoding>;

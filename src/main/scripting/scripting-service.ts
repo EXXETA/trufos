@@ -1,6 +1,9 @@
 import { app } from 'electron';
-import { castDraft, type Draft, produce } from 'immer';
-import { CollectionStateService } from 'main/collection-state/collection-state-service';
+import { type Draft, produce } from 'immer';
+import {
+  CollectionChangedError,
+  CollectionStateService,
+} from 'main/collection-state/collection-state-service';
 import { createContext, Script } from 'node:vm';
 import { ScriptConsole, ScriptingContext, ScriptType, VariableObject } from 'shim';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
@@ -13,7 +16,6 @@ import {
   CollectionModel,
   CommandType,
 } from 'shim/collection-model';
-import { TrufosId } from 'shim/objects/id';
 
 const collectionState = CollectionStateService.instance;
 
@@ -28,18 +30,45 @@ export class ScriptingService {
 
   /**
    * Creates the scripting API.
-   * @param getCollection returns the draft of the collection the script reads and sets its
-   * variables in
+   * @param getCollection returns the collection the script reads its variables from
+   * @param getDraft returns the draft of the collection the script sets its variables in, or
+   * undefined if they cannot be set anymore
    * @param selectedEnvironmentKey the environment the script uses by default
    */
   private createApi(
     script: ScriptType,
     log: ScriptLogger,
-    getCollection: () => Draft<CollectionInfo>,
+    getCollection: () => CollectionInfo,
+    getDraft: () => Draft<CollectionInfo> | undefined,
     selectedEnvironmentKey?: string
   ) {
-    const getEnvironment = (key = selectedEnvironmentKey) =>
-      key == null ? undefined : getCollection().environments[key];
+    const getEnvironment = (collection: CollectionInfo, key = selectedEnvironmentKey) =>
+      key == null ? undefined : collection.environments[key];
+    const setVariable = (
+      getVariables: (
+        draft: Draft<CollectionInfo>
+      ) => Draft<CollectionInfo['variables']> | undefined,
+      name: string,
+      value: string | VariableObject
+    ) => {
+      const draft = getDraft();
+      if (draft == null) {
+        // not thrown: a callback that runs after the script, e.g. from a promise, would turn it
+        // into an unhandled rejection of the app
+        log({
+          script,
+          level: 'error',
+          args: [
+            'The variables cannot be changed anymore, as the script has finished. Callbacks that run after the script, e.g. from a promise, are not supported.',
+          ],
+        });
+        return;
+      }
+      const variables = getVariables(draft);
+      if (variables != null) {
+        variables[name] = ScriptingService.mergeVariable(variables[name], value);
+      }
+    };
 
     return Object.freeze<ScriptingContext>({
       console: ScriptingService.createConsole(script, log),
@@ -49,25 +78,18 @@ export class ScriptingService {
 
         getCollectionVariable: (name: string) => getCollection().variables[name]?.value,
 
-        setCollectionVariable: (name: string, value: string | VariableObject) => {
-          const { variables } = getCollection();
-          variables[name] = ScriptingService.mergeVariable(variables[name], value);
-        },
+        setCollectionVariable: (name: string, value: string | VariableObject) =>
+          setVariable((draft) => draft.variables, name, value),
 
         getEnvironmentVariable: (name: string, environment?: string) =>
-          getEnvironment(environment)?.variables[name]?.value,
+          getEnvironment(getCollection(), environment)?.variables[name]?.value,
 
+        // like reading, writing to an environment that does not exist has no effect
         setEnvironmentVariable: (
           name: string,
           value: string | VariableObject,
           environment?: string
-        ) => {
-          // like reading, writing to an environment that does not exist has no effect
-          const variables = getEnvironment(environment)?.variables;
-          if (variables != null) {
-            variables[name] = ScriptingService.mergeVariable(variables[name], value);
-          }
-        },
+        ) => setVariable((draft) => getEnvironment(draft, environment)?.variables, name, value),
       }),
     });
   }
@@ -108,15 +130,18 @@ export class ScriptingService {
    * @param code the source code of the script
    * @param type the type of the script, used to label its console output
    * @param log receives the console output and errors of the script
-   * @param collectionId the collection the script belongs to. If another collection is open, the
-   * script is not run, as it would read and change the variables of that collection.
+   * @param model the model of the collection the script belongs to
+   * @returns the model after the script ran, or the given one if the script did not run or its
+   * variables could not be written
+   * @throws a {@link CollectionChangedError} if another collection is open, as the script would
+   * read and change the variables of that collection
    */
   public async executeScript(
     code: string,
     type: ScriptType,
     log: ScriptLogger,
-    collectionId: TrufosId
-  ): Promise<void> {
+    model: CollectionModel
+  ): Promise<CollectionModel> {
     let script: Script;
     try {
       const now = getSteadyTimestamp();
@@ -125,23 +150,17 @@ export class ScriptingService {
     } catch (err) {
       logger.info(`Script compilation failed with ${errorName(err)}`);
       log({ script: type, level: 'error', args: [err] });
-      return;
+      return model;
     }
 
-    let ran: boolean;
     try {
-      ran = await collectionState.applyTo(collectionId, (model) =>
-        this.runScript(script, type, log, model)
+      return await collectionState.applyTo(model.collection.id, (current) =>
+        this.runScript(script, type, log, current)
       );
     } catch (err) {
+      if (err instanceof CollectionChangedError) throw err;
       logger.error('Failed to apply the variables changed by a script:', err);
-      return;
-    }
-    if (!ran) {
-      const message =
-        'The script was not run, as another collection was opened while the request was sent';
-      logger.warn(message);
-      log({ script: type, level: 'warn', args: [message] });
+      return model;
     }
   }
 
@@ -156,26 +175,21 @@ export class ScriptingService {
     { collection, selectedEnvironmentKey }: CollectionModel
   ): CollectionCommand | undefined {
     // The script runs synchronously, so the collection cannot change while it runs. The draft only
-    // exists while it runs: a callback that runs later, e.g. from a promise, gets a throwaway copy
-    // instead, so its reads see what the script left behind and its writes are lost.
+    // exists while it runs: a callback that runs later, e.g. from a promise, reads what the script
+    // left behind and cannot change it.
     let draft: Draft<CollectionInfo> | undefined;
     let finished: CollectionInfo = collection;
-    const getCollection = () => {
-      if (draft != null) return draft;
-      log({
-        script: type,
-        level: 'error',
-        args: [
-          'The variables cannot be changed anymore, as the script has finished. Callbacks that run after the script, e.g. from a promise, are not supported.',
-        ],
-      });
-      return castDraft(structuredClone(finished));
-    };
     const changed = produce(collection, (recipe) => {
       draft = recipe;
       try {
         const context = createContext(
-          this.createApi(type, log, getCollection, selectedEnvironmentKey),
+          this.createApi(
+            type,
+            log,
+            () => draft ?? finished,
+            () => draft,
+            selectedEnvironmentKey
+          ),
           {
             name: 'Trufos Scripting Context',
           }

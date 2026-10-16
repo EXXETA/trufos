@@ -222,7 +222,6 @@ export const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } =
     cache: {
       type: 'checkbox',
       label: 'Keep Browser Session Cache',
-      defaultValue: true,
     },
   },
   [OAuth2Method.AUTHORIZATION_CODE_PKCE]: {
@@ -264,7 +263,6 @@ export const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } =
     cache: {
       type: 'checkbox',
       label: 'Keep Browser Session Cache',
-      defaultValue: true,
     },
   },
 };

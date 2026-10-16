@@ -1,9 +1,14 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
-import { EnvironmentService } from 'main/environment/service/environment-service';
+import {
+  getVariable,
+  getVariables,
+  resolveVariablesInString,
+} from 'main/environment/service/variable-resolver';
 import { HttpService } from 'main/network/service/http-service';
 import type {
   TrufosResponse,
   IEventService,
+  ImportResult,
   ImportStrategy,
   ExportStrategy,
   ExportOptions,
@@ -28,7 +33,6 @@ import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 import './stream-events';
 
 const collectionState = CollectionStateService.instance;
-const environmentService = EnvironmentService.instance;
 const httpService = HttpService.instance;
 const importService = ImportService.instance;
 const exportService = ExportService.instance;
@@ -118,8 +122,8 @@ export class MainEventService implements IEventService {
     return collectionState.model;
   }
 
-  async dispatch(envelope: unknown): Promise<void> {
-    await collectionState.dispatch(envelope);
+  async dispatch(envelope: unknown): Promise<number> {
+    return await collectionState.dispatch(envelope);
   }
 
   async listCollections(): Promise<CollectionBase[]> {
@@ -139,15 +143,18 @@ export class MainEventService implements IEventService {
   }
 
   async getActiveEnvironmentVariables() {
-    return environmentService.getVariables();
+    return getVariables(collectionState.model);
   }
 
   async getVariable(key: string) {
-    return environmentService.getVariable(key);
+    return getVariable(collectionState.model, key);
   }
 
   async resolveVariablesInString(string: string) {
-    return await environmentService.setVariablesInString(string, true).catch(() => null);
+    // on the queue, so the variable edits the renderer dispatched before are applied
+    return await collectionState
+      .read((model) => resolveVariablesInString(model, string, true))
+      .catch(() => null);
   }
 
   async openCollection(dirPath: string): Promise<void> {
@@ -175,8 +182,14 @@ export class MainEventService implements IEventService {
     targetDirPath: string,
     strategy: ImportStrategy,
     title?: string
-  ) {
-    return await importService.importCollection(srcFilePath, targetDirPath, strategy, title);
+  ): Promise<ImportResult> {
+    const { collection, warnings } = await importService.importCollection(
+      srcFilePath,
+      targetDirPath,
+      strategy,
+      title
+    );
+    return { dirPath: collection.dirPath, warnings };
   }
 
   async exportCollection(

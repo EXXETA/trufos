@@ -44,10 +44,6 @@ vi.mock('@/lib/monaco/models', () => ({
   })),
 }));
 
-vi.mock('@/state/helper/collectionUtil', () => ({
-  setScriptContent: vi.fn(),
-}));
-
 vi.mock('@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect', () => ({
   SimpleSelect: ({
     onValueChange,

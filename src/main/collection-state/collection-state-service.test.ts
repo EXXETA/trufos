@@ -14,9 +14,9 @@ import {
   CommandType,
 } from 'shim/collection-model';
 import { Collection } from 'shim/objects/collection';
-import { RequestBodyType, TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/objects/request';
+import { TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
-import { parseUrl } from 'shim/objects/url';
+import { makeCollection, makeRequest } from 'shim/collection-model/fixtures';
 import type {
   CollectionStateService,
   REQUEST_INFO_DEBOUNCE_MS as DebounceMs,
@@ -31,41 +31,26 @@ let service: CollectionStateService;
 let REQUEST_INFO_DEBOUNCE_MS: typeof DebounceMs;
 let events: CollectionStateEvent[];
 
-function request(id: string, parentId: string, overrides: Partial<TrufosRequest> = {}) {
-  return {
-    id,
-    parentId,
-    type: 'request',
-    lastModified: 0,
-    title: id,
-    url: parseUrl('http://example.com'),
-    method: RequestMethod.GET,
-    headers: [],
-    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-    draft: false,
-    ...overrides,
-  } satisfies TrufosRequest;
-}
+const request = makeRequest;
 
 function collection(id: string, dirPath: string, requestIds: string[]): Collection {
-  return {
+  return makeCollection(
     id,
-    type: 'collection',
-    title: id,
-    dirPath,
-    isDefault: false,
-    lastModified: 0,
-    variables: {},
-    environments: { dev: { variables: {} }, prod: { variables: {} } },
-    children: requestIds.map((requestId) => request(requestId, id)),
-  };
+    requestIds.map((requestId) => request(requestId, id)),
+    {
+      title: id,
+      dirPath,
+      isDefault: false,
+      environments: { dev: { variables: {} }, prod: { variables: {} } },
+    }
+  );
 }
 
 function envelope(command: CollectionCommand, commandId = 'cmd'): CommandEnvelope {
   return { commandId, timestamp: 1, command };
 }
 
-function apply(command: CollectionCommand): Promise<void> {
+function apply(command: CollectionCommand): Promise<number> {
   return service.dispatch(envelope(command));
 }
 
@@ -269,6 +254,16 @@ describe('CollectionStateService', () => {
   });
 
   describe('dispatch()', () => {
+    it('resolves with the version the command was applied as', async () => {
+      // Arrange
+      const version = service.model.version;
+
+      // Act & Assert
+      await expect(apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' })).resolves.toBe(
+        version + 1
+      );
+    });
+
     it('broadcasts patches that reproduce the model on a replica', async () => {
       // Arrange
       const replica = structuredClone(service.model);
@@ -352,16 +347,20 @@ describe('CollectionStateService', () => {
       expect(plan).not.toHaveBeenCalled();
       resolve();
       await renaming;
-      await expect(applying).resolves.toBe(true);
-      expect(service.model.collection.title).toBe('renamed planned');
+      const applied = await applying;
+      expect(applied).toBe(service.model);
+      expect(applied.collection.title).toBe('renamed planned');
     });
 
     it('applyTo() applies nothing if the plan returns nothing', async () => {
+      // Arrange
+      const model = service.model;
+
       // Act
       const applied = await service.applyTo('first', () => undefined);
 
       // Assert
-      expect(applied).toBe(true);
+      expect(applied).toBe(model);
       expect(events).toEqual([]);
     });
 
@@ -369,11 +368,10 @@ describe('CollectionStateService', () => {
       // Arrange
       const plan = vi.fn(() => undefined);
 
-      // Act
-      const applied = await service.applyTo('second', plan);
-
-      // Assert
-      expect(applied).toBe(false);
+      // Act & Assert
+      await expect(service.applyTo('second', plan)).rejects.toMatchObject({
+        name: 'CollectionChangedError',
+      });
       expect(plan).not.toHaveBeenCalled();
     });
 
@@ -575,7 +573,7 @@ describe('CollectionStateService', () => {
       );
 
       // Assert
-      await expect(dispatched).rejects.toThrow('Another collection was opened');
+      await expect(dispatched).rejects.toMatchObject({ name: 'CollectionChangedError' });
       await loading;
       expect(service.model.collection).toMatchObject({ id: 'second', title: 'second' });
       expect(events.map((event) => event.kind)).toEqual(['snapshot']);
@@ -600,7 +598,7 @@ describe('CollectionStateService', () => {
       );
       const failing = apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' });
       const loadCollection = persistenceService.loadCollection.bind(persistenceService);
-      let dispatchedDuringReload: Promise<void> | undefined;
+      let dispatchedDuringReload: Promise<number> | undefined;
       vi.spyOn(persistenceService, 'loadCollection').mockImplementationOnce((...args) => {
         dispatchedDuringReload = service.dispatch(
           envelope({ type: CommandType.UPDATE_COLLECTION, changes: { title: 'renamed' } })
@@ -613,7 +611,7 @@ describe('CollectionStateService', () => {
 
       // Assert
       await expect(failing).rejects.toThrow('disk full');
-      await expect(dispatchedDuringReload).resolves.toBeUndefined();
+      await expect(dispatchedDuringReload).resolves.toBe(service.model.version);
       expect(service.model.collection.title).toBe('renamed');
       expect(service.model.requests.get('r1')?.title).toBe('r1');
       expect(events.map((event) => event.kind)).toEqual(['patches', 'snapshot', 'patches']);
@@ -642,7 +640,7 @@ describe('CollectionStateService', () => {
 
       // Assert
       await expect(failing).rejects.toThrow('disk full');
-      await expect(queued).resolves.toBeUndefined();
+      await expect(queued).resolves.toBe(service.model.version);
       expect(service.model.requests.get('r1')?.title).toBe('r1');
       expect(service.model.folders.has('f1')).toBe(true);
       expect(service.model.childIds.get('first')).toContain('f1');
@@ -663,7 +661,7 @@ describe('CollectionStateService', () => {
 
       // Assert: the model keeps the change that could not be written until a later reload
       await expect(failing).rejects.toThrow('disk full');
-      await expect(queued).resolves.toBeUndefined();
+      await expect(queued).resolves.toBe(service.model.version);
       expect(service.model.requests.get('r1')?.title).toBe('renamed');
       expect(service.model.collection.title).toBe('again');
       expect(events.map((event) => event.kind)).toEqual(['patches', 'patches']);
@@ -851,7 +849,7 @@ describe('CollectionStateService', () => {
       // Assert
       expect(prepared).toMatchObject({
         request: { id: 'r1' },
-        collectionId: 'first',
+        model: service.model,
         scripts: {},
       });
       await expect(service.prepareRequest('missing')).rejects.toThrow(

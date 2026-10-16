@@ -1,12 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { freeze } from 'immer';
-import { EnvironmentService } from './environment-service';
+import {
+  getAuthorizationHeader,
+  getVariable,
+  getVariables,
+  resolveVariablesInString,
+} from './variable-resolver';
 import { UnmatchedVariableError } from 'template-replace-stream';
 import { Collection } from 'shim/objects/collection';
 import { VariableObject } from 'shim/objects/variables';
 import { randomUUID } from 'node:crypto';
 import { getSystemVariables } from './system-variable';
-import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { CollectionModel, normalizeCollection } from 'shim/collection-model';
 import {
   AuthorizationType,
@@ -14,8 +18,6 @@ import {
   BearerAuthorizationInformation,
   InheritAuthorizationInformation,
 } from 'shim/objects';
-
-const environmentService = EnvironmentService.instance;
 
 const environmentKey = 'test';
 const variableKey = 'var1';
@@ -40,41 +42,21 @@ const collection: Collection = {
   variables: {},
 };
 
-describe('EnvironmentService', () => {
+describe('variable-resolver', () => {
   let model: CollectionModel;
 
   beforeEach(() => {
     model = normalizeCollection(structuredClone(collection), [], environmentKey);
-    vi.spyOn(CollectionStateService.instance, 'model', 'get').mockImplementation(() => model);
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('currentEnvironment getter should return the currently selected environment', () => {
-    // Act
-    let currentEnvironment = environmentService.currentEnvironment;
-
-    // Assert
-    expect(currentEnvironment).toEqual(collection.environments[environmentKey]);
-
-    // Arrange
-    model.selectedEnvironmentKey = undefined;
-
-    // Act
-    currentEnvironment = environmentService.currentEnvironment;
-
-    // Assert
-    expect(currentEnvironment).toBeUndefined();
-  });
+  const environment = () => model.collection.environments[environmentKey];
 
   it('getVariables() should return all currently available variables', () => {
     // Arrange
     const systemVariables = getSystemVariables();
 
     // Act
-    const variables = environmentService.getVariables();
+    const variables = getVariables(model);
 
     // Assert
     expect(variables).toEqual([
@@ -84,25 +66,33 @@ describe('EnvironmentService', () => {
     ]);
   });
 
+  it('getVariable() should skip the environments if none is selected', () => {
+    // Arrange
+    model.selectedEnvironmentKey = undefined;
+
+    // Act & Assert
+    expect(getVariable(model, variableKey)).toBeUndefined();
+  });
+
   it('getVariable() should return the first matching variable by the given key', () => {
     // Arrange
     const [key, systemVariable] = getSystemVariables()[0];
     const collectionVariable: VariableObject = { value: randomUUID() };
     const environmentVariable: VariableObject = { value: randomUUID() };
     model.collection.variables[key] = collectionVariable;
-    environmentService.currentEnvironment!.variables[key] = environmentVariable;
+    environment().variables[key] = environmentVariable;
 
     // Act
-    let result = environmentService.getVariable(key);
+    let result = getVariable(model, key);
 
     // Assert
     expect(result).toEqual(environmentVariable);
 
     // Arrange
-    delete environmentService.currentEnvironment!.variables[key];
+    delete environment().variables[key];
 
     // Act
-    result = environmentService.getVariable(key);
+    result = getVariable(model, key);
 
     // Assert
     expect(result).toEqual(collectionVariable);
@@ -111,18 +101,18 @@ describe('EnvironmentService', () => {
     delete model.collection.variables[key];
 
     // Act
-    result = environmentService.getVariable(key);
+    result = getVariable(model, key);
 
     // Assert
     expect(result).toEqual(systemVariable);
   });
 
-  it('setVariablesInString() should replace all variable placeholders with their values', async () => {
+  it('resolveVariablesInString() should replace all variable placeholders with their values', async () => {
     // Arrange
     const template = `Replacing {{ ${variableKey} }}`;
 
     // Act
-    const result = await environmentService.setVariablesInString(template);
+    const result = await resolveVariablesInString(model, template);
 
     // Assert
     expect(result).toBe(`Replacing ${variableValue}`);
@@ -130,7 +120,7 @@ describe('EnvironmentService', () => {
 
   it('getAuthorizationHeader() should return undefined when auth is undefined', async () => {
     // Act
-    const result = await environmentService.getAuthorizationHeader();
+    const result = await getAuthorizationHeader(model);
 
     // Assert
     expect(result).toBeUndefined();
@@ -142,7 +132,7 @@ describe('EnvironmentService', () => {
     const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
 
     // Act
-    const result = await environmentService.getAuthorizationHeader(auth);
+    const result = await getAuthorizationHeader(model, auth);
 
     // Assert
     expect(result).toBeUndefined();
@@ -160,7 +150,7 @@ describe('EnvironmentService', () => {
     const expected = `Basic ${Buffer.from(`${collectionAuth.username}:${collectionAuth.password}`).toString('base64')}`;
 
     // Act
-    const result = await environmentService.getAuthorizationHeader(auth);
+    const result = await getAuthorizationHeader(model, auth);
 
     // Assert
     expect(result).toBe(expected);
@@ -168,8 +158,8 @@ describe('EnvironmentService', () => {
 
   it('getAuthorizationHeader() should substitute variables for Basic auth credentials', async () => {
     // Arrange
-    environmentService.currentEnvironment!.variables.varUser = { value: 'user1' };
-    environmentService.currentEnvironment!.variables.varPass = { value: 'pass1' };
+    environment().variables.varUser = { value: 'user1' };
+    environment().variables.varPass = { value: 'pass1' };
     const auth: BasicAuthorizationInformation = {
       type: AuthorizationType.BASIC,
       username: '{{ varUser }}',
@@ -178,7 +168,7 @@ describe('EnvironmentService', () => {
     const expected = `Basic ${Buffer.from('user1:pass1').toString('base64')}`;
 
     // Act
-    const result = await environmentService.getAuthorizationHeader(auth);
+    const result = await getAuthorizationHeader(model, auth);
 
     // Assert
     expect(result).toBe(expected);
@@ -191,7 +181,7 @@ describe('EnvironmentService', () => {
     const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
 
     // Act
-    const result = await environmentService.getAuthorizationHeader(auth);
+    const result = await getAuthorizationHeader(model, auth);
 
     // Assert
     expect(result).toBe(`Bearer ${variableValue}`);
@@ -200,7 +190,7 @@ describe('EnvironmentService', () => {
 
   it('getAuthorizationHeader() should substitute variables inside Bearer token', async () => {
     // Arrange
-    environmentService.currentEnvironment!.variables.varToken = { value: 'abc123' };
+    environment().variables.varToken = { value: 'abc123' };
     const auth: BearerAuthorizationInformation = {
       type: AuthorizationType.BEARER,
       token: 'prefix-{{ varToken }}-suffix',
@@ -208,32 +198,32 @@ describe('EnvironmentService', () => {
     const expected = 'Bearer prefix-abc123-suffix';
 
     // Act
-    const result = await environmentService.getAuthorizationHeader(auth);
+    const result = await getAuthorizationHeader(model, auth);
 
     // Assert
     expect(result).toBe(expected);
   });
 
-  describe('setVariablesInString() undefined variable handling', () => {
+  describe('resolveVariablesInString() undefined variable handling', () => {
     it('should not throw for undefined variables by default', async () => {
-      await expect(environmentService.setVariablesInString('a/{{ missing }}/b')).resolves.toContain(
+      await expect(resolveVariablesInString(model, 'a/{{ missing }}/b')).resolves.toContain(
         'missing'
       );
     });
 
     it('should throw an UnmatchedVariableError naming the variable when enabled', async () => {
       await expect(
-        environmentService.setVariablesInString('a/{{ missing }}/b', true)
+        resolveVariablesInString(model, 'a/{{ missing }}/b', true)
       ).rejects.toBeInstanceOf(UnmatchedVariableError);
       await expect(
-        environmentService.setVariablesInString('a/{{ missing }}/b', true)
+        resolveVariablesInString(model, 'a/{{ missing }}/b', true)
       ).rejects.toHaveProperty('variableName', 'missing');
     });
 
     it('should not throw when enabled and all variables are defined', async () => {
-      await expect(
-        environmentService.setVariablesInString(`{{ ${variableKey} }}`, true)
-      ).resolves.toBe(variableValue);
+      await expect(resolveVariablesInString(model, `{{ ${variableKey} }}`, true)).resolves.toBe(
+        variableValue
+      );
     });
   });
 });

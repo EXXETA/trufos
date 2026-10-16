@@ -3,13 +3,7 @@ import {
   CollectionModel,
   CollectionStateEvent,
   CommandEnvelope,
-  normalizeCollection,
 } from 'shim/collection-model';
-import { Collection } from 'shim/objects/collection';
-import { Folder } from 'shim/objects/folder';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { RequestMethod } from 'shim/objects/request-method';
-import { parseUrl } from 'shim/objects/url';
 
 /**
  * Plays the part of the main process' `CollectionStateService` in renderer tests: it applies
@@ -34,7 +28,7 @@ export class FakeCollectionMain {
   constructor(public model: CollectionModel) {}
 
   /** Implements `IEventService.dispatch`. */
-  dispatch = async (envelope: CommandEnvelope): Promise<void> => {
+  dispatch = async (envelope: CommandEnvelope): Promise<number> => {
     this.received.push(envelope);
     if (this.rejectNext != null) {
       const error = this.rejectNext;
@@ -53,6 +47,7 @@ export class FakeCollectionMain {
       if (this.holdBroadcasts) this.held.push(event);
       else this.emit(event);
     }
+    return model.version;
   };
 
   /** Broadcasts the events held back by {@link holdBroadcasts}, in order. */
@@ -73,74 +68,4 @@ export class FakeCollectionMain {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
-}
-
-export function makeRequest(
-  id: string,
-  parentId: string,
-  overrides: Partial<TrufosRequest> = {}
-): TrufosRequest {
-  return {
-    id,
-    parentId,
-    type: 'request',
-    lastModified: 0,
-    title: id,
-    url: parseUrl('http://localhost'),
-    method: RequestMethod.GET,
-    headers: [],
-    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-    draft: false,
-    ...overrides,
-  };
-}
-
-export function makeFolder(
-  id: string,
-  parentId: string,
-  children: Folder['children'] = []
-): Folder {
-  return { id, parentId, type: 'folder', lastModified: 0, title: id, children };
-}
-
-export function makeCollection(
-  id: string,
-  children: Collection['children'] = [],
-  overrides: Partial<Collection> = {}
-): Collection {
-  return {
-    id,
-    type: 'collection',
-    title: 'Test',
-    dirPath: `/${id}`,
-    lastModified: 0,
-    variables: {},
-    environments: {},
-    children,
-    ...overrides,
-  };
-}
-
-/**
- * col
- * ├── f1
- * │   ├── r1
- * │   └── f2
- * │       └── r2
- * └── r3
- */
-export function makeModel(overrides: Partial<Collection> = {}): CollectionModel {
-  return normalizeCollection(
-    makeCollection(
-      'col',
-      [
-        makeFolder('f1', 'col', [
-          makeRequest('r1', 'f1'),
-          makeFolder('f2', 'f1', [makeRequest('r2', 'f2')]),
-        ]),
-        makeRequest('r3', 'col'),
-      ],
-      overrides
-    )
-  );
 }

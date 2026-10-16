@@ -202,7 +202,7 @@ export class PersistenceService {
   public async saveScript(request: TrufosRequest, type: ScriptType, script: string): Promise<void> {
     const filePath = await this.getScriptFilePath(request, type);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, script);
+    await fileSystemService.replaceFile(filePath, script);
   }
 
   /**
@@ -331,7 +331,7 @@ export class PersistenceService {
     const secrets = extractSecrets(object);
     if (Object.keys(secrets).length > 0) {
       logger.debug(`Saving secrets for ${object.type} with ID [${object.id}]`);
-      await fs.writeFile(filePath, secretService.encrypt(JSON.stringify(secrets)));
+      await fileSystemService.replaceFile(filePath, secretService.encrypt(JSON.stringify(secrets)));
     } else if (await exists(filePath)) {
       logger.debug(`Removing secrets file for ${object.type} with ID [${object.id}]`);
       await fs.unlink(filePath);

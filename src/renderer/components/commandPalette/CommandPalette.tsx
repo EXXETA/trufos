@@ -15,7 +15,7 @@ import {
   SquareMousePointer,
   HardDrive,
 } from 'lucide-react';
-import { CollectionTree, FolderInfo, getChildren } from 'shim/collection-model';
+import { CollectionTree, walkTree } from 'shim/collection-model';
 import { TrufosRequest } from 'shim/objects/request';
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -71,24 +71,17 @@ interface ActionItem {
 /**
  * Walk the collection depth-first, flattening nested folders into a single group per folder.
  */
-const buildRequestGroups = (
-  tree: CollectionTree,
-  parentId: string,
-  folder: FolderInfo | null = null
-): RequestGroup[] => {
-  const group: RequestGroup = {
-    id: folder?.id ?? null,
-    label: folder?.title ?? null,
-    requests: [],
-  };
-  const subGroups: RequestGroup[] = [];
-
-  for (const child of getChildren(tree, parentId)) {
-    if (child.type === 'request') group.requests.push(child);
-    else subGroups.push(...buildRequestGroups(tree, child.id, child));
-  }
-
-  return group.requests.length > 0 ? [group, ...subGroups] : subGroups;
+const buildRequestGroups = (tree: CollectionTree, collectionId: string): RequestGroup[] => {
+  const groups = new Map<string, RequestGroup>([
+    [collectionId, { id: null, label: null, requests: [] }],
+  ]);
+  walkTree(tree, collectionId, (id) => {
+    const folder = tree.folders.get(id);
+    const request = tree.requests.get(id);
+    if (folder != null) groups.set(id, { id, label: folder.title, requests: [] });
+    else if (request != null) groups.get(request.parentId)?.requests.push(request);
+  });
+  return [...groups.values()].filter((group) => group.requests.length > 0);
 };
 
 const TABS = ['all', 'requests', 'environments', 'actions'] as const;
@@ -105,7 +98,8 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const collection = useCollectionStore((s) => s.collection);
-  const tree = useCollectionTree();
+  // the palette is always mounted, so it only follows the tree while it is open
+  const tree = useCollectionTree(open);
   const requestGroups = useMemo(
     () => buildRequestGroups(tree, collection.id),
     [tree, collection.id]

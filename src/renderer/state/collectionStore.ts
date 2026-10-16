@@ -5,8 +5,7 @@ import { immer } from 'zustand/middleware/immer';
 import { type Draft, produce } from 'immer';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { HttpService } from '@/services/http/http-service';
-import { loadEditorContent } from '@/state/helper/collectionUtil';
-import { applyAuthorizationChange } from '@/state/helper/authorization';
+import { loadEditorContent } from '@/lib/monaco/editor-content';
 import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { CollectionState, FetchSnapshot, SendCommand } from '@/state/collection-state';
@@ -16,12 +15,12 @@ import {
   disposeModelsForRequest,
   flushModelEdits,
   ModelPersistence,
-  suspendModelEdits,
 } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
 import {
   CollectionCommand,
   CollectionModel,
+  CollectionStructure,
   CollectionTree,
   CommandType,
   FolderInfo,
@@ -30,13 +29,12 @@ import {
   getTopLevelIds,
   RequestChanges,
 } from 'shim/collection-model';
-import { AuthorizationInformation } from 'shim/objects/auth';
 import { FormDataBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { TrufosId } from 'shim/objects/id';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
-import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
+import { SortMode } from '@/state/interface/SortMode';
 
 const eventService = RendererEventService.instance;
 const httpService = HttpService.instance;
@@ -153,9 +151,10 @@ export const createCollectionStore = (
     editFailed: (id, model, error) => {
       showError('Could not save the editor change', error);
       // the editor shows text that is not persisted, so it goes back to what is
-      const request = get().requests.get(id);
-      if (request != null && get().selectedRequestId === id) {
-        loadEditorContent(request, model).catch((e) => showError('Could not load the request', e));
+      if (get().requests.has(id) && get().selectedRequestId === id) {
+        loadEditorContent(id, { only: model }).catch((e) =>
+          showError('Could not load the request', e)
+        );
       }
     },
   };
@@ -214,7 +213,9 @@ export const createCollectionStore = (
     // the time the next render reads them.
     if (request != null) {
       createModelsForRequest(request.id, modelPersistence);
-      loadEditorContent(request).catch((error) => showError('Could not load the request', error));
+      loadEditorContent(request.id).catch((error) =>
+        showError('Could not load the request', error)
+      );
     }
 
     const ancestorIds = request != null ? getAncestorIds(get(), request.id) : [];
@@ -374,19 +375,11 @@ export const createCollectionStore = (
       discardChanges: reported('Could not discard the changes', async () => {
         const request = selectRequest(get());
         if (request == null) return;
-        // text typed while main discards is replaced by the saved content, so it is not an edit
         cancelModelEdits(request.id);
-        const resume = suspendModelEdits(request.id);
-        try {
-          await dispatch({ type: CommandType.DISCARD_REQUEST, id: request.id });
-          // a request that was never saved is gone now; otherwise reload its saved editor content
-          const restored = get().requests.get(request.id);
-          if (restored != null && get().selectedRequestId === request.id) {
-            await loadEditorContent(restored);
-          }
-        } finally {
-          resume();
-        }
+        const discarded = dispatch({ type: CommandType.DISCARD_REQUEST, id: request.id });
+        // the saved content is loaded once main discarded the changes, so text typed meanwhile is
+        // replaced instead of sent. A request that was never saved gets empty editors.
+        await Promise.all([discarded, loadEditorContent(request.id, { after: discarded })]);
       }),
 
       saveRequest: reported('Could not save the request', async (id) => {
@@ -483,25 +476,12 @@ export const createCollectionStore = (
         });
       },
 
-      updateAuthorization: (changes) => {
-        const request = selectRequest(get());
-        if (request == null) return;
-
-        let auth: AuthorizationInformation | null = null;
-        if (changes != null) {
-          try {
-            auth = applyAuthorizationChange(request.auth, changes);
-          } catch (error) {
-            console.error('Ignoring an invalid authorization change', error);
-            return;
-          }
+      updateCollection: reported(
+        'Could not change the collection',
+        async (changes, selectedEnvironmentKey) => {
+          await dispatch({ type: CommandType.UPDATE_COLLECTION, changes, selectedEnvironmentKey });
         }
-        editRequest({ auth });
-      },
-
-      updateCollection: reported('Could not change the collection', async (changes) => {
-        await dispatch({ type: CommandType.UPDATE_COLLECTION, changes });
-      }),
+      ),
 
       selectEnvironment: reported('Could not select the environment', async (key) => {
         await dispatch({ type: CommandType.SELECT_ENVIRONMENT, key });
@@ -591,12 +571,37 @@ export const useCollectionStore = <T>(
 
 export const useCollectionActions = (): CollectionStateActions => useCollectionStore(useActions());
 
-/** Returns the tree of the collection. It only changes when the tree or one of its nodes changes. */
-export const useCollectionTree = (): CollectionTree => {
+/** Returned by the tree hooks while they are disabled, so they do not cause renders. */
+const EMPTY_TREE: CollectionTree = Object.freeze({
+  childIds: new Map(),
+  folders: new Map(),
+  requests: new Map(),
+});
+
+/**
+ * Returns the structure of the collection tree. Unlike {@link useCollectionTree}, it does not change
+ * when a request is edited, e.g. with every keystroke in the URL.
+ */
+export const useCollectionStructure = (): CollectionStructure => {
   const childIds = useCollectionStore((state) => state.childIds);
   const folders = useCollectionStore((state) => state.folders);
-  const requests = useCollectionStore((state) => state.requests);
-  return useMemo(() => ({ childIds, folders, requests }), [childIds, folders, requests]);
+  return useMemo(() => ({ childIds, folders }), [childIds, folders]);
+};
+
+/**
+ * Returns the tree of the collection. It changes whenever the tree or one of its nodes changes,
+ * including every edit of a request. Use {@link useCollectionStructure} if the requests themselves
+ * are not needed.
+ * @param enabled if false, an empty tree is returned and the hook does not cause renders
+ */
+export const useCollectionTree = (enabled = true): CollectionTree => {
+  const childIds = useCollectionStore((state) => (enabled ? state.childIds : EMPTY_TREE.childIds));
+  const folders = useCollectionStore((state) => (enabled ? state.folders : EMPTY_TREE.folders));
+  const requests = useCollectionStore((state) => (enabled ? state.requests : EMPTY_TREE.requests));
+  return useMemo(
+    () => (enabled ? { childIds, folders, requests } : EMPTY_TREE),
+    [enabled, childIds, folders, requests]
+  );
 };
 
 /** Returned while no request is selected, so the selector stays stable. */

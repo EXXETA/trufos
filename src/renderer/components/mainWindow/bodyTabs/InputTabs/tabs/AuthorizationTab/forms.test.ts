@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   AuthorizationInformation,
   AuthorizationType,
+  createDefaultAuthorization,
+  getMethod,
   OAuth1Method,
   OAuth2Method,
 } from 'shim/objects/auth';
-import { createDefaultAuthorization, getMethod } from '@/state/helper/authorization';
 import { getAuthorizationForm } from './forms';
 
 const DEFAULTS: [AuthorizationType, string | undefined][] = [

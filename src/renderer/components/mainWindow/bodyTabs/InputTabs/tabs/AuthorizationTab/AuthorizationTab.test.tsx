@@ -1,63 +1,63 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { AuthorizationTab } from './AuthorizationTab';
-import { CollectionStoreProvider, createCollectionStore } from '@/state/collectionStore';
-import { FakeCollectionMain, makeCollection, makeRequest } from '@/__mocks__/fake-collection-main';
-import { normalizeCollection } from 'shim/collection-model';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AuthorizationInformation,
   AuthorizationType,
-  OAuth2ClientAuthenticationMethod,
-  OAuth2ClientAuthorizationCodeFlowInformation,
   OAuth2Method,
+  OAuth2PKCECodeChallengeMethod,
 } from 'shim/objects/auth';
+import { AuthorizationTab } from './AuthorizationTab';
 
-vi.mock('@/services/event/renderer-event-service', () => ({
-  RendererEventService: { instance: {} },
+const { actions, state } = vi.hoisted(() => ({
+  actions: { updateRequest: vi.fn() },
+  state: { auth: undefined as AuthorizationInformation | undefined },
 }));
 
-vi.mock('@/lib/ipc-stream', () => ({
-  IpcPushStream: { open: vi.fn() },
-}));
-
-vi.mock('@/error/errorHandler', () => ({
-  showError: vi.fn(),
+vi.mock('@/state/collectionStore', () => ({
+  useCollectionActions: () => actions,
+  useCollectionStore: <T,>(selector: (s: typeof state) => T) => selector(state),
+  selectRequest: (s: typeof state) => ({ auth: s.auth }),
 }));
 
 describe('AuthorizationTab', () => {
-  it('does not change a saved request whose authorization lacks optional fields', () => {
-    // state and cache are optional and missing
-    const auth: OAuth2ClientAuthorizationCodeFlowInformation = {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('sends the complete authorization when a field changes', () => {
+    state.auth = { type: AuthorizationType.BASIC, username: 'user', password: '' };
+    render(<AuthorizationTab />);
+
+    fireEvent.change(screen.getByPlaceholderText('Enter password'), {
+      target: { value: 'secret' },
+    });
+
+    expect(actions.updateRequest).toHaveBeenCalledExactlyOnceWith({
+      auth: { type: AuthorizationType.BASIC, username: 'user', password: 'secret' },
+    });
+  });
+
+  it('shows the default of a field the authorization does not have', () => {
+    const { cache: _cache, ...withoutCache } = {
       type: AuthorizationType.OAUTH2,
-      method: OAuth2Method.AUTHORIZATION_CODE,
+      method: OAuth2Method.AUTHORIZATION_CODE_PKCE,
       issuerUrl: '',
-      clientId: 'client',
+      clientId: '',
       clientSecret: '',
       tokenUrl: '',
       scope: '',
-      clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
+      clientAuthenticationMethod: 'basic-auth',
       authorizationUrl: '',
       callbackUrl: '',
-    };
-    const main = new FakeCollectionMain(
-      normalizeCollection(makeCollection('col', [makeRequest('r1', 'col', { auth })]))
-    );
-    const { store, collectionState } = createCollectionStore(
-      structuredClone(main.model),
-      main.dispatch,
-      main.getCollectionState
-    );
-    main.onEvent((event) => collectionState.receive(event));
-    store.setState({ selectedRequestId: 'r1' });
+      codeChallengeMethod: OAuth2PKCECodeChallengeMethod.S256,
+      codeVerifier: '',
+      state: '',
+      cache: true,
+    } as const;
+    state.auth = AuthorizationInformation.parse(withoutCache);
+    render(<AuthorizationTab />);
 
-    render(
-      <CollectionStoreProvider value={store}>
-        <AuthorizationTab />
-      </CollectionStoreProvider>
-    );
-
-    const cache = screen.getByRole('checkbox', { name: 'Keep Browser Session Cache' });
-    expect(cache.getAttribute('aria-checked')).toBe('true');
-    expect(main.received).toEqual([]);
-    expect(store.getState().requests.get('r1')).toEqual(makeRequest('r1', 'col', { auth }));
+    const checkbox = screen.getByRole('checkbox', { name: 'Keep Browser Session Cache' });
+    expect(checkbox.getAttribute('aria-checked')).toBe('true');
   });
 });

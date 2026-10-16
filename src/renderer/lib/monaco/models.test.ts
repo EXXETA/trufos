@@ -9,7 +9,6 @@ import {
   getScriptModel,
   loadModelContent,
   MODEL_EDIT_DEBOUNCE_MS,
-  suspendModelEdits,
 } from './models';
 
 const persistence = {
@@ -132,22 +131,6 @@ describe('editor models', () => {
     await vi.advanceTimersByTimeAsync(MODEL_EDIT_DEBOUNCE_MS);
 
     expect(persistence.editFailed).toHaveBeenCalledExactlyOnceWith(REQUEST_ID, 'body', error);
-  });
-
-  it('suspendModelEdits ignores changes until the edits are resumed', () => {
-    const resume = suspendModelEdits(REQUEST_ID);
-    type(getBodyModel(REQUEST_ID), 'while suspended');
-    vi.advanceTimersByTime(MODEL_EDIT_DEBOUNCE_MS);
-
-    expect(persistence.markDraft).not.toHaveBeenCalled();
-    expect(persistence.setTextBody).not.toHaveBeenCalled();
-
-    resume();
-    type(getBodyModel(REQUEST_ID), 'after');
-    vi.advanceTimersByTime(MODEL_EDIT_DEBOUNCE_MS);
-
-    expect(persistence.markDraft).toHaveBeenCalledExactlyOnceWith(REQUEST_ID);
-    expect(persistence.setTextBody).toHaveBeenCalledExactlyOnceWith(REQUEST_ID, 'after');
   });
 
   describe('loadModelContent', () => {

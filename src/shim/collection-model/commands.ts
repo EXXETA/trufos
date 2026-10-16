@@ -113,7 +113,15 @@ export const CollectionCommand = z.discriminatedUnion('type', [
   /** Restores the saved state of a request. A request that was never saved is deleted. */
   z.object({ type: z.literal(CommandType.DISCARD_REQUEST), id: TrufosId }),
   /** Changes the settings of the collection itself. */
-  z.object({ type: z.literal(CommandType.UPDATE_COLLECTION), changes: CollectionChanges }),
+  z.object({
+    type: z.literal(CommandType.UPDATE_COLLECTION),
+    changes: CollectionChanges,
+    /**
+     * The environment to select once the changes are applied, `null` for none. Undefined keeps
+     * the selection, unless the selected environment is removed.
+     */
+    selectedEnvironmentKey: z.string().nullable().optional(),
+  }),
   /** Selects an environment, or none. The selection is not persisted. */
   z.object({ type: z.literal(CommandType.SELECT_ENVIRONMENT), key: z.string().optional() }),
 ]);

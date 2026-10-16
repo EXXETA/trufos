@@ -13,6 +13,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import {
   useCollectionActions,
   useCollectionStore,
+  useCollectionStructure,
   useCollectionTree,
 } from '@/state/collectionStore';
 import { SidebarContent, SidebarMenu } from '@/components/ui/sidebar';
@@ -23,14 +24,14 @@ import {
   removeChildrenOf,
   getProjection,
   getMaxTimestamps,
+  getMoveIndex,
   getRangeSelection,
-  SortMode,
 } from './treeUtilities';
-import { getMoveIndex } from '@/state/helper/collectionUtil';
+import { SortMode } from '@/state/interface/SortMode';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';
-import { FolderInfo, getTopLevelIds, isSelfOrDescendant, TreeNode } from 'shim/collection-model';
+import { FolderInfo, getNode, getTopLevelIds, isSelfOrDescendant } from 'shim/collection-model';
 import { TrufosRequest } from 'shim/objects/request';
 import { NavCreateItem } from '@/components/sidebar/SidebarRequestList/Nav/NavCreateItem';
 import { BulkActionBar } from '@/components/sidebar/SidebarRequestList/BulkActionBar';
@@ -116,11 +117,15 @@ const DragOverlayContent = ({ itemId, groupCount }: { itemId: string; groupCount
 
 export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarRequestListProps) => {
   const collectionId = useCollectionStore((state) => state.collection.id);
-  const tree = useCollectionTree();
+  const structure = useCollectionStructure();
   const openFolders = useCollectionStore((state) => state.openFolders);
   const sortMode = useCollectionStore((state) => state.sortMode);
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
   const selectedIds = useCollectionStore((state) => state.selectedIds);
+  // The requests are only needed to sort them and to find the parents of a multi-selection, so
+  // the list does not follow every edit of a request otherwise, e.g. every keystroke in the URL.
+  const { requests } = useCollectionTree(sortMode !== SortMode.DEFAULT || selectedIds.size > 1);
+  const tree = useMemo(() => ({ ...structure, requests }), [structure, requests]);
   const {
     moveItems,
     setSelectedRequest,
@@ -144,19 +149,20 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
   );
   const activeSensors = sortMode === SortMode.DEFAULT ? sensors : [];
 
-  const sortFn = useMemo((): ((a: TreeNode, b: TreeNode) => number) | undefined => {
-    if (sortMode === SortMode.AZ_ASC) return (a, b) => a.title.localeCompare(b.title);
-    if (sortMode === SortMode.AZ_DESC) return (a, b) => b.title.localeCompare(a.title);
+  const sortFn = useMemo((): ((a: string, b: string) => number) | undefined => {
+    const title = (id: string) => getNode(tree, id)?.title ?? '';
+    if (sortMode === SortMode.AZ_ASC) return (a, b) => title(a).localeCompare(title(b));
+    if (sortMode === SortMode.AZ_DESC) return (a, b) => title(b).localeCompare(title(a));
     if (sortMode !== SortMode.TIME_DESC && sortMode !== SortMode.TIME_ASC) return undefined;
     const timestamps = getMaxTimestamps(tree, collectionId);
     const direction = sortMode === SortMode.TIME_DESC ? -1 : 1;
-    return (a, b) => direction * ((timestamps.get(a.id) ?? 0) - (timestamps.get(b.id) ?? 0));
+    return (a, b) => direction * ((timestamps.get(a) ?? 0) - (timestamps.get(b) ?? 0));
   }, [sortMode, tree, collectionId]);
 
   // Flatten the tree for a single SortableContext.
   const flattenedItems = useMemo(
-    () => flattenTree(tree, collectionId, openFolders, sortFn),
-    [tree, collectionId, openFolders, sortFn]
+    () => flattenTree(structure, collectionId, openFolders, sortFn),
+    [structure, collectionId, openFolders, sortFn]
   );
 
   const visibleRequestIds = useMemo(
@@ -313,24 +319,22 @@ export const SidebarRequestList = ({ creatingItem, onCreateItem }: SidebarReques
 
     setActiveId(null);
 
-    if (!isMultiDrag) {
-      void moveItems([activeIdStr], projection.parentId, projection.newIndex);
-      return;
+    // The dragged item lands where it was dropped, followed by the rest of a group in pre-drag
+    // order
+    const movedIds = [activeIdStr];
+    if (isMultiDrag) {
+      movedIds.push(
+        ...flattenedItems
+          .filter((item) => item.id !== activeIdStr && topLevelSelectedIds.includes(item.id))
+          .map((item) => item.id)
+      );
     }
-
-    // The dragged item lands where it was dropped, followed by the rest in pre-drag order
-    const movedIds = [
-      activeIdStr,
-      ...flattenedItems
-        .filter((item) => item.id !== activeIdStr && topLevelSelectedIds.includes(item.id))
-        .map((item) => item.id),
-    ];
-    clearSelection();
     if (movedIds.some((id) => isSelfOrDescendant(tree, projection.parentId, id))) {
-      // Dropping the group into one of its own folders (or their descendants) would nest a
-      // member inside itself; reject the whole drop before anything moves (I20).
+      // Dropping an item into one of its own folders (or their descendants) would nest it inside
+      // itself; reject the whole drop before anything moves or the selection changes (I20).
       return;
     }
+    if (isMultiDrag) clearSelection();
     const index = getMoveIndex(
       tree.childIds.get(projection.parentId) ?? [],
       activeIdStr,

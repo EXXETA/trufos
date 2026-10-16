@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { z } from 'zod';
 import { createReadStream } from 'node:fs';
 import type { Readable } from 'node:stream';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
@@ -16,7 +17,10 @@ const collectionState = CollectionStateService.instance;
 
 ipcMain.handle(
   'stream-open',
-  async (event, input: StreamInput, encoding?: StringBufferEncoding, maxBytes?: number) => {
+  async (event, rawInput: unknown, rawEncoding?: unknown, rawMaxBytes?: unknown) => {
+    const input = StreamInput.parse(rawInput);
+    const encoding = StringBufferEncoding.optional().parse(rawEncoding);
+    const maxBytes = z.number().int().positive().optional().parse(rawMaxBytes);
     const { sender } = event;
     const id = nextId++;
 
@@ -32,12 +36,10 @@ ipcMain.handle(
       stream = await collectionState.readRequest(input.requestId, (request) =>
         persistenceService.loadScript(request, input.source)
       );
-    } else if (input.type === 'request-body') {
+    } else {
       stream = await collectionState.readRequest(input.requestId, (request) =>
         persistenceService.loadTextBodyOfRequest(request, encoding)
       );
-    } else {
-      logger.error('Invalid stream input of type', typeof input);
     }
 
     if (stream == null) {

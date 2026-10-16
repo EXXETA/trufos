@@ -1,12 +1,11 @@
 import { CollectionChanges, RequestChanges } from 'shim/collection-model';
-import { AuthorizationInformation } from 'shim/objects/auth';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { FormDataBody, RequestBody } from 'shim/objects/request';
 import { TrufosId } from 'shim/objects/id';
 import { TrufosResponse } from 'shim/objects/response';
 import { ScriptType } from 'shim/scripting';
-import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
+import { SortMode } from '@/state/interface/SortMode';
 
 type FormDataField = FormDataBody['fields'][number];
 
@@ -228,18 +227,16 @@ export interface CollectionStateActions {
   setFolderClose(id: TrufosId): void;
 
   /**
-   * Update the authorization of the selected request. If the type or the OAuth method changes,
-   * the authorization is replaced by a complete default for the new type or method.
-   * @param changes the fields to change, or null to remove the authorization
-   */
-  updateAuthorization(changes: Partial<AuthorizationInformation> | null): void;
-
-  /**
    * Change the settings of the current collection. Settings that are not given stay unchanged.
    * @param changes the settings to change. `null` removes the client certificate or the
    * authorization.
+   * @param selectedEnvironmentKey the environment to select after the changes, `null` for none.
+   * Undefined keeps the selection.
    */
-  updateCollection(changes: CollectionChanges): Promise<boolean>;
+  updateCollection(
+    changes: CollectionChanges,
+    selectedEnvironmentKey?: string | null
+  ): Promise<boolean>;
 
   /**
    * Select the environment whose variables are used. Not persisted.

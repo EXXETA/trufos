@@ -5,26 +5,32 @@ import { Initializable } from 'main/shared/initializable';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { SemVer } from 'main/util/semver';
 import { SerialQueue } from 'main/util/serial-queue';
+import { z } from 'zod';
 import { AppSettings } from 'shim/app-settings';
 
 const DEFAULT_APP_SETTINGS: AppSettings = { theme: 'system' };
 
 export const VERSION = new SemVer(1, 3, 0);
 
+/** Any version of the settings file. Only the version is known before it is migrated. */
+const VersionedFile = z.looseObject({ version: z.string() });
 type VersionedObject = { version: string };
 
-export interface SettingsObject {
+export const SettingsObject = z.object({
   /** The index of the currently opened collection inside the collections array */
-  currentCollectionIndex: number;
+  currentCollectionIndex: z.number().int().nonnegative(),
 
   /** A list of all the collection directories that have been opened */
-  collections: string[];
+  collections: z.array(z.string()),
 
   /** Application-level UI settings (theme, etc.) */
-  preferences?: AppSettings;
-}
+  preferences: AppSettings.optional(),
+});
+export type SettingsObject = z.infer<typeof SettingsObject>;
 
-type SettingsInfoFile = SettingsObject & { version: string };
+/** The settings file of the current version. */
+const SettingsInfoFile = SettingsObject.extend({ version: z.literal(VERSION.string) });
+type SettingsInfoFile = z.infer<typeof SettingsInfoFile>;
 
 interface SettingsFile_V_1_0_0 {
   currentCollectionIndex: number;
@@ -138,9 +144,12 @@ export class SettingsService implements Initializable {
   private async readSettings() {
     const fileContent = await readFile(SettingsService.SETTINGS_FILE, 'utf8');
     try {
-      this._settings = this.migrateSettings(JSON.parse(fileContent));
+      const { version: _version, ...settings } = SettingsInfoFile.parse(
+        this.migrateSettings(VersionedFile.parse(JSON.parse(fileContent)))
+      );
+      this._settings = settings;
     } catch (error) {
-      if (!(error instanceof SyntaxError)) {
+      if (!(error instanceof SyntaxError) && !(error instanceof z.ZodError)) {
         throw error;
       }
       logger.warn('Settings file is empty or invalid. Recreating default settings.', error);
@@ -152,7 +161,8 @@ export class SettingsService implements Initializable {
     }
   }
 
-  private migrateSettings(old: VersionedObject): SettingsInfoFile {
+  /** Migrates the settings to the current version. The result is validated by the caller. */
+  private migrateSettings(old: VersionedObject): VersionedObject {
     while (old.version !== VERSION.string) {
       const migrator = MIGRATORS[old.version as keyof typeof MIGRATORS] as SettingsMigrator<
         VersionedObject,
@@ -163,6 +173,6 @@ export class SettingsService implements Initializable {
       }
       old = migrator(old);
     }
-    return old as SettingsInfoFile;
+    return old;
   }
 }

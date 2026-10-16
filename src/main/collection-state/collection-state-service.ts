@@ -16,7 +16,8 @@ import {
 import { CollectionBase } from 'shim/objects/collection';
 import { TrufosId } from 'shim/objects/id';
 import { TrufosRequest } from 'shim/objects/request';
-import type { PreparedRequest } from 'main/network/service/http-service';
+import { DisplayableError } from 'shim/error/DisplayableError';
+import type { RequestFiles } from 'main/persistence/service/persistence-service';
 import { getCommandEffects } from './command-effects';
 
 const persistenceService = PersistenceService.instance;
@@ -41,6 +42,34 @@ type CollectionStateServiceEvents = {
 export type CommandPlan = (model: CollectionModel) => CollectionCommand | undefined;
 
 const noop = () => {};
+
+/**
+ * A request together with its files and the model, taken at the moment it is sent. Its scripts
+ * are read, its text body is streamed from the file opened then. So editing, saving or discarding
+ * the request while it is sent cannot change what is sent, as these replace files instead of
+ * changing them. Whoever prepared the request closes its text body.
+ */
+export interface PreparedRequest extends RequestFiles {
+  request: TrufosRequest;
+  /**
+   * The model the request was taken from. The request is sent with its variables and client
+   * certificate, or with the model a pre-request script left behind, see
+   * {@link CollectionStateService.applyTo}.
+   */
+  model: CollectionModel;
+}
+
+/** Thrown if a change was meant for a collection that is no longer the open one. */
+export class CollectionChangedError extends DisplayableError {
+  constructor() {
+    super(
+      'Another collection was opened meanwhile, so the change was not applied. Please try again.',
+      'Collection Changed'
+    );
+    Reflect.setPrototypeOf(this, CollectionChangedError.prototype);
+    this.name = CollectionChangedError.name;
+  }
+}
 
 /**
  * Owns the currently open collection as a {@link CollectionModel}. Every change is a
@@ -168,43 +197,40 @@ export class CollectionStateService
    * effects are written before this resolves; request info files of edits are written later.
    * @param input the {@link CommandEnvelope}. It is validated, as it usually comes from the
    * renderer.
-   * @throws if the envelope is invalid, the command cannot be applied, another collection was
-   * opened before the command was applied, or persisting it failed
+   * @returns the model version the command was applied as
+   * @throws if the envelope is invalid, the command cannot be applied, persisting it failed, or
+   * with a {@link CollectionChangedError} if another collection was opened before it was applied
    */
-  public async dispatch(input: unknown): Promise<void> {
+  public async dispatch(input: unknown): Promise<number> {
     const envelope = CommandEnvelope.parse(input);
-    const collectionId = this.model.collection.id;
-    await this.queue.run(() => {
-      if (this.model.collection.id !== collectionId) {
-        throw new Error('Another collection was opened, the command was not applied');
-      }
-      return this.applyEnvelope(envelope);
-    });
+    const applied = await this.runFor(this.model.collection.id, () => this.applyEnvelope(envelope));
+    return applied.version;
   }
 
   /**
    * Plans a command from the current model and applies it, see {@link dispatch}. Both happen on
    * the queue, so the model the command was planned from is the one it is applied to.
-   * @param collectionId the collection the plan belongs to. The plan does not run if another
-   * collection is open when it is its turn.
+   * @param collectionId the collection the plan belongs to
    * @param plan the {@link CommandPlan}
-   * @returns whether the plan ran. Rejects if the plan or applying its command failed.
+   * @returns the model after the command was applied. Rejects if the plan or applying its command
+   * failed, or with a {@link CollectionChangedError} if another collection is open when it is the
+   * plan's turn.
    */
-  public applyTo(collectionId: TrufosId, plan: CommandPlan): Promise<boolean> {
-    return this.queue.run(async () => {
-      if (this._model?.collection.id !== collectionId) return false;
+  public applyTo(collectionId: TrufosId, plan: CommandPlan): Promise<CollectionModel> {
+    return this.runFor(collectionId, async () => {
       const command = plan(this.model);
       if (command != null) await this.applyEnvelope(this.envelopeOf(command));
-      return true;
+      return this.model;
     });
   }
 
   /**
-   * Writes all dirty requests right away and waits until every write queued before is done.
-   * @throws if writing a dirty request failed
+   * Reads the model while no change is applied, after everything queued before.
+   * @param reader reads the model as it is when the reader runs
+   * @returns the result of the reader
    */
-  public flush(): Promise<void> {
-    return this.writeDirty();
+  public read<T>(reader: (model: CollectionModel) => T | Promise<T>): Promise<T> {
+    return this.queue.run(async () => await reader(this.model));
   }
 
   /**
@@ -218,9 +244,9 @@ export class CollectionStateService
     id: TrufosId,
     reader: (request: TrufosRequest) => Promise<T>
   ): Promise<T | undefined> {
-    this.writeDirty().catch(noop); // already logged, and the reader does not depend on it
-    return this.queue.run(async () => {
-      const request = this.model.requests.get(id);
+    this.flush().catch(noop); // already logged, and the reader does not depend on it
+    return this.read(async (model) => {
+      const request = model.requests.get(id);
       return request == null ? undefined : await reader(request);
     });
   }
@@ -233,11 +259,22 @@ export class CollectionStateService
   public async prepareRequest(id: TrufosId): Promise<PreparedRequest> {
     const prepared = await this.readRequest(id, async (request) => ({
       request,
-      collectionId: this.model.collection.id,
+      model: this.model,
       ...(await persistenceService.openRequestFiles(request)),
     }));
     if (prepared == null) throw new Error(`Request ${id} does not exist`);
     return prepared;
+  }
+
+  /**
+   * Runs a task on the queue if the given collection is still the open one when it is its turn.
+   * @throws a {@link CollectionChangedError} if another collection is open
+   */
+  private runFor<T>(collectionId: TrufosId, task: () => Promise<T>): Promise<T> {
+    return this.queue.run(() => {
+      if (this._model?.collection.id !== collectionId) throw new CollectionChangedError();
+      return task();
+    });
   }
 
   private envelopeOf(command: CollectionCommand): CommandEnvelope {
@@ -246,8 +283,9 @@ export class CollectionStateService
 
   /**
    * Applies a command, broadcasts its patches and runs its immediate effect. Runs on the queue.
+   * @returns the model the command was applied to
    */
-  private async applyEnvelope(envelope: CommandEnvelope): Promise<void> {
+  private async applyEnvelope(envelope: CommandEnvelope): Promise<CollectionModel> {
     const prev = this.model;
     const [next, patches] = applyCommandWithPatches(prev, envelope);
     this._model = next;
@@ -262,13 +300,14 @@ export class CollectionStateService
     if (effects.dirtyRequestId != null) this.markDirty(effects.dirtyRequestId);
     for (const id of effects.cleanRequestIds ?? []) this.markClean(id);
     if (effects.immediate != null) await this.runEffect(effects.immediate);
+    return next;
   }
 
   /** Postpones writing the info file of a request until it was not edited for a while. */
   private markDirty(id: TrufosId) {
     clearTimeout(this.dirtyRequests.get(id));
     // already logged, and nobody waits for a delayed write
-    const timer = setTimeout(() => this.writeDirty([id]).catch(noop), REQUEST_INFO_DEBOUNCE_MS);
+    const timer = setTimeout(() => this.flush([id]).catch(noop), REQUEST_INFO_DEBOUNCE_MS);
     this.dirtyRequests.set(id, timer);
   }
 
@@ -279,10 +318,11 @@ export class CollectionStateService
   }
 
   /**
-   * Queues writing the info files of the given requests, of all dirty ones by default. Like any
-   * effect, a failed write reloads the collection.
+   * Writes the info files of the given dirty requests, of all dirty ones by default, after
+   * everything queued before is done. Like any effect, a failed write reloads the collection.
+   * @throws if writing a dirty request failed
    */
-  private writeDirty(ids?: TrufosId[]): Promise<void> {
+  public flush(ids?: TrufosId[]): Promise<void> {
     return this.queue.run(() =>
       this.runEffect(() => this.writeDirtyRequests(ids ?? [...this.dirtyRequests.keys()]))
     );

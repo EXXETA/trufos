@@ -149,7 +149,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
           strategy,
           title!
         );
-        dirPath = result.collection.dirPath;
+        dirPath = result.dirPath;
         showImportWarnings(result.warnings);
       } catch (e) {
         showError(e);

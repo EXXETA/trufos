@@ -1,60 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { applyPatches, produceWithPatches } from 'immer';
-import { Collection } from '../objects/collection';
-import { Folder } from '../objects/folder';
-import { RequestBodyType, TrufosRequest } from '../objects/request';
 import { RequestMethod } from '../objects/request-method';
-import { parseUrl } from '../objects/url';
 import { AuthorizationType } from '../objects/auth';
 import { applyCommand, applyCommandTo } from './apply-command';
 import { CollectionCommand, CommandError, CommandType } from './commands';
-import { CollectionModel, normalizeCollection } from './model';
+import { CollectionModel } from './model';
+import { makeModel, makeRequest } from './fixtures';
 
 const TIMESTAMP = 1_000;
 
-function request(id: string, parentId: string, overrides: Partial<TrufosRequest> = {}) {
-  return {
-    id,
-    parentId,
-    type: 'request',
-    lastModified: 0,
-    title: id,
-    url: parseUrl('http://example.com'),
-    method: RequestMethod.GET,
-    headers: [],
-    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-    draft: false,
-    ...overrides,
-  } satisfies TrufosRequest;
-}
+const request = makeRequest;
 
-function folder(id: string, parentId: string, children: Folder['children'] = []): Folder {
-  return { id, parentId, type: 'folder', lastModified: 0, title: id, children };
-}
-
-/**
- * col
- * ├── f1
- * │   ├── r1
- * │   └── f2
- * │       └── r2
- * └── r3
- */
 function createModel(): CollectionModel {
-  const collection: Collection = {
-    id: 'col',
-    type: 'collection',
+  return makeModel({
     title: 'Collection',
-    dirPath: '/col',
-    lastModified: 0,
-    variables: {},
     environments: { dev: { variables: {} }, prod: { variables: {} } },
-    children: [
-      folder('f1', 'col', [request('r1', 'f1'), folder('f2', 'f1', [request('r2', 'f2')])]),
-      request('r3', 'col'),
-    ],
-  };
-  return normalizeCollection(collection);
+  });
 }
 
 function apply(model: CollectionModel, command: CollectionCommand) {
@@ -320,6 +281,37 @@ describe('applyCommand', () => {
     expect(() => apply(model, { type: CommandType.SELECT_ENVIRONMENT, key: 'missing' })).toThrow(
       CommandError
     );
+  });
+
+  it('keeps no environment selected when the collection changes', () => {
+    let model = apply(createModel(), { type: CommandType.SELECT_ENVIRONMENT });
+    model = apply(model, {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: { variables: { a: { value: '1' } } },
+    });
+    expect(model.selectedEnvironmentKey).toBeUndefined();
+  });
+
+  it('selects an environment created by the same update', () => {
+    let model = apply(createModel(), {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: { environments: { staging: { variables: {} } } },
+      selectedEnvironmentKey: 'staging',
+    });
+    expect(model.selectedEnvironmentKey).toBe('staging');
+    model = apply(model, {
+      type: CommandType.UPDATE_COLLECTION,
+      changes: {},
+      selectedEnvironmentKey: null,
+    });
+    expect(model.selectedEnvironmentKey).toBeUndefined();
+    expect(() =>
+      apply(model, {
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {},
+        selectedEnvironmentKey: 'missing',
+      })
+    ).toThrow(CommandError);
   });
 
   it('changes only the given collection settings', () => {

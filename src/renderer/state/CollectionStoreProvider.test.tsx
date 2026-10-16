@@ -4,7 +4,8 @@ import { CollectionStoreProvider } from './CollectionStoreProvider';
 import { useCollectionStore } from '@/state/collectionStore';
 import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { CommandType } from 'shim/collection-model';
-import { FakeCollectionMain, makeModel } from '@/__mocks__/fake-collection-main';
+import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
+import { makeModel } from 'shim/collection-model/fixtures';
 
 const { listeners, eventService, models } = vi.hoisted(() => {
   const listeners = new Map<string, (...args: unknown[]) => unknown>();

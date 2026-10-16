@@ -51,9 +51,6 @@ export type EditedModel = 'body' | ScriptType;
 /** Pending edits by request ID, then by model. */
 const pendingEdits = new Map<string, Map<EditedModel, PendingEdit>>();
 
-/** The requests whose changes are ignored at the moment, see {@link suspendModelEdits}. */
-const suspended = new Set<string>();
-
 /** The models whose content is being loaded, with the token of the latest load. */
 const loading = new Map<editor.ITextModel, symbol>();
 
@@ -159,16 +156,6 @@ export function cancelModelEdits(requestId: string): void {
 }
 
 /**
- * Ignores the changes of the models of a request until the returned function is called, e.g. while
- * its changes are discarded: text typed meanwhile is replaced anyway, so it must not be sent.
- * @returns resumes tracking the edits
- */
-export function suspendModelEdits(requestId: string): () => void {
-  suspended.add(requestId);
-  return () => suspended.delete(requestId);
-}
-
-/**
  * Loads the content of a model. Changes made while it loads are not edits, as the loaded content
  * replaces them: sending them would persist a fragment instead of the whole content. If the model
  * is disposed or loaded again meanwhile, the loaded content is dropped.
@@ -215,7 +202,7 @@ function trackEdits(
   // the listener is disposed together with the model
   model.onDidChangeContent((event) => {
     // a flush replaces the whole content, i.e. the content was loaded and not edited
-    if (event.isFlush || suspended.has(requestId) || loading.has(model)) return;
+    if (event.isFlush || loading.has(model)) return;
 
     let edits = pendingEdits.get(requestId);
     if (edits == null) {

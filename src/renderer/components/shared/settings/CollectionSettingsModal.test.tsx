@@ -6,7 +6,6 @@ import { CollectionSettingsModal } from './CollectionSettingsModal';
 const { actions } = vi.hoisted(() => ({
   actions: {
     updateCollection: vi.fn(async () => true),
-    selectEnvironment: vi.fn(async () => true),
   },
 }));
 
@@ -100,10 +99,10 @@ describe('CollectionSettingsModal', () => {
     await user.type(screen.getByLabelText('name'), ' Renamed');
     await user.click(screen.getByRole('button', { name: /^save$/i }));
 
-    expect(actions.updateCollection).toHaveBeenCalledExactlyOnceWith({
-      title: 'My Collection Renamed',
-    });
-    expect(actions.selectEnvironment).not.toHaveBeenCalled();
+    expect(actions.updateCollection).toHaveBeenCalledExactlyOnceWith(
+      { title: 'My Collection Renamed' },
+      undefined
+    );
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

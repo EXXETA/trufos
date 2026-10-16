@@ -11,12 +11,11 @@ import {
   CommandType,
   normalizeCollection,
 } from 'shim/collection-model';
-import { Collection } from 'shim/objects/collection';
-import { Folder } from 'shim/objects/folder';
-import { RequestBodyType, TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/objects/request';
+import { TEXT_BODY_FILE_NAME } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
+import { makeExampleCollection, makeRequest } from 'shim/collection-model/fixtures';
 import type { getCommandEffects as getCommandEffectsType } from './command-effects';
 
 // both are loaded fresh for every test, as the persistence service remembers the directories of
@@ -25,50 +24,11 @@ let persistenceService: PersistenceServiceType;
 let getCommandEffects: typeof getCommandEffectsType;
 
 const dirPath = path.join(USER_DATA_DIR, 'collections', 'command-effects');
+const request = makeRequest;
 
-function request(id: string, parentId: string, overrides: Partial<TrufosRequest> = {}) {
-  return {
-    id,
-    parentId,
-    type: 'request',
-    lastModified: 0,
-    title: id,
-    url: parseUrl('http://example.com'),
-    method: RequestMethod.GET,
-    headers: [],
-    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-    draft: false,
-    ...overrides,
-  } satisfies TrufosRequest;
-}
-
-function folder(id: string, parentId: string, children: Folder['children'] = []): Folder {
-  return { id, parentId, type: 'folder', lastModified: 0, title: id, children };
-}
-
-/**
- * col
- * ├── f1
- * │   ├── r1
- * │   └── f2
- * │       └── r2
- * └── r3
- */
+/** Writes the {@link makeExampleCollection example collection} and loads it. */
 async function createModel(): Promise<CollectionModel> {
-  const collection: Collection = {
-    id: 'col',
-    type: 'collection',
-    title: 'Collection',
-    dirPath,
-    isDefault: false,
-    lastModified: 0,
-    variables: {},
-    environments: {},
-    children: [
-      folder('f1', 'col', [request('r1', 'f1'), folder('f2', 'f1', [request('r2', 'f2')])]),
-      request('r3', 'col'),
-    ],
-  };
+  const collection = makeExampleCollection({ title: 'Collection', dirPath, isDefault: false });
   await persistenceService.saveCollection(collection, true);
   await persistenceService.saveOrder('col', ['f1', 'r3']);
   await persistenceService.saveOrder('f1', ['r1', 'f2']);
@@ -405,7 +365,7 @@ describe('getCommandEffects()', () => {
       draft: true,
       url: { base: 'http://edited' },
     });
-    expect(loaded.savedRequests.get('r3')).toMatchObject({ url: { base: 'http://example.com' } });
+    expect(loaded.savedRequests.get('r3')).toMatchObject({ url: { base: 'http://localhost' } });
   });
 
   it('editRequest of a draft is debounced', async () => {

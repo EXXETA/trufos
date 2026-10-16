@@ -109,16 +109,14 @@ describe('MainEventService', () => {
     });
 
     it('dispatch() passes the envelope to the collection state', async () => {
-      const dispatch = vi
-        .spyOn(CollectionStateService.instance, 'dispatch')
-        .mockResolvedValue(undefined);
+      const dispatch = vi.spyOn(CollectionStateService.instance, 'dispatch').mockResolvedValue(7);
       const envelope = {
         commandId: 'id',
         timestamp: 1,
         command: { type: CommandType.UPDATE_COLLECTION, changes: { title: 'New' } },
       } as const;
 
-      await new MainEventService().dispatch(envelope);
+      await expect(new MainEventService().dispatch(envelope)).resolves.toBe(7);
 
       expect(dispatch).toHaveBeenCalledWith(envelope);
     });

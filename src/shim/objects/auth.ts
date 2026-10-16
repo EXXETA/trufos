@@ -166,3 +166,101 @@ export const AuthorizationInformation = z.discriminatedUnion('type', [
   InheritAuthorizationInformation,
 ]);
 export type AuthorizationInformation = z.infer<typeof AuthorizationInformation>;
+
+const OAUTH2_BASE = {
+  type: AuthorizationType.OAUTH2,
+  issuerUrl: '',
+  clientId: '',
+  clientSecret: '',
+  tokenUrl: '',
+  scope: '',
+  clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
+} as const;
+
+const OAUTH2_DEFAULTS: { [M in OAuth2Method]: OAuth2AuthorizationInformation & { method: M } } = {
+  [OAuth2Method.CLIENT_CREDENTIALS]: {
+    ...OAUTH2_BASE,
+    method: OAuth2Method.CLIENT_CREDENTIALS,
+  },
+  [OAuth2Method.AUTHORIZATION_CODE]: {
+    ...OAUTH2_BASE,
+    method: OAuth2Method.AUTHORIZATION_CODE,
+    authorizationUrl: '',
+    callbackUrl: '',
+    state: '',
+    cache: true,
+  },
+  [OAuth2Method.AUTHORIZATION_CODE_PKCE]: {
+    ...OAUTH2_BASE,
+    method: OAuth2Method.AUTHORIZATION_CODE_PKCE,
+    authorizationUrl: '',
+    callbackUrl: '',
+    codeChallengeMethod: OAuth2PKCECodeChallengeMethod.S256,
+    codeVerifier: '',
+    state: '',
+    cache: true,
+  },
+};
+
+const OAUTH1_BASE = {
+  type: AuthorizationType.OAUTH1,
+  consumerKey: '',
+  consumerSecret: '',
+  signatureMethod: OAuth1SignatureMethod.HMAC_SHA1,
+  realm: '',
+} as const;
+
+const OAUTH1_DEFAULTS: { [M in OAuth1Method]: OAuth1AuthorizationInformation & { method: M } } = {
+  [OAuth1Method.EXISTING_TOKEN]: {
+    ...OAUTH1_BASE,
+    method: OAuth1Method.EXISTING_TOKEN,
+    token: '',
+    tokenSecret: '',
+  },
+  [OAuth1Method.AUTHORIZATION]: {
+    ...OAUTH1_BASE,
+    method: OAuth1Method.AUTHORIZATION,
+    requestTokenUrl: '',
+    authorizationUrl: '',
+    accessTokenUrl: '',
+    callbackUrl: '',
+  },
+};
+
+/** Returns the OAuth method of an authorization, if it has one. */
+export function getMethod(auth: object | undefined): string | undefined {
+  return auth != null && 'method' in auth && typeof auth.method === 'string'
+    ? auth.method
+    : undefined;
+}
+
+function getDefault<T extends object>(defaults: Record<string, T>, method: string): T {
+  const entry = Object.entries(defaults).find(([key]) => key === method);
+  if (entry == null) throw new Error(`Unknown authorization method ${method}`);
+  return { ...entry[1] };
+}
+
+/**
+ * Creates a complete authorization of the given type with default values. Partial authorizations
+ * are no valid {@link AuthorizationInformation}.
+ * @param type the authorization type
+ * @param method the OAuth method. Defaults to the first one.
+ * @throws Error if the method does not exist for the type
+ */
+export function createDefaultAuthorization(
+  type: AuthorizationType,
+  method?: string
+): AuthorizationInformation {
+  switch (type) {
+    case AuthorizationType.INHERIT:
+      return { type };
+    case AuthorizationType.BEARER:
+      return { type, token: '' };
+    case AuthorizationType.BASIC:
+      return { type, username: '', password: '' };
+    case AuthorizationType.OAUTH2:
+      return getDefault(OAUTH2_DEFAULTS, method ?? OAuth2Method.CLIENT_CREDENTIALS);
+    case AuthorizationType.OAUTH1:
+      return getDefault(OAUTH1_DEFAULTS, method ?? OAuth1Method.EXISTING_TOKEN);
+  }
+}

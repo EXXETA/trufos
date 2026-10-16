@@ -1,8 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ScriptType } from 'shim/scripting';
-import { RequestBodyType } from 'shim/objects/request';
-import { makeRequest } from '@/__mocks__/fake-collection-main';
-import { getMoveIndex, loadEditorContent } from './collectionUtil';
+import { loadEditorContent } from './editor-content';
 
 const { bodyModel, scriptModel, openMock } = vi.hoisted(() => {
   const fakeModel = () => ({
@@ -56,7 +54,7 @@ describe('loadEditorContent', () => {
   });
 
   it('loads the text body and every script', async () => {
-    await loadEditorContent(makeRequest('req-1', 'col-1'));
+    await loadEditorContent('req-1');
 
     expect(openMock).toHaveBeenCalledWith({ type: 'request-body', requestId: 'req-1' }, 'utf-8');
     expect(bodySetValue).toHaveBeenCalledWith('body');
@@ -69,22 +67,31 @@ describe('loadEditorContent', () => {
     }
   });
 
-  it('clears the body editor of a request without a text body', async () => {
-    await loadEditorContent(
-      makeRequest('req-1', 'col-1', { body: { type: RequestBodyType.FILE } })
-    );
+  it('reads the content only once the given promise settled', async () => {
+    const { promise, resolve } = Promise.withResolvers<void>();
 
-    expect(openMock).not.toHaveBeenCalledWith(
-      { type: 'request-body', requestId: 'req-1' },
-      'utf-8'
-    );
-    expect(bodySetValue).toHaveBeenCalledWith('');
+    const loaded = loadEditorContent('req-1', { after: promise });
+    await new Promise((r) => setTimeout(r));
+    expect(openMock).not.toHaveBeenCalled();
+    resolve();
+    await loaded;
+
+    expect(bodySetValue).toHaveBeenCalledWith('body');
+  });
+
+  it('loads nothing if the given promise rejects', async () => {
+    await expect(
+      loadEditorContent('req-1', { after: Promise.reject(new Error('rejected')) })
+    ).rejects.toThrow('rejected');
+
+    expect(openMock).not.toHaveBeenCalled();
+    expect(bodySetValue).not.toHaveBeenCalled();
   });
 
   it('skips models that were disposed while the content was loading', async () => {
     const finishLoading = holdStreams();
 
-    const loaded = loadEditorContent(makeRequest('req-1', 'col-1'));
+    const loaded = loadEditorContent('req-1');
     // another request is selected meanwhile, which disposes the models of this one
     bodyModel.isDisposed.mockReturnValue(true);
     scriptModel.isDisposed.mockReturnValue(true);
@@ -96,7 +103,7 @@ describe('loadEditorContent', () => {
   });
 
   it('loads only the given model', async () => {
-    await loadEditorContent(makeRequest('req-1', 'col-1'), ScriptType.PRE_REQUEST);
+    await loadEditorContent('req-1', { only: ScriptType.PRE_REQUEST });
 
     expect(openMock).toHaveBeenCalledExactlyOnceWith(
       { type: 'script', source: ScriptType.PRE_REQUEST, requestId: 'req-1' },
@@ -107,7 +114,7 @@ describe('loadEditorContent', () => {
   });
 
   it('loads only the text body if asked to', async () => {
-    await loadEditorContent(makeRequest('req-1', 'col-1'), 'body');
+    await loadEditorContent('req-1', { only: 'body' });
 
     expect(openMock).toHaveBeenCalledExactlyOnceWith(
       { type: 'request-body', requestId: 'req-1' },
@@ -115,27 +122,5 @@ describe('loadEditorContent', () => {
     );
     expect(bodySetValue).toHaveBeenCalledExactlyOnceWith('body');
     expect(scriptSetValue).not.toHaveBeenCalled();
-  });
-});
-
-describe('getMoveIndex', () => {
-  it('returns the drop index when only the dragged item moves', () => {
-    // [p, a, q, b]: b dropped between a and q
-    expect(getMoveIndex(['p', 'a', 'q', 'b'], 'b', 2, new Set(['b']))).toBe(2);
-  });
-
-  it('places the group after the last sibling before the drop position that stays', () => {
-    // [p, b, q, c, r, a, s]: a dropped between b and q, b and c move along
-    expect(
-      getMoveIndex(['p', 'b', 'q', 'c', 'r', 'a', 's'], 'a', 2, new Set(['a', 'b', 'c']))
-    ).toBe(1);
-  });
-
-  it('returns 0 when no staying sibling is before the drop position', () => {
-    expect(getMoveIndex(['b', 'p'], 'a', 1, new Set(['a', 'b']))).toBe(0);
-  });
-
-  it('works for a dragged item from another parent', () => {
-    expect(getMoveIndex(['p', 'q'], 'x', 1, new Set(['x', 'y']))).toBe(1);
   });
 });

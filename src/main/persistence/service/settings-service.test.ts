@@ -65,7 +65,7 @@ describe('SettingsService', async () => {
     const firstHeld = new Promise<void>((resolve) => (releaseFirst = resolve));
     const started: string[] = [];
     vi.spyOn(fileSystemService, 'replaceFile').mockImplementation(async (file, data) => {
-      started.push(data);
+      started.push(data.toString());
       if (started.length === 1) await firstHeld;
       await replaceFile(file, data);
     });
@@ -211,6 +211,23 @@ describe('SettingsService', async () => {
     expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
       settingsService.settings
     );
+  });
+
+  it.each([
+    ['without a version', { currentCollectionIndex: 0, collections: [] }],
+    ['with collections that are no list', { version: VERSION.string, collections: 'a' }],
+  ])('should recreate default settings when the file is %s', async (_, content) => {
+    // Arrange
+    await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(content));
+
+    // Act
+    await settingsService.init();
+
+    // Assert
+    expect(settingsService.settings).toEqual({
+      currentCollectionIndex: 0,
+      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+    });
   });
 
   it('should handle settings already at current version', async () => {

@@ -77,6 +77,19 @@ describe('stream-open', () => {
     expect(sender.listenerCount('destroyed')).toBe(0);
   });
 
+  it.each([
+    [{ type: 'request-body' }],
+    [{ type: 'script', source: 'unknown', requestId: 'r1' }],
+    [{ type: 'unknown', id: 'x' }],
+    [42],
+  ])('rejects the invalid input %j without opening a stream', async (input) => {
+    // @ts-expect-error minimal event with only the sender the handler uses
+    await expect(open({ sender }, input)).rejects.toThrow();
+
+    expect(mockState.readRequest).not.toHaveBeenCalled();
+    expect(BodyStore.instance.openBody).not.toHaveBeenCalled();
+  });
+
   it('streams the text body of a request of the open collection by its ID', async () => {
     // Arrange
     const request = { id: 'request-id' };

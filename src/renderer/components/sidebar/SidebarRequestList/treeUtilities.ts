@@ -1,5 +1,11 @@
 import { arrayMove } from '@dnd-kit/sortable';
-import { CollectionTree, getChildren, TreeNode } from 'shim/collection-model';
+import {
+  CollectionStructure,
+  CollectionTree,
+  getChildren,
+  TreeNode,
+  walkTree,
+} from 'shim/collection-model';
 
 /**
  * Returns the most recent save timestamp of every node below the given parent. For a folder, this
@@ -16,21 +22,6 @@ export function getMaxTimestamps(tree: CollectionTree, parentId: string): Map<st
   return timestamps;
 }
 
-export enum SortMode {
-  DEFAULT = 'default',
-  AZ_ASC = 'az-asc',
-  AZ_DESC = 'az-desc',
-  TIME_DESC = 'time-desc',
-  TIME_ASC = 'time-asc',
-}
-export const SORT_CYCLE: SortMode[] = [
-  SortMode.DEFAULT,
-  SortMode.AZ_ASC,
-  SortMode.AZ_DESC,
-  SortMode.TIME_DESC,
-  SortMode.TIME_ASC,
-];
-
 export interface FlattenedItem {
   id: string;
   type: 'request' | 'folder';
@@ -45,35 +36,30 @@ export const INDENTATION_WIDTH = 20;
  * Convert the tree below the given parent into a flat list.
  * Only open folders have their children included.
  *
- * @param tree the collection tree
+ * @param tree the structure of the collection tree
  * @param parentId the collection or folder whose descendants to list
  * @param openFolders the IDs of the open folders
- * @param compare sorts the children of each parent. They keep their order if not given.
- * @param depth the depth of the children of the parent
+ * @param compare sorts the children of each parent by ID. They keep their order if not given.
  */
 export function flattenTree(
-  tree: CollectionTree,
+  tree: CollectionStructure,
   parentId: string,
   openFolders: Set<string>,
-  compare?: (a: TreeNode, b: TreeNode) => number,
-  depth = 0
+  compare?: (a: string, b: string) => number
 ): FlattenedItem[] {
-  const children = getChildren(tree, parentId);
-  if (compare != null) children.sort(compare);
-  return children.flatMap((child) => {
-    const item: FlattenedItem = {
-      id: child.id,
-      type: child.type,
-      depth,
-      parentId,
-    };
-
-    if (child.type === 'folder' && openFolders.has(child.id)) {
-      return [item, ...flattenTree(tree, child.id, openFolders, compare, depth + 1)];
-    }
-
-    return [item];
-  });
+  const items: FlattenedItem[] = [];
+  walkTree(
+    tree,
+    parentId,
+    (id, depth, ancestorIds) => {
+      const isFolder = tree.folders.has(id);
+      const type = isFolder ? 'folder' : 'request';
+      items.push({ id, type, depth, parentId: ancestorIds.at(-1) ?? parentId });
+      return isFolder && openFolders.has(id);
+    },
+    compare
+  );
+  return items;
 }
 
 /**
@@ -188,4 +174,27 @@ export function getProjection(
   }
 
   return { depth, parentId, newIndex };
+}
+
+/**
+ * Converts the drop position of a dragged item into the index of a move of several items, so
+ * they land where the dragged item was dropped.
+ * @param childIds the children of the target parent
+ * @param draggedId the dragged item, one of `movedIds`
+ * @param dropIndex where the dragged item was dropped, among `childIds` without it
+ * @param movedIds all moved items
+ * @returns the index among `childIds` without all moved items, see the `move` command
+ */
+export function getMoveIndex(
+  childIds: readonly string[],
+  draggedId: string,
+  dropIndex: number,
+  movedIds: ReadonlySet<string>
+): number {
+  // the moved items are placed after the last sibling before the drop position that stays
+  const anchor = childIds
+    .filter((id) => id !== draggedId)
+    .slice(0, dropIndex)
+    .findLast((id) => !movedIds.has(id));
+  return anchor == null ? 0 : childIds.filter((id) => !movedIds.has(id)).indexOf(anchor) + 1;
 }

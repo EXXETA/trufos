@@ -23,7 +23,7 @@ import {
   useCollectionTree,
 } from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
-import { CollectionTree, getChildren, getDescendantIds } from 'shim/collection-model';
+import { CollectionTree, walkTree } from 'shim/collection-model';
 import type { TrufosRequest } from 'shim/objects/request';
 import type { TrufosResponse } from 'shim/objects/response';
 
@@ -68,38 +68,35 @@ interface CollectionRunnerProps {
   onClose: () => void;
 }
 
-function buildRunnerItems(
-  tree: CollectionTree,
-  parentId: string,
-  depth = 0,
-  ancestors: string[] = []
-): RunnerItem[] {
-  return getChildren(tree, parentId).flatMap((child): RunnerItem[] => {
-    if (child.type === 'request') {
-      return [
-        {
-          type: 'request',
-          id: child.id,
-          title: child.title || child.url.base,
-          depth,
-          ancestors,
-          request: child,
-        },
-      ];
-    }
+type FolderRunnerItem = Extract<RunnerItem, { type: 'folder' }>;
 
-    return [
-      {
+/** Lists the folders and requests below the parent, each folder with the requests inside it. */
+function buildRunnerItems(tree: CollectionTree, parentId: string): RunnerItem[] {
+  const items: RunnerItem[] = [];
+  const folderItems = new Map<string, FolderRunnerItem>();
+  walkTree(tree, parentId, (id, depth, ancestorIds) => {
+    const ancestors = [...ancestorIds];
+    const folder = tree.folders.get(id);
+    if (folder != null) {
+      const item: FolderRunnerItem = {
         type: 'folder',
-        id: child.id,
-        title: child.title,
+        id,
+        title: folder.title,
         depth,
         ancestors,
-        requestIds: getDescendantIds(tree, child.id).filter((id) => tree.requests.has(id)),
-      },
-      ...buildRunnerItems(tree, child.id, depth + 1, [...ancestors, child.id]),
-    ];
+        requestIds: [],
+      };
+      folderItems.set(id, item);
+      items.push(item);
+      return;
+    }
+    const request = tree.requests.get(id);
+    if (request == null) return;
+    const title = request.title || request.url.base;
+    items.push({ type: 'request', id, title, depth, ancestors, request });
+    for (const ancestorId of ancestors) folderItems.get(ancestorId)?.requestIds.push(id);
   });
+  return items;
 }
 
 function isSuccessfulStatus(status: number) {
@@ -259,7 +256,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     setCollapsedFolders(new Set());
     setTotalDuration(null);
     setIsRunning(false);
-  }, [collection?.id]);
+  }, [collection.id]);
 
   // Keep the selection in sync when requests are added or removed in the sidebar
   // without discarding the user's choices or any run results.

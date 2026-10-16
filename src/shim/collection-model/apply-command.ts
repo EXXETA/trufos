@@ -110,21 +110,31 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       }
       return;
     }
-    case CommandType.UPDATE_COLLECTION:
+    case CommandType.UPDATE_COLLECTION: {
       assignChanges(model.collection, command.changes);
-      // removing the selected environment selects another one
-      model.selectedEnvironmentKey = getValidEnvironmentKey(
-        model.collection.environments,
-        model.selectedEnvironmentKey
-      );
-      return;
-    case CommandType.SELECT_ENVIRONMENT:
-      if (command.key != null && model.collection.environments[command.key] == null) {
-        throw new CommandError(`Environment ${command.key} does not exist`);
+      if (command.selectedEnvironmentKey !== undefined) {
+        selectEnvironment(model, command.selectedEnvironmentKey ?? undefined);
+      } else if (model.selectedEnvironmentKey != null) {
+        // removing the selected environment selects another one, but "none" stays selected
+        model.selectedEnvironmentKey = getValidEnvironmentKey(
+          model.collection.environments,
+          model.selectedEnvironmentKey
+        );
       }
-      model.selectedEnvironmentKey = command.key;
+      return;
+    }
+    case CommandType.SELECT_ENVIRONMENT:
+      selectEnvironment(model, command.key);
       return;
   }
+}
+
+/** Selects an environment, or none if the key is undefined. */
+function selectEnvironment(model: ModelDraft, key: string | undefined) {
+  if (key != null && model.collection.environments[key] == null) {
+    throw new CommandError(`Environment ${key} does not exist`);
+  }
+  model.selectedEnvironmentKey = key;
 }
 
 function assertNewId(model: ModelDraft, id: string) {

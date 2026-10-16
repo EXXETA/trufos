@@ -56,7 +56,7 @@ export class FileSystemService {
    * @param filePath the file to write
    * @param data the new content of the file
    */
-  public async replaceFile(filePath: string, data: string): Promise<void> {
+  public async replaceFile(filePath: string, data: string | Uint8Array): Promise<void> {
     const { dir, base } = path.parse(filePath);
     const tempFilePath = path.join(dir, `.${base}.${randomUUID()}.tmp`);
     try {

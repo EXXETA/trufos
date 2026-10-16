@@ -10,30 +10,29 @@ import {
 import { cn } from '@/lib/utils';
 import { SecretInput } from '@/components/ui/secret-input';
 
-export interface BaseFieldConfig<T> {
+export interface BaseFieldConfig {
   label: string;
   placeholder?: string;
-  defaultValue?: T;
 }
 
-export interface TextFieldConfig extends BaseFieldConfig<string> {
+export interface TextFieldConfig extends BaseFieldConfig {
   type: 'text' | 'password' | 'email';
 }
 
-export interface NumberFieldConfig extends BaseFieldConfig<number> {
+export interface NumberFieldConfig extends BaseFieldConfig {
   type: 'number';
 }
 
-export interface SelectFieldConfig extends BaseFieldConfig<string> {
+export interface SelectFieldConfig extends BaseFieldConfig {
   type: 'select';
   options: Array<{ value: string; label: string }>;
 }
 
-export interface CheckboxFieldConfig extends BaseFieldConfig<boolean> {
+export interface CheckboxFieldConfig extends BaseFieldConfig {
   type: 'checkbox';
 }
 
-export interface TextareaFieldConfig extends BaseFieldConfig<string> {
+export interface TextareaFieldConfig extends BaseFieldConfig {
   type: 'textarea';
   rows?: number;
 }
@@ -54,47 +53,36 @@ export type FormFieldConfig =
 
 export type FormComponentConfiguration = Record<string, FormFieldConfig>;
 
-/** The value a field shows while it has none: its default, or the default of its type. */
-function getFieldDefault(field: FormFieldConfig): string | number | boolean | undefined {
-  switch (field.type) {
-    case 'label':
-      return undefined;
-    case 'number':
-      return field.defaultValue ?? 0;
-    case 'checkbox':
-      return field.defaultValue ?? true;
-    case 'select':
-      return field.defaultValue ?? field.options[0]?.value;
-    default:
-      return field.defaultValue ?? '';
-  }
-}
+/** The values of a form, by field key. */
+export type FormData = Readonly<Record<string, unknown>>;
 
-export interface FormProps<T extends object> {
+/** A change of one field of a form. */
+export type FormDelta = Record<string, string | number | boolean>;
+
+export interface FormProps {
   config: FormComponentConfiguration;
-  data: T;
-  onDataChanged: (delta: Partial<T>) => void;
+  /** The values to show. Every field is expected to have a value of its type. */
+  data: FormData;
+  onDataChanged: (delta: FormDelta) => void;
   className?: string;
 }
 
-export const ModularForm = <T extends object>({
-  config,
-  className,
-  data,
-  onDataChanged,
-}: FormProps<T>) => {
-  /**
-   * Returns the value to show for a field. A missing value is shown as the default but not written
-   * to the data: this runs during render, and the field stays absent until the user edits it.
-   */
-  const getValue = <V,>(key: keyof T, field: FormFieldConfig) =>
-    (data[key] as V | undefined) ?? (getFieldDefault(field) as V);
+export const ModularForm = ({ config, className, data, onDataChanged }: FormProps) => {
+  const getString = (key: string) => {
+    const value = data[key];
+    return typeof value === 'string' ? value : '';
+  };
+  const getNumber = (key: string) => {
+    const value = data[key];
+    return typeof value === 'number' ? value : 0;
+  };
+  const getBoolean = (key: string) => data[key] === true;
 
-  const renderField = (key: keyof T, fieldConfig: FormFieldConfig) => {
+  const renderField = (key: string, fieldConfig: FormFieldConfig) => {
     switch (fieldConfig.type) {
       case 'label':
         return (
-          <div key={key as string} className={fieldConfig.className}>
+          <div key={key} className={fieldConfig.className}>
             <p className="text-text-primary text-sm">{fieldConfig.text}</p>
           </div>
         );
@@ -103,12 +91,12 @@ export const ModularForm = <T extends object>({
       case 'email': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key as string} className="space-y-2">
+          <div key={key} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <Input
               type={fieldConfig.type}
-              value={getValue<string>(key, fieldConfig)}
-              onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
+              value={getString(key)}
+              onChange={(e) => onDataChanged({ [key]: e.target.value })}
               placeholder={placeholder}
               className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
             />
@@ -119,11 +107,11 @@ export const ModularForm = <T extends object>({
       case 'password': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key as string} className="space-y-2">
+          <div key={key} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <SecretInput
-              value={getValue<string>(key, fieldConfig)}
-              onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
+              value={getString(key)}
+              onChange={(e) => onDataChanged({ [key]: e.target.value })}
               placeholder={placeholder}
               className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
             />
@@ -134,12 +122,12 @@ export const ModularForm = <T extends object>({
       case 'number': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key as string} className="space-y-2">
+          <div key={key} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <Input
               type="number"
-              value={getValue<number>(key, fieldConfig)}
-              onChange={(e) => onDataChanged({ [key]: e.target.valueAsNumber ?? 0 } as Partial<T>)}
+              value={getNumber(key)}
+              onChange={(e) => onDataChanged({ [key]: e.target.valueAsNumber ?? 0 })}
               placeholder={placeholder}
               className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
             />
@@ -150,11 +138,11 @@ export const ModularForm = <T extends object>({
       case 'select': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key as string} className="space-y-2">
+          <div key={key} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <Select
-              value={getValue<string>(key, fieldConfig)}
-              onValueChange={(value) => onDataChanged({ [key]: value } as Partial<T>)}
+              value={getString(key)}
+              onValueChange={(value) => onDataChanged({ [key]: value })}
             >
               <SelectTrigger className="border-border bg-background-primary w-full rounded-md border px-3 py-2">
                 <SelectValue placeholder={placeholder ?? `Select ${label.toLowerCase()}`} />
@@ -174,19 +162,14 @@ export const ModularForm = <T extends object>({
       case 'checkbox': {
         const { label } = fieldConfig;
         return (
-          <div key={key as string} className="flex items-center space-x-2">
+          <div key={key} className="flex items-center space-x-2">
             <Checkbox
-              id={key as string}
-              checked={getValue<boolean>(key, fieldConfig)}
-              onCheckedChange={(checked) =>
-                onDataChanged({ [key]: checked === true } as Partial<T>)
-              }
+              id={key}
+              checked={getBoolean(key)}
+              onCheckedChange={(checked) => onDataChanged({ [key]: checked === true })}
               className="h-4 w-4"
             />
-            <label
-              htmlFor={key as string}
-              className="text-text-primary cursor-pointer text-sm font-medium"
-            >
+            <label htmlFor={key} className="text-text-primary cursor-pointer text-sm font-medium">
               {label}
             </label>
           </div>
@@ -196,11 +179,11 @@ export const ModularForm = <T extends object>({
       case 'textarea': {
         const { label, placeholder } = fieldConfig;
         return (
-          <div key={key as string} className="space-y-2">
+          <div key={key} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <textarea
-              value={getValue<string>(key, fieldConfig)}
-              onChange={(e) => onDataChanged({ [key]: e.target.value } as Partial<T>)}
+              value={getString(key)}
+              onChange={(e) => onDataChanged({ [key]: e.target.value })}
               placeholder={placeholder}
               rows={fieldConfig.rows ?? 3}
               className="resize-vertical border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
@@ -218,7 +201,7 @@ export const ModularForm = <T extends object>({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {Object.entries(config).map(([key, fieldConfig]) => renderField(key as keyof T, fieldConfig))}
+      {Object.entries(config).map(([key, fieldConfig]) => renderField(key, fieldConfig))}
     </div>
   );
 };

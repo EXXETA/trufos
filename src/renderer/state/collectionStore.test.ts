@@ -1,15 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCollectionStore } from './collectionStore';
-import {
-  FakeCollectionMain,
-  makeCollection,
-  makeFolder,
-  makeRequest,
-} from '@/__mocks__/fake-collection-main';
+import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
+import { makeCollection, makeFolder, makeRequest } from 'shim/collection-model/fixtures';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { HttpService } from '@/services/http/http-service';
 import { showError } from '@/error/errorHandler';
-import { loadEditorContent } from '@/state/helper/collectionUtil';
+import { loadEditorContent } from '@/lib/monaco/editor-content';
+import { IpcPushStream } from '@/lib/ipc-stream';
 import {
   cancelModelEdits,
   disposeModelsForRequest,
@@ -20,11 +17,10 @@ import {
 } from '@/lib/monaco/models';
 import { CollectionCommand, CommandType, normalizeCollection } from 'shim/collection-model';
 import { Collection } from 'shim/objects/collection';
-import { AuthorizationType, OAuth2Method } from 'shim/objects/auth';
+import { AuthorizationType } from 'shim/objects/auth';
 import { RequestBodyType } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { ScriptType } from 'shim/scripting';
-import { CollectionStateActions } from './interface/CollectionStateActions';
 
 vi.mock('@/services/event/renderer-event-service', () => ({
   RendererEventService: {
@@ -47,8 +43,7 @@ vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: vi.fn() },
 }));
 
-vi.mock('@/state/helper/collectionUtil', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/state/helper/collectionUtil')>()),
+vi.mock('@/lib/monaco/editor-content', () => ({
   loadEditorContent: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -230,73 +225,6 @@ describe('request edits', () => {
   });
 });
 
-describe('updateAuthorization', () => {
-  let ctx: Setup;
-  const auth = () => ctx.store.getState().requests.get('r3')!.auth;
-  const update: CollectionStateActions['updateAuthorization'] = (changes) =>
-    ctx.store.getState().updateAuthorization(changes);
-  const r3 = () => ctx.store.getState().requests.get('r3')!;
-
-  beforeEach(() => {
-    ctx = setup();
-    void ctx.store.getState().setSelectedRequest('r3');
-  });
-
-  it('creates a complete default when the type changes', () => {
-    update({ type: AuthorizationType.OAUTH2 });
-
-    expect(auth()).toMatchObject({
-      type: AuthorizationType.OAUTH2,
-      method: OAuth2Method.CLIENT_CREDENTIALS,
-      clientId: '',
-      clientSecret: '',
-      scope: '',
-    });
-    expect(r3().draft).toBe(true);
-  });
-
-  it('merges fields when the type is unchanged', () => {
-    update({ type: AuthorizationType.BASIC });
-    update({ username: 'user' });
-
-    expect(auth()).toEqual({ type: AuthorizationType.BASIC, username: 'user', password: '' });
-  });
-
-  it('drops the fields of the previous type', () => {
-    update({ type: AuthorizationType.BEARER });
-    update({ token: 'secret' });
-    update({ type: AuthorizationType.BASIC });
-
-    expect(auth()).toEqual({ type: AuthorizationType.BASIC, username: '', password: '' });
-  });
-
-  it('keeps the shared fields when the OAuth method changes', () => {
-    update({ type: AuthorizationType.OAUTH2 });
-    update({ clientId: 'client' });
-    update({ method: OAuth2Method.AUTHORIZATION_CODE });
-
-    expect(auth()).toMatchObject({
-      method: OAuth2Method.AUTHORIZATION_CODE,
-      clientId: 'client',
-      authorizationUrl: '',
-      callbackUrl: '',
-      cache: true,
-    });
-  });
-
-  it('removes the authorization when called with null', () => {
-    update({ type: AuthorizationType.INHERIT });
-    update(null);
-
-    expect(auth()).toBeUndefined();
-    expect(ctx.commands().at(-1)).toEqual({
-      type: CommandType.EDIT_REQUEST,
-      id: 'r3',
-      changes: { auth: null },
-    });
-  });
-});
-
 describe('creating and changing items', () => {
   let ctx: Setup;
 
@@ -387,14 +315,16 @@ describe('creating and changing items', () => {
   });
 
   it('changes the collection settings', async () => {
-    const { updateCollection, selectEnvironment } = ctx.store.getState();
+    const { updateCollection } = ctx.store.getState();
 
-    await updateCollection({
-      title: 'Renamed',
-      variables: { host: { value: 'localhost' } },
-      environments: { dev: { variables: {} }, prod: { variables: {} } },
-    });
-    await selectEnvironment('prod');
+    await updateCollection(
+      {
+        title: 'Renamed',
+        variables: { host: { value: 'localhost' } },
+        environments: { dev: { variables: {} }, prod: { variables: {} } },
+      },
+      'prod'
+    );
 
     expect(ctx.commands()).toEqual([
       {
@@ -404,8 +334,8 @@ describe('creating and changing items', () => {
           variables: { host: { value: 'localhost' } },
           environments: { dev: { variables: {} }, prod: { variables: {} } },
         },
+        selectedEnvironmentKey: 'prod',
       },
-      { type: CommandType.SELECT_ENVIRONMENT, key: 'prod' },
     ]);
     const { collection, selectedEnvironmentKey } = ctx.store.getState();
     expect(collection.variables).toEqual({ host: { value: 'localhost' } });
@@ -513,9 +443,7 @@ describe('selected request', () => {
   it('loads the editor content of the selected request', () => {
     ctx.store.getState().setSelectedRequest('r3');
 
-    expect(loadEditorContent).toHaveBeenCalledExactlyOnceWith(
-      ctx.store.getState().requests.get('r3')
-    );
+    expect(loadEditorContent).toHaveBeenCalledExactlyOnceWith('r3');
   });
 
   it('discardChanges restores the saved state and reloads the editor content', async () => {
@@ -528,7 +456,9 @@ describe('selected request', () => {
     expect(cancelModelEdits).toHaveBeenCalledWith('r3');
     const restored = ctx.store.getState().requests.get('r3');
     expect(restored).toMatchObject({ method: RequestMethod.GET, draft: false });
-    expect(loadEditorContent).toHaveBeenCalledExactlyOnceWith(restored);
+    expect(loadEditorContent).toHaveBeenCalledExactlyOnceWith('r3', {
+      after: expect.any(Promise),
+    });
   });
 
   it('discardChanges deletes a request that was never saved', async () => {
@@ -806,10 +736,26 @@ describe('editor models', () => {
     expect(ctx.store.getState().requests.has('r1')).toBe(false);
   });
 
+  beforeEach(() => {
+    vi.mocked(loadEditorContent).mockResolvedValue(undefined);
+  });
+
+  /** Loads the editor content for real from now on, with the given content for every model. */
+  const loadEditorContentFor = async (content: string) => {
+    const actual = await vi.importActual<typeof import('@/lib/monaco/editor-content')>(
+      '@/lib/monaco/editor-content'
+    );
+    vi.mocked(loadEditorContent).mockImplementation(actual.loadEditorContent);
+    vi.mocked(IpcPushStream.open).mockResolvedValue({
+      readAll: async () => content,
+    } as Awaited<ReturnType<typeof IpcPushStream.open>>);
+  };
+
   it('does not send text typed while changes are discarded', async () => {
     const ctx = setup();
     ctx.store.getState().setSelectedRequest('r1');
     type(getBodyModel('r1'), 'changed');
+    await loadEditorContentFor('saved');
 
     const discarded = ctx.store.getState().discardChanges();
     // the editor content is only reloaded once main discarded the changes
@@ -822,12 +768,14 @@ describe('editor models', () => {
       { type: CommandType.DISCARD_REQUEST, id: 'r1' },
     ]);
     expect(ctx.store.getState().requests.get('r1')!.draft).toBe(false);
+    expect(getBodyModel('r1').getValue()).toBe('saved');
   });
 
   it('does not send text typed while changes are discarded, even if it is flushed meanwhile', async () => {
     const ctx = setup();
     ctx.store.getState().setSelectedRequest('r1');
     type(getBodyModel('r1'), 'changed');
+    await loadEditorContentFor('saved');
     let releaseDiscard!: () => void;
     const dispatch = ctx.main.dispatch;
     ctx.main.dispatch = async (envelope) => {
@@ -866,10 +814,7 @@ describe('editor models', () => {
         { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'not persisted' },
       ]);
       expect(showError).toHaveBeenCalledWith(expect.any(String), expect.any(Error));
-      expect(loadEditorContent).toHaveBeenCalledWith(
-        ctx.store.getState().requests.get('r1'),
-        'body'
-      );
+      expect(loadEditorContent).toHaveBeenCalledWith('r1', { only: 'body' });
     } finally {
       vi.useRealTimers();
     }

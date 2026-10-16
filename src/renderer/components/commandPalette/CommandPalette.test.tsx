@@ -10,7 +10,7 @@ import {
   makeCollection,
   makeFolder as makeTestFolder,
   makeRequest as makeTestRequest,
-} from '@/__mocks__/fake-collection-main';
+} from 'shim/collection-model/fixtures';
 
 const setSelectedRequestMock = vi.fn();
 const discardChangesMock = vi.fn();
