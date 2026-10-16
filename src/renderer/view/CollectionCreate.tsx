@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useCollectionActions } from '@/state/collectionStore';
 import { Plus } from 'lucide-react';
 import {
@@ -15,8 +14,6 @@ import { FilePicker } from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon } from '@/components/icons';
 import { showError } from '@/error/errorHandler';
-
-const eventService = RendererEventService.instance;
 
 interface TitleInputProps {
   value: string;
@@ -41,24 +38,21 @@ export const CollectionCreate: React.FC<{
   open?: boolean;
   loadCollections: () => void;
 }> = ({ onClose, open = true, loadCollections }) => {
-  const { changeCollection } = useCollectionActions();
-
   const [targetEntry, setTargetEntry] = useState<DroppedEntryInfo>();
   const [title, setTitle] = useState<string>('');
 
+  const { createCollection } = useCollectionActions();
+
   const isCreationDisabled = !title || !targetEntry?.path;
 
-  const createCollection = async () => {
+  const handleCreate = async () => {
+    const created = await createCollection(targetEntry!.path, title);
+    onClose?.();
+    if (!created) return;
     try {
-      await changeCollection(await eventService.createCollection(targetEntry!.path, title));
-
-      console.info('Creating collection at', targetEntry!.path);
-
       await loadCollections();
     } catch (e) {
-      showError('Could not create the collection', e);
-    } finally {
-      onClose?.();
+      showError('Could not load the collections', e);
     }
   };
 
@@ -84,11 +78,7 @@ export const CollectionCreate: React.FC<{
 
         <DialogFooter className="mt-2 justify-center gap-2 sm:justify-center">
           <div className="flex w-full justify-center">
-            <Button
-              onClick={createCollection}
-              disabled={isCreationDisabled}
-              className="pointer gap-2"
-            >
+            <Button onClick={handleCreate} disabled={isCreationDisabled} className="pointer gap-2">
               <Plus size={16} /> {'Create Collection'}
             </Button>
           </div>

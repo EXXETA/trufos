@@ -3,7 +3,7 @@ import { DisplayableError } from 'shim/error/DisplayableError';
 import {
   IEventService,
   MainProcessEvent,
-  MainProcessEventPayloads,
+  MainProcessEventListener,
   RendererEvent,
   RendererEventPayloads,
 } from 'shim/event-service';
@@ -36,13 +36,9 @@ export class RendererEventService implements IEventService {
   /**
    * Listens to an event pushed by the main process.
    * @param event the event
-   * @param listener receives the Electron IPC event, which most listeners do not need, followed by
-   * the payload, see {@link MainProcessEventPayloads}
+   * @param listener receives the event, see {@link MainProcessEventListener}
    */
-  on<E extends MainProcessEvent>(
-    event: E,
-    listener: (ipcEvent: unknown, ...payload: MainProcessEventPayloads[E]) => void
-  ): this {
+  on<E extends MainProcessEvent>(event: E, listener: MainProcessEventListener<E>): this {
     window.electron.ipcRenderer.on(event, listener);
     return this;
   }
@@ -57,23 +53,27 @@ export class RendererEventService implements IEventService {
     return this;
   }
 
-  saveRequest = createEventMethod('saveRequest');
-  copyRequest = createEventMethod('copyRequest');
+  /**
+   * Stops listening to an event pushed by the main process.
+   * @param event the event
+   * @param listener the listener passed to {@link on}
+   */
+  removeListener<E extends MainProcessEvent>(
+    event: E,
+    listener: MainProcessEventListener<E>
+  ): this {
+    window.electron.ipcRenderer.removeListener(event, listener);
+    return this;
+  }
+
+  getCollectionState = createEventMethod('getCollectionState');
+  dispatch = createEventMethod('dispatch');
   sendRequest = createEventMethod('sendRequest');
   abortRequest = createEventMethod('abortRequest');
   getAppVersion = createEventMethod('getAppVersion');
-  loadCollection = createEventMethod('loadCollection');
-  saveChanges = createEventMethod('saveChanges');
-  discardChanges = createEventMethod('discardChanges');
-  deleteObject = createEventMethod('deleteObject');
   getActiveEnvironmentVariables = createEventMethod('getActiveEnvironmentVariables');
   getVariable = createEventMethod('getVariable');
   resolveVariablesInString = createEventMethod('resolveVariablesInString');
-  setCollectionVariables = createEventMethod('setCollectionVariables');
-  setEnvironmentVariables = createEventMethod('setEnvironmentVariables');
-  saveFolder = createEventMethod('saveFolder');
-  copyFolder = createEventMethod('copyFolder');
-  selectEnvironment = createEventMethod('selectEnvironment');
   openCollection = createEventMethod('openCollection');
   createCollection = createEventMethod('createCollection');
   closeCollection = createEventMethod('closeCollection');
@@ -82,15 +82,8 @@ export class RendererEventService implements IEventService {
   listCollections = createEventMethod('listCollections');
   importCollection = createEventMethod('importCollection');
   exportCollection = createEventMethod('exportCollection');
-  rename = createEventMethod('rename');
-  moveItem = createEventMethod('moveItem');
-  // @ts-expect-error - typing does not work for genric methods
-  reorderItem = createEventMethod('reorderItem');
   updateApp = createEventMethod('updateApp');
-  saveScript = createEventMethod('saveScript');
   downloadBody = createEventMethod('downloadBody');
-  setClientCertificate = createEventMethod('setClientCertificate');
-  renameCollection = createEventMethod('renameCollection');
   getAppSettings = createEventMethod('getAppSettings');
   saveAppSettings = createEventMethod('saveAppSettings');
   openLogDirectory = createEventMethod('openLogDirectory');

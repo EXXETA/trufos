@@ -1,61 +1,96 @@
 import { app } from 'electron';
-import { EnvironmentService } from 'main/environment/service/environment-service';
+import { type Draft, produce } from 'immer';
+import {
+  CollectionChangedError,
+  CollectionStateService,
+} from 'main/collection-state/collection-state-service';
 import { createContext, Script } from 'node:vm';
-import { ScriptConsole, ScriptingContext, ScriptType, VariableMap, VariableObject } from 'shim';
+import { ScriptConsole, ScriptingContext, ScriptType, VariableObject } from 'shim';
 import { getDurationStringFromNow, getSteadyTimestamp } from 'main/util/time-util';
-import { EventEmitter } from 'node:events';
 import type { ScriptLogger } from 'main/network/service/request-recorder';
 import { ScriptLog } from 'shim/history';
+import {
+  CollectionChanges,
+  CollectionCommand,
+  CollectionInfo,
+  CollectionModel,
+  CommandType,
+} from 'shim/collection-model';
 
-const environmentService = EnvironmentService.instance;
+const collectionState = CollectionStateService.instance;
 
 const SCRIPT_TIMEOUT_SECONDS = 5;
-
-/** Event signatures emitted by the {@link ScriptingService}. */
-type ScriptingServiceEvents = {
-  'variables-changed': [];
-};
 
 /**
  * Service for executing user-provided scripts in an isolated VM context.
  * Scripts run in a Node.js vm context with access to the scripting API.
  */
-export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
-  public static _instance: ScriptingService | null = null;
-  private _variablesChanged = false;
+export class ScriptingService {
+  public static readonly instance = new ScriptingService();
 
-  private createApi(script: ScriptType, log: ScriptLogger) {
-    // Arrow functions so the API methods keep this service as their `this`.
+  /**
+   * Creates the scripting API.
+   * @param getCollection returns the collection the script reads its variables from
+   * @param getDraft returns the draft of the collection the script sets its variables in, or
+   * undefined if they cannot be set anymore
+   * @param selectedEnvironmentKey the environment the script uses by default
+   */
+  private createApi(
+    script: ScriptType,
+    log: ScriptLogger,
+    getCollection: () => CollectionInfo,
+    getDraft: () => Draft<CollectionInfo> | undefined,
+    selectedEnvironmentKey?: string
+  ) {
+    const getEnvironment = (collection: CollectionInfo, key = selectedEnvironmentKey) =>
+      key == null ? undefined : collection.environments[key];
+    const setVariable = (
+      getVariables: (
+        draft: Draft<CollectionInfo>
+      ) => Draft<CollectionInfo['variables']> | undefined,
+      name: string,
+      value: string | VariableObject
+    ) => {
+      const draft = getDraft();
+      if (draft == null) {
+        // not thrown: a callback that runs after the script, e.g. from a promise, would turn it
+        // into an unhandled rejection of the app
+        log({
+          script,
+          level: 'error',
+          args: [
+            'The variables cannot be changed anymore, as the script has finished. Callbacks that run after the script, e.g. from a promise, are not supported.',
+          ],
+        });
+        return;
+      }
+      const variables = getVariables(draft);
+      if (variables != null) {
+        variables[name] = ScriptingService.mergeVariable(variables[name], value);
+      }
+    };
+
     return Object.freeze<ScriptingContext>({
       console: ScriptingService.createConsole(script, log),
 
-      trufos: {
+      trufos: Object.freeze({
         version: app.getVersion(),
 
-        getCollectionVariable: (name: string) => {
-          return ScriptingService.getVariable(environmentService.currentCollection.variables, name);
-        },
+        getCollectionVariable: (name: string) => getCollection().variables[name]?.value,
 
-        setCollectionVariable: (name: string, value: string | VariableObject) => {
-          ScriptingService.setVariable(environmentService.currentCollection.variables, name, value);
-          this._variablesChanged = true;
-        },
+        setCollectionVariable: (name: string, value: string | VariableObject) =>
+          setVariable((draft) => draft.variables, name, value),
 
-        getEnvironmentVariable: (name: string, environment?: string) => {
-          const variables = ScriptingService.getEnvironmentVariables(environment);
-          return ScriptingService.getVariable(variables, name);
-        },
+        getEnvironmentVariable: (name: string, environment?: string) =>
+          getEnvironment(getCollection(), environment)?.variables[name]?.value,
 
+        // like reading, writing to an environment that does not exist has no effect
         setEnvironmentVariable: (
           name: string,
           value: string | VariableObject,
           environment?: string
-        ) => {
-          const variables = ScriptingService.getEnvironmentVariables(environment);
-          ScriptingService.setVariable(variables, name, value);
-          this._variablesChanged = true;
-        },
-      },
+        ) => setVariable((draft) => getEnvironment(draft, environment)?.variables, name, value),
+      }),
     });
   }
 
@@ -77,38 +112,36 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
     });
   }
 
-  public static get instance() {
-    if (!ScriptingService._instance) {
-      ScriptingService._instance = new ScriptingService();
-    }
-    return ScriptingService._instance;
-  }
-
-  private static getVariable(map: VariableMap, name: string) {
-    return map[name]?.value;
-  }
-
-  private static setVariable(map: VariableMap, name: string, value: string | VariableObject) {
+  /** Merges a value set by a script into the variable it replaces. */
+  private static mergeVariable(
+    variable: VariableObject | undefined,
+    value: string | VariableObject
+  ): VariableObject {
     if (typeof value === 'string') value = { value };
     VariableObject.parse(value); // validate type and required properties
-    map[name] = { ...(map[name] ?? {}), ...value };
-  }
-
-  private static getEnvironmentVariables(name?: string) {
-    const environment =
-      name == null
-        ? environmentService.currentEnvironment
-        : environmentService.currentCollection.environments[name];
-    return environment?.variables ?? {};
+    return { ...variable, ...value };
   }
 
   /**
-   * Executes a user script.
+   * Executes a user script. The script and the `updateCollection` command for the variables it
+   * changes run as one task on the collection state's queue, so the model cannot change in
+   * between. The variables are written to disk before this resolves; a failure to write them is
+   * only logged.
    * @param code the source code of the script
    * @param type the type of the script, used to label its console output
    * @param log receives the console output and errors of the script
+   * @param model the model of the collection the script belongs to
+   * @returns the model after the script ran, or the given one if the script did not run or its
+   * variables could not be written
+   * @throws a {@link CollectionChangedError} if another collection is open, as the script would
+   * read and change the variables of that collection
    */
-  public executeScript(code: string, type: ScriptType, log: ScriptLogger): void {
+  public async executeScript(
+    code: string,
+    type: ScriptType,
+    log: ScriptLogger,
+    model: CollectionModel
+  ): Promise<CollectionModel> {
     let script: Script;
     try {
       const now = getSteadyTimestamp();
@@ -117,23 +150,69 @@ export class ScriptingService extends EventEmitter<ScriptingServiceEvents> {
     } catch (err) {
       logger.info(`Script compilation failed with ${errorName(err)}`);
       log({ script: type, level: 'error', args: [err] });
-      return;
+      return model;
     }
-    this._variablesChanged = false;
+
     try {
-      const context = createContext(this.createApi(type, log), {
-        name: 'Trufos Scripting Context',
-      });
-      const now = getSteadyTimestamp();
-      script.runInContext(context, { timeout: SCRIPT_TIMEOUT_SECONDS * 1000 });
-      logger.debug(`Script executed successfully after ${getDurationStringFromNow(now)}`);
+      return await collectionState.applyTo(model.collection.id, (current) =>
+        this.runScript(script, type, log, current)
+      );
     } catch (err) {
-      logger.info(`Script execution failed with ${errorName(err)}`);
-      log({ script: type, level: 'error', args: [err] });
+      if (err instanceof CollectionChangedError) throw err;
+      logger.error('Failed to apply the variables changed by a script:', err);
+      return model;
     }
-    if (this._variablesChanged) {
-      this.emit('variables-changed');
+  }
+
+  /**
+   * Runs a compiled script against the collection of the given model.
+   * @returns the command that applies the variables the script changed, if any
+   */
+  private runScript(
+    script: Script,
+    type: ScriptType,
+    log: ScriptLogger,
+    { collection, selectedEnvironmentKey }: CollectionModel
+  ): CollectionCommand | undefined {
+    // The script runs synchronously, so the collection cannot change while it runs. The draft only
+    // exists while it runs: a callback that runs later, e.g. from a promise, reads what the script
+    // left behind and cannot change it.
+    let draft: Draft<CollectionInfo> | undefined;
+    let finished: CollectionInfo = collection;
+    const changed = produce(collection, (recipe) => {
+      draft = recipe;
+      try {
+        const context = createContext(
+          this.createApi(
+            type,
+            log,
+            () => draft ?? finished,
+            () => draft,
+            selectedEnvironmentKey
+          ),
+          {
+            name: 'Trufos Scripting Context',
+          }
+        );
+        const now = getSteadyTimestamp();
+        script.runInContext(context, { timeout: SCRIPT_TIMEOUT_SECONDS * 1000 });
+        logger.debug(`Script executed successfully after ${getDurationStringFromNow(now)}`);
+      } catch (err) {
+        logger.info(`Script execution failed with ${errorName(err)}`);
+        log({ script: type, level: 'error', args: [err] });
+      } finally {
+        draft = undefined;
+      }
+    });
+    finished = changed;
+    if (changed === collection) return undefined;
+
+    const changes: CollectionChanges = {};
+    if (changed.variables !== collection.variables) changes.variables = changed.variables;
+    if (changed.environments !== collection.environments) {
+      changes.environments = changed.environments;
     }
+    return { type: CommandType.UPDATE_COLLECTION, changes };
   }
 }
 

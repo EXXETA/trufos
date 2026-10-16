@@ -56,7 +56,7 @@ const HistoryTopBar = ({ entry }: { entry: HistoryEntry }) => {
 
   const goToRequest = () => {
     setSidebarView('requests');
-    setSelectedRequest(entry.requestId);
+    void setSelectedRequest(entry.requestId);
   };
 
   return (

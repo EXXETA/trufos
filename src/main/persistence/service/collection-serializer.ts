@@ -1,6 +1,5 @@
 import { Readable } from 'node:stream';
 import { sanitizeTitle, uniqueName } from 'shim/string';
-import { TrufosObject } from 'shim/objects';
 import { TEXT_BODY_FILE_NAME } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
 import {
@@ -14,6 +13,7 @@ import {
   extractSecrets,
   GIT_IGNORE_CONTENT,
   GIT_IGNORE_FILE_NAME,
+  InfoObject,
   toInfoFile,
 } from './info-files/latest';
 import type { CollectionSnapshot, RequestSnapshot, SnapshotChild } from './snapshot';
@@ -49,6 +49,18 @@ export async function* serializeCollection(
   yield* serializeNode(snapshot, '', options);
 }
 
+/** Returns the part of a node that is written to its info file. */
+function toInfoObject(node: CollectionSnapshot | SnapshotChild): InfoObject {
+  switch (node.type) {
+    case 'request':
+      return omit({ ...node }, 'getBodyContent', 'getScriptContent');
+    case 'folder':
+      return omit({ ...node }, 'children');
+    case 'collection':
+      return omit({ ...node }, 'children');
+  }
+}
+
 async function* serializeNode(
   node: CollectionSnapshot | SnapshotChild,
   dirPath: string,
@@ -59,11 +71,7 @@ async function* serializeNode(
   // Detach a deep copy of the plain object so that neither secret extraction nor info-file
   // conversion mutates the snapshot. Children and the lazy content methods must be stripped
   // first: functions cannot be structured-cloned, and both would otherwise leak into the JSON.
-  const plain = (
-    node.type === 'request'
-      ? structuredClone(omit({ ...node }, 'getBodyContent', 'getScriptContent'))
-      : { ...structuredClone(omit({ ...node }, 'children')), children: [] }
-  ) as TrufosObject;
+  const plain = structuredClone(toInfoObject(node));
 
   const secrets = extractSecrets(plain);
   yield { path: joinPosix(dirPath, getInfoFileName(node.type)), data: toJson(toInfoFile(plain)) };

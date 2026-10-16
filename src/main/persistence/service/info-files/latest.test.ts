@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { CollectionInfoFile, InfoFile, RequestInfoFile, toInfoFile } from './latest';
 import COLLECTION_INFO_FILE from '../../../../../examples/collection/collection.json';
 import REQUEST_INFO_FILE from '../../../../../examples/collection/echo/request.json';
-import { Collection, Folder, parseUrl, RequestBodyType, RequestMethod, TrufosRequest } from 'shim';
+import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
+import { parseUrl, RequestBodyType, RequestMethod, TrufosRequest } from 'shim';
 
 describe('latest InfoFile schema', async () => {
   it('should accept a valid latest InfoFile', async () => {
@@ -53,7 +54,7 @@ describe('toInfoFile', async () => {
 
   it('should omit correct attributes for collections', async () => {
     // Arrange
-    const request: Collection = {
+    const request: CollectionInfo = {
       type: 'collection',
       id: 'collection-id',
       title: 'Request Title',
@@ -62,16 +63,6 @@ describe('toInfoFile', async () => {
       isDefault: true,
       variables: {},
       environments: {},
-      children: [
-        {
-          type: 'folder',
-          id: 'folder-id',
-          parentId: 'collection-id',
-          lastModified: Date.now(),
-          title: 'Folder Title',
-          children: [],
-        },
-      ],
     };
     // Act
     const actualInfoFile = toInfoFile(request);
@@ -79,24 +70,21 @@ describe('toInfoFile', async () => {
     expect('type' in actualInfoFile).toBe(false);
     expect('isDefault' in actualInfoFile).toBe(false);
     expect('dirPath' in actualInfoFile).toBe(false);
-    expect('children' in actualInfoFile).toBe(false);
   });
 
   it('should omit correct attributes for folders', async () => {
     // Arrange
-    // @ts-expect-error Folder object missing optional required fields
-    const request: Folder = {
+    const request: FolderInfo = {
       type: 'folder',
       id: 'folder-id',
       parentId: 'collection-id',
       title: 'Folder Title',
-      children: [],
+      lastModified: 0,
     };
     // Act
     const actualInfoFile = toInfoFile(request);
     // Assert
     expect('type' in actualInfoFile).toBe(false);
     expect('parentId' in actualInfoFile).toBe(false);
-    expect('children' in actualInfoFile).toBe(false);
   });
 });

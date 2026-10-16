@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   EraserIcon,
@@ -15,7 +15,7 @@ import {
   SquareMousePointer,
   HardDrive,
 } from 'lucide-react';
-import { Folder } from 'shim/objects/folder';
+import { CollectionTree, walkTree } from 'shim/collection-model';
 import { TrufosRequest } from 'shim/objects/request';
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -29,13 +29,12 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import {
-  selectEnvironments,
-  selectSelectedEnvironment,
-  useEnvironmentActions,
-  useEnvironmentStore,
-} from '@/state/environmentStore';
+  selectRequest,
+  useCollectionActions,
+  useCollectionStore,
+  useCollectionTree,
+} from '@/state/collectionStore';
 import { useViewActions } from '@/state/viewStore';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { Divider } from '@/components/shared/Divider';
@@ -70,35 +69,19 @@ interface ActionItem {
 }
 
 /**
- * Walk collection children depth-first, flattening nested folders into a single group per folder.
- *
- * Reads folder children from the `folders` Map (always up-to-date after `updateRequest`/
- * `moveItem`/etc.), not the folder object's own embedded `children` — immer may not propagate
- * Map mutations back into the tree references (same defect and same fix as
- * `treeUtilities.ts`'s `flattenTree`).
+ * Walk the collection depth-first, flattening nested folders into a single group per folder.
  */
-const buildRequestGroups = (
-  children: (Folder | TrufosRequest)[],
-  folders: Map<Folder['id'], Folder>,
-  folder: Folder | null = null
-): RequestGroup[] => {
-  const group: RequestGroup = {
-    id: folder?.id ?? null,
-    label: folder?.title ?? null,
-    requests: [],
-  };
-  const subGroups: RequestGroup[] = [];
-
-  for (const child of children) {
-    if (child.type === 'request') {
-      group.requests.push(child);
-    } else {
-      const liveFolder = folders.get(child.id) ?? child;
-      subGroups.push(...buildRequestGroups(liveFolder.children, folders, liveFolder));
-    }
-  }
-
-  return group.requests.length > 0 ? [group, ...subGroups] : subGroups;
+const buildRequestGroups = (tree: CollectionTree, collectionId: string): RequestGroup[] => {
+  const groups = new Map<string, RequestGroup>([
+    [collectionId, { id: null, label: null, requests: [] }],
+  ]);
+  walkTree(tree, collectionId, (id) => {
+    const folder = tree.folders.get(id);
+    const request = tree.requests.get(id);
+    if (folder != null) groups.set(id, { id, label: folder.title, requests: [] });
+    else if (request != null) groups.get(request.parentId)?.requests.push(request);
+  });
+  return [...groups.values()].filter((group) => group.requests.length > 0);
 };
 
 const TABS = ['all', 'requests', 'environments', 'actions'] as const;
@@ -115,15 +98,18 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const collection = useCollectionStore((s) => s.collection);
-  const folders = useCollectionStore((s) => s.folders);
-  const requestGroups = collection ? buildRequestGroups(collection.children, folders) : [];
+  // the palette is always mounted, so it only follows the tree while it is open
+  const tree = useCollectionTree(open);
+  const requestGroups = useMemo(
+    () => buildRequestGroups(tree, collection.id),
+    [tree, collection.id]
+  );
   const allRequests = requestGroups.flatMap((group) => group.requests);
   const currentRequest = useCollectionStore(selectRequest);
-  const { setSelectedRequest, discardChanges } = useCollectionActions();
+  const { setSelectedRequest, discardChanges, selectEnvironment } = useCollectionActions();
 
-  const environments = useEnvironmentStore(selectEnvironments);
-  const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
-  const { selectEnvironment } = useEnvironmentActions();
+  const environments = collection.environments;
+  const selectedEnvironment = useCollectionStore((s) => s.selectedEnvironmentKey);
 
   const { openCollectionSettings, openAppSettings, requestCreateItem } = useViewActions();
 
@@ -137,7 +123,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   const selectAndClose = useCallback(
     (id: string) => {
-      setSelectedRequest(id);
+      void setSelectedRequest(id);
       onClose();
     },
     [setSelectedRequest, onClose]
@@ -165,20 +151,18 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
   }, [saveRequest, onClose]);
 
   const handleNewRequest = useCallback(() => {
-    if (collection == null) return;
     runAndClose(() => requestCreateItem({ type: 'request', parentId: collection.id }));
-  }, [collection, runAndClose, requestCreateItem]);
+  }, [collection.id, runAndClose, requestCreateItem]);
 
   const handleNewFolder = useCallback(() => {
-    if (collection == null) return;
     runAndClose(() => requestCreateItem({ type: 'folder', parentId: collection.id }));
-  }, [collection, runAndClose, requestCreateItem]);
+  }, [collection.id, runAndClose, requestCreateItem]);
 
   const renderEnvironmentItem = (key: string) => (
     <CommandItem
       key={key}
       value={key}
-      onSelect={() => runAndClose(() => selectEnvironment(key))}
+      onSelect={() => runAndClose(() => void selectEnvironment(key))}
       className="data-[selected='true']:bg-divider"
     >
       <HardDrive className="shrink-0" />
@@ -213,7 +197,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
 
   const canSendRequest = currentRequest != null;
   const canSaveRequest = !!currentRequest?.draft;
-  const canCreateRequest = collection != null;
 
   const actionItems: ActionItem[] = [
     {
@@ -240,7 +223,6 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       icon: Plus,
       label: 'New request',
       hotkey: HOTKEYS.newRequest,
-      disabled: !canCreateRequest,
       onSelect: handleNewRequest,
     },
     {
@@ -249,7 +231,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
       icon: EraserIcon,
       label: 'Discard changes',
       disabled: !canSaveRequest,
-      onSelect: () => runAndClose(discardChanges),
+      onSelect: () => runAndClose(() => void discardChanges()),
     },
     {
       value: 'new folder',
@@ -300,7 +282,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
     [
       { keys: HOTKEYS.sendRequest, handler: handleSend, enabled: canSendRequest },
       { keys: HOTKEYS.saveRequest, handler: handleSave, enabled: canSaveRequest },
-      { keys: HOTKEYS.newRequest, handler: handleNewRequest, enabled: canCreateRequest },
+      { keys: HOTKEYS.newRequest, handler: handleNewRequest },
       { keys: HOTKEYS.cyclePaletteTabForward, handler: cycleTabForward },
       { keys: HOTKEYS.cyclePaletteTabForwardTab, handler: cycleTabForward },
       { keys: HOTKEYS.cyclePaletteTabBackward, handler: cycleTabBackward },
@@ -417,7 +399,7 @@ export const CommandPalette = ({ open, onClose }: CommandPaletteProps) => {
                       {requestGroups.map((group, i) => (
                         <Fragment key={group.id ?? '__root__'}>
                           {i > 0 && <CommandSeparator key={`sep-${i}`} className="col-span-full" />}
-                          <RequestCommandGroup heading={group.label ?? `${collection?.title} root`}>
+                          <RequestCommandGroup heading={group.label ?? `${collection.title} root`}>
                             {group.requests.map(renderRequestItem)}
                           </RequestCommandGroup>
                         </Fragment>

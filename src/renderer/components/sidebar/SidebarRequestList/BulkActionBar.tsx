@@ -8,8 +8,6 @@ export interface BulkActionBarProps {
   onClear: () => void;
   onDuplicate: () => void;
   onDeleteClick: () => void;
-  /** Disables Duplicate and Delete (e.g. while a bulk action is in flight); Clear stays enabled */
-  disabled?: boolean;
 }
 
 export const BulkActionBar = ({
@@ -17,7 +15,6 @@ export const BulkActionBar = ({
   onClear,
   onDuplicate,
   onDeleteClick,
-  disabled = false,
 }: BulkActionBarProps): ReactElement | null => {
   if (count === 0) return null;
 
@@ -51,7 +48,6 @@ export const BulkActionBar = ({
           type="button"
           aria-label="Duplicate selected items"
           onClick={onDuplicate}
-          disabled={disabled}
         >
           <LuCopyPlus size={16} />
         </Button>
@@ -63,7 +59,6 @@ export const BulkActionBar = ({
           className="text-danger"
           aria-label="Delete selected items"
           onClick={onDeleteClick}
-          disabled={disabled}
         >
           <LuTrash2 size={16} />
         </Button>

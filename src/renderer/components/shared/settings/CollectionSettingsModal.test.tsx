@@ -3,27 +3,27 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { CollectionSettingsModal } from './CollectionSettingsModal';
 
-vi.mock('@/state/variableStore', () => ({
-  selectVariables: (s: { variables: object }) => s.variables,
-  useVariableActions: () => ({ setVariables: vi.fn() }),
-  useVariableStore: (selector: (s: { variables: object }) => unknown) =>
-    selector({ variables: {} }),
+const { actions } = vi.hoisted(() => ({
+  actions: {
+    updateCollection: vi.fn(async () => true),
+  },
 }));
 
-vi.mock('@/state/environmentStore', () => ({
-  selectEnvironments: (s: { environments: object }) => s.environments,
-  selectSelectedEnvironment: (s: { selectedEnvironment?: string }) => s.selectedEnvironment,
-  useEnvironmentActions: () => ({ setEnvironments: vi.fn(), selectEnvironment: vi.fn() }),
-  useEnvironmentStore: (selector: (s: { environments: object }) => unknown) =>
-    selector({ environments: {} }),
-}));
-
-vi.mock('@/state/collectionStore', () => ({
-  useCollectionActions: () => ({ setClientCertificate: vi.fn(), renameCollection: vi.fn() }),
-  useCollectionStore: (
-    selector: (s: { collection: { title: string; clientCertificate: null } }) => unknown
-  ) => selector({ collection: { title: 'My Collection', clientCertificate: null } }),
-}));
+vi.mock('@/state/collectionStore', () => {
+  const state = {
+    collection: {
+      title: 'My Collection',
+      clientCertificate: null,
+      variables: {},
+      environments: {},
+    },
+    selectedEnvironmentKey: undefined,
+  };
+  return {
+    useCollectionActions: () => actions,
+    useCollectionStore: (selector: (s: typeof state) => unknown) => selector(state),
+  };
+});
 
 vi.mock('@/components/shared/settings/GeneralTab/GeneralEditor', () => ({
   GeneralEditor: ({
@@ -79,5 +79,42 @@ describe('CollectionSettingsModal', () => {
 
     const save = screen.getByRole('button', { name: /^save$/i });
     expect((save as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('disables Save when the title is blank', async () => {
+    const user = userEvent.setup();
+    render(<CollectionSettingsModal isOpen={true} onClose={onClose} />);
+
+    await user.clear(screen.getByLabelText('name'));
+    await user.type(screen.getByLabelText('name'), ' ');
+
+    const save = screen.getByRole('button', { name: /^save$/i });
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('saves only the changed settings', async () => {
+    const user = userEvent.setup();
+    render(<CollectionSettingsModal isOpen={true} onClose={onClose} />);
+
+    await user.type(screen.getByLabelText('name'), ' Renamed');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(actions.updateCollection).toHaveBeenCalledExactlyOnceWith(
+      { title: 'My Collection Renamed' },
+      undefined
+    );
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays open if saving failed', async () => {
+    const user = userEvent.setup();
+    actions.updateCollection.mockResolvedValueOnce(false);
+    render(<CollectionSettingsModal isOpen={true} onClose={onClose} />);
+
+    await user.type(screen.getByLabelText('name'), ' Renamed');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(actions.updateCollection).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

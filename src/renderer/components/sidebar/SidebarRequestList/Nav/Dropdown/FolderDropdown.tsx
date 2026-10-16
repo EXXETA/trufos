@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { handleMouseEvent } from '@/util/callback-util';
-import { Folder } from 'shim/objects/folder';
+import { FolderInfo } from 'shim/collection-model';
 import { useCollectionActions } from '@/state/collectionStore';
 
 import { MoreIcon } from '@/components/icons';
@@ -14,13 +14,13 @@ import { cn } from '@/lib/utils';
 import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
 
 export interface FolderDropdownProps {
-  folder: Folder;
+  folder: FolderInfo;
   onRename: () => void;
   onCreateItem: (item: CreatingItem) => void;
 }
 
 export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdownProps) => {
-  const { copyFolder, deleteFolder } = useCollectionActions();
+  const { copyItem, deleteItem } = useCollectionActions();
 
   const openModal = (type: 'folder' | 'request') => {
     onCreateItem({ type, parentId: folder.id });
@@ -50,13 +50,13 @@ export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdow
 
           <DropdownMenuItem onClick={handleMouseEvent(onRename)}>Rename Folder</DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleMouseEvent(() => copyFolder(folder.id))}>
+          <DropdownMenuItem onClick={handleMouseEvent(() => copyItem(folder.id))}>
             Copy Folder
           </DropdownMenuItem>
 
           <DropdownMenuItem
             className="text-danger"
-            onClick={handleMouseEvent(() => deleteFolder(folder.id))}
+            onClick={handleMouseEvent(() => deleteItem(folder.id))}
           >
             Delete Folder
           </DropdownMenuItem>

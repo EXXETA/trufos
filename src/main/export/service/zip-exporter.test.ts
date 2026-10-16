@@ -53,7 +53,8 @@ async function createPersistedCollection() {
   collection.children.push(request);
   await fs.mkdir(collection.dirPath, { recursive: true });
   await persistenceService.saveCollection(collection, true);
-  await persistenceService.saveRequest(request, 'hello world');
+  await persistenceService.saveRequestInfo(request);
+  await persistenceService.writeTextBody(request, 'hello world');
   return { collection, request };
 }
 
@@ -92,7 +93,9 @@ describe('ZipExporter', () => {
     collection.variables = { secretVar: { value: 's3cr3t', secret: true } };
     await persistenceService.saveCollection(collection);
     // add a draft overlay that must not end up in the archive
-    await persistenceService.saveRequest({ ...request, draft: true, title: 'draft' }, 'draft body');
+    const draft = { ...request, draft: true, title: 'draft' };
+    await persistenceService.saveRequestInfo(draft);
+    await persistenceService.writeTextBody(draft, 'draft body');
 
     const entries = await readEntries(await exportToZip(collection.dirPath));
     const names = Object.keys(entries);

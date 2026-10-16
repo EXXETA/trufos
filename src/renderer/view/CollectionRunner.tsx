@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { editor } from 'monaco-editor';
 import { ChevronDown, ChevronRight, Loader2, Play, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,25 +14,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useBodyData } from '@/hooks/useBodyData';
 import { FolderIcon, SmallArrow } from '@/components/icons';
-import { HttpService } from '@/services/http/http-service';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
-import { saveModelContent } from '@/lib/monaco/models';
 import { cn } from '@/lib/utils';
-import { useCollectionStore } from '@/state/collectionStore';
 import {
-  selectEnvironments,
-  selectSelectedEnvironment,
-  useEnvironmentActions,
-  useEnvironmentStore,
-} from '@/state/environmentStore';
+  useCollectionActions,
+  useCollectionStore,
+  useCollectionTree,
+} from '@/state/collectionStore';
 import { useResponseActions } from '@/state/responseStore';
-import { showError } from '@/error/errorHandler';
-import type { Folder } from 'shim/objects/folder';
+import { CollectionTree, walkTree } from 'shim/collection-model';
 import type { TrufosRequest } from 'shim/objects/request';
 import type { TrufosResponse } from 'shim/objects/response';
-
-const httpService = HttpService.instance;
 
 /** Sentinel for "no environment" since radix Select does not allow empty item values. */
 const NO_ENVIRONMENT = '__none__';
@@ -76,49 +68,35 @@ interface CollectionRunnerProps {
   onClose: () => void;
 }
 
-function collectRequestIds(folder: Folder, folders: Map<string, Folder>): string[] {
-  return folder.children.flatMap((child) => {
-    if (child.type === 'request') return child.id;
-    const currentFolder = folders.get(child.id) ?? child;
-    return collectRequestIds(currentFolder, folders);
-  });
-}
+type FolderRunnerItem = Extract<RunnerItem, { type: 'folder' }>;
 
-function buildRunnerItems(
-  children: Array<Folder | TrufosRequest>,
-  folders: Map<string, Folder>,
-  requests: Map<string, TrufosRequest>,
-  depth = 0,
-  ancestors: string[] = []
-): RunnerItem[] {
-  return children.flatMap((child): RunnerItem[] => {
-    if (child.type === 'request') {
-      const request = requests.get(child.id) ?? child;
-      return [
-        {
-          type: 'request',
-          id: request.id,
-          title: request.title || request.url.base,
-          depth,
-          ancestors,
-          request,
-        },
-      ];
-    }
-
-    const folder = folders.get(child.id) ?? child;
-    return [
-      {
+/** Lists the folders and requests below the parent, each folder with the requests inside it. */
+function buildRunnerItems(tree: CollectionTree, parentId: string): RunnerItem[] {
+  const items: RunnerItem[] = [];
+  const folderItems = new Map<string, FolderRunnerItem>();
+  walkTree(tree, parentId, (id, depth, ancestorIds) => {
+    const ancestors = [...ancestorIds];
+    const folder = tree.folders.get(id);
+    if (folder != null) {
+      const item: FolderRunnerItem = {
         type: 'folder',
-        id: folder.id,
+        id,
         title: folder.title,
         depth,
         ancestors,
-        requestIds: collectRequestIds(folder, folders),
-      },
-      ...buildRunnerItems(folder.children, folders, requests, depth + 1, [...ancestors, folder.id]),
-    ];
+        requestIds: [],
+      };
+      folderItems.set(id, item);
+      items.push(item);
+      return;
+    }
+    const request = tree.requests.get(id);
+    if (request == null) return;
+    const title = request.title || request.url.base;
+    items.push({ type: 'request', id, title, depth, ancestors, request });
+    for (const ancestorId of ancestors) folderItems.get(ancestorId)?.requestIds.push(id);
   });
+  return items;
 }
 
 function isSuccessfulStatus(status: number) {
@@ -223,12 +201,12 @@ function ResultPill({ result }: { result?: RunnerResult }) {
 
 export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   const collection = useCollectionStore((state) => state.collection);
-  const requests = useCollectionStore((state) => state.requests);
-  const folders = useCollectionStore((state) => state.folders);
+  const tree = useCollectionTree();
+  const { requests } = tree;
   const { addResponse } = useResponseActions();
-  const environments = useEnvironmentStore(selectEnvironments);
-  const selectedEnvironment = useEnvironmentStore(selectSelectedEnvironment);
-  const { selectEnvironment } = useEnvironmentActions();
+  const environments = collection.environments;
+  const selectedEnvironment = useCollectionStore((state) => state.selectedEnvironmentKey);
+  const { selectEnvironment, sendRequest } = useCollectionActions();
 
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(
     () => new Set(requests.keys())
@@ -278,7 +256,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     setCollapsedFolders(new Set());
     setTotalDuration(null);
     setIsRunning(false);
-  }, [collection?.id]);
+  }, [collection.id]);
 
   // Keep the selection in sync when requests are added or removed in the sidebar
   // without discarding the user's choices or any run results.
@@ -294,10 +272,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     });
   }, [requests]);
 
-  const items = useMemo(
-    () => buildRunnerItems(collection?.children ?? [], folders, requests),
-    [collection?.children, folders, requests]
-  );
+  const items = useMemo(() => buildRunnerItems(tree, collection.id), [tree, collection.id]);
 
   // Items inside a collapsed folder are hidden from the checklist but stay selected.
   const visibleItems = useMemo(
@@ -391,8 +366,6 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     const startedAt = performance.now();
     runStartRef.current = startedAt;
     try {
-      await Promise.all(editor.getModels().map(saveModelContent));
-
       for (const request of requestsToRun) {
         if (signal.aborted) return;
         setResults((current) => ({ ...current, [request.id]: { state: 'running' } }));
@@ -400,7 +373,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
         const requestStartedAt = performance.now();
         try {
           // No response means this request was aborted, i.e. the run was invalidated.
-          const response = await httpService.sendRequest(request, signal);
+          const response = await sendRequest(request.id, signal);
           if (response == null || signal.aborted) return;
           addResponse(request.id, response);
           const state = isSuccessfulStatus(response.metaInfo.status) ? 'passed' : 'failed';
@@ -422,8 +395,6 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
           if (stopOnFirstFailure) break;
         }
       }
-    } catch (error) {
-      if (!signal.aborted) showError(error);
     } finally {
       if (!signal.aborted) {
         setTotalDuration(performance.now() - startedAt);

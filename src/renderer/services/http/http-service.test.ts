@@ -1,6 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { DisplayableError } from 'shim/error/DisplayableError';
-import { TrufosRequest } from 'shim/objects/request';
 import { HttpService } from './http-service';
 
 const { mockSendRequest, mockAbortRequest } = vi.hoisted(() => ({
@@ -14,7 +13,7 @@ vi.mock('@/services/event/renderer-event-service', () => ({
   },
 }));
 
-const request = { id: 'req-1' } as TrufosRequest;
+const request = 'req-1';
 
 describe('HttpService', () => {
   const httpService = HttpService.instance;
@@ -31,6 +30,7 @@ describe('HttpService', () => {
 
     // Act & Assert
     await expect(httpService.sendRequest(request)).resolves.toBe(response);
+    expect(mockSendRequest).toHaveBeenCalledWith('req-1', undefined);
   });
 
   it('does not send a request whose signal is already aborted', async () => {
@@ -50,7 +50,7 @@ describe('HttpService', () => {
     // Arrange
     const controller = new AbortController();
     let abortKey: string | undefined;
-    mockSendRequest.mockImplementation((_request: unknown, key: string) => {
+    mockSendRequest.mockImplementation((_requestId: string, key: string) => {
       abortKey = key;
       controller.abort();
       return Promise.resolve(null);

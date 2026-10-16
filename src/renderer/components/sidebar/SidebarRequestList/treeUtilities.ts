@@ -1,39 +1,28 @@
 import { arrayMove } from '@dnd-kit/sortable';
-import { Folder } from 'shim/objects/folder';
-import { TrufosRequest } from 'shim/objects/request';
+import { CollectionStructure, walkTree } from 'shim/collection-model';
 
 /**
- * Returns the most recent save timestamp for an item.
- * For folders, recursively returns the max timestamp of all descendants.
+ * Returns the most recent save timestamp of every node below the given parent. For a folder, this
+ * is the most recent one of the folder and all its descendants.
+ * @param tree the structure of the tree
+ * @param parentId the collection or folder whose descendants to compute the timestamps of
+ * @param requestTimes the modification time of every request, by ID
  */
-export function getMaxTimestamp(
-  item: TrufosRequest | Folder,
-  requests: Map<string, TrufosRequest>,
-  folders: Map<string, Folder>
-): number {
-  if (item.type === 'request') return requests.get(item.id)?.lastModified ?? item.lastModified;
-  const folder = folders.get(item.id);
-  if (!folder || folder.children.length === 0) return item.lastModified;
-  return Math.max(
-    item.lastModified,
-    ...folder.children.map((child) => getMaxTimestamp(child, requests, folders))
-  );
+export function getMaxTimestamps(
+  tree: CollectionStructure,
+  parentId: string,
+  requestTimes: Readonly<Record<string, number>>
+): Map<string, number> {
+  const timestamps = new Map<string, number>();
+  const visit = (id: string): number => {
+    const own = tree.folders.get(id)?.lastModified ?? requestTimes[id] ?? 0;
+    const max = Math.max(own, ...(tree.childIds.get(id) ?? []).map(visit));
+    timestamps.set(id, max);
+    return max;
+  };
+  (tree.childIds.get(parentId) ?? []).forEach(visit);
+  return timestamps;
 }
-
-export enum SortMode {
-  DEFAULT = 'default',
-  AZ_ASC = 'az-asc',
-  AZ_DESC = 'az-desc',
-  TIME_DESC = 'time-desc',
-  TIME_ASC = 'time-asc',
-}
-export const SORT_CYCLE: SortMode[] = [
-  SortMode.DEFAULT,
-  SortMode.AZ_ASC,
-  SortMode.AZ_DESC,
-  SortMode.TIME_DESC,
-  SortMode.TIME_ASC,
-];
 
 export interface FlattenedItem {
   id: string;
@@ -46,35 +35,33 @@ export interface FlattenedItem {
 export const INDENTATION_WIDTH = 20;
 
 /**
- * Convert a nested tree of children into a flat list.
+ * Convert the tree below the given parent into a flat list.
  * Only open folders have their children included.
  *
- * Uses the `folders` Map as the source of truth for folder children,
- * because immer may not propagate Map mutations back into the tree references.
+ * @param tree the structure of the collection tree
+ * @param parentId the collection or folder whose descendants to list
+ * @param openFolders the IDs of the open folders
+ * @param compare sorts the children of each parent by ID. They keep their order if not given.
  */
 export function flattenTree(
-  children: (TrufosRequest | Folder)[],
-  openFolders: Set<string>,
+  tree: CollectionStructure,
   parentId: string,
-  folders: Map<Folder['id'], Folder>,
-  depth = 0
+  openFolders: Set<string>,
+  compare?: (a: string, b: string) => number
 ): FlattenedItem[] {
-  return children.flatMap((child) => {
-    const item: FlattenedItem = {
-      id: child.id,
-      type: child.type,
-      depth,
-      parentId,
-    };
-
-    if (child.type === 'folder' && openFolders.has(child.id)) {
-      // Read children from the Map (always up-to-date after moveItem)
-      const folderChildren = folders.get(child.id)?.children ?? [];
-      return [item, ...flattenTree(folderChildren, openFolders, child.id, folders, depth + 1)];
-    }
-
-    return [item];
-  });
+  const items: FlattenedItem[] = [];
+  walkTree(
+    tree,
+    parentId,
+    (id, depth, ancestorIds) => {
+      const isFolder = tree.folders.has(id);
+      const type = isFolder ? 'folder' : 'request';
+      items.push({ id, type, depth, parentId: ancestorIds.at(-1) ?? parentId });
+      return isFolder && openFolders.has(id);
+    },
+    compare
+  );
+  return items;
 }
 
 /**
@@ -189,4 +176,27 @@ export function getProjection(
   }
 
   return { depth, parentId, newIndex };
+}
+
+/**
+ * Converts the drop position of a dragged item into the index of a move of several items, so
+ * they land where the dragged item was dropped.
+ * @param childIds the children of the target parent
+ * @param draggedId the dragged item, one of `movedIds`
+ * @param dropIndex where the dragged item was dropped, among `childIds` without it
+ * @param movedIds all moved items
+ * @returns the index among `childIds` without all moved items, see the `move` command
+ */
+export function getMoveIndex(
+  childIds: readonly string[],
+  draggedId: string,
+  dropIndex: number,
+  movedIds: ReadonlySet<string>
+): number {
+  // the moved items are placed after the last sibling before the drop position that stays
+  const anchor = childIds
+    .filter((id) => id !== draggedId)
+    .slice(0, dropIndex)
+    .findLast((id) => !movedIds.has(id));
+  return anchor == null ? 0 : childIds.filter((id) => !movedIds.has(id)).indexOf(anchor) + 1;
 }

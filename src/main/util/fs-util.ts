@@ -1,4 +1,6 @@
+import type { ReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { app } from 'electron';
 
 export const USER_DATA_DIR = app.getPath('userData');
@@ -68,4 +70,33 @@ export async function exists(filePath: string) {
  */
 export async function isEmpty(dirPath: string) {
   return !(await fs.readdir(dirPath)).some((file) => file !== '.DS_Store');
+}
+
+/**
+ * Opens a file for reading. The file is open when this resolves, so renaming, replacing or deleting
+ * it afterwards does not affect the stream.
+ * @param filePath the path of the file
+ * @param encoding OPTIONAL: the encoding to decode the file with. If omitted, raw bytes are streamed.
+ * @returns the stream, or undefined if the file does not exist
+ */
+export async function openFile(
+  filePath: string,
+  encoding?: BufferEncoding
+): Promise<ReadStream | undefined> {
+  try {
+    const handle = await fs.open(filePath, 'r');
+    return handle.createReadStream({ encoding });
+  } catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error;
+}
+
+/** Returns true if `dirPath` is `parentDirPath` itself or a directory inside it. */
+export function isSameOrInside(dirPath: string, parentDirPath: string): boolean {
+  return dirPath === parentDirPath || dirPath.startsWith(parentDirPath + path.sep);
 }

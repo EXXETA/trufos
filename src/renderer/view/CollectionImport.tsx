@@ -19,7 +19,6 @@ import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
 import type { ImportStrategy, ImportWarning } from 'shim/event-service';
 import { showError } from '@/error/errorHandler';
-import { Collection } from 'shim/objects/collection';
 import { toast } from '@/components/ui/sonner';
 
 const eventService = RendererEventService.instance;
@@ -140,28 +139,28 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   }, [open, strategy]);
 
   const doImport = useCallback(async () => {
-    try {
-      setIsImporting(true);
-      let collection: Collection;
-      if (strategy === 'Trufos') {
-        collection = await eventService.openCollection(srcEntry!.path);
-      } else {
+    setIsImporting(true);
+    let dirPath = srcEntry!.path;
+    if (strategy !== 'Trufos') {
+      try {
         const result = await eventService.importCollection(
           srcEntry!.path,
           targetEntry!.path,
           strategy,
           title!
         );
-        collection = result.collection;
+        dirPath = result.dirPath;
         showImportWarnings(result.warnings);
+      } catch (e) {
+        showError(e);
+        setIsImporting(false);
+        return;
       }
-      await changeCollection(collection);
-      onClose?.();
-    } catch (e) {
-      showError(e);
-    } finally {
-      setIsImporting(false);
     }
+
+    const opened = await changeCollection(dirPath);
+    setIsImporting(false);
+    if (opened) onClose?.();
   }, [srcEntry, targetEntry, strategy, title, onClose, changeCollection]);
 
   const dialogFooter = useMemo(() => {

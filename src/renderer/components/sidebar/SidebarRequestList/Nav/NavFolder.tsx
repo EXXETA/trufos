@@ -1,4 +1,4 @@
-import { Folder } from 'shim/objects/folder';
+import { FolderInfo } from 'shim/collection-model';
 import { SidebarGroup, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { FolderDropdown } from '@/components/sidebar/SidebarRequestList/Nav/Dropdown/FolderDropdown';
 import { selectFolder, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
@@ -12,7 +12,7 @@ import { InlineRename } from '@/components/shared/InlineRename';
 import type { CreatingItem, ItemClickHandler } from '@/components/sidebar/SidebarRequestList/types';
 
 interface NavFolderProps {
-  folderId: Folder['id'];
+  folderId: FolderInfo['id'];
   depth?: number;
   onCreateItem?: (item: CreatingItem) => void;
   onItemClick: ItemClickHandler;
@@ -21,8 +21,8 @@ interface NavFolderProps {
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
 export const NavFolder = ({ folderId, depth = 0, onCreateItem, onItemClick }: NavFolderProps) => {
-  const { setFolderOpen, setFolderClose, renameFolder } = useCollectionActions();
-  const isFolderOpen = useCollectionStore((state) => state.isFolderOpen(folderId));
+  const { setFolderOpen, setFolderClose, renameItem } = useCollectionActions();
+  const isFolderOpen = useCollectionStore((state) => state.openFolders.has(folderId));
   const isSelected = useCollectionStore((state) => state.selectedIds.has(folderId));
   const folder = useCollectionStore((state) => selectFolder(state, folderId));
   const [isEditing, setIsEditing] = useState(false);
@@ -91,7 +91,7 @@ export const NavFolder = ({ folderId, depth = 0, onCreateItem, onItemClick }: Na
               onSave={(newName) => {
                 const trimmed = newName.trim();
                 if (trimmed && trimmed !== folder.title) {
-                  renameFolder(folderId, trimmed);
+                  renameItem(folderId, trimmed);
                 }
                 setIsEditing(false);
               }}

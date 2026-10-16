@@ -4,7 +4,7 @@ import { PersistenceService } from 'main/persistence/service/persistence-service
 import { PostmanImporter } from './postman-importer';
 import { OpenApiImporter } from './openapi-importer';
 import { BrunoImporter } from './bruno-importer';
-import type { ImportResult, ImportStrategy, ImportWarning } from 'shim/event-service';
+import type { ImportStrategy, ImportWarning } from 'shim/event-service';
 import { sanitizeTitle, uniqueNameAsync } from 'shim/string';
 import { exists, isEmpty } from 'main/util/fs-util';
 import fs from 'node:fs/promises';
@@ -49,7 +49,7 @@ export class ImportService {
     targetDirPath: string,
     strategy: ImportStrategy,
     title?: string
-  ): Promise<ImportResult> {
+  ): Promise<{ collection: Collection; warnings: ImportWarning[] }> {
     // select importer
     const importer = this.importers.get(strategy);
     if (importer === undefined) {

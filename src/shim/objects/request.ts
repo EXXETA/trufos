@@ -3,6 +3,7 @@ import { RequestMethod } from './request-method';
 import { TrufosURL } from './url';
 import { TrufosHeader } from './headers';
 import { z } from 'zod';
+import { TrufosId } from './id';
 
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 
@@ -63,8 +64,8 @@ export function getInlineTextBody(request: TrufosRequest) {
 }
 
 export const TrufosRequest = z.object({
-  id: z.string(),
-  parentId: z.string(),
+  id: TrufosId,
+  parentId: TrufosId,
   type: z.literal('request'),
   lastModified: z.number(),
   title: z.string(),

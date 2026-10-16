@@ -1,788 +1,880 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCollectionStore } from './collectionStore';
+import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
+import { makeCollection, makeFolder, makeRequest } from 'shim/__mocks__/collection-fixtures';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { isRequestInAParentFolder } from '@/state/helper/collectionUtil';
-import { ClientCertificate, Collection } from 'shim/objects/collection';
-import { Folder } from 'shim/objects/folder';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { HttpService } from '@/services/http/http-service';
+import { showError } from '@/error/errorHandler';
+import { loadEditorContent } from '@/lib/monaco/editor-content';
+import { IpcPushStream } from '@/lib/ipc-stream';
+import {
+  cancelModelEdits,
+  disposeModelsForRequest,
+  flushModelEdits,
+  getBodyModel,
+  getScriptModel,
+  MODEL_EDIT_DEBOUNCE_MS,
+} from '@/lib/monaco/models';
+import { CollectionCommand, CommandType, normalizeCollection } from 'shim/collection-model';
+import { Collection } from 'shim/objects/collection';
+import { AuthorizationType } from 'shim/objects/auth';
+import { RequestBodyType } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
-import { AuthorizationType, OAuth2Method } from 'shim/objects';
-import { registerGetRequest } from '@/lib/monaco/models';
+import { ScriptType } from 'shim/scripting';
 
-const mockEventService = RendererEventService.instance as unknown as {
-  deleteObject: ReturnType<typeof vi.fn>;
-  copyRequest: ReturnType<typeof vi.fn>;
-  copyFolder: ReturnType<typeof vi.fn>;
-  loadCollection: ReturnType<typeof vi.fn>;
-  reorderItem: ReturnType<typeof vi.fn>;
-  moveItem: ReturnType<typeof vi.fn>;
-};
+vi.mock('@/services/event/renderer-event-service', () => ({
+  RendererEventService: {
+    instance: {
+      openCollection: vi.fn().mockResolvedValue(undefined),
+      closeCollection: vi.fn().mockResolvedValue(undefined),
+    },
+  },
+}));
+
+vi.mock('@/services/http/http-service', () => ({
+  HttpService: { instance: { sendRequest: vi.fn() } },
+}));
+
+vi.mock('@/error/errorHandler', () => ({
+  showError: vi.fn(),
+}));
 
 vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: vi.fn() },
 }));
 
-vi.mock('@/state/helper/collectionUtil', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./helper/collectionUtil')>();
+vi.mock('@/lib/monaco/editor-content', () => ({
+  loadEditorContent: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/lib/monaco/models', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/monaco/models')>();
   return {
     ...actual,
-    isRequestInAParentFolder: vi.fn(() => false),
+    cancelModelEdits: vi.fn(actual.cancelModelEdits),
+    disposeModelsForRequest: vi.fn(actual.disposeModelsForRequest),
+    flushModelEdits: vi.fn(actual.flushModelEdits),
   };
 });
 
-vi.mock('@/services/event/renderer-event-service', () => ({
-  RendererEventService: {
-    instance: {
-      rename: vi.fn(),
-      renameCollection: vi.fn(),
-      setClientCertificate: vi.fn(),
-      deleteObject: vi.fn().mockResolvedValue(undefined),
-      copyRequest: vi.fn().mockResolvedValue(undefined),
-      copyFolder: vi.fn().mockResolvedValue(undefined),
-      loadCollection: vi.fn(),
-      reorderItem: vi.fn().mockResolvedValue(undefined),
-      moveItem: vi.fn().mockResolvedValue(undefined),
-      saveRequest: vi.fn().mockResolvedValue(undefined),
-      saveScript: vi.fn().mockResolvedValue(undefined),
-    },
-  },
-}));
+const eventService = vi.mocked(RendererEventService.instance);
 
-vi.mock('@/state/variableStore', () => ({
-  useVariableStore: { getState: () => ({ initialize: vi.fn() }) },
-}));
+const COL_ID = 'col';
 
-vi.mock('@/state/environmentStore', () => ({
-  useEnvironmentStore: { getState: () => ({ initialize: vi.fn() }) },
-}));
+/**
+ * col
+ * ├── F
+ * │   ├── r1
+ * │   └── G
+ * │       └── r2
+ * └── r3
+ */
+const defaultCollection = () =>
+  makeCollection(COL_ID, [
+    makeFolder('F', COL_ID, [
+      makeRequest('r1', 'F'),
+      makeFolder('G', 'F', [makeRequest('r2', 'G')]),
+    ]),
+    makeRequest('r3', COL_ID),
+  ]);
 
-const makeRequest = (id: string, parentId: string): TrufosRequest =>
-  ({
-    id,
-    parentId,
-    type: 'request',
-    title: id,
-    url: { base: 'http://localhost', query: [] },
-    method: RequestMethod.GET,
-    headers: [],
-    body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-    draft: false,
-  }) as unknown as TrufosRequest;
-
-const makeCollection = (id: string, children: Collection['children'] = []): Collection =>
-  ({
-    id,
-    parentId: null,
-    type: 'collection',
-    title: 'Test',
-    dirPath: '/test',
-    children,
-    variables: [],
-    environments: [],
-  }) as unknown as Collection;
-
-const REQ_ID = 'req-1';
-const COL_ID = 'col-1';
-
-const buildStore = () => {
-  const request = makeRequest(REQ_ID, COL_ID);
-  const collection = makeCollection(COL_ID, [request]);
-  const store = createCollectionStore(collection);
-  store.getState().setSelectedRequest(REQ_ID);
-  return store;
+const setup = (collection: Collection = defaultCollection(), savedRequests = []) => {
+  const main = new FakeCollectionMain(normalizeCollection(collection, savedRequests));
+  const { store, collectionState } = createCollectionStore(
+    structuredClone(main.model),
+    // looked up per call, so tests can replace it
+    (envelope) => main.dispatch(envelope),
+    main.getCollectionState
+  );
+  main.onEvent((event) => collectionState.receive(event));
+  const commands = (): CollectionCommand[] => main.received.map(({ command }) => command);
+  return { main, store, commands };
 };
 
-describe('markDraft', () => {
-  it('setDraftFlag sets draft and updates lastModified', () => {
-    const store = buildStore();
-    const before = Date.now();
+type Setup = ReturnType<typeof setup>;
 
-    store.getState().setDraftFlag();
+const childIds = ({ store }: Setup, parentId: string) => store.getState().childIds.get(parentId);
 
-    const state = store.getState();
-    expect(state.requests.get(REQ_ID)!.draft).toBe(true);
-    expect(state.requests.get(REQ_ID)!.lastModified).toBeGreaterThanOrEqual(before);
-  });
-
-  it('updateHeader sets draft and updates lastModified', () => {
-    const store = buildStore();
-    store.getState().addHeader();
-    const before = Date.now();
-
-    store.getState().updateHeader(0, { key: 'X-Test', value: '1', isActive: true });
-
-    const state = store.getState();
-    expect(state.requests.get(REQ_ID)!.draft).toBe(true);
-    expect(state.requests.get(REQ_ID)!.lastModified).toBeGreaterThanOrEqual(before);
-  });
-
-  it('addHeader sets draft and updates lastModified', () => {
-    const store = buildStore();
-    const before = Date.now();
-
-    store.getState().addHeader();
-
-    const state = store.getState();
-    expect(state.requests.get(REQ_ID)!.draft).toBe(true);
-    expect(state.requests.get(REQ_ID)!.lastModified).toBeGreaterThanOrEqual(before);
-  });
-
-  it('deleteHeader sets draft and updates lastModified', () => {
-    const store = buildStore();
-    store.getState().addHeader();
-    const before = Date.now();
-
-    store.getState().deleteHeader(0);
-
-    const state = store.getState();
-    expect(state.requests.get(REQ_ID)!.draft).toBe(true);
-    expect(state.requests.get(REQ_ID)!.lastModified).toBeGreaterThanOrEqual(before);
-  });
-
-  it('updateQueryParam sets draft and updates lastModified', () => {
-    const store = buildStore();
-    store.getState().addQueryParam();
-    const before = Date.now();
-
-    store.getState().updateQueryParam(0, { key: 'foo', value: 'bar' });
-
-    const state = store.getState();
-    expect(state.requests.get(REQ_ID)!.draft).toBe(true);
-    expect(state.requests.get(REQ_ID)!.lastModified).toBeGreaterThanOrEqual(before);
-  });
-
-  it('updateAuthorization on a request sets draft and updates lastModified', () => {
-    const store = buildStore();
-    const before = Date.now();
-    const request = store.getState().requests.get(REQ_ID);
-
-    store.getState().updateAuthorization(request!, {
-      type: AuthorizationType.BEARER,
-      token: 'abc',
-    });
-
-    const state = store.getState();
-    expect(state.requests.get(REQ_ID)!.draft).toBe(true);
-    expect(state.requests.get(REQ_ID)!.lastModified).toBeGreaterThanOrEqual(before);
-  });
-
-  it('updateAuthorization merges fields when the type is unchanged', () => {
-    const store = buildStore();
-    const request = store.getState().requests.get(REQ_ID);
-
-    store.getState().updateAuthorization(request!, { type: AuthorizationType.BASIC });
-    store.getState().updateAuthorization(store.getState().requests.get(REQ_ID)!, {
-      username: 'user',
-    });
-
-    expect(store.getState().requests.get(REQ_ID)!.auth).toEqual({
-      type: AuthorizationType.BASIC,
-      username: 'user',
-    });
-  });
-
-  it('updateAuthorization drops stale fields when the type changes', () => {
-    const store = buildStore();
-    const request = store.getState().requests.get(REQ_ID);
-
-    // Simulate a previous type whose discriminator fields must not leak into the next type.
-    store.getState().updateAuthorization(request!, {
-      type: AuthorizationType.OAUTH2,
-      method: OAuth2Method.AUTHORIZATION_CODE,
-    } as never);
-    store.getState().updateAuthorization(store.getState().requests.get(REQ_ID)!, {
-      type: AuthorizationType.OAUTH1,
-    });
-
-    // Only the new type remains — no stale `method` from OAuth2.
-    expect(store.getState().requests.get(REQ_ID)!.auth).toEqual({ type: AuthorizationType.OAUTH1 });
-  });
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
-describe('new entries', () => {
-  it('addHeader adds an active header', () => {
-    const store = buildStore();
+describe('request edits', () => {
+  let ctx: Setup;
 
-    store.getState().addHeader();
+  beforeEach(() => {
+    ctx = setup();
+    ctx.store.getState().setSelectedRequest('r3');
+  });
 
-    expect(store.getState().requests.get(REQ_ID)!.headers).toEqual([
-      { key: '', value: '', isActive: true },
+  const request = () => ctx.store.getState().requests.get('r3')!;
+
+  it('updateRequest changes the selected request and makes it a draft', () => {
+    ctx.store.getState().updateRequest({ method: RequestMethod.POST });
+
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.EDIT_REQUEST, id: 'r3', changes: { method: RequestMethod.POST } },
+    ]);
+    expect(request().method).toBe(RequestMethod.POST);
+    expect(request().draft).toBe(true);
+    expect(ctx.store.getState().savedRequests.get('r3')!.method).toBe(RequestMethod.GET);
+  });
+
+  it('keeps unchanged requests and folders when a request changes', () => {
+    const before = ctx.store.getState();
+
+    ctx.store.getState().updateRequest({ method: RequestMethod.POST });
+
+    const after = ctx.store.getState();
+    expect(after.requests.get('r1')).toBe(before.requests.get('r1'));
+    expect(after.folders).toBe(before.folders);
+    expect(after.childIds).toBe(before.childIds);
+    expect(after.openFolders).toBe(before.openFolders);
+  });
+
+  it('header actions send the complete new header list', () => {
+    const { addHeader, updateHeader, deleteHeader } = ctx.store.getState();
+
+    addHeader();
+    updateHeader(0, { key: 'X-Test', value: '1' });
+    addHeader();
+    deleteHeader(1);
+    expect(request().headers).toEqual([{ key: 'X-Test', value: '1', isActive: true }]);
+    expect(ctx.commands().every((command) => command.type === CommandType.EDIT_REQUEST)).toBe(true);
+  });
+
+  it('query param actions send the complete new url', () => {
+    const { addQueryParam, updateQueryParam, setQueryParamActive, deleteQueryParam } =
+      ctx.store.getState();
+
+    addQueryParam();
+    updateQueryParam(0, { key: 'q', value: 'x' });
+    setQueryParamActive(0);
+    expect(request().url).toEqual({
+      base: 'http://localhost',
+      query: [{ key: 'q', value: 'x', isActive: false }],
+    });
+
+    deleteQueryParam(0);
+    expect(ctx.commands().at(-1)).toEqual({
+      type: CommandType.EDIT_REQUEST,
+      id: 'r3',
+      changes: { url: { base: 'http://localhost', query: [] } },
+    });
+  });
+
+  it('sends nothing if a recipe changes nothing', () => {
+    const { updateHeader, setRequestBodyMimeType } = ctx.store.getState();
+
+    updateHeader(0, { key: 'missing' });
+    setRequestBodyMimeType(undefined);
+    expect(ctx.commands()).toEqual([]);
+
+    ctx.store.getState().addHeader();
+    expect(ctx.commands()).toEqual([
+      {
+        type: CommandType.EDIT_REQUEST,
+        id: 'r3',
+        changes: { headers: [{ key: '', value: '', isActive: true }] },
+      },
     ]);
   });
 
-  it('addQueryParam adds an active query param', () => {
-    const store = buildStore();
+  it('setRequestBodyMimeType changes the mime type of a text body', () => {
+    ctx.store.getState().setRequestBodyMimeType('application/json');
 
-    store.getState().addQueryParam();
+    expect(request().body).toEqual({ type: RequestBodyType.TEXT, mimeType: 'application/json' });
+  });
 
-    expect(store.getState().requests.get(REQ_ID)!.url.query).toEqual([
-      { key: '', value: '', isActive: true },
+  describe('form data', () => {
+    beforeEach(() => {
+      ctx.store.getState().setRequestBody({ type: RequestBodyType.FORM_DATA, fields: [] });
+    });
+
+    const fields = () => {
+      const { body } = request();
+      return body.type === RequestBodyType.FORM_DATA ? body.fields : undefined;
+    };
+
+    it('adds, updates and deletes fields', () => {
+      const { addFormDataField, updateFormDataField, deleteFormDataField } = ctx.store.getState();
+
+      addFormDataField();
+      addFormDataField();
+      expect(fields()).toEqual([
+        { key: '', isActive: true, value: { type: RequestBodyType.TEXT, mimeType: 'text/plain' } },
+        { key: '', isActive: true, value: { type: RequestBodyType.TEXT, mimeType: 'text/plain' } },
+      ]);
+
+      updateFormDataField(1, { key: 'file', value: { type: RequestBodyType.FILE } });
+      deleteFormDataField(0);
+      expect(fields()).toEqual([
+        { key: 'file', isActive: true, value: { type: RequestBodyType.FILE } },
+      ]);
+      expect(request().draft).toBe(true);
+    });
+
+    it('ignores form data actions for other body types', () => {
+      ctx.store.getState().setRequestBody({ type: RequestBodyType.FILE });
+      const count = ctx.commands().length;
+
+      ctx.store.getState().addFormDataField();
+
+      expect(ctx.commands()).toHaveLength(count);
+    });
+  });
+});
+
+describe('creating and changing items', () => {
+  let ctx: Setup;
+
+  beforeEach(() => {
+    ctx = setup();
+  });
+
+  it('addNewRequest creates a never saved draft, opens its folder and selects it', async () => {
+    await ctx.store.getState().addNewRequest('New', 'G');
+
+    const [command] = ctx.commands();
+    expect(command).toMatchObject({
+      type: CommandType.CREATE_REQUEST,
+      request: { parentId: 'G', title: 'New', draft: true },
+    });
+    const { selectedRequestId, requests, openFolders, savedRequests } = ctx.store.getState();
+    expect(selectedRequestId).toBe(
+      command.type === CommandType.CREATE_REQUEST && command.request.id
+    );
+    expect(requests.get(selectedRequestId!)!.draft).toBe(true);
+    expect(savedRequests.has(selectedRequestId!)).toBe(false);
+    expect([...openFolders]).toEqual(expect.arrayContaining(['F', 'G']));
+  });
+
+  it('addNewFolder creates an empty folder', async () => {
+    await ctx.store.getState().addNewFolder('Folder');
+
+    const [command] = ctx.commands();
+    expect(command).toMatchObject({
+      type: CommandType.CREATE_FOLDER,
+      folder: { parentId: COL_ID },
+    });
+    expect(childIds(ctx, COL_ID)).toHaveLength(3);
+  });
+
+  it('renameItem renames requests and folders', async () => {
+    await ctx.store.getState().renameItem('r1', 'Request');
+    await ctx.store.getState().renameItem('F', 'Folder');
+
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.RENAME, id: 'r1', title: 'Request' },
+      { type: CommandType.RENAME, id: 'F', title: 'Folder' },
+    ]);
+    expect(ctx.store.getState().folders.get('F')!.title).toBe('Folder');
+  });
+
+  it('copyItem gives a folder and every descendant a new ID', async () => {
+    await ctx.store.getState().copyItem('F');
+
+    const [command] = ctx.commands();
+    expect(command.type === CommandType.COPY && Object.keys(command.idMap).sort()).toEqual([
+      'F',
+      'G',
+      'r1',
+      'r2',
+    ]);
+    expect(childIds(ctx, COL_ID)).toHaveLength(3);
+  });
+
+  it('copyItem copies a request to the end of its parent', async () => {
+    await ctx.store.getState().copyItem('r1');
+
+    const copyId = childIds(ctx, 'F')![2];
+    expect(ctx.store.getState().requests.get(copyId)!.title).toBe('r1 (Copy)');
+  });
+
+  it.each(['r1', 'F'])('copyItem flushes the editor changes before copying %s', async (id) => {
+    let commandsWhenFlushed: number | undefined;
+    vi.mocked(flushModelEdits).mockImplementationOnce(async () => {
+      commandsWhenFlushed = ctx.commands().length;
+    });
+
+    await ctx.store.getState().copyItem(id);
+
+    expect(flushModelEdits).toHaveBeenCalledWith();
+    expect(commandsWhenFlushed).toBe(0);
+    expect(ctx.commands().map(({ type }) => type)).toEqual([CommandType.COPY]);
+  });
+
+  it('moveItems moves an item into another folder and opens it', async () => {
+    await ctx.store.getState().moveItems(['r3'], 'G', 0);
+
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.MOVE, ids: ['r3'], parentId: 'G', index: 0 },
+    ]);
+    expect(childIds(ctx, 'G')).toEqual(['r3', 'r2']);
+    expect(ctx.store.getState().openFolders.has('G')).toBe(true);
+  });
+
+  it('selects an environment, or none, without changing the collection', async () => {
+    const ctx = setup({
+      ...defaultCollection(),
+      environments: { dev: { variables: {} }, prod: { variables: {} } },
+    });
+    const { selectEnvironment } = ctx.store.getState();
+
+    await selectEnvironment('prod');
+    expect(ctx.store.getState().selectedEnvironmentKey).toBe('prod');
+    await selectEnvironment(undefined);
+
+    expect(ctx.store.getState().selectedEnvironmentKey).toBeUndefined();
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.UPDATE_COLLECTION, changes: {}, selectedEnvironmentKey: 'prod' },
+      { type: CommandType.UPDATE_COLLECTION, changes: {}, selectedEnvironmentKey: null },
     ]);
   });
-});
 
-describe('renameRequest', () => {
-  it('updates the request in the collection tree after previous edits replaced the map entry', async () => {
-    const store = buildStore();
+  it('changes the collection settings', async () => {
+    const { updateCollection } = ctx.store.getState();
 
-    store.getState().updateRequest({ url: { base: 'http://example.com', query: [] } });
-    await store.getState().renameRequest(REQ_ID, 'Renamed request');
+    await updateCollection(
+      {
+        title: 'Renamed',
+        variables: { host: { value: 'localhost' } },
+        environments: { dev: { variables: {} }, prod: { variables: {} } },
+      },
+      'prod'
+    );
 
-    const state = store.getState();
-    expect(state.requests.get(REQ_ID)!.title).toBe('Renamed request');
-    expect(state.collection!.children[0].title).toBe('Renamed request');
+    expect(ctx.commands()).toEqual([
+      {
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {
+          title: 'Renamed',
+          variables: { host: { value: 'localhost' } },
+          environments: { dev: { variables: {} }, prod: { variables: {} } },
+        },
+        selectedEnvironmentKey: 'prod',
+      },
+    ]);
+    const { collection, selectedEnvironmentKey } = ctx.store.getState();
+    expect(collection.variables).toEqual({ host: { value: 'localhost' } });
+    expect(Object.keys(collection.environments)).toEqual(['dev', 'prod']);
+    expect(selectedEnvironmentKey).toBe('prod');
+    expect(collection.title).toBe('Renamed');
+  });
+
+  it('sets and removes the client certificate and the collection authorization', async () => {
+    const { updateCollection } = ctx.store.getState();
+
+    await updateCollection({
+      clientCertificate: { certPath: '/cert.pem' },
+      auth: { type: AuthorizationType.BEARER, token: 't' },
+    });
+    expect(ctx.store.getState().collection).toMatchObject({
+      clientCertificate: { certPath: '/cert.pem' },
+      auth: { type: AuthorizationType.BEARER, token: 't' },
+    });
+
+    await updateCollection({ clientCertificate: null, auth: null });
+    expect(ctx.store.getState().collection.clientCertificate).toBeUndefined();
+    expect(ctx.store.getState().collection.auth).toBeUndefined();
   });
 });
 
-describe('initialize', () => {
-  it('preserves openFolders when reinitializing the same collection', () => {
-    const store = buildStore();
-    store.getState().setFolderOpen('folder-a');
+describe('selected request', () => {
+  let ctx: Setup;
 
-    store.getState().initialize(makeCollection(COL_ID));
-
-    expect(store.getState().openFolders.has('folder-a')).toBe(false); // pruned (folder not in new map)
-  });
-
-  it('retains an openFolders entry still present after reinitializing the same collection', () => {
-    // Regression test: Immer draft Sets don't support Set.prototype.intersection() (it
-    // silently returns empty), so this guards against a naive `.intersection()` call
-    // wiping out still-valid open folders on every collection reload.
-    const folder: Folder = {
-      id: 'folder-a',
-      parentId: COL_ID,
-      type: 'folder',
-      title: 'Folder A',
-      children: [],
-    } as unknown as Folder;
-    const store = buildStore();
-    store.getState().initialize(makeCollection(COL_ID, [folder]));
-    store.getState().setFolderOpen('folder-a');
-
-    store.getState().initialize(makeCollection(COL_ID, [folder]));
-
-    expect(store.getState().openFolders.has('folder-a')).toBe(true);
-  });
-
-  it('resets openFolders and selectedRequestId when switching to a different collection', () => {
-    const store = buildStore();
-    store.getState().setFolderOpen('folder-a');
-
-    store.getState().initialize(makeCollection('col-2'));
-
-    const state = store.getState();
-    expect(state.openFolders.size).toBe(0);
-    expect(state.selectedRequestId).toBeUndefined();
-  });
-
-  it('keeps selectedRequestId when reinitializing with the same collection and request still exists', () => {
-    const request = makeRequest(REQ_ID, COL_ID);
-    const store = buildStore();
-
-    store.getState().initialize(makeCollection(COL_ID, [request]));
-
-    expect(store.getState().selectedRequestId).toBe(REQ_ID);
-  });
-
-  it('clears selectedRequestId when reinitializing and the selected request no longer exists', () => {
-    const store = buildStore();
-
-    store.getState().initialize(makeCollection(COL_ID, [])); // request removed
-
-    expect(store.getState().selectedRequestId).toBeUndefined();
-  });
-
-  it('prunes selectedIds to ids still present when reinitializing the same collection', () => {
-    const store = buildStore();
-    store.getState().setSelection([REQ_ID, 'stale-id']);
-
-    store.getState().initialize(makeCollection(COL_ID, [makeRequest(REQ_ID, COL_ID)]));
-
-    const state = store.getState();
-    expect(state.selectedIds.has(REQ_ID)).toBe(true);
-    expect(state.selectedIds.has('stale-id')).toBe(false);
-  });
-
-  it('resets selectedIds when switching to a different collection', () => {
-    const store = buildStore();
-    store.getState().setSelection([REQ_ID]);
-
-    store.getState().initialize(makeCollection('col-2'));
-
-    expect(store.getState().selectedIds.size).toBe(0);
-  });
-});
-
-describe('selection actions', () => {
-  it('toggleItemSelected adds an id not yet selected', () => {
-    const store = buildStore();
-
-    store.getState().toggleItemSelected(REQ_ID);
-
-    expect(store.getState().selectedIds.has(REQ_ID)).toBe(true);
-  });
-
-  it('toggleItemSelected removes an id already selected', () => {
-    const store = buildStore();
-    store.getState().toggleItemSelected(REQ_ID);
-
-    store.getState().toggleItemSelected(REQ_ID);
-
-    expect(store.getState().selectedIds.has(REQ_ID)).toBe(false);
-  });
-
-  it('setSelection replaces the entire selection', () => {
-    const store = buildStore();
-    store.getState().toggleItemSelected('other-id');
-
-    store.getState().setSelection([REQ_ID, 'folder-a']);
-
-    const state = store.getState();
-    expect([...state.selectedIds].sort()).toEqual([REQ_ID, 'folder-a'].sort());
-  });
-
-  it('clearSelection empties the selection', () => {
-    const store = buildStore();
-    store.getState().setSelection([REQ_ID, 'folder-a']);
-
-    store.getState().clearSelection();
-
-    expect(store.getState().selectedIds.size).toBe(0);
-  });
-
-  it('addToSelection unions ids into the existing selection', () => {
-    const store = buildStore();
-    store.getState().setSelection([REQ_ID]);
-
-    store.getState().addToSelection(['folder-a', 'folder-b']);
-
-    const state = store.getState();
-    expect([...state.selectedIds].sort()).toEqual([REQ_ID, 'folder-a', 'folder-b'].sort());
-  });
-
-  it('addToSelection does not remove already-selected ids not in the given range', () => {
-    const store = buildStore();
-    store.getState().setSelection([REQ_ID, 'folder-a']);
-
-    store.getState().addToSelection(['folder-b']);
-
-    const state = store.getState();
-    expect([...state.selectedIds].sort()).toEqual([REQ_ID, 'folder-a', 'folder-b'].sort());
-  });
-});
-
-const makeFolder = (id: string, parentId: string, children: Folder['children'] = []): Folder =>
-  ({
-    id,
-    parentId,
-    type: 'folder',
-    title: id,
-    children,
-  }) as unknown as Folder;
-
-describe('deleteSelectedItems', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockEventService.deleteObject.mockResolvedValue(undefined);
+    ctx = setup();
   });
 
-  it('deletes each top-level selected item via eventService.deleteObject, reloads exactly once, and clears the selection', async () => {
-    const request = makeRequest(REQ_ID, COL_ID);
-    const folder = makeFolder('folder-a', COL_ID);
-    const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, []));
+  it('opens the ancestors of the selected request', () => {
+    ctx.store.getState().setSelectedRequest('r2');
 
-    store.getState().setSelection([REQ_ID, 'folder-a']);
-    await store.getState().deleteSelectedItems();
-
-    expect(mockEventService.deleteObject).toHaveBeenCalledWith(request);
-    expect(mockEventService.deleteObject).toHaveBeenCalledWith(folder);
-    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
-    expect(store.getState().selectedIds.size).toBe(0);
+    expect([...ctx.store.getState().openFolders].sort()).toEqual(['F', 'G']);
   });
 
-  it("excludes a selected folder's own selected descendant from the delete loop", async () => {
-    const childReq = makeRequest('child-req', 'folder-a');
-    const folder = makeFolder('folder-a', COL_ID, [childReq]);
-    const store = createCollectionStore(makeCollection(COL_ID, [folder]));
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, []));
+  it('flushes the editor changes of the outgoing request', async () => {
+    ctx.store.getState().setSelectedRequest('r1');
+    let flushed = false;
+    vi.mocked(flushModelEdits).mockImplementationOnce(async () => {
+      flushed = true;
+    });
 
-    store.getState().setSelection(['folder-a', 'child-req']);
-    await store.getState().deleteSelectedItems();
+    await ctx.store.getState().setSelectedRequest('r3');
 
-    expect(mockEventService.deleteObject).toHaveBeenCalledTimes(1);
-    expect(mockEventService.deleteObject).toHaveBeenCalledWith(folder);
-    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
+    expect(flushModelEdits).toHaveBeenCalledWith('r1');
+    expect(flushed).toBe(true);
   });
 
-  it('disposes the open request before reloading when it is a descendant of a bulk-deleted folder', async () => {
-    const childReq = makeRequest('child-req', 'folder-a');
-    const folder = makeFolder('folder-a', COL_ID, [childReq]);
-    const store = createCollectionStore(makeCollection(COL_ID, [folder]));
-    store.getState().setSelectedRequest('child-req');
-    vi.mocked(isRequestInAParentFolder).mockReturnValueOnce(true);
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, []));
+  it('resolves at once if no request was selected before', async () => {
+    await ctx.store.getState().setSelectedRequest('r3');
 
-    const setSelectedRequestMock = vi.fn(store.getState().setSelectedRequest);
-    store.setState({ setSelectedRequest: setSelectedRequestMock });
+    expect(flushModelEdits).not.toHaveBeenCalled();
+    expect(ctx.store.getState().selectedRequestId).toBe('r3');
+  });
 
-    store.getState().setSelection(['folder-a']);
-    await store.getState().deleteSelectedItems();
+  it('deleteItem drops the editor changes and deselects the request', async () => {
+    ctx.store.getState().setSelectedRequest('r3');
 
-    expect(setSelectedRequestMock).toHaveBeenCalledWith(undefined);
-    expect(store.getState().selectedRequestId).toBeUndefined();
+    await ctx.store.getState().deleteItem('r3');
+
+    expect(disposeModelsForRequest).toHaveBeenCalledWith('r3');
+    expect(flushModelEdits).toHaveBeenCalledWith('r3');
+    expect(ctx.store.getState().selectedRequestId).toBeUndefined();
+    expect(ctx.commands()).toEqual([{ type: CommandType.DELETE, ids: ['r3'] }]);
+  });
+
+  it('deleteItem deselects a request inside a deleted folder', async () => {
+    ctx.store.getState().setSelectedRequest('r2');
+
+    await ctx.store.getState().deleteItem('F');
+
+    expect(disposeModelsForRequest).toHaveBeenCalledWith('r2');
+    const { selectedRequestId, openFolders, requests } = ctx.store.getState();
+    expect(selectedRequestId).toBeUndefined();
+    expect(openFolders.size).toBe(0);
+    expect([...requests.keys()]).toEqual(['r3']);
+  });
+
+  it('saveRequest flushes the editor changes before saving', async () => {
+    ctx.store.getState().setSelectedRequest('r3');
+    ctx.store.getState().updateRequest({ method: RequestMethod.PUT });
+
+    await ctx.store.getState().saveRequest('r3');
+
+    expect(flushModelEdits).toHaveBeenCalledWith('r3');
+    expect(ctx.commands().at(-1)).toEqual({ type: CommandType.SAVE_REQUEST, id: 'r3' });
+    expect(ctx.store.getState().requests.get('r3')!.draft).toBe(false);
+  });
+
+  it('sendRequest flushes the editor changes before sending', async () => {
+    const sendRequest = vi.mocked(HttpService.instance.sendRequest).mockResolvedValue(null);
+
+    await expect(ctx.store.getState().sendRequest('r3')).resolves.toBeNull();
+
+    expect(vi.mocked(flushModelEdits).mock.invocationCallOrder[0]).toBeLessThan(
+      sendRequest.mock.invocationCallOrder[0]
+    );
+    expect(sendRequest).toHaveBeenCalledWith('r3', undefined);
+  });
+
+  it('loads the editor content of the selected request', () => {
+    ctx.store.getState().setSelectedRequest('r3');
+
+    expect(loadEditorContent).toHaveBeenCalledExactlyOnceWith('r3');
+  });
+
+  it('discardChanges restores the saved state and reloads the editor content', async () => {
+    ctx.store.getState().setSelectedRequest('r3');
+    ctx.store.getState().updateRequest({ method: RequestMethod.PUT });
+    vi.mocked(loadEditorContent).mockClear();
+
+    await ctx.store.getState().discardChanges();
+
+    expect(cancelModelEdits).toHaveBeenCalledWith('r3');
+    const restored = ctx.store.getState().requests.get('r3');
+    expect(restored).toMatchObject({ method: RequestMethod.GET, draft: false });
+    expect(loadEditorContent).toHaveBeenCalledExactlyOnceWith('r3', {
+      after: expect.any(Promise),
+    });
+  });
+
+  it('discardChanges deletes a request that was never saved', async () => {
+    await ctx.store.getState().addNewRequest('New');
+    const id = ctx.store.getState().selectedRequestId!;
+
+    await ctx.store.getState().discardChanges();
+
+    expect(ctx.store.getState().requests.has(id)).toBe(false);
+    expect(ctx.store.getState().selectedRequestId).toBeUndefined();
   });
 });
 
-describe('duplicateSelectedItems', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockEventService.copyRequest.mockResolvedValue(undefined);
-    mockEventService.copyFolder.mockResolvedValue(undefined);
+describe('model updates', () => {
+  it('prunes UI state to IDs that still exist', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r2');
+    ctx.store.getState().setSelection(['r1', 'r3']);
+    const commandId = 'foreign';
+
+    await ctx.main.dispatch({
+      commandId,
+      timestamp: 1,
+      command: { type: CommandType.DELETE, ids: ['G'] },
+    });
+
+    const { selectedRequestId, openFolders, selectedIds } = ctx.store.getState();
+    expect(selectedRequestId).toBeUndefined();
+    expect([...openFolders]).toEqual(['F']);
+    expect([...selectedIds]).toEqual(['r1', 'r3']);
   });
 
-  it('duplicates each top-level selected item via eventService.copyRequest/copyFolder, reloads exactly once, and clears the selection', async () => {
-    const request = makeRequest(REQ_ID, COL_ID);
-    const folder = makeFolder('folder-a', COL_ID);
-    const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [request, folder]));
+  it('resets UI state when another collection is opened', () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r2');
+    ctx.store.getState().setSelection(['r1']);
 
-    store.getState().setSelection([REQ_ID, 'folder-a']);
-    await store.getState().duplicateSelectedItems();
+    ctx.main.emit({
+      kind: 'snapshot',
+      model: normalizeCollection(makeCollection('other', [makeRequest('r2', 'other')])),
+    });
 
-    expect(mockEventService.copyRequest).toHaveBeenCalledWith(request);
-    expect(mockEventService.copyFolder).toHaveBeenCalledWith(folder);
-    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
-    expect(store.getState().selectedIds.size).toBe(0);
+    const { collection, selectedRequestId, openFolders, selectedIds } = ctx.store.getState();
+    expect(collection.id).toBe('other');
+    expect(selectedRequestId).toBeUndefined();
+    expect(openFolders.size).toBe(0);
+    expect(selectedIds.size).toBe(0);
   });
 
-  it("excludes a selected folder's own selected descendant from the duplicate loop", async () => {
-    const childReq = makeRequest('child-req', 'folder-a');
-    const folder = makeFolder('folder-a', COL_ID, [childReq]);
-    const store = createCollectionStore(makeCollection(COL_ID, [folder]));
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [folder]));
+  it('resets UI state when a collection with the same ID is opened from another directory', () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r2');
+    ctx.store.getState().setSelection(['r1']);
 
-    store.getState().setSelection(['folder-a', 'child-req']);
-    await store.getState().duplicateSelectedItems();
+    ctx.main.emit({
+      kind: 'snapshot',
+      model: normalizeCollection({ ...defaultCollection(), dirPath: '/copy-of-col' }),
+    });
 
-    expect(mockEventService.copyFolder).toHaveBeenCalledTimes(1);
-    expect(mockEventService.copyFolder).toHaveBeenCalledWith(folder);
-    expect(mockEventService.copyRequest).not.toHaveBeenCalled();
-    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
+    const { collection, selectedRequestId, openFolders, selectedIds } = ctx.store.getState();
+    expect(collection.dirPath).toBe('/copy-of-col');
+    expect(selectedRequestId).toBeUndefined();
+    expect(openFolders.size).toBe(0);
+    expect(selectedIds.size).toBe(0);
+  });
+});
+
+describe('collections', () => {
+  it('changeCollection flushes editor changes and opens the collection', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+
+    await ctx.store.getState().changeCollection('/other');
+
+    expect(flushModelEdits).toHaveBeenCalledWith('r1');
+    expect(eventService.openCollection).toHaveBeenCalledWith('/other');
+    expect(ctx.store.getState().selectedRequestId).toBeUndefined();
   });
 
-  it('keeps the open request when it is among the duplicated items', async () => {
-    const request = makeRequest(REQ_ID, COL_ID);
-    const other = makeRequest('req-2', COL_ID);
-    const store = createCollectionStore(makeCollection(COL_ID, [request, other]));
-    store.getState().setSelectedRequest(REQ_ID);
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [request, other]));
+  it('changeCollection keeps the collection open if the editor changes could not be sent', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    vi.mocked(flushModelEdits).mockRejectedValueOnce(new Error('failed'));
 
-    const setSelectedRequestMock = vi.fn(store.getState().setSelectedRequest);
-    store.setState({ setSelectedRequest: setSelectedRequestMock });
+    await expect(ctx.store.getState().changeCollection('/other')).resolves.toBe(false);
 
-    store.getState().setSelection([REQ_ID, 'req-2']);
-    await store.getState().duplicateSelectedItems();
-
-    expect(mockEventService.copyRequest).toHaveBeenCalledTimes(2);
-    expect(setSelectedRequestMock).not.toHaveBeenCalled();
-    expect(store.getState().selectedRequestId).toBe(REQ_ID);
+    expect(eventService.openCollection).not.toHaveBeenCalled();
   });
 
-  it('keeps the open request when it is a descendant of a duplicated folder', async () => {
-    const childReq = makeRequest('child-req', 'folder-a');
-    const folder = makeFolder('folder-a', COL_ID, [childReq]);
-    const store = createCollectionStore(makeCollection(COL_ID, [folder]));
-    store.getState().setSelectedRequest('child-req');
-    vi.mocked(isRequestInAParentFolder).mockReturnValue(true);
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [folder]));
+  it('closeCollection closes the current collection by default', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
 
-    const setSelectedRequestMock = vi.fn(store.getState().setSelectedRequest);
-    store.setState({ setSelectedRequest: setSelectedRequestMock });
+    await ctx.store.getState().closeCollection();
 
-    try {
-      store.getState().setSelection(['folder-a']);
-      await store.getState().duplicateSelectedItems();
-    } finally {
-      vi.mocked(isRequestInAParentFolder).mockReturnValue(false);
-    }
+    expect(flushModelEdits).toHaveBeenCalledWith('r1');
+    expect(ctx.store.getState().selectedRequestId).toBeUndefined();
+    expect(eventService.closeCollection).toHaveBeenCalledWith(`/${COL_ID}`);
+  });
+});
 
-    expect(mockEventService.copyFolder).toHaveBeenCalledWith(folder);
-    expect(setSelectedRequestMock).not.toHaveBeenCalled();
-    expect(store.getState().selectedRequestId).toBe('child-req');
+describe('selection', () => {
+  it('addToSelection keeps the items that are already selected', () => {
+    const ctx = setup();
+    ctx.store.getState().setSelection(['r1']);
+
+    ctx.store.getState().addToSelection(['r1', 'F']);
+
+    expect([...ctx.store.getState().selectedIds]).toEqual(['r1', 'F']);
+  });
+});
+
+describe('bulk actions', () => {
+  it('deletes only the top-level selected items with one command and clears the selection', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r2');
+    ctx.store.getState().setSelection(['F', 'r1', 'r3']);
+
+    await ctx.store.getState().deleteSelectedItems();
+
+    expect(ctx.commands()).toEqual([{ type: CommandType.DELETE, ids: ['F', 'r3'] }]);
+    expect(disposeModelsForRequest).toHaveBeenCalledWith('r2');
+    const { selectedIds, selectedRequestId } = ctx.store.getState();
+    expect(selectedIds.size).toBe(0);
+    expect(selectedRequestId).toBeUndefined();
+  });
+
+  it('duplicates only the top-level selected items and keeps the open request', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    ctx.store.getState().setSelection(['F', 'r1', 'r3']);
+
+    await ctx.store.getState().duplicateSelectedItems();
+
+    const [command] = ctx.commands();
+    expect(ctx.commands()).toHaveLength(1);
+    expect(command).toMatchObject({ type: CommandType.COPY, ids: ['F', 'r3'] });
+    expect(ctx.store.getState().selectedRequestId).toBe('r1');
+    expect(childIds(ctx, COL_ID)).toHaveLength(4);
+  });
+
+  it('flushes the editor changes before duplicating', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelection(['F', 'r3']);
+    const commandsWhenFlushed: number[] = [];
+    vi.mocked(flushModelEdits).mockImplementationOnce(async () => {
+      commandsWhenFlushed.push(ctx.commands().length);
+    });
+
+    await ctx.store.getState().duplicateSelectedItems();
+
+    expect(commandsWhenFlushed).toEqual([0]);
+    expect(ctx.commands().map(({ type }) => type)).toEqual([CommandType.COPY]);
   });
 
   it('ignores a second call while the first is still in flight', async () => {
-    const request = makeRequest(REQ_ID, COL_ID);
-    const folder = makeFolder('folder-a', COL_ID);
-    const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [request, folder]));
+    const ctx = setup();
+    ctx.store.getState().setSelection(['r3']);
 
-    store.getState().setSelection([REQ_ID, 'folder-a']);
-    const first = store.getState().duplicateSelectedItems();
-    expect(store.getState().isBulkActionRunning).toBe(true);
-    const second = store.getState().duplicateSelectedItems();
-    await Promise.all([first, second]);
+    const first = ctx.store.getState().deleteSelectedItems();
+    await ctx.store.getState().deleteSelectedItems();
+    await first;
 
-    expect(mockEventService.copyRequest).toHaveBeenCalledTimes(1);
-    expect(mockEventService.copyFolder).toHaveBeenCalledTimes(1);
-    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
-    expect(store.getState().isBulkActionRunning).toBe(false);
+    expect(ctx.commands()).toEqual([{ type: CommandType.DELETE, ids: ['r3'] }]);
   });
 
-  it('resets the in-flight flag after a mid-loop rejection', async () => {
-    const request = makeRequest(REQ_ID, COL_ID);
-    const folder = makeFolder('folder-a', COL_ID);
-    const store = createCollectionStore(makeCollection(COL_ID, [request, folder]));
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, [request, folder]));
-    mockEventService.copyRequest.mockRejectedValueOnce(new Error('copy failed'));
+  it('shows the error and clears the selection if the command is rejected', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelection(['r3']);
+    ctx.main.rejectNext = new Error('failed');
 
-    store.getState().setSelection([REQ_ID, 'folder-a']);
-    await expect(store.getState().duplicateSelectedItems()).rejects.toThrow('copy failed');
+    await expect(ctx.store.getState().deleteSelectedItems()).resolves.toBe(false);
 
-    expect(mockEventService.loadCollection).toHaveBeenCalledTimes(1);
-    expect(store.getState().isBulkActionRunning).toBe(false);
-    expect(store.getState().selectedIds.size).toBe(0);
-  });
-
-  it('resets the in-flight flag even when the reload itself fails', async () => {
-    const request = makeRequest(REQ_ID, COL_ID);
-    const store = createCollectionStore(makeCollection(COL_ID, [request]));
-    mockEventService.loadCollection.mockRejectedValueOnce(new Error('reload failed'));
-
-    store.getState().setSelection([REQ_ID]);
-    await expect(store.getState().duplicateSelectedItems()).rejects.toThrow('reload failed');
-
-    expect(store.getState().isBulkActionRunning).toBe(false);
+    expect(showError).toHaveBeenCalledWith('Could not delete the items', expect.any(Error));
+    expect(ctx.store.getState().selectedIds.size).toBe(0);
   });
 });
 
-describe('setClientCertificate', () => {
-  const CERT: ClientCertificate = {
-    certPath: '/path/to/cert.pem',
-    keyPath: '/path/to/key.pem',
-    caPath: '/path/to/ca.pem',
-  };
-
-  it('sets the client certificate on the collection', () => {
-    const store = createCollectionStore(makeCollection(COL_ID));
-
-    store.getState().setClientCertificate(CERT);
-
-    expect(store.getState().collection?.clientCertificate).toEqual(CERT);
-  });
-
-  it('clears the client certificate when called with null', () => {
-    const store = createCollectionStore(makeCollection(COL_ID));
-    store.getState().setClientCertificate(CERT);
-
-    store.getState().setClientCertificate(null);
-
-    expect(store.getState().collection?.clientCertificate).toBeUndefined();
-  });
-
-  it('replaces an existing certificate with a new one', () => {
-    const store = createCollectionStore(makeCollection(COL_ID));
-    store.getState().setClientCertificate(CERT);
-
-    const newCert: ClientCertificate = { certPath: '/new/cert.pem', keyPath: '/new/key.pem' };
-    store.getState().setClientCertificate(newCert);
-
-    expect(store.getState().collection?.clientCertificate).toEqual(newCert);
-  });
-});
-
-describe('moveItemsAfter', () => {
-  const childIds = (
-    store: ReturnType<typeof createCollectionStore>,
-    parentId: string
-  ): string[] => {
-    const state = store.getState();
-    const parent =
-      state.collection!.id === parentId ? state.collection! : state.folders.get(parentId)!;
-    return parent.children.map((child) => child.id);
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('keeps a same-parent group contiguous after the anchor even when indices would drift (I17)', async () => {
-    const ids = ['P', 'B', 'Q', 'C', 'R', 'A', 'S'];
-    const store = createCollectionStore(
-      makeCollection(
-        COL_ID,
-        ids.map((id) => makeRequest(id, COL_ID))
-      )
+describe('moveItems', () => {
+  it('moves items from different parents into one contiguous run', async () => {
+    const ctx = setup(
+      makeCollection(COL_ID, [
+        makeFolder('F1', COL_ID, [makeRequest('X', 'F1'), makeRequest('B', 'F1')]),
+        makeFolder('F2', COL_ID, [makeRequest('C', 'F2'), makeRequest('Y', 'F2')]),
+        makeFolder('T', COL_ID, [makeRequest('P', 'T'), makeRequest('Q', 'T')]),
+      ])
     );
 
-    // The actively-dragged item is dropped first, as handleDragEnd does.
-    await store.getState().moveItem('A', COL_ID, 2);
-    expect(childIds(store, COL_ID)).toEqual(['P', 'B', 'A', 'Q', 'C', 'R', 'S']);
+    await ctx.store.getState().moveItems(['B', 'C'], 'T', 1);
 
-    await store.getState().moveItemsAfter('A', ['B', 'C']);
-
-    expect(childIds(store, COL_ID)).toEqual(['P', 'A', 'B', 'C', 'Q', 'R', 'S']);
-  });
-
-  it('gathers items from different parents into one contiguous run after the anchor', async () => {
-    const folder1 = makeFolder('F1', COL_ID, [makeRequest('X', 'F1'), makeRequest('B', 'F1')]);
-    const folder2 = makeFolder('F2', COL_ID, [makeRequest('C', 'F2'), makeRequest('Y', 'F2')]);
-    const target = makeFolder('T', COL_ID, [
-      makeRequest('P', 'T'),
-      makeRequest('A', 'T'),
-      makeRequest('Q', 'T'),
-      makeRequest('D', 'T'),
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.MOVE, ids: ['B', 'C'], parentId: 'T', index: 1 },
     ]);
-    const store = createCollectionStore(makeCollection(COL_ID, [folder1, folder2, target]));
-
-    await store.getState().moveItemsAfter('A', ['B', 'C', 'D']);
-
-    expect(childIds(store, 'T')).toEqual(['P', 'A', 'B', 'C', 'D', 'Q']);
-    expect(childIds(store, 'F1')).toEqual(['X']);
-    expect(childIds(store, 'F2')).toEqual(['Y']);
-    const { requests } = store.getState();
-    expect(['B', 'C', 'D'].map((id) => requests.get(id)!.parentId)).toEqual(['T', 'T', 'T']);
+    expect(childIds(ctx, 'T')).toEqual(['P', 'B', 'C', 'Q']);
+    expect(childIds(ctx, 'F1')).toEqual(['X']);
+    expect(childIds(ctx, 'F2')).toEqual(['Y']);
   });
 
-  it('follows the anchor into its current parent when the anchor itself was moved', async () => {
-    const target = makeFolder('T', COL_ID, [makeRequest('P', 'T')]);
-    const store = createCollectionStore(
-      makeCollection(COL_ID, [makeRequest('A', COL_ID), makeRequest('B', COL_ID), target])
+  it('rejects moving a folder into itself without sending anything', async () => {
+    const ctx = setup();
+
+    await expect(ctx.store.getState().moveItems(['F'], 'G', 0)).resolves.toBe(false);
+
+    expect(ctx.commands()).toEqual([]);
+    expect(showError).toHaveBeenCalledWith('Could not move the items', expect.any(Error));
+  });
+});
+
+describe('editor models', () => {
+  // the models are global, earlier tests may have created them for another store
+  beforeEach(() => disposeModelsForRequest('r1'));
+
+  /** Simulates typing, which, unlike `setValue`, is not a flush. */
+  const type = (model: ReturnType<typeof getBodyModel>, text: string) =>
+    model.applyEdits([{ range: model.getFullModelRange(), text }]);
+
+  it('sends text bodies and scripts of the selected request as commands', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+
+    type(getBodyModel('r1'), 'body');
+    type(getScriptModel('r1', ScriptType.POST_RESPONSE), 'script');
+    await flushModelEdits('r1');
+
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.CREATE_DRAFT, id: 'r1' },
+      { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'body' },
+      {
+        type: CommandType.SET_SCRIPT,
+        id: 'r1',
+        scriptType: ScriptType.POST_RESPONSE,
+        text: 'script',
+      },
+    ]);
+    expect(ctx.store.getState().requests.get('r1')!.draft).toBe(true);
+  });
+
+  /** Lets main reject every command of the given type. */
+  const rejectCommands = ({ main }: Setup, type: CommandType) => {
+    const dispatch = main.dispatch;
+    main.dispatch = async (envelope) => {
+      if (envelope.command.type !== type) return await dispatch(envelope);
+      main.received.push(envelope);
+      throw new Error('rejected');
+    };
+  };
+
+  it('sends the editor changes before a delete, so a rejected delete loses nothing', async () => {
+    const ctx = setup();
+    rejectCommands(ctx, CommandType.DELETE);
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'body');
+
+    await expect(ctx.store.getState().deleteItem('r1')).resolves.toBe(false);
+
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.CREATE_DRAFT, id: 'r1' },
+      { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'body' },
+      { type: CommandType.DELETE, ids: ['r1'] },
+    ]);
+    expect(ctx.store.getState().requests.get('r1')!.draft).toBe(true);
+  });
+
+  it('sends the editor changes of a request inside a deleted folder first', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'body');
+
+    await ctx.store.getState().deleteItem('F');
+
+    expect(ctx.commands().slice(1)).toEqual([
+      { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'body' },
+      { type: CommandType.DELETE, ids: ['F'] },
+    ]);
+    expect(ctx.store.getState().requests.has('r1')).toBe(false);
+  });
+
+  beforeEach(() => {
+    vi.mocked(loadEditorContent).mockResolvedValue(undefined);
+  });
+
+  /** Loads the editor content for real from now on, with the given content for every model. */
+  const loadEditorContentFor = async (content: string) => {
+    const actual = await vi.importActual<typeof import('@/lib/monaco/editor-content')>(
+      '@/lib/monaco/editor-content'
     );
+    vi.mocked(loadEditorContent).mockImplementation(actual.loadEditorContent);
+    vi.mocked(IpcPushStream.open).mockResolvedValue({
+      readAll: async () => content,
+    } as Awaited<ReturnType<typeof IpcPushStream.open>>);
+  };
 
-    await store.getState().moveItem('A', 'T', 0);
-    await store.getState().moveItemsAfter('A', ['B']);
+  it('discards a request that was never saved without an error', async () => {
+    const ctx = setup();
+    await loadEditorContentFor('');
+    await ctx.store.getState().addNewRequest('New');
+    const id = ctx.store.getState().selectedRequestId!;
 
-    expect(childIds(store, 'T')).toEqual(['A', 'B', 'P']);
-    expect(childIds(store, COL_ID)).toEqual(['T']);
+    await expect(ctx.store.getState().discardChanges()).resolves.toBe(true);
+
+    expect(ctx.store.getState().requests.has(id)).toBe(false);
+    expect(showError).not.toHaveBeenCalled();
   });
 
-  it('moves a folder after the anchor together with its subtree', async () => {
-    const folder = makeFolder('F', 'S', [makeRequest('F-child', 'F')]);
-    const source = makeFolder('S', COL_ID, [folder]);
-    const store = createCollectionStore(
-      makeCollection(COL_ID, [makeRequest('P', COL_ID), makeRequest('A', COL_ID), source])
-    );
+  it('reloads the draft into the editor if discarding is rejected', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'changed');
+    await loadEditorContentFor('persisted draft');
+    ctx.main.rejectNext = new Error('rejected');
 
-    await store.getState().moveItemsAfter('A', ['F']);
+    const discarded = ctx.store.getState().discardChanges();
+    type(getBodyModel('r1'), 'typed meanwhile');
 
-    expect(childIds(store, COL_ID)).toEqual(['P', 'A', 'F', 'S']);
-    expect(childIds(store, 'S')).toEqual([]);
-    const { folders, requests } = store.getState();
-    expect(folders.get('F')!.parentId).toBe(COL_ID);
-    expect(childIds(store, 'F')).toEqual(['F-child']);
-    expect(requests.get('F-child')!.parentId).toBe('F');
+    await expect(discarded).resolves.toBe(false);
+    await vi.waitFor(() => expect(getBodyModel('r1').getValue()).toBe('persisted draft'));
   });
 
-  it.each([
-    ['is a group member', 'F'],
-    ['is a descendant of a group member', 'F-sub'],
-  ])(
-    'throws without touching state when the anchor parent %s (I20)',
-    async (_label, anchorParentId) => {
-      const sub = makeFolder('F-sub', 'F', []);
-      const folder = makeFolder('F', COL_ID, [sub]);
-      const anchor = makeRequest('A', anchorParentId);
-      (anchorParentId === 'F' ? folder : sub).children.push(anchor);
-      const store = createCollectionStore(
-        makeCollection(COL_ID, [makeRequest('P', COL_ID), folder, makeRequest('B', COL_ID)])
-      );
-      const before = {
-        root: childIds(store, COL_ID),
-        folder: childIds(store, 'F'),
-        sub: childIds(store, 'F-sub'),
-      };
+  it('does not send text typed while changes are discarded', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'changed');
+    await loadEditorContentFor('saved');
 
-      await expect(store.getState().moveItemsAfter('A', ['B', 'F'])).rejects.toThrow(
-        /one of the moved items or inside one/
-      );
+    const discarded = ctx.store.getState().discardChanges();
+    // the editor content is only reloaded once main discarded the changes
+    type(getBodyModel('r1'), 'typed meanwhile');
+    await expect(discarded).resolves.toBe(true);
+    await flushModelEdits('r1');
 
-      expect({
-        root: childIds(store, COL_ID),
-        folder: childIds(store, 'F'),
-        sub: childIds(store, 'F-sub'),
-      }).toEqual(before);
-      expect(store.getState().folders.get('F')!.parentId).toBe(COL_ID);
-      expect(store.getState().requests.get('B')!.parentId).toBe(COL_ID);
-      expect(mockEventService.reorderItem).not.toHaveBeenCalled();
-      expect(mockEventService.moveItem).not.toHaveBeenCalled();
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.CREATE_DRAFT, id: 'r1' },
+      { type: CommandType.DISCARD_REQUEST, id: 'r1' },
+    ]);
+    expect(ctx.store.getState().requests.get('r1')!.draft).toBe(false);
+    expect(getBodyModel('r1').getValue()).toBe('saved');
+  });
+
+  it('does not send text typed while changes are discarded, even if it is flushed meanwhile', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    type(getBodyModel('r1'), 'changed');
+    await loadEditorContentFor('saved');
+    let releaseDiscard!: () => void;
+    const dispatch = ctx.main.dispatch;
+    ctx.main.dispatch = async (envelope) => {
+      if (envelope.command.type === CommandType.DISCARD_REQUEST) {
+        await new Promise<void>((resolve) => (releaseDiscard = resolve));
+      }
+      return await dispatch(envelope);
+    };
+
+    const discarded = ctx.store.getState().discardChanges();
+    // the debounce timer of this text fires before main discarded the changes
+    type(getBodyModel('r1'), 'typed meanwhile');
+    await flushModelEdits('r1');
+    releaseDiscard();
+    await expect(discarded).resolves.toBe(true);
+
+    expect(ctx.commands()).toEqual([
+      { type: CommandType.CREATE_DRAFT, id: 'r1' },
+      { type: CommandType.DISCARD_REQUEST, id: 'r1' },
+    ]);
+    expect(ctx.store.getState().requests.get('r1')!.draft).toBe(false);
+  });
+
+  it('shows an error and reloads the editor content if a debounced edit is rejected', async () => {
+    vi.useFakeTimers();
+    try {
+      const ctx = setup();
+      ctx.store.getState().setSelectedRequest('r1');
+      type(getBodyModel('r1'), 'not persisted');
+      ctx.main.rejectNext = new Error('rejected');
+
+      await vi.advanceTimersByTimeAsync(MODEL_EDIT_DEBOUNCE_MS);
+
+      expect(ctx.commands()).toEqual([
+        { type: CommandType.CREATE_DRAFT, id: 'r1' },
+        { type: CommandType.SET_TEXT_BODY, id: 'r1', text: 'not persisted' },
+      ]);
+      expect(showError).toHaveBeenCalledWith(expect.any(String), expect.any(Error));
+      expect(loadEditorContent).toHaveBeenCalledWith('r1', { only: 'body' });
+    } finally {
+      vi.useRealTimers();
     }
-  );
-
-  it('throws when the anchor does not exist', async () => {
-    const store = createCollectionStore(makeCollection(COL_ID, [makeRequest('B', COL_ID)]));
-
-    await expect(store.getState().moveItemsAfter('missing', ['B'])).rejects.toThrow(
-      /item not found/
-    );
-    expect(mockEventService.reorderItem).not.toHaveBeenCalled();
-  });
-});
-
-describe('moveItem', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
   });
 
-  it('moves a request into another folder without saving it, which would drop its text body', async () => {
-    const target = makeFolder('T', COL_ID, []);
-    const store = createCollectionStore(makeCollection(COL_ID, [makeRequest('A', COL_ID), target]));
+  it('does not mark a draft request as draft again', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+    ctx.store.getState().updateRequest({ method: RequestMethod.PUT });
 
-    await store.getState().moveItem('A', 'T', 0);
+    type(getBodyModel('r1'), 'body');
+    await flushModelEdits('r1');
 
-    expect(mockEventService.moveItem).toHaveBeenCalledOnce();
-    expect(RendererEventService.instance.saveRequest).not.toHaveBeenCalled();
-  });
-});
-
-describe('deleting the open request', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockEventService.deleteObject.mockResolvedValue(undefined);
-    registerGetRequest((id) => (id === REQ_ID ? makeRequest(REQ_ID, COL_ID) : undefined));
-  });
-
-  it('deleteRequest does not save the request again, which would recreate it on disk', async () => {
-    const store = buildStore();
-
-    await store.getState().deleteRequest(REQ_ID);
-
-    expect(mockEventService.deleteObject).toHaveBeenCalledOnce();
-    expect(store.getState().selectedRequestId).toBeUndefined();
-    expect(RendererEventService.instance.saveRequest).not.toHaveBeenCalled();
-    expect(RendererEventService.instance.saveScript).not.toHaveBeenCalled();
-  });
-
-  it('deleteSelectedItems does not save the open request before deleting it', async () => {
-    const store = buildStore();
-    mockEventService.loadCollection.mockResolvedValue(makeCollection(COL_ID, []));
-
-    store.getState().setSelection([REQ_ID]);
-    await store.getState().deleteSelectedItems();
-
-    expect(mockEventService.deleteObject).toHaveBeenCalledOnce();
-    expect(RendererEventService.instance.saveRequest).not.toHaveBeenCalled();
-    expect(RendererEventService.instance.saveScript).not.toHaveBeenCalled();
-  });
-
-  it('switching to another request still saves the outgoing one', () => {
-    const store = buildStore();
-
-    store.getState().setSelectedRequest(undefined);
-
-    expect(RendererEventService.instance.saveRequest).toHaveBeenCalledOnce();
-  });
-});
-
-describe('renameCollection', () => {
-  it('renames the collection through the dedicated IPC method', async () => {
-    const store = buildStore();
-
-    await store.getState().renameCollection('Renamed');
-
-    expect(RendererEventService.instance.renameCollection).toHaveBeenCalledWith('Renamed');
-    expect(RendererEventService.instance.rename).not.toHaveBeenCalled();
-    expect(store.getState().collection!.title).toBe('Renamed');
+    expect(ctx.commands().map(({ type }) => type)).toEqual([
+      CommandType.EDIT_REQUEST,
+      CommandType.SET_TEXT_BODY,
+    ]);
   });
 });

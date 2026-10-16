@@ -7,7 +7,8 @@ import { Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { TrufosResponse } from 'shim/objects/response';
 import { RequestMethod } from 'shim/objects/request-method';
-import { Folder } from 'shim/objects/folder';
+import { CollectionModel, CommandType, normalizeCollection } from 'shim/collection-model';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { MainProcessEvent } from 'shim/event-service';
 
 vi.mock('electron', () => ({
@@ -26,10 +27,52 @@ vi.mock('./stream-events', () => ({}));
 vi.mock('main/network/service/http-service', () => ({
   HttpService: {
     instance: {
-      fetchAsync: vi.fn(),
+      sendRequest: vi.fn(),
+      abortRequest: vi.fn(),
     },
   },
 }));
+
+function makeModel(variables: Collection['variables'] = {}): CollectionModel {
+  const collectionId = randomUUID();
+  return normalizeCollection({
+    id: collectionId,
+    type: 'collection',
+    title: 'Test',
+    isDefault: false,
+    variables,
+    environments: {},
+    dirPath: '/test',
+    lastModified: Date.now(),
+    children: [
+      {
+        id: randomUUID(),
+        type: 'request',
+        title: 'Test Request',
+        parentId: collectionId,
+        method: RequestMethod.GET,
+        url: { base: 'http://example.com', query: [] },
+        headers: [],
+        body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+        draft: false,
+        lastModified: Date.now(),
+      },
+    ],
+  });
+}
+
+function makeResponse(): TrufosResponse {
+  return {
+    type: 'response',
+    body: { id: randomUUID(), size: 0 },
+    headers: {},
+    metaInfo: {
+      status: 200,
+      duration: 1,
+      size: { totalSizeInBytes: 0, headersSizeInBytes: 0, bodySizeInBytes: 0 },
+    },
+  };
+}
 
 const TEST_STRING = 'Hello, World!';
 const TEST_FILE_PATH = path.join(tmpdir(), 'test.txt');
@@ -39,206 +82,112 @@ describe('MainEventService', () => {
     // @ts-expect-error ReturnType on module namespace is not callable but works at runtime
     ReturnType<typeof import('./main-event-service')>
   >['MainEventService'];
-  let PersistenceService: Awaited<
-    // @ts-expect-error ReturnType on module namespace is not callable but works at runtime
-    ReturnType<typeof import('../persistence/service/persistence-service')>
-  >['PersistenceService'];
 
   beforeEach(async () => {
     fs.writeFileSync(TEST_FILE_PATH, TEST_STRING);
     // @ts-expect-error dynamic import type inference
     ({ MainEventService } = await import('./main-event-service'));
-    // @ts-expect-error dynamic import type inference
-    ({ PersistenceService } = await import('../persistence/service/persistence-service'));
 
     // Every test builds its own MainEventService, and each one subscribes to the shared
-    // ScriptingService, HistoryService and EnvironmentService. Lift the cap so those accumulating subscriptions are
-    // not mistaken for a listener leak once the suite grows past Node's default of ten.
-    const { ScriptingService } = await import('../scripting/scripting-service.js');
-    ScriptingService.instance.setMaxListeners(0);
+    // HistoryService and CollectionStateService. Lift the cap so those accumulating subscriptions
+    // are not mistaken for a listener leak once the suite grows past Node's default of ten.
     const { HistoryService } = await import('../history/history-service.js');
     HistoryService.instance.setMaxListeners(0);
-    const { EnvironmentService } = await import('../environment/service/environment-service.js');
-    EnvironmentService.instance.setMaxListeners(0);
+    CollectionStateService.instance.setMaxListeners(0);
   });
 
   it('should register event functions on the backend', async () => {
     expect((await import('electron')).ipcMain.handle).toHaveBeenCalled();
   });
 
-  describe('reorderItem', () => {
-    it('should delegate to persistence service reorderItem', async () => {
-      // @ts-expect-error Collection object missing optional required fields
-      const collection: Collection = {
-        id: randomUUID(),
-        type: 'collection',
-        title: 'Test Collection',
-        isDefault: false,
-        children: [],
-        variables: {},
-        environments: {},
-        dirPath: '/test/path',
-      };
+  describe('collection state', () => {
+    it('getCollectionState() returns the model', async () => {
+      const model = makeModel();
+      vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(model);
 
-      const reorderItemSpy = vi
-        .spyOn(PersistenceService.instance, 'reorderItem')
-        .mockResolvedValue(collection);
-
-      const eventService = new MainEventService();
-      await eventService.reorderItem(collection, 'child-id', 0);
-
-      expect(reorderItemSpy).toHaveBeenCalledWith(collection, 'child-id', 0);
+      await expect(new MainEventService().getCollectionState()).resolves.toBe(model);
     });
-  });
 
-  describe('moveItem', () => {
-    it('should delegate to persistence service moveChild', async () => {
-      // @ts-expect-error Collection object missing optional required fields
-      const collection: Collection = {
-        id: randomUUID(),
-        type: 'collection',
-        title: 'Test Collection',
-        isDefault: false,
-        children: [],
-        variables: {},
-        environments: {},
-        dirPath: '/test/path',
-      };
+    it('dispatch() passes the envelope to the collection state', async () => {
+      const dispatch = vi.spyOn(CollectionStateService.instance, 'dispatch').mockResolvedValue(7);
+      const envelope = {
+        commandId: 'id',
+        timestamp: 1,
+        command: { type: CommandType.UPDATE_COLLECTION, changes: { title: 'New' } },
+      } as const;
 
-      // @ts-expect-error Folder object missing optional required fields
-      const folder: Folder = {
-        id: randomUUID(),
-        type: 'folder',
-        title: 'Test Folder',
-        parentId: collection.id,
-        children: [],
-      };
+      await expect(new MainEventService().dispatch(envelope)).resolves.toBe(7);
 
-      // @ts-expect-error TrufosRequest object missing optional required fields
-      const request: TrufosRequest = {
-        id: randomUUID(),
-        type: 'request',
-        title: 'Test Request',
-        parentId: collection.id,
-        method: RequestMethod.GET,
-        url: { base: 'http://example.com', query: [] },
-        headers: [],
-        body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-        draft: false,
-      };
-
-      const moveChildSpy = vi
-        .spyOn(PersistenceService.instance, 'moveChild')
-        .mockResolvedValue(undefined);
-
-      const eventService = new MainEventService();
-      await eventService.moveItem(request, collection, folder, 0);
-
-      expect(moveChildSpy).toHaveBeenCalledWith(request, collection, folder, 0);
+      expect(dispatch).toHaveBeenCalledWith(envelope);
     });
-  });
 
-  describe('saveRequest', () => {
-    it('should delegate to persistence service saveRequest', async () => {
-      // @ts-expect-error TrufosRequest object missing optional required fields
-      const request: TrufosRequest = {
-        id: randomUUID(),
-        type: 'request',
-        title: 'New Request',
-        parentId: randomUUID(),
-        method: RequestMethod.GET,
-        url: { base: 'http://example.com', query: [] },
-        headers: [],
-        body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-        draft: false,
-      };
-
-      const saveRequestSpy = vi
-        .spyOn(PersistenceService.instance, 'saveRequest')
-        .mockResolvedValue(request);
-
+    it('forwards changes of the collection state to the renderer', () => {
+      const webContentsSend = vi.fn();
       const eventService = new MainEventService();
-      await eventService.saveRequest(request, 'body text');
+      eventService.window = { webContents: { send: webContentsSend } } as never;
+      const event = { kind: 'snapshot', model: makeModel() } as const;
 
-      expect(saveRequestSpy).toHaveBeenCalledWith(request, 'body text');
+      CollectionStateService.instance.emit('changed', event);
+
+      expect(webContentsSend).toHaveBeenCalledWith(MainProcessEvent.CollectionStateChanged, event);
+    });
+
+    it.each([
+      ['openCollection', 'load', ['/dir']],
+      ['createCollection', 'createCollection', ['/dir', 'title']],
+      ['closeCollection', 'closeCollection', ['/dir']],
+    ] as const)('%s() delegates to the collection state', async (method, target, args) => {
+      const spy = vi.spyOn(CollectionStateService.instance, target).mockResolvedValue(undefined);
+      const eventService = new MainEventService();
+
+      await expect(eventService[method](...args)).resolves.toBeUndefined();
+
+      expect(spy).toHaveBeenCalledWith(...args);
     });
   });
 
   describe('sendRequest', () => {
-    let EnvironmentService: Awaited<
-      // @ts-expect-error ReturnType on module namespace is not callable but works at runtime
-      ReturnType<typeof import('main/environment/service/environment-service')>
-    >['EnvironmentService'];
-
-    const makeCollection = (variables = {}): Collection => ({
-      id: randomUUID(),
-      type: 'collection',
-      title: 'Test',
-      isDefault: false,
-      children: [],
-      variables,
-      environments: {},
-      dirPath: '/test',
-      lastModified: Date.now(),
-    });
-
-    const makeRequest = (): TrufosRequest => ({
-      id: randomUUID(),
-      type: 'request',
-      title: 'Test Request',
-      parentId: randomUUID(),
-      method: RequestMethod.GET,
-      url: { base: 'http://example.com', query: [] },
-      headers: [],
-      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
-      draft: false,
-      lastModified: Date.now(),
-    });
-
-    const makeResponse = (): TrufosResponse => ({
-      type: 'response',
-      body: { id: randomUUID(), size: 0 },
-      headers: {},
-      metaInfo: {
-        status: 200,
-        duration: 1,
-        size: { totalSizeInBytes: 0, headersSizeInBytes: 0, bodySizeInBytes: 0 },
-      },
-    });
-
-    beforeEach(async () => {
-      ({ EnvironmentService } = await import('../environment/service/environment-service.js'));
-      // a collection is always loaded before requests can be sent
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(
-        makeCollection()
-      );
-    });
-
-    it('keeps the latest response body of a request alive', async () => {
+    it('delegates sending and aborting to the http service', async () => {
+      // Arrange
       const { HttpService } = await import('../network/service/http-service.js');
-      const { LatestResponseBodies } = await import('../network/service/latest-response-bodies.js');
-      const response = makeResponse();
-      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(response);
-      const setLatest = vi.spyOn(LatestResponseBodies.instance, 'set');
-      const request = makeRequest();
+      vi.mocked(HttpService.instance.sendRequest).mockResolvedValue(null);
+      const eventService = new MainEventService();
 
-      await new MainEventService().sendRequest(request);
+      // Act
+      const response = await eventService.sendRequest('r1', 'key');
+      await eventService.abortRequest('key');
 
-      expect(setLatest).toHaveBeenCalledWith(request.id, response.body!.id);
+      // Assert
+      expect(response).toBeNull();
+      expect(HttpService.instance.sendRequest).toHaveBeenCalledWith('r1', 'key');
+      expect(HttpService.instance.abortRequest).toHaveBeenCalledWith('key');
+    });
+  });
+
+  describe('history', () => {
+    let model: CollectionModel;
+    let request: TrufosRequest;
+
+    beforeEach(() => {
+      model = makeModel();
+      request = model.requests.values().next().value!;
+      vi.spyOn(CollectionStateService.instance, 'model', 'get').mockImplementation(() => model);
     });
 
-    it('records the request in the history', async () => {
+    it('lists, pushes and clears the history of the current collection', async () => {
+      // Arrange
       const { HistoryService } = await import('../history/history-service.js');
-      HistoryService.instance.clear(EnvironmentService.instance.currentCollection.dirPath);
-      const { HttpService } = await import('../network/service/http-service.js');
-      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(makeResponse());
+      HistoryService.instance.clear(model.collection.dirPath);
       const webContentsSend = vi.fn();
       const eventService = new MainEventService();
       eventService.window = { webContents: { send: webContentsSend } } as never;
-      const request = makeRequest();
 
-      await eventService.sendRequest(request);
+      // Act
+      await HistoryService.instance.record(request, model.collection.dirPath, async () =>
+        makeResponse()
+      );
 
+      // Assert
       const [entry] = await eventService.getHistory();
       expect(entry).toMatchObject({
         requestId: request.id,
@@ -258,139 +207,20 @@ describe('MainEventService', () => {
       const eventService = new MainEventService();
       eventService.window = { webContents: { send: webContentsSend } } as never;
 
-      EnvironmentService.instance.emit('collection-changed');
+      CollectionStateService.instance.emit('collection-changed');
 
       expect(webContentsSend).toHaveBeenCalledWith(
         MainProcessEvent.HistoryChanged,
         expect.any(Array)
       );
     });
-
-    it('does not persist or push when script does not change variables', async () => {
-      const collection = makeCollection({ x: { value: 'before' } });
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
-
-      const { HttpService } = await import('../network/service/http-service.js');
-      vi.mocked(HttpService.instance.fetchAsync).mockResolvedValue(makeResponse());
-
-      const saveCollectionSpy = vi
-        .spyOn(PersistenceService.instance, 'saveCollection')
-        .mockResolvedValue(undefined);
-
-      const webContentsSend = vi.fn();
-      const eventService = new MainEventService();
-      eventService.window = { webContents: { send: webContentsSend } } as never;
-
-      await eventService.sendRequest(makeRequest());
-
-      expect(saveCollectionSpy).not.toHaveBeenCalled();
-      expect(webContentsSend).not.toHaveBeenCalledWith(
-        MainProcessEvent.CollectionVariablesUpdated,
-        expect.anything()
-      );
-    });
-
-    it('passes an abort signal for keyed requests and aborts it by key', async () => {
-      const collection = makeCollection({ x: { value: 'before' } });
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
-
-      const { HttpService } = await import('../network/service/http-service.js');
-      let signal: AbortSignal | undefined;
-      vi.mocked(HttpService.instance.fetchAsync).mockImplementation(
-        (_request, _recorder, abortSignal) => {
-          signal = abortSignal;
-          return new Promise((_, reject) => {
-            abortSignal?.addEventListener('abort', () => reject(new Error('aborted')));
-          });
-        }
-      );
-
-      const eventService = new MainEventService();
-      const requestPromise = eventService
-        .sendRequest(makeRequest(), 'runner-request-1')
-        .catch(() => undefined);
-      await vi.waitFor(() => expect(signal).toBeDefined());
-
-      await eventService.abortRequest('runner-request-1');
-      await requestPromise;
-
-      expect(signal?.aborted).toBe(true);
-    });
-
-    it('resolves an aborted request with null instead of failing', async () => {
-      const collection = makeCollection({ x: { value: 'before' } });
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
-
-      const { HttpService } = await import('../network/service/http-service.js');
-      let signal: AbortSignal | undefined;
-      vi.mocked(HttpService.instance.fetchAsync).mockImplementation(
-        (_request, _recorder, abortSignal) => {
-          signal = abortSignal;
-          return new Promise((_, reject) => {
-            // What undici actually rejects with on abort: a DOMException, whose read-only properties
-            // break both logging and IPC serialization.
-            abortSignal?.addEventListener('abort', () =>
-              reject(new DOMException('This operation was aborted', 'AbortError'))
-            );
-          });
-        }
-      );
-
-      const eventService = new MainEventService();
-      const requestPromise = eventService.sendRequest(makeRequest(), 'runner-request-2');
-      await vi.waitFor(() => expect(signal).toBeDefined());
-
-      await eventService.abortRequest('runner-request-2');
-
-      await expect(requestPromise).resolves.toBeNull();
-    });
-
-    it('rethrows a non-abort failure unchanged', async () => {
-      const collection = makeCollection({ x: { value: 'before' } });
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
-
-      const { HttpService } = await import('../network/service/http-service.js');
-      const failure = new Error('connection refused');
-      vi.mocked(HttpService.instance.fetchAsync).mockRejectedValue(failure);
-
-      const eventService = new MainEventService();
-
-      await expect(eventService.sendRequest(makeRequest(), 'runner-request-3')).rejects.toBe(
-        failure
-      );
-    });
-
-    it('persists and pushes when ScriptingService emits variables-changed', async () => {
-      const collection = makeCollection({ x: { value: 'before' } });
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(collection);
-
-      const saveCollectionSpy = vi
-        .spyOn(PersistenceService.instance, 'saveCollection')
-        .mockResolvedValue(undefined);
-
-      const webContentsSend = vi.fn();
-      const eventService = new MainEventService();
-      eventService.window = { webContents: { send: webContentsSend } } as never;
-
-      const { ScriptingService } = await import('../scripting/scripting-service.js');
-      ScriptingService.instance.emit('variables-changed');
-      await Promise.resolve(); // flush microtask queue for the async .then() chain
-
-      expect(saveCollectionSpy).toHaveBeenCalledWith(collection);
-      expect(webContentsSend).toHaveBeenCalledWith(MainProcessEvent.CollectionVariablesUpdated, {
-        variables: collection.variables,
-        environments: collection.environments,
-      });
-    });
   });
 
   describe('resolveVariablesInString', () => {
     const mockCollectionVariables = async (variables: Collection['variables']) => {
-      const { EnvironmentService } = await import('../environment/service/environment-service.js');
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue({
-        variables,
-        environments: {},
-      } as Collection);
+      vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(
+        makeModel(variables)
+      );
     };
 
     it('should return the string with all variables replaced', async () => {
@@ -409,26 +239,6 @@ describe('MainEventService', () => {
       await expect(
         eventService.resolveVariablesInString('{{ missing }}/users')
       ).resolves.toBeNull();
-    });
-  });
-
-  describe('renameCollection', () => {
-    it('should rename the collection held by main so later saves keep the new title', async () => {
-      const { EnvironmentService } = await import('../environment/service/environment-service.js');
-      // @ts-expect-error Collection object missing optional required fields
-      const current: Collection = { id: randomUUID(), type: 'collection', title: 'Old' };
-      vi.spyOn(EnvironmentService.instance, 'currentCollection', 'get').mockReturnValue(current);
-      const saveSpy = vi
-        .spyOn(PersistenceService.instance, 'saveCollection')
-        .mockResolvedValue(undefined);
-      const eventService = new MainEventService();
-
-      await eventService.renameCollection('New');
-      await eventService.setCollectionVariables({});
-
-      expect(current.title).toBe('New');
-      expect(saveSpy).toHaveBeenCalledTimes(2);
-      expect(saveSpy).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'New' }));
     });
   });
 

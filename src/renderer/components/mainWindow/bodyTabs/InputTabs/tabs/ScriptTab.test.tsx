@@ -9,7 +9,6 @@ let mockScriptType = ScriptType.PRE_REQUEST;
 vi.mock('@/state/collectionStore', () => ({
   useCollectionActions: () => ({
     setCurrentScriptType: setCurrentScriptTypeMock,
-    setDraftFlag: vi.fn(),
   }),
   useCollectionStore: (
     selector: (state: {
@@ -43,10 +42,6 @@ vi.mock('@/lib/monaco/models', () => ({
     getValue: vi.fn(() => ''),
     onDidChangeContent: vi.fn(() => ({ dispose: vi.fn() })),
   })),
-}));
-
-vi.mock('@/state/helper/collectionUtil', () => ({
-  setScriptContent: vi.fn(),
 }));
 
 vi.mock('@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect', () => ({

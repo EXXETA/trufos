@@ -1,247 +1,323 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import { type StoreApi, useStore } from 'zustand';
-import { RendererEventService } from '@/services/event/renderer-event-service';
-import {
-  getIndexAfter,
-  getTopLevelSelectedItems,
-  isRequestInAParentFolder,
-  isWithinGroup,
-  setRequestTextBody,
-  setScriptContent,
-} from '@/state/helper/collectionUtil';
-import { useActions } from '@/state/helper/util';
-import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
-import { useVariableStore } from '@/state/variableStore';
-import { useEnvironmentStore } from '@/state/environmentStore';
-import { createModelsForRequest, disposeModelsForRequest } from '@/lib/monaco/models';
-import { isCollection, isRequest, TrufosObject, AuthorizationInformation } from 'shim/objects';
-import { Collection } from 'shim/objects/collection';
-import { Folder } from 'shim/objects/folder';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { RequestMethod } from 'shim/objects/request-method';
 import { createStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { type Draft, produce } from 'immer';
+import { RendererEventService } from '@/services/event/renderer-event-service';
+import { HttpService } from '@/services/http/http-service';
+import { loadEditorContent } from '@/lib/monaco/editor-content';
+import { useActions } from '@/state/helper/util';
+import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
+import { CollectionState, FetchSnapshot, SendCommand } from '@/state/collection-state';
+import {
+  cancelModelEdits,
+  createModelsForRequest,
+  disposeModelsForRequest,
+  flushModelEdits,
+  ModelPersistence,
+} from '@/lib/monaco/models';
+import { showError } from '@/error/errorHandler';
+import {
+  CollectionCommand,
+  CollectionModel,
+  CollectionStructure,
+  CollectionTree,
+  CommandType,
+  FolderInfo,
+  getAncestorIds,
+  getDescendantIds,
+  getTopLevelIds,
+  RequestChanges,
+} from 'shim/collection-model';
+import { FormDataBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { TrufosId } from 'shim/objects/id';
+import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
-import { SortMode } from '@/components/sidebar/SidebarRequestList/treeUtilities';
+import { SortMode } from '@/state/interface/SortMode';
 
 const eventService = RendererEventService.instance;
+const httpService = HttpService.instance;
 
-interface CollectionState {
-  /** The currently selected collection */
-  collection?: Omit<Collection, 'variables' | 'environments'>;
+/** The fields of the {@link CollectionModel} that the store mirrors. */
+type ModelState = Omit<CollectionModel, 'version'>;
 
-  /** A map of all requests in the collection */
-  requests: Map<TrufosRequest['id'], TrufosRequest>;
-
-  /** A map of all folders in the collection */
-  folders: Map<Folder['id'], Folder>;
-
+/** Purely visual state that is not part of the collection. */
+interface UiState {
   /** The ID of the currently selected request */
-  selectedRequestId?: TrufosRequest['id'];
+  selectedRequestId?: TrufosId;
 
   /** A set of folder IDs that are currently open in the sidebar */
-  openFolders: Set<Folder['id']>;
+  openFolders: Set<TrufosId>;
 
   /** A set of request/folder IDs currently multi-selected in the sidebar */
-  selectedIds: Set<TrufosRequest['id'] | Folder['id']>;
+  selectedIds: Set<TrufosId>;
 
   /** The currently active script type in the script editor */
   currentScriptType: ScriptType;
 
   /** The currently active sort mode for the sidebar */
   sortMode: SortMode;
-
-  /** Whether a bulk delete/duplicate is currently in flight (guards against concurrent runs) */
-  isBulkActionRunning: boolean;
 }
 
-type CollectionStore = StoreApi<CollectionState & CollectionStateActions>;
+/**
+ * The state of the collection store: a read-only mirror of the {@link CollectionState}'s model
+ * (the collection including its variables and environments, folders, requests and their order),
+ * plus UI state.
+ */
+export type CollectionStoreState = ModelState & UiState;
+
+export type CollectionStore = StoreApi<CollectionStoreState & CollectionStateActions>;
 
 // Context for the collection store
 const CollectionStoreContext = createContext<CollectionStore | null>(null);
 
 export const CollectionStoreProvider = CollectionStoreContext.Provider;
 
+function selectModelState(model: CollectionModel): ModelState {
+  const { collection, selectedEnvironmentKey, folders, requests, savedRequests, childIds } = model;
+  return { collection, selectedEnvironmentKey, folders, requests, savedRequests, childIds };
+}
+
+/** The fields of a request that are edited with an Immer recipe, see `editSelectedRequest`. */
+type RecipeField = 'headers' | 'url' | 'body';
+
+function randomTitle() {
+  return (Math.random() + 1).toString(36).substring(7);
+}
+
 /**
- * Builds maps of requests and folders from a collection's children tree.
- * Also initializes variable and environment stores.
+ * Shows the error of a failed store action.
+ * @returns the action, resolving to false instead of rejecting if it failed
  */
-const buildCollectionItemMaps = (collection: Collection) => {
-  const requests = new Map<TrufosRequest['id'], TrufosRequest>();
-  const folders = new Map<Folder['id'], Folder>();
-  const { initialize: initializeVariables } = useVariableStore.getState();
-  const { initialize: initializeEnvironments } = useEnvironmentStore.getState();
-
-  const stack = [...collection.children];
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    if (current.type === 'folder') {
-      folders.set(current.id, current);
-      stack.push(...current.children);
-    } else if (current.type === 'request') {
-      requests.set(current.id, current);
+function reported<A extends unknown[]>(
+  message: string,
+  action: (...args: A) => Promise<void>
+): (...args: A) => Promise<boolean> {
+  return async (...args) => {
+    try {
+      await action(...args);
+      return true;
+    } catch (error) {
+      showError(message, error);
+      return false;
     }
-  }
+  };
+}
 
-  initializeVariables(collection.variables);
-  initializeEnvironments(collection.environments);
+/** A collection store together with the {@link CollectionState} it mirrors. */
+export interface CollectionStoreWithState {
+  store: CollectionStore;
+  collectionState: CollectionState;
+}
 
-  return { requests, folders };
-};
+/**
+ * Creates the collection store and the {@link CollectionState} for the given snapshot. The store
+ * follows every change of the state's model and sends every change of the collection to the main
+ * process as a command.
+ *
+ * Async actions show their errors themselves, see {@link reported}; sync actions show the errors
+ * of the commands they send.
+ */
+export const createCollectionStore = (
+  snapshot: CollectionModel,
+  send: SendCommand,
+  fetchSnapshot: FetchSnapshot
+): CollectionStoreWithState => {
+  console.debug('Creating collection store with collection', snapshot.collection.id);
+  // the state only calls back after the store below was created
+  const collectionState = new CollectionState(snapshot, send, fetchSnapshot, (model) =>
+    syncWithModel(store, model)
+  );
+  const get = (): CollectionStoreState & CollectionStateActions => store.getState();
 
-// Factory function to create a collection store with initial data
-export const createCollectionStore = (collection: Collection) => {
-  console.debug('Creating collection store with collection', collection.id);
+  /** Sends a command. Rejects instead of throwing if it cannot be applied. */
+  const dispatch = async (command: CollectionCommand) => collectionState.dispatch(command);
 
-  return createStore<CollectionState & CollectionStateActions>()(
-    immer((set, get) => ({
-      collection,
+  /** Sends a command and shows an error if it fails, for actions that do not return a promise. */
+  const dispatchAndForget = (command: CollectionCommand) => {
+    dispatch(command).catch((error) => showError('Could not change the collection', error));
+  };
+
+  /** Sends the content of the editor models as commands. */
+  const modelPersistence: ModelPersistence = {
+    setTextBody: (id, text) => dispatch({ type: CommandType.SET_TEXT_BODY, id, text }),
+    setScript: (id, scriptType, text) =>
+      dispatch({ type: CommandType.SET_SCRIPT, id, scriptType, text }),
+    markDraft: async (id) => {
+      const request = get().requests.get(id);
+      if (request != null && !request.draft) await dispatch({ type: CommandType.CREATE_DRAFT, id });
+    },
+    editFailed: (id, model, error) => {
+      showError('Could not save the editor change', error);
+      // the editor shows text that is not persisted, so it goes back to what is
+      if (get().requests.has(id) && get().selectedRequestId === id) {
+        loadEditorContent(id, { only: model }).catch((e) =>
+          showError('Could not load the request', e)
+        );
+      }
+    },
+  };
+
+  /** Changes the selected request. */
+  const editRequest = (changes: RequestChanges) => {
+    const request = selectRequest(get());
+    if (request != null) {
+      dispatchAndForget({ type: CommandType.EDIT_REQUEST, id: request.id, changes });
+    }
+  };
+
+  /**
+   * Changes a field of the selected request with an Immer recipe. Nothing is sent if the recipe
+   * changes nothing.
+   */
+  const editSelectedRequest = <K extends RecipeField>(
+    field: K,
+    recipe: (draft: Draft<TrufosRequest[K]>) => void
+  ) => {
+    const request = selectRequest(get());
+    if (request == null) return;
+    const value = produce(request[field], recipe);
+    if (value === request[field]) return;
+    const changes: RequestChanges = {};
+    changes[field] = value;
+    editRequest(changes);
+  };
+
+  /** Changes the form data fields of the selected request if it has a form data body. */
+  const editFormDataFields = (recipe: (fields: Draft<FormDataBody['fields']>) => void) =>
+    editSelectedRequest('body', (body) => {
+      if (body.type === RequestBodyType.FORM_DATA) recipe(body.fields);
+    });
+
+  /**
+   * Selects a request, see {@link CollectionStateActions.setSelectedRequest}. Errors are not
+   * shown, so actions that build on it can show their own.
+   */
+  const changeSelectedRequest = (id?: TrufosId): Promise<void> => {
+    console.debug('Setting selected request to', id);
+    const { selectedRequestId, requests } = get();
+    if (selectedRequestId === id) return Promise.resolve();
+    const request = id != null ? requests.get(id) : undefined;
+    if (id != null && request == null) console.warn('Request with ID', id, 'not found');
+
+    // The outgoing request's editor changes are read synchronously, so its models can be
+    // disposed right away.
+    let flushed = Promise.resolve();
+    if (selectedRequestId != null) {
+      flushed = flushModelEdits(selectedRequestId);
+      disposeModelsForRequest(selectedRequestId);
+    }
+
+    // The models of the incoming request are created synchronously, so they are available by
+    // the time the next render reads them.
+    if (request != null) {
+      createModelsForRequest(request.id, modelPersistence);
+      loadEditorContent(request.id).catch((error) =>
+        showError('Could not load the request', error)
+      );
+    }
+
+    const ancestorIds = request != null ? getAncestorIds(get(), request.id) : [];
+    store.setState((state) => {
+      for (const ancestorId of ancestorIds) state.openFolders.add(ancestorId);
+      state.selectedRequestId = request?.id;
+    });
+    return flushed;
+  };
+
+  /** Removes the top-level items of the multi-selection from it and returns their IDs. */
+  const takeTopLevelSelection = (): TrufosId[] => {
+    const ids = getTopLevelIds(get(), get().selectedIds);
+    get().clearSelection();
+    return ids;
+  };
+
+  /**
+   * Deletes requests and folders. If the selected request is one of them, it is deselected when the
+   * store syncs with the model, see {@link syncWithModel}. Its editor changes are sent first, so
+   * nothing is lost if main rejects the delete; main applies them before the delete, in order.
+   */
+  const deleteItems = async (ids: TrufosId[]) => {
+    const deletedIds = ids.flatMap((id) => [id, ...getDescendantIds(get(), id)]);
+    const flushed = deletedIds.map((id) => flushModelEdits(id));
+    await Promise.all([...flushed, dispatch({ type: CommandType.DELETE, ids })]);
+  };
+
+  /** Copies requests and folders. Main copies their files, so the editor changes are sent first. */
+  const copyItems = async (ids: TrufosId[]) => {
+    await flushModelEdits();
+    const sourceIds = ids.flatMap((id) => [id, ...getDescendantIds(get(), id)]);
+    const idMap = Object.fromEntries(sourceIds.map((id) => [id, crypto.randomUUID()]));
+    await dispatch({ type: CommandType.COPY, ids, idMap });
+  };
+
+  /** Opens the folder with the given ID in the sidebar, so an item created or moved into it is visible. */
+  const revealFolder = (id: TrufosId) => {
+    const { folders, setFolderOpen } = get();
+    if (folders.has(id)) setFolderOpen(id);
+  };
+
+  const store = createStore<CollectionStoreState & CollectionStateActions>()(
+    immer((set) => ({
+      ...selectModelState(snapshot),
       openFolders: new Set(),
       selectedIds: new Set(),
       currentScriptType: ScriptType.PRE_REQUEST,
       sortMode: SortMode.DEFAULT,
-      isBulkActionRunning: false,
-      ...buildCollectionItemMaps(collection),
 
-      initialize: (collection) => {
-        console.debug('Initializing collection store with collection', collection.id);
-        const { requests, folders } = buildCollectionItemMaps(collection);
-
-        // (re)set initial state
-        set((state) => {
-          const isNewCollection = state.collection?.id !== collection.id;
-          state.collection = collection;
-          state.requests = requests;
-          state.folders = folders;
-
-          if (isNewCollection) {
-            state.selectedRequestId = undefined;
-            state.openFolders = new Set();
-            state.selectedIds = new Set();
-          } else {
-            if (state.selectedRequestId != null && !state.requests.has(state.selectedRequestId)) {
-              state.selectedRequestId = undefined;
-            }
-            // Immer's draft Sets don't support the ES2024 Set.prototype.intersection() method
-            // (it silently returns an empty set), so intersect manually via filter instead.
-            state.openFolders = new Set([...state.openFolders].filter((id) => folders.has(id)));
-            const validIds = new Set([...requests.keys(), ...folders.keys()]);
-            state.selectedIds = new Set([...state.selectedIds].filter((id) => validIds.has(id)));
-          }
-          console.info('Initialized collection', collection.id);
-        });
-      },
-
-      changeCollection: async (collection: Collection | string) => {
-        const { setSelectedRequest, initialize } = get();
-        await setSelectedRequest(); // deselect current request and persist unsaved changes
-        const dirPath = typeof collection === 'string' ? collection : collection.dirPath;
+      changeCollection: reported('Could not open the collection', async (dirPath) => {
+        await changeSelectedRequest(undefined);
         console.info('Opening collection at', dirPath);
-        initialize(await eventService.openCollection(dirPath));
-      },
+        await eventService.openCollection(dirPath);
+      }),
 
-      addNewRequest: async (title, parentId) => {
-        const actualParentId = parentId ?? get().collection!.id;
+      createCollection: reported('Could not create the collection', async (dirPath, title) => {
+        await changeSelectedRequest(undefined);
+        console.info('Creating collection at', dirPath);
+        await eventService.createCollection(dirPath, title);
+      }),
 
-        const request = await eventService.saveRequest({
-          url: parseUrl('http://'),
-          method: RequestMethod.GET,
-          draft: true,
-          // @ts-expect-error id is assigned by the backend upon creation
-          id: null,
-          parentId: actualParentId,
+      addNewRequest: reported('Could not create the request', async (title, parentId) => {
+        const request: TrufosRequest = {
+          id: crypto.randomUUID(),
+          parentId: parentId ?? get().collection.id,
           type: 'request',
           lastModified: Date.now(),
-          title: title ?? (Math.random() + 1).toString(36).substring(7),
+          title: title ?? randomTitle(),
+          url: parseUrl('http://'),
+          method: RequestMethod.GET,
           headers: [],
-          body: {
-            type: RequestBodyType.TEXT,
-            mimeType: 'text/plain',
-          },
-        });
+          body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+          draft: true,
+        };
+        await dispatch({ type: CommandType.CREATE_REQUEST, request });
         console.info('Created new request with ID', request.id);
+        revealFolder(request.parentId);
+        void get().setSelectedRequest(request.id);
+      }),
 
-        // TODO: consider adding request directly to state instead of reloading
-        const collection = await eventService.loadCollection(true);
-        const { initialize, setFolderOpen } = get();
-        initialize(collection);
+      updateRequest: editRequest,
 
-        // Keep parent folder open if item was added to folder
-        if (actualParentId !== get().collection!.id) {
-          setFolderOpen(actualParentId);
-        }
+      setRequestBody: (body) => editRequest({ body }),
 
-        get().setSelectedRequest(request.id);
-      },
-
-      updateRequest: (updatedRequest: Partial<TrufosRequest>, overwrite = false) => {
-        set((state) => {
-          const request = selectRequest(state);
-          if (request == null) return;
-
-          const requestId = state.selectedRequestId!;
-          const nextRequest = overwrite
-            ? (updatedRequest as TrufosRequest)
-            : { ...request, ...updatedRequest };
-
-          state.requests.set(requestId, nextRequest);
-          replaceChild(state, nextRequest);
-
-          if (overwrite) {
-            return;
-          } else {
-            markDraft(state);
+      setRequestBodyMimeType: (mimeType) =>
+        editSelectedRequest('body', (body) => {
+          switch (body.type) {
+            case RequestBodyType.TEXT:
+              // text bodies always have a mime type
+              if (mimeType != null) body.mimeType = mimeType;
+              return;
+            case RequestBodyType.FILE:
+              body.mimeType = mimeType;
+              return;
+            default:
+              // form data bodies don't have a mime type
+              return;
           }
-        });
-      },
+        }),
 
-      setRequestBody: (body) => {
-        const { updateRequest } = get();
-        updateRequest({ body });
-      },
-
-      setRequestBodyMimeType(mimeType?: string) {
-        const { body } = selectRequest(get())!;
-        if (body.type === RequestBodyType.FORM_DATA) return; // form data bodies don't have a mime type
-        const { setRequestBody } = get();
-        setRequestBody({ ...body, mimeType } as typeof body);
-      },
-
-      setSelectedRequest: (id) => {
-        console.debug('Setting selected request to', id);
-        const { selectedRequestId, requests } = get();
-        if (selectedRequestId === id) return;
-        if (id != null && !requests.has(id)) {
-          console.warn('Request with ID', id, 'not found');
-          id = undefined;
-        }
-
-        // Dispose models for the outgoing request synchronously —
-        // this triggers onWillDisposeModel which saves content to disk.
-        if (selectedRequestId != null) {
-          disposeModelsForRequest(selectedRequestId);
-        }
-
-        // Create models for the incoming request synchronously so they are
-        // available by the time the next render reads them.
-        if (id != null) {
-          createModelsForRequest(id);
-        }
-
-        set((state) => {
-          if (id != null) {
-            let parentId = state.requests.get(id)!.parentId;
-            while (parentId !== state.collection!.id) {
-              state.openFolders.add(parentId);
-              const folder = state.folders.get(parentId);
-              if (folder == null) break;
-              parentId = folder.parentId;
-            }
-          }
-          state.selectedRequestId = id;
-        });
-      },
+      setSelectedRequest: reported('Could not save the request', changeSelectedRequest),
 
       setCurrentScriptType: (type) => {
         set({ currentScriptType: type });
@@ -268,13 +344,7 @@ export const createCollectionStore = (collection: Collection) => {
       },
 
       addToSelection: (ids) => {
-        set((state) => {
-          // Immer's draft Set doesn't support the ES2024 Set.prototype.union() method (see the
-          // intersection note in initialize() above), so add each id individually instead.
-          for (const id of ids) {
-            state.selectedIds.add(id);
-          }
-        });
+        set({ selectedIds: get().selectedIds.union(new Set(ids)) });
       },
 
       clearSelection: () => {
@@ -283,248 +353,121 @@ export const createCollectionStore = (collection: Collection) => {
         });
       },
 
-      deleteSelectedItems: async () => {
-        const { selectedIds, requests, folders } = get();
-        const items = getTopLevelSelectedItems(selectedIds, requests, folders);
+      // the selection is taken synchronously, so a second call while one runs has nothing to do
+      deleteSelectedItems: reported('Could not delete the items', async () => {
+        const ids = takeTopLevelSelection();
+        if (ids.length > 0) await deleteItems(ids);
+      }),
 
-        await runBulk(
-          set,
-          get,
-          items,
-          (request) => eventService.deleteObject(request),
-          (folder) => eventService.deleteObject(folder),
-          true
-        );
-      },
+      duplicateSelectedItems: reported('Could not duplicate the items', async () => {
+        const ids = takeTopLevelSelection();
+        if (ids.length > 0) await copyItems(ids);
+      }),
 
-      duplicateSelectedItems: async () => {
-        const { selectedIds, requests, folders } = get();
-        const items = getTopLevelSelectedItems(selectedIds, requests, folders);
+      deleteItem: reported('Could not delete the item', (id) => deleteItems([id])),
 
-        await runBulk(
-          set,
-          get,
-          items,
-          (request) => eventService.copyRequest(request),
-          (folder) => eventService.copyFolder(folder),
-          false
-        );
-      },
+      renameItem: reported('Could not rename the item', async (id, title) => {
+        await dispatch({ type: CommandType.RENAME, id, title });
+      }),
 
-      deleteRequest: async (id) => {
-        await eventService.deleteObject(selectRequest(get(), id)!);
+      copyItem: reported('Could not copy the item', (id) => copyItems([id])),
 
-        if (get().selectedRequestId === id) {
-          // Saving the models of the deleted request would recreate it on disk
-          disposeModelsForRequest(id, false);
-          get().setSelectedRequest(undefined);
-        }
-
-        set((state) => {
-          const request = selectRequest(state, id);
-          const parent = selectParent(state, request!.parentId);
-          parent.children = parent.children.filter((child) => child.id !== id);
-          state.requests.delete(id);
-        });
-      },
-
-      discardChanges: async () => {
+      discardChanges: reported('Could not discard the changes', async () => {
         const request = selectRequest(get());
         if (request == null) return;
-        const restored = await eventService.discardChanges(request);
-        if (restored == null) {
-          if (get().selectedRequestId === request.id) {
-            get().setSelectedRequest(undefined);
-          }
-          set((state) => {
-            const parent = selectParent(state, request.parentId);
-            parent.children = parent.children.filter((child) => child.id !== request.id);
-            state.requests.delete(request.id);
-          });
-          return;
-        }
-        get().updateRequest(restored, true);
-        await setRequestTextBody(request.id, restored);
-        for (const scriptType of Object.values(ScriptType)) {
-          await setScriptContent(request.id, restored, scriptType);
-        }
-      },
+        cancelModelEdits(request.id);
+        const discarded = dispatch({ type: CommandType.DISCARD_REQUEST, id: request.id });
+        // The content is loaded from main once the discard settled, so text typed meanwhile is
+        // replaced instead of sent. If the discard is rejected, the editors show the draft again
+        // instead of text that is not persisted. A request that was never saved is gone with its
+        // editor models, so nothing is loaded.
+        await Promise.all([
+          discarded,
+          loadEditorContent(request.id, { after: discarded.catch(() => undefined) }),
+        ]);
+      }),
 
-      renameRequest: async (id: TrufosRequest['id'], title: string) => {
-        const request = selectRequest(get(), id);
-        if (request == null) return;
+      saveRequest: reported('Could not save the request', async (id) => {
+        await flushModelEdits(id);
+        await dispatch({ type: CommandType.SAVE_REQUEST, id });
+      }),
 
-        await eventService.rename(request, title);
-        set((state) => {
-          const updatedRequest = {
-            ...request,
-            title,
-          };
-          state.requests.set(id, updatedRequest);
-          replaceChild(state, updatedRequest);
-        });
-      },
-
-      copyRequest: async (id) => {
-        const request = selectRequest(get(), id);
-        if (request === null) return;
-
-        await eventService.copyRequest({ ...request } as TrufosRequest);
-
-        const collection = await eventService.loadCollection(true);
-        const { initialize } = get();
-        initialize(collection);
+      sendRequest: async (id, signal) => {
+        await flushModelEdits();
+        return await httpService.sendRequest(id, signal);
       },
 
       addHeader: () =>
-        set((state) => {
-          selectHeaders(state).push({ key: '', value: '', isActive: true });
-          markDraft(state);
+        editSelectedRequest('headers', (headers) => {
+          headers.push({ key: '', value: '', isActive: true });
         }),
 
       updateHeader: (index, updatedHeader) =>
-        set((state) => {
-          const headers = selectHeaders(state);
-          headers[index] = { ...headers[index], ...updatedHeader };
-          markDraft(state);
+        editSelectedRequest('headers', (headers) => {
+          if (headers[index] != null) Object.assign(headers[index], updatedHeader);
         }),
 
       deleteHeader: (index) =>
-        set((state) => {
-          selectHeaders(state).splice(index, 1);
-          markDraft(state);
-        }),
-
-      clearHeaders: () =>
-        set((state) => {
-          selectRequest(state)!.headers = [];
-          markDraft(state);
+        editSelectedRequest('headers', (headers) => {
+          headers.splice(index, 1);
         }),
 
       addQueryParam: () =>
-        set((state) => {
-          selectQueryParams(state).push({ key: '', value: '', isActive: true });
-          markDraft(state);
+        editSelectedRequest('url', (url) => {
+          url.query.push({ key: '', value: '', isActive: true });
         }),
 
       updateQueryParam: (index, updatedParam) =>
-        set((state) => {
-          const queryParam = selectQueryParam(state, index);
-          selectQueryParams(state)[index] = { ...queryParam, ...updatedParam };
-          markDraft(state);
+        editSelectedRequest('url', (url) => {
+          if (url.query[index] != null) Object.assign(url.query[index], updatedParam);
         }),
 
       deleteQueryParam: (index) =>
-        set((state) => {
-          selectQueryParams(state).splice(index, 1);
-          markDraft(state);
+        editSelectedRequest('url', (url) => {
+          url.query.splice(index, 1);
         }),
 
       clearQueryParams: () =>
-        set((state) => {
-          selectRequest(state)!.url.query = [];
-          markDraft(state);
+        editSelectedRequest('url', (url) => {
+          url.query = [];
         }),
 
       setQueryParamActive: (index, isActive) =>
-        set((state) => {
-          const queryParam = selectQueryParam(state, index);
-          queryParam.isActive = isActive ?? !queryParam.isActive;
-          markDraft(state);
+        editSelectedRequest('url', (url) => {
+          const param = url.query[index];
+          if (param != null) param.isActive = isActive ?? !param.isActive;
         }),
 
       addFormDataField: () =>
-        set((state) => {
-          const request = selectRequest(state)!;
-          const body = request.body;
-          if (body.type !== RequestBodyType.FORM_DATA) return;
-          body.fields.push({
+        editFormDataFields((fields) => {
+          fields.push({
             key: '',
             isActive: true,
             value: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
           });
-          request.draft = true;
         }),
 
       updateFormDataField: (index, updatedField) =>
-        set((state) => {
-          const request = selectRequest(state)!;
-          const body = request.body;
-          if (body.type !== RequestBodyType.FORM_DATA) return;
-          body.fields[index] = { ...body.fields[index], ...updatedField };
-          request.draft = true;
+        editFormDataFields((fields) => {
+          if (fields[index] != null) Object.assign(fields[index], updatedField);
         }),
 
       deleteFormDataField: (index) =>
-        set((state) => {
-          const request = selectRequest(state)!;
-          const body = request.body;
-          if (body.type !== RequestBodyType.FORM_DATA) return;
-          body.fields.splice(index, 1);
-          request.draft = true;
+        editFormDataFields((fields) => {
+          fields.splice(index, 1);
         }),
 
-      setDraftFlag: () => set(markDraft),
-
-      addNewFolder: async (title?, parentId?) => {
-        await eventService.saveFolder({
-          // @ts-expect-error id is assigned by the backend upon creation
-          id: null,
-          parentId: parentId ?? get().collection!.id,
+      addNewFolder: reported('Could not create the folder', async (title, parentId) => {
+        const folder: FolderInfo = {
+          id: crypto.randomUUID(),
+          parentId: parentId ?? get().collection.id,
           type: 'folder',
-          title: title ?? (Math.random() + 1).toString(36).substring(7),
+          title: title ?? randomTitle(),
           lastModified: Date.now(),
-          children: [],
-        });
-
-        // Reload collection to get correct indices
-        const collection = await eventService.loadCollection(true);
-        const { setFolderOpen, initialize } = get();
-        if (parentId) {
-          setFolderOpen(parentId);
-        }
-        initialize(collection);
-      },
-
-      deleteFolder: async (id) => {
-        const folder = selectFolder(get(), id)!;
-        console.info('Deleting folder', folder.id);
-        await eventService.deleteObject(folder);
-
-        const collection = await eventService.loadCollection(true);
-        get().initialize(collection);
-        set((state) => {
-          state.openFolders.delete(id);
-          if (isRequestInAParentFolder(state.selectedRequestId!, folder)) {
-            state.selectedRequestId = undefined;
-          }
-        });
-      },
-
-      renameFolder: async (id: Folder['id'], title: string) => {
-        const folder = selectFolder(get(), id)!;
-        if (folder == null) return;
-
-        await eventService.rename(folder, title);
-        set((state) => {
-          const updatedFolder = { ...folder, title };
-          state.folders.set(id, updatedFolder);
-          replaceChild(state, updatedFolder);
-        });
-      },
-
-      copyFolder: async (id) => {
-        const folder = selectFolder(get(), id)!;
-        if (folder === null) return;
-
-        await eventService.copyFolder(folder);
-
-        const collection = await eventService.loadCollection(true);
-        const { initialize } = get();
-        initialize(collection);
-      },
-
-      isFolderOpen: (id) => get().openFolders.has(id),
+        };
+        await dispatch({ type: CommandType.CREATE_FOLDER, folder });
+        revealFolder(folder.parentId);
+      }),
 
       setFolderOpen: (id) => {
         set((state) => {
@@ -538,152 +481,95 @@ export const createCollectionStore = (collection: Collection) => {
         });
       },
 
-      updateAuthorization: (object, updatedFields) => {
-        set((state) => {
-          object = selectObject(state, object);
-          const newType = (updatedFields as Partial<AuthorizationInformation> | null)?.type;
-          if (updatedFields == null) {
-            delete object.auth;
-          } else if (object.auth == null || (newType != null && newType !== object.auth.type)) {
-            // A changed type discriminates a different union member, so replace instead of
-            // merging: keeping fields from the previous type (e.g. an OAuth2 `method`) would
-            // leave the auth in an invalid, unparseable state.
-            object.auth = updatedFields as AuthorizationInformation;
-          } else {
-            object.auth = { ...object.auth, ...updatedFields };
-          }
-
-          if (isRequest(object)) {
-            markDraft(state);
-          }
-        });
-      },
-
-      closeCollection: async (dirPath?: string) => {
-        const { initialize, collection: activeCollection } = get();
-        const targetPath = dirPath ?? activeCollection?.dirPath;
-
-        if (!targetPath) {
-          console.warn('No collection path provided or active collection found.');
-          return;
+      updateCollection: reported(
+        'Could not change the collection',
+        async (changes, selectedEnvironmentKey) => {
+          await dispatch({ type: CommandType.UPDATE_COLLECTION, changes, selectedEnvironmentKey });
         }
+      ),
 
+      selectEnvironment: reported('Could not select the environment', async (key) => {
+        await dispatch({
+          type: CommandType.UPDATE_COLLECTION,
+          changes: {},
+          selectedEnvironmentKey: key ?? null,
+        });
+      }),
+
+      closeCollection: reported('Could not close the collection', async (dirPath) => {
+        const { collection } = get();
+        const targetPath = dirPath ?? collection.dirPath;
+        if (targetPath === collection.dirPath) {
+          await changeSelectedRequest(undefined);
+        }
         console.info('Closing collection at', targetPath);
+        await eventService.closeCollection(targetPath);
+      }),
 
-        const nextCollection = await eventService.closeCollection(targetPath);
-
-        initialize(nextCollection);
-      },
-
-      renameCollection: async (title: string) => {
-        if (!get().collection) return;
-
-        await eventService.renameCollection(title);
-
-        set((state) => {
-          state.collection!.title = title;
-        });
-      },
-
-      moveItem: async (itemId, newParentId, newIndex) => {
-        console.info(`Moving item ${itemId} to parent ${newParentId} at position ${newIndex}`);
-        const state = get();
-        const item = selectRequest(state, itemId) ?? selectFolder(state, itemId);
-        const newParent = selectParent(state, newParentId);
-
-        if (item!.parentId === newParentId) {
-          // Reorder in frontend state (always has complete children list)
-          set((state) => {
-            const parent = selectParent(state, newParentId);
-            const children = parent.children;
-            const oldIndex = children.findIndex((c) => c.id === itemId);
-            if (oldIndex !== -1) children.splice(oldIndex, 1);
-            children.splice(newIndex, 0, item!);
-          });
-
-          // Persist new order to backend
-          await eventService.reorderItem(newParent, itemId, newIndex);
-        } else {
-          // Update frontend state immediately to avoid visual snap-back
-          set((state) => {
-            // Remove item from old parent
-            const oldParentState = selectParent(state, item!.parentId);
-            oldParentState.children = oldParentState.children.filter((c) => c.id !== itemId);
-
-            // Add item to new parent at correct position
-            const newParentState = selectParent(state, newParentId);
-            const updatedItem = { ...item!, parentId: newParentId };
-            newParentState.children.splice(newIndex, 0, updatedItem);
-
-            // Update maps
-            if (isRequest(updatedItem)) {
-              state.requests.set(itemId, updatedItem);
-            } else {
-              state.folders.set(itemId, updatedItem);
-            }
-
-            // Open the target folder so the moved item is visible
-            if (!isCollection(newParent)) {
-              state.openFolders.add(newParentId);
-            }
-          });
-
-          // Persist to backend. The info files don't store the parent, so moving the directory
-          // is enough; saving the request here would drop its text body
-          await eventService.moveItem(
-            item!,
-            selectParent(state, item!.parentId),
-            newParent,
-            newIndex
-          );
-        }
-      },
-
-      moveItemsAfter: async (afterId, ids) => {
-        // Every id lands in the anchor's parent, so validating that parent once up front is
-        // enough to guarantee no group member gets nested inside itself (I20).
-        const initial = get();
-        const anchor = selectRequest(initial, afterId) ?? selectFolder(initial, afterId);
-        if (anchor == null) {
-          throw new Error(`Cannot move items after ${afterId}: item not found`);
-        }
-        if (isWithinGroup(anchor.parentId, new Set(ids), initial.requests, initial.folders)) {
-          throw new Error(
-            `Cannot move items after ${afterId}: its parent ${anchor.parentId} is one of the moved items or inside one`
-          );
-        }
-
-        let prevId = afterId;
-        for (const id of ids) {
-          // Re-read state on every iteration: each moveItem splices live children and may
-          // change an item's parentId, so no index or parent can be precomputed up front.
-          const state = get();
-          const prev = selectRequest(state, prevId) ?? selectFolder(state, prevId);
-          if (prev == null) {
-            throw new Error(`Cannot move ${id} after ${prevId}: item not found`);
-          }
-          const parent = selectParent(state, prev.parentId);
-          const index = getIndexAfter(parent.children, id, prevId);
-          await get().moveItem(id, prev.parentId, index);
-          prevId = id;
-        }
-      },
-
-      setClientCertificate: async (certificate) => {
-        set((state) => {
-          if (state.collection) {
-            state.collection.clientCertificate = certificate ?? undefined;
-          }
-        });
-        await eventService.setClientCertificate(certificate);
-      },
+      moveItems: reported('Could not move the items', async (ids, parentId, index) => {
+        console.info(`Moving items ${ids.join(', ')} to parent ${parentId} at position ${index}`);
+        const moved = dispatch({ type: CommandType.MOVE, ids, parentId, index });
+        revealFolder(parentId);
+        await moved;
+      }),
     }))
   );
+
+  return { store, collectionState };
 };
+
+/**
+ * Takes over the model into the store. If another collection was opened, the UI state is reset;
+ * otherwise it is pruned to IDs that still exist.
+ */
+function syncWithModel(store: CollectionStore, model: CollectionModel) {
+  const state = store.getState();
+  const isNewCollection =
+    state.collection.id !== model.collection.id ||
+    state.collection.dirPath !== model.collection.dirPath;
+  const { selectedRequestId } = state;
+
+  if (selectedRequestId != null && (isNewCollection || !model.requests.has(selectedRequestId))) {
+    // the request was deleted or discarded, its editor changes must not recreate it
+    disposeModelsForRequest(selectedRequestId);
+  }
+
+  if (isNewCollection) {
+    store.setState({
+      ...selectModelState(model),
+      selectedRequestId: undefined,
+      openFolders: new Set(),
+      selectedIds: new Set(),
+    });
+    console.info('Opened collection', model.collection.id);
+    return;
+  }
+
+  store.setState({
+    ...selectModelState(model),
+    selectedRequestId:
+      selectedRequestId != null && model.requests.has(selectedRequestId)
+        ? selectedRequestId
+        : undefined,
+    openFolders: retainExisting(state.openFolders, (id) => model.folders.has(id)),
+    selectedIds: retainExisting(
+      state.selectedIds,
+      (id) => model.requests.has(id) || model.folders.has(id)
+    ),
+  });
+}
+
+/** Returns the set itself if all IDs exist, so selectors stay stable, or a pruned copy. */
+function retainExisting(ids: Set<TrufosId>, exists: (id: TrufosId) => boolean): Set<TrufosId> {
+  for (const id of ids) {
+    if (!exists(id)) return new Set([...ids].filter(exists));
+  }
+  return ids;
+}
 
 // Hook to access the collection store from context
 export const useCollectionStore = <T>(
-  selector: (state: CollectionState & CollectionStateActions) => T
+  selector: (state: CollectionStoreState & CollectionStateActions) => T
 ): T => {
   const store = useContext(CollectionStoreContext);
   if (!store) {
@@ -692,112 +578,57 @@ export const useCollectionStore = <T>(
   return useStore(store, selector);
 };
 
-export const useCollectionActions = () => useCollectionStore(useActions());
+export const useCollectionActions = (): CollectionStateActions => useCollectionStore(useActions());
 
-// Export context for the provider to access the raw store
-export { CollectionStoreContext };
+/** Returned by the tree hooks while they are disabled, so they do not cause renders. */
+const EMPTY_TREE: CollectionTree = Object.freeze({
+  childIds: new Map(),
+  folders: new Map(),
+  requests: new Map(),
+});
 
-const selectParent = (state: CollectionState, parentId: string) => {
-  if (state.collection!.id === parentId) return state.collection as Collection;
-  return state.folders.get(parentId)!;
+/**
+ * Returns the structure of the collection tree. Unlike {@link useCollectionTree}, it does not change
+ * when a request is edited, e.g. with every keystroke in the URL.
+ */
+export const useCollectionStructure = (): CollectionStructure => {
+  const childIds = useCollectionStore((state) => state.childIds);
+  const folders = useCollectionStore((state) => state.folders);
+  return useMemo(() => ({ childIds, folders }), [childIds, folders]);
 };
 
 /**
- * Runs a bulk request/folder action (delete or duplicate) against each top-level item. If
- * another bulk action is already in flight (`isBulkActionRunning`), this call is a no-op;
- * otherwise the flag is set synchronously before the first `await`, so the check-and-set is
- * atomic with respect to the event loop and e.g. a fast double-click can't start a second
- * concurrent run over the same selection. If the action removes items (`removesItems`, i.e.
- * bulk delete) and will remove the currently-open request — directly, or as a descendant of a
- * bulk-deleted folder — its Monaco model is disposed up front via `setSelectedRequest`, before
- * `selectedRequestId` gets cleared by the reload below (unlike the single-item `deleteFolder`
- * action, whose equivalent check runs too late to ever fire). Non-removing actions (bulk
- * duplicate) leave the open request and its Monaco models untouched. Regardless of how many
- * items are in `items`, the collection is reloaded and the selection cleared exactly once, in a
- * `finally` so a mid-loop IPC failure still leaves state consistent instead of a stale selection
- * referencing now-nonexistent ids; the exception still propagates, no rollback is attempted.
- * The in-flight flag is reset last (`initialize()` never touches it), even if the reload fails.
+ * Returns the tree of the collection. It changes whenever the tree or one of its nodes changes,
+ * including every edit of a request. Use {@link useCollectionStructure} if the requests themselves
+ * are not needed.
+ * @param enabled if false, an empty tree is returned and the hook does not cause renders
  */
-const runBulk = async (
-  set: (updater: (state: CollectionState) => void) => void,
-  get: () => CollectionState & CollectionStateActions,
-  items: (TrufosRequest | Folder)[],
-  onRequest: (request: TrufosRequest) => Promise<unknown>,
-  onFolder: (folder: Folder) => Promise<unknown>,
-  removesItems: boolean
-): Promise<void> => {
-  if (get().isBulkActionRunning) return;
-  set((state) => {
-    state.isBulkActionRunning = true;
-  });
-
-  try {
-    const { selectedRequestId } = get();
-    const affectsOpenRequest =
-      removesItems &&
-      selectedRequestId != null &&
-      items.some((item) =>
-        isRequest(item)
-          ? item.id === selectedRequestId
-          : isRequestInAParentFolder(selectedRequestId, item)
-      );
-
-    if (affectsOpenRequest) {
-      // Saving the models of a request that is about to be deleted would race with its deletion
-      // and could recreate it on disk
-      disposeModelsForRequest(selectedRequestId, false);
-      get().setSelectedRequest(undefined);
-    }
-
-    for (const item of items) {
-      if (isRequest(item)) {
-        await onRequest(item);
-      } else {
-        await onFolder(item);
-      }
-    }
-  } finally {
-    try {
-      const collection = await eventService.loadCollection(true);
-      get().initialize(collection);
-      get().clearSelection();
-    } finally {
-      set((state) => {
-        state.isBulkActionRunning = false;
-      });
-    }
-  }
+export const useCollectionTree = (enabled = true): CollectionTree => {
+  const childIds = useCollectionStore((state) => (enabled ? state.childIds : EMPTY_TREE.childIds));
+  const folders = useCollectionStore((state) => (enabled ? state.folders : EMPTY_TREE.folders));
+  const requests = useCollectionStore((state) => (enabled ? state.requests : EMPTY_TREE.requests));
+  return useMemo(
+    () => (enabled ? { childIds, folders, requests } : EMPTY_TREE),
+    [enabled, childIds, folders, requests]
+  );
 };
 
-const replaceChild = (state: CollectionState, child: Folder | TrufosRequest) => {
-  const parent = selectParent(state, child.parentId);
-  const index = parent.children.findIndex(({ id }) => id === child.id);
-  if (index !== -1) {
-    parent.children[index] = child;
-  }
-};
+/** Returned while no request is selected, so the selector stays stable. */
+const NO_QUERY_PARAMS: Readonly<TrufosRequest['url']['query']> = Object.freeze([]);
 
-const selectObject = <T extends TrufosObject>(state: CollectionState, object: T) =>
-  isCollection(object)
-    ? (state.collection as T)
-    : isRequest(object)
-      ? (selectRequest(state, object.id) as T)
-      : (selectFolder(state, object.id) as T);
+export const selectQueryParams = (
+  state: CollectionStoreState
+): Readonly<TrufosRequest['url']['query']> => selectRequest(state)?.url.query ?? NO_QUERY_PARAMS;
 
-const markDraft = (state: CollectionState) => {
-  const request = selectRequest(state)!;
-  request.draft = true;
-  request.lastModified = Date.now();
-};
-
-export const selectHeaders = (state: CollectionState) => selectRequest(state)!.headers;
-export const selectQueryParams = (state: CollectionState) => selectRequest(state)!.url.query;
-
-const selectQueryParam = (state: CollectionState, index: number) =>
-  selectQueryParams(state)?.[index];
-export const selectRequest = (state: CollectionState, requestId?: TrufosRequest['id']) => {
+export const selectRequest = (
+  state: CollectionStoreState,
+  requestId?: TrufosId
+): TrufosRequest | undefined => {
   const id = requestId ?? state.selectedRequestId;
   return id != null ? state.requests.get(id) : undefined;
 };
-export const selectFolder = (state: CollectionState, folderId: Folder['id']) =>
-  state.folders.get(folderId);
+
+export const selectFolder = (
+  state: CollectionStoreState,
+  folderId: TrufosId
+): FolderInfo | undefined => state.folders.get(folderId);
