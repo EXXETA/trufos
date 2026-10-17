@@ -1,4 +1,4 @@
-import undici, { Agent, Dispatcher, FormData } from 'undici';
+import undici, { FormData } from 'undici';
 import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { pipeline } from 'node:stream/promises';
 import fs from 'node:fs';
@@ -13,7 +13,6 @@ import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/reques
 import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
 import { StoredBody, TrufosResponse } from 'shim/objects/response';
-import type { ClientCertificate } from 'shim/objects/collection';
 import { isBlankHeader, TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
@@ -34,13 +33,14 @@ import { HistoryService } from 'main/history/history-service';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import { TrufosId } from 'shim/objects/id';
 import type { CollectionModel } from 'shim/collection-model';
+import { DispatcherCache } from 'main/network/service/dispatcher-cache';
+import { SettingsService } from 'main/persistence/service/settings-service';
 
 const bodyStore = BodyStore.instance;
 const scriptingService = ScriptingService.instance;
 const collectionState = CollectionStateService.instance;
 
 declare type HttpHeaders = Record<string, string[]>;
-declare type DispatcherProvider = (clientCertificate?: ClientCertificate) => Promise<Dispatcher>;
 
 /**
  * Singleton service for making HTTP requests
@@ -48,26 +48,10 @@ declare type DispatcherProvider = (clientCertificate?: ClientCertificate) => Pro
 export class HttpService {
   public static readonly instance = new HttpService();
 
-  private readonly _dispatcherProvider: DispatcherProvider;
   private readonly abortControllers = new Map<string, AbortController>();
 
-  constructor(dispatcherProvider?: DispatcherProvider) {
-    this._dispatcherProvider = dispatcherProvider ?? this.buildDefaultDispatcher.bind(this);
-  }
-
-  private async buildDefaultDispatcher(cert?: ClientCertificate): Promise<Dispatcher> {
-    if (cert == null) {
-      return new Agent({ connect: { rejectUnauthorized: false } }); // allow self-signed certificates
-    }
-    return new Agent({
-      connect: {
-        rejectUnauthorized: false,
-        cert: await fsp.readFile(cert.certPath),
-        key: cert.keyPath ? await fsp.readFile(cert.keyPath) : undefined,
-        ca: cert.caPath ? await fsp.readFile(cert.caPath) : undefined,
-      },
-    });
-  }
+  /** @param dispatchers provides the dispatcher each request is sent with */
+  constructor(private readonly dispatchers: Pick<DispatcherCache, 'get'> = new DispatcherCache()) {}
 
   /**
    * Sends a request of the open collection as it is now, including its body and scripts, even if
@@ -217,7 +201,10 @@ export class HttpService {
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
-      dispatcher: await this._dispatcherProvider(model.collection.clientCertificate),
+      dispatcher: await this.dispatchers.get({
+        verifyTlsCertificates: SettingsService.instance.settings.preferences.verifyTlsCertificates,
+        clientCertificate: model.collection.clientCertificate,
+      }),
       method: request.method,
       headers: sentHeaders,
       body: sentBody,
@@ -226,17 +213,6 @@ export class HttpService {
 
     const duration = getDurationFromNow(now);
     logger.info(`Received response in ${duration}ms`);
-
-    // the response is received already, so it is kept even if the script cannot run anymore
-    await this.runScript(scripts, ScriptType.POST_RESPONSE, recorder.scriptLog, model).catch(
-      (error: unknown) => {
-        if (!(error instanceof CollectionChangedError)) throw error;
-        const message =
-          'The post-response script was not run, as another collection was opened while the request was sent';
-        logger.warn(message);
-        recorder.scriptLog({ script: ScriptType.POST_RESPONSE, level: 'warn', args: [message] });
-      }
-    );
 
     // write the response body to an encrypted temporary file
     let responseBody: StoredBody | undefined;
@@ -250,6 +226,18 @@ export class HttpService {
       responseBody = { id, size: bodyStore.getSize(id) ?? 0 };
       logger.debug('Successfully written response body');
     }
+
+    // runs once the response body is stored, so the script can read it. The response is received
+    // already, so it is kept even if the script cannot run anymore
+    await this.runScript(scripts, ScriptType.POST_RESPONSE, recorder.scriptLog, model).catch(
+      (error: unknown) => {
+        if (!(error instanceof CollectionChangedError)) throw error;
+        const message =
+          'The post-response script was not run, as another collection was opened while the request was sent';
+        logger.warn(message);
+        recorder.scriptLog({ script: ScriptType.POST_RESPONSE, level: 'warn', args: [message] });
+      }
+    );
 
     // return a new Response instance
     const response: TrufosResponse = {

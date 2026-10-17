@@ -11,18 +11,47 @@ import {
   Configuration,
   customFetch,
   discovery,
+  refreshTokenGrant,
+  type TokenEndpointResponse,
 } from 'openid-client';
 import Undici, { RequestInit } from 'undici';
+import { OAuth2TokenCache, type TokenSource } from './token-cache';
+import type { CacheKey } from 'main/util/cache';
+import { pickValues } from 'main/util/object-util';
 
-export default abstract class OAuth2AuthStrategy<
-  T extends OAuth2AuthorizationInformation,
-> extends AuthStrategy<T> {
-  public async getAuthHeader() {
-    await this.getTokens();
-    return `Bearer ${this.authInfo.tokens!.access_token}`;
+export default abstract class OAuth2AuthStrategy<T extends OAuth2AuthorizationInformation>
+  extends AuthStrategy<T>
+  implements TokenSource
+{
+  public async getAuthHeader(): Promise<string> {
+    const tokens = await OAuth2TokenCache.instance.get(this.getCacheKey(), this);
+    return `Bearer ${tokens.access_token}`;
   }
 
-  protected abstract getTokens(): Promise<void>;
+  /** Acquires new tokens from the authorization server. */
+  public abstract acquire(): Promise<TokenEndpointResponse>;
+
+  /** Exchanges a refresh token for new tokens. */
+  public refresh(refreshToken: string): Promise<TokenEndpointResponse> {
+    return refreshTokenGrant(this.getConfiguration(), refreshToken, this.getParameters());
+  }
+
+  /**
+   * The settings the tokens depend on, in a fixed order. Tokens are reused as long as these stay
+   * the same.
+   */
+  protected getCacheKey(): CacheKey {
+    return pickValues(
+      this.authInfo,
+      'method',
+      'issuerUrl',
+      'tokenUrl',
+      'clientId',
+      'clientSecret',
+      'scope',
+      'clientAuthenticationMethod'
+    );
+  }
 
   protected getParameters() {
     const parameters: Record<string, string> = {};

@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { assign, split } from './object-util';
+import { assign, pickValues, split } from './object-util';
+
+describe('pickValues()', () => {
+  it('should return the values of the properties in the given order', () => {
+    const object = { a: 1, b: 'x', c: true };
+    expect(pickValues(object, 'c', 'a')).toEqual([true, 1]);
+  });
+
+  it('should keep the position of an undefined property', () => {
+    const object: { a?: string; b: string } = { b: 'x' };
+    expect(pickValues(object, 'a', 'b')).toEqual([undefined, 'x']);
+  });
+});
 
 describe('assign()', () => {
   it('should merge shallow properties', () => {

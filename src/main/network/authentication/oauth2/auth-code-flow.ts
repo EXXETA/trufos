@@ -10,8 +10,11 @@ import {
   calculatePKCECodeChallenge,
   randomPKCECodeVerifier,
   randomState,
+  type TokenEndpointResponse,
 } from 'openid-client';
 import { openAuthorizationWindow } from '../util/browser-auth';
+import type { CacheKey } from 'main/util/cache';
+import { pickValues } from 'main/util/object-util';
 
 function isPKCEConfig(
   auth:
@@ -24,7 +27,14 @@ export default class AuthCodeFlowAuthorizationStrategy<
   T extends
     OAuth2ClientAuthorizationCodeFlowInformation | OAuth2ClientAuthorizationCodeFlowPKCEInformation,
 > extends OAuth2AuthStrategy<T> {
-  protected async getTokens() {
+  protected getCacheKey(): CacheKey {
+    return [
+      ...super.getCacheKey(),
+      ...pickValues(this.authInfo, 'authorizationUrl', 'callbackUrl'),
+    ];
+  }
+
+  public async acquire(): Promise<TokenEndpointResponse> {
     const configuration = this.getConfiguration();
     const parameters = this.getParameters();
 
@@ -52,7 +62,7 @@ export default class AuthCodeFlowAuthorizationStrategy<
     }
 
     // exchange the authorization code for tokens
-    this.authInfo.tokens = await authorizationCodeGrant(configuration, codeUrl, {
+    return await authorizationCodeGrant(configuration, codeUrl, {
       pkceCodeVerifier: 'codeVerifier' in this.authInfo ? this.authInfo.codeVerifier : undefined,
       expectedState: parameters.state,
     });

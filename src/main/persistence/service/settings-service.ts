@@ -8,8 +8,6 @@ import { SerialQueue } from 'main/util/serial-queue';
 import { z } from 'zod';
 import { AppSettings } from 'shim/app-settings';
 
-const DEFAULT_APP_SETTINGS: AppSettings = { theme: 'system' };
-
 export const VERSION = new SemVer(1, 3, 0);
 
 /** Any version of the settings file. Only the version is known before it is migrated. */
@@ -23,14 +21,14 @@ export const SettingsObject = z.object({
   /** A list of all the collection directories that have been opened */
   collections: z.array(z.string()),
 
-  /** Application-level UI settings (theme, etc.) */
-  preferences: AppSettings.optional(),
+  /** Application-level settings (theme, etc.). The defaults if none are stored. */
+  preferences: AppSettings.prefault({}),
 });
 export type SettingsObject = z.infer<typeof SettingsObject>;
 
 /** The settings file of the current version. */
 const SettingsInfoFile = SettingsObject.extend({ version: z.literal(VERSION.string) });
-type SettingsInfoFile = z.infer<typeof SettingsInfoFile>;
+type SettingsInfoFile = z.input<typeof SettingsInfoFile>;
 
 interface SettingsFile_V_1_0_0 {
   currentCollectionIndex: number;
@@ -45,7 +43,7 @@ interface SettingsFile_V_1_1_0 extends Omit<SettingsFile_V_1_0_0, 'version'> {
 }
 
 interface SettingsFile_V_1_2_0 extends Omit<SettingsFile_V_1_1_0, 'version'> {
-  preferences?: AppSettings;
+  preferences?: z.input<typeof AppSettings>;
   version: '1.2.0';
 }
 
@@ -53,11 +51,8 @@ type SettingsMigrator<I, O> = (old: I) => O;
 
 const MIGRATORS = {
   '1.0.0': (old: SettingsFile_V_1_0_0): SettingsFile_V_1_1_0 => ({ ...old, version: '1.1.0' }),
-  '1.1.0': (old: SettingsFile_V_1_1_0): SettingsFile_V_1_2_0 => ({
-    ...old,
-    preferences: DEFAULT_APP_SETTINGS,
-    version: '1.2.0',
-  }),
+  // the preferences are filled with their defaults when the settings are parsed
+  '1.1.0': (old: SettingsFile_V_1_1_0): SettingsFile_V_1_2_0 => ({ ...old, version: '1.2.0' }),
   // window state is now persisted natively by Electron (windowStatePersistence), so drop the legacy field
   '1.2.0': ({ windowState: _windowState, ...rest }: SettingsFile_V_1_2_0): SettingsInfoFile => ({
     ...rest,
@@ -75,10 +70,7 @@ export class SettingsService implements Initializable {
 
   public static readonly instance = new SettingsService();
 
-  private _settings = Object.freeze<SettingsObject>({
-    currentCollectionIndex: 0,
-    collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-  });
+  private _settings = Object.freeze(SettingsService.defaultSettings());
 
   /**
    * Writes the settings file one write at a time, so an earlier write cannot finish last and leave
@@ -153,12 +145,17 @@ export class SettingsService implements Initializable {
         throw error;
       }
       logger.warn('Settings file is empty or invalid. Recreating default settings.', error);
-      this._settings = {
-        currentCollectionIndex: 0,
-        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-      };
+      this._settings = SettingsService.defaultSettings();
       await this.writeSettings();
     }
+  }
+
+  /** The settings of a new installation: only the default collection is open. */
+  private static defaultSettings(): SettingsObject {
+    return SettingsObject.parse({
+      currentCollectionIndex: 0,
+      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+    });
   }
 
   /** Migrates the settings to the current version. The result is validated by the caller. */
