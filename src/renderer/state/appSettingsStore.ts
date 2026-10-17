@@ -1,16 +1,14 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { AppSettings } from 'shim/app-settings';
+import { AppSettings, DEFAULT_APP_SETTINGS } from 'shim/app-settings';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/helper/util';
 import { showError } from '@/error/errorHandler';
 
 const eventService = RendererEventService.instance;
 
-const DEFAULT_APP_SETTINGS: AppSettings = { theme: 'system' };
-
 interface AppSettingsActions {
-  initialize(settings: AppSettings | undefined): void;
+  initialize(settings: AppSettings): void;
   updateSettings(partial: Partial<AppSettings>): void;
 }
 
@@ -18,8 +16,8 @@ export const useAppSettingsStore = create<AppSettings & AppSettingsActions>()(
   immer((set, get) => ({
     ...DEFAULT_APP_SETTINGS,
 
-    initialize(settings?: AppSettings) {
-      set(() => settings ?? DEFAULT_APP_SETTINGS);
+    initialize(settings: AppSettings) {
+      set(() => settings);
     },
 
     updateSettings(partial: Partial<AppSettings>) {
@@ -34,4 +32,6 @@ export const useAppSettingsStore = create<AppSettings & AppSettingsActions>()(
 );
 
 export const selectThemePreference = (state: AppSettings & AppSettingsActions) => state.theme;
+export const selectVerifyTlsCertificates = (state: AppSettings & AppSettingsActions): boolean =>
+  state.verifyTlsCertificates;
 export const useAppSettingsActions = () => useAppSettingsStore(useActions());

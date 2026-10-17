@@ -12,8 +12,8 @@ import type {
   ImportStrategy,
   ExportStrategy,
   ExportOptions,
-  AppSettings,
 } from 'shim';
+import { AppSettings } from 'shim/app-settings';
 import { MainProcessEvent } from 'shim/event-service';
 import type { CollectionModel } from 'shim/collection-model';
 import type { CollectionBase } from 'shim/objects/collection';
@@ -220,12 +220,12 @@ export class MainEventService implements IEventService {
     return await BodyStore.instance.saveTo(bodyId, chosenPath);
   }
 
-  async getAppSettings(): Promise<AppSettings | undefined> {
+  async getAppSettings(): Promise<AppSettings> {
     return SettingsService.instance.settings.preferences;
   }
 
   async saveAppSettings(settings: AppSettings): Promise<void> {
-    await SettingsService.instance.updateSettings({ preferences: settings });
+    await SettingsService.instance.updateSettings({ preferences: AppSettings.parse(settings) });
   }
 
   async getHistory(): Promise<HistoryEntrySummary[]> {

@@ -165,18 +165,21 @@ export function cancelModelEdits(requestId: string): void {
  * replaces them: sending them would persist a fragment instead of the whole content. If the model
  * is disposed or loaded again meanwhile, the loaded content is dropped.
  * @param model the model to load the content of
- * @param load loads the content
+ * @param load loads the content, or resolves with undefined if loading was canceled. The model is
+ * left as it is then.
  */
 export async function loadModelContent(
   model: editor.ITextModel,
-  load: () => Promise<string>
+  load: () => Promise<string | undefined>
 ): Promise<void> {
   const token = Symbol('load');
   loading.set(model, token);
   try {
     const text = await load();
     // setValue is a flush, so it is not tracked as an edit
-    if (!model.isDisposed() && loading.get(model) === token) model.setValue(text);
+    if (text !== undefined && !model.isDisposed() && loading.get(model) === token) {
+      model.setValue(text);
+    }
   } finally {
     if (loading.get(model) === token) loading.delete(model);
   }

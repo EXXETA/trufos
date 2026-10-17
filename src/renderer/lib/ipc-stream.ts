@@ -48,11 +48,11 @@ export class IpcPushStream extends EventEmitter<{
    * Collect all data from the stream and return it as a single string.
    * @returns The string in the configured encoding or undefined if the stream was closed prematurely.
    */
-  public readAll() {
+  public readAll(): Promise<string | undefined> {
     const chunks: string[] = [];
     this.on('data', (chunk) => chunks.push(chunk));
-    return new Promise<string>((resolve, reject) => {
-      this.on('end', (canceled) => (canceled ? undefined : resolve(chunks.join(''))));
+    return new Promise<string | undefined>((resolve, reject) => {
+      this.on('end', (canceled) => resolve(canceled ? undefined : chunks.join('')));
       this.on('error', reject);
     });
   }

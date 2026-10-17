@@ -26,6 +26,16 @@ export function pick<T, K extends keyof T>(object: T, ...properties: K[]) {
 }
 
 /**
+ * Returns the values of the specified properties in the given order. Like {@link pick}, but as a
+ * list, e.g. for a key whose parts are compared by position.
+ * @param object The source object.
+ * @param properties The properties to get the values of.
+ */
+export function pickValues<T, K extends keyof T>(object: T, ...properties: K[]): T[K][] {
+  return properties.map((property) => object[property]);
+}
+
+/**
  * Splits the given object into two parts: one containing the specified properties and the other
  * containing the rest. The specified properties are removed from the original object.
  * @param object The source object.

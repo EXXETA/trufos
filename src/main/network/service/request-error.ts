@@ -1,3 +1,4 @@
+import { VERIFY_TLS_CERTIFICATES_LABEL } from 'shim/app-settings';
 import { DisplayableError } from 'shim/error/DisplayableError';
 
 /** Maps groups of Node.js/undici error codes to a user-friendly title and description. */
@@ -39,7 +40,7 @@ const ERROR_MAPPINGS: { codes: string[]; title: string; description: string }[] 
       'ERR_TLS_CERT_ALTNAME_INVALID',
     ],
     title: 'Certificate Error',
-    description: "The server's TLS certificate could not be verified.",
+    description: `The server's TLS certificate could not be verified. If you trust the server, you can turn off "${VERIFY_TLS_CERTIFICATES_LABEL}" in the app settings.`,
   },
 ];
 

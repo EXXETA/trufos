@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { SettingsService, VERSION } from './settings-service';
 import { exists } from 'main/util/fs-util';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
+import { DEFAULT_APP_SETTINGS, TrufosTheme } from 'shim/app-settings';
 
 const settingsService = SettingsService.instance;
 
@@ -38,6 +39,7 @@ describe('SettingsService', async () => {
     const newSettings: import('./settings-service').SettingsObject = {
       currentCollectionIndex: 1,
       collections: ['path/to/collection', 'some/where/else'],
+      preferences: { theme: TrufosTheme.Dark, verifyTlsCertificates: false },
     };
 
     // Assert
@@ -190,6 +192,7 @@ describe('SettingsService', async () => {
     expect(settingsService.settings).toEqual({
       currentCollectionIndex: 0,
       collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+      preferences: DEFAULT_APP_SETTINGS,
     });
     expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
       settingsService.settings
@@ -207,6 +210,7 @@ describe('SettingsService', async () => {
     expect(settingsService.settings).toEqual({
       currentCollectionIndex: 0,
       collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+      preferences: DEFAULT_APP_SETTINGS,
     });
     expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
       settingsService.settings
@@ -227,6 +231,50 @@ describe('SettingsService', async () => {
     expect(settingsService.settings).toEqual({
       currentCollectionIndex: 0,
       collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+      preferences: DEFAULT_APP_SETTINGS,
+    });
+  });
+
+  it('should verify TLS certificates if the stored preferences do not say otherwise', async () => {
+    // Arrange
+    await writeFile(
+      SettingsService.SETTINGS_FILE,
+      JSON.stringify({
+        version: VERSION.string,
+        currentCollectionIndex: 0,
+        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+        preferences: { theme: 'dark' },
+      })
+    );
+
+    // Act
+    await settingsService.init();
+
+    // Assert
+    expect(settingsService.settings.preferences).toEqual({
+      theme: 'dark',
+      verifyTlsCertificates: true,
+    });
+  });
+
+  it('should provide the default preferences if none are stored', async () => {
+    // Arrange
+    await writeFile(
+      SettingsService.SETTINGS_FILE,
+      JSON.stringify({
+        version: VERSION.string,
+        currentCollectionIndex: 0,
+        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
+      })
+    );
+
+    // Act
+    await settingsService.init();
+
+    // Assert
+    expect(settingsService.settings.preferences).toEqual({
+      theme: 'system',
+      verifyTlsCertificates: true,
     });
   });
 

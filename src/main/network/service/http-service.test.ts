@@ -28,6 +28,7 @@ import {
 import { type CollectionModel, normalizeCollection } from 'shim/collection-model';
 import { freeze } from 'immer';
 import { HistoryService } from 'main/history/history-service';
+import { SettingsService } from 'main/persistence/service/settings-service';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import type { TrufosResponse } from 'shim/objects/response';
 
@@ -271,7 +272,7 @@ describe('HttpService', () => {
 
   it('fetchAsync() should convert an undefined URL variable into a DisplayableError', async () => {
     // Arrange
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService({ get: async () => mockAgent });
     const request: TrufosRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
@@ -402,7 +403,7 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/formtext');
     const mockClient = mockAgent.get(url.origin);
     mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService({ get: async () => mockAgent });
     const request: TrufosRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
@@ -446,7 +447,7 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/formfile');
     const mockClient = mockAgent.get(url.origin);
     mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService({ get: async () => mockAgent });
 
     const fileContent = 'test file content';
     const openAsBlob = vi
@@ -510,7 +511,7 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/formvars');
     const mockClient = mockAgent.get(url.origin);
     mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService({ get: async () => mockAgent });
     const request: TrufosRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
@@ -594,7 +595,7 @@ describe('HttpService', () => {
     const url = new URL('https://example.com/api/prepared');
     const mockClient = mockAgent.get(url.origin);
     mockClient.intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService({ get: async () => mockAgent });
     const request: TrufosRequest = {
       id: randomUUID(),
       parentId: randomUUID(),
@@ -641,8 +642,8 @@ describe('HttpService', () => {
   it('fetchAsync() should not send a request whose collection was closed meanwhile', async () => {
     // Arrange
     const url = new URL('https://example.com/api/closed');
-    const dispatcherProvider = vi.fn(() => Promise.resolve<Dispatcher>(mockAgent));
-    const httpService = new HttpService(dispatcherProvider);
+    const dispatchers = { get: vi.fn(async (): Promise<Dispatcher> => mockAgent) };
+    const httpService = new HttpService(dispatchers);
     vi.spyOn(PersistenceService.instance, 'loadScript').mockImplementation(async (_, type) =>
       type === ScriptType.PRE_REQUEST ? (Readable.from('pre') as fs.ReadStream) : undefined
     );
@@ -671,7 +672,7 @@ describe('HttpService', () => {
       expect.any(Function),
       closed
     );
-    expect(dispatcherProvider).not.toHaveBeenCalled();
+    expect(dispatchers.get).not.toHaveBeenCalled();
     expect(recorder.sent).not.toHaveBeenCalled();
   });
 
@@ -679,7 +680,7 @@ describe('HttpService', () => {
     // Arrange
     const url = new URL('https://example.com/api/closed-after-send');
     mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'POST' }).reply(200, 'kept');
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService({ get: async () => mockAgent });
     vi.spyOn(PersistenceService.instance, 'loadScript').mockImplementation(async (_, type) =>
       type === ScriptType.POST_RESPONSE ? (Readable.from('post') as fs.ReadStream) : undefined
     );
@@ -705,6 +706,42 @@ describe('HttpService', () => {
     expect(recorder.scriptLog).toHaveBeenCalledWith(
       expect.objectContaining({ script: ScriptType.POST_RESPONSE, level: 'warn' })
     );
+  });
+
+  it('fetchAsync() should run the post-response script after the response body is stored', async () => {
+    // Arrange
+    const text = 'the whole response body';
+    const url = new URL('https://example.com/api/post-response-body');
+    const httpService = setupMockHttpService(url, text);
+    vi.spyOn(PersistenceService.instance, 'loadScript').mockImplementation(async (_, type) =>
+      type === ScriptType.POST_RESPONSE ? (Readable.from('post') as fs.ReadStream) : undefined
+    );
+    const createSpy = vi.spyOn(responseBodyService, 'create');
+    let storedSizeWhenScriptRan: number | undefined;
+    vi.spyOn(ScriptingService.instance, 'executeScript').mockImplementation(
+      async (_code, _type, _log, scriptModel) => {
+        const id = createSpy.mock.results[0]?.value.id;
+        storedSizeWhenScriptRan = id == null ? undefined : responseBodyService.getSize(id);
+        return scriptModel;
+      }
+    );
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Post-Response Body',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+    };
+
+    // Act
+    await httpService.fetchAsync(await prepare(request), recorder);
+
+    // Assert
+    expect(storedSizeWhenScriptRan).toBe(text.length);
   });
 
   it('fetchAsync() should report the request exactly as it is sent to the recorder', async () => {
@@ -775,7 +812,7 @@ describe('HttpService', () => {
     // Arrange
     const url = new URL('https://example.com/api/file');
     mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService({ get: async () => mockAgent });
     await fsp.mkdir(USER_DATA_DIR, { recursive: true });
     const filePath = path.join(USER_DATA_DIR, `${randomUUID()}.txt`);
     await fsp.writeFile(filePath, 'file content');
@@ -808,7 +845,7 @@ describe('HttpService', () => {
       .get(url.origin)
       .intercept({ path: url.pathname, method: 'POST' })
       .replyWithError(new Error('connection refused'));
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService({ get: async () => mockAgent });
     await fsp.mkdir(USER_DATA_DIR, { recursive: true });
     const filePath = path.join(USER_DATA_DIR, `${randomUUID()}.txt`);
     await fsp.writeFile(filePath, 'file content');
@@ -845,8 +882,8 @@ describe('HttpService', () => {
     // Arrange
     const url = new URL('https://example.com/api/certificate');
     mockAgent.get(url.origin).intercept({ path: url.pathname }).reply(200, 'OK');
-    const dispatcherProvider = vi.fn(() => Promise.resolve(mockAgent));
-    const httpService = new HttpService(dispatcherProvider);
+    const dispatchers = { get: vi.fn(async (): Promise<Dispatcher> => mockAgent) };
+    const httpService = new HttpService(dispatchers);
     const clientCertificate = { certPath: '/cert.pem' };
     const request: TrufosRequest = {
       id: randomUUID(),
@@ -868,14 +905,46 @@ describe('HttpService', () => {
     await httpService.fetchAsync(await prepare(request, certificateModel), recorder);
 
     // Assert
-    expect(dispatcherProvider).toHaveBeenCalledWith(clientCertificate);
+    expect(dispatchers.get).toHaveBeenCalledWith({
+      verifyTlsCertificates: true,
+      clientCertificate,
+    });
+  });
+
+  it('fetchAsync() should not verify TLS certificates if the app settings say so', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/unverified');
+    mockAgent.get(url.origin).intercept({ path: url.pathname }).reply(200, 'OK');
+    const dispatchers = { get: vi.fn(async (): Promise<Dispatcher> => mockAgent) };
+    const httpService = new HttpService(dispatchers);
+    vi.spyOn(SettingsService.instance, 'settings', 'get').mockReturnValue({
+      ...SettingsService.instance.settings,
+      preferences: { theme: 'system', verifyTlsCertificates: false },
+    });
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Unverified Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+    };
+
+    // Act
+    await httpService.fetchAsync(await prepare(request), recorder);
+
+    // Assert
+    expect(dispatchers.get).toHaveBeenCalledWith({ verifyTlsCertificates: false });
   });
 
   it('fetchAsync() should resolve the URL, auth and headers with the variables the pre-request script set', async () => {
     // Arrange
     const url = new URL('https://example.com/api/scripted');
     mockAgent.get(url.origin).intercept({ path: url.pathname }).reply(200, 'OK');
-    const httpService = new HttpService(() => Promise.resolve(mockAgent));
+    const httpService = new HttpService({ get: async () => mockAgent });
     vi.spyOn(PersistenceService.instance, 'loadScript').mockImplementation(async (_, type) =>
       type === ScriptType.PRE_REQUEST ? (Readable.from('pre') as fs.ReadStream) : undefined
     );
@@ -954,7 +1023,7 @@ describe('HttpService.sendRequest()', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    httpService = new HttpService(() => Promise.resolve(mockAgent));
+    httpService = new HttpService({ get: async () => mockAgent });
     vi.spyOn(CollectionStateService.instance, 'prepareRequest').mockResolvedValue({
       request,
       model,
@@ -1151,5 +1220,5 @@ function setupMockHttpService(
   mockClient
     .intercept({ path: url.pathname })
     .reply(200, bodyString ?? undefined, { headers: headers });
-  return new HttpService(() => Promise.resolve(mockAgent));
+  return new HttpService({ get: async () => mockAgent });
 }

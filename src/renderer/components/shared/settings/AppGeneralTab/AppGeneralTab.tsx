@@ -1,11 +1,17 @@
-import { TrufosTheme, type ThemePreference } from 'shim/app-settings';
+import {
+  TrufosTheme,
+  VERIFY_TLS_CERTIFICATES_LABEL,
+  type ThemePreference,
+} from 'shim/app-settings';
 import {
   selectThemePreference,
+  selectVerifyTlsCertificates,
   useAppSettingsActions,
   useAppSettingsStore,
 } from '@/state/appSettingsStore';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { showError } from '@/error/errorHandler';
 
@@ -15,9 +21,10 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'system', label: 'System' },
 ];
 
-/** The general app settings: appearance and access to the app log. */
+/** The general app settings: appearance, network and access to the app log. */
 export const AppGeneralTab = () => {
   const theme = useAppSettingsStore(selectThemePreference);
+  const verifyTlsCertificates = useAppSettingsStore(selectVerifyTlsCertificates);
   const { updateSettings } = useAppSettingsActions();
 
   const openLogDirectory = () =>
@@ -45,6 +52,23 @@ export const AppGeneralTab = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-(--text-primary)">Network</span>
+        <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-(--text-primary)">
+          <Checkbox
+            checked={verifyTlsCertificates}
+            onCheckedChange={(checked) =>
+              updateSettings({ verifyTlsCertificates: checked === true })
+            }
+          />
+          {VERIFY_TLS_CERTIFICATES_LABEL}
+        </label>
+        <span className="text-sm text-(--text-secondary)">
+          Requests to servers whose certificate cannot be verified, e.g. because it is self-signed,
+          fail. Turn this off only for servers you trust.
+        </span>
       </div>
 
       <div className="flex flex-col gap-2">

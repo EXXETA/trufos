@@ -235,7 +235,7 @@ export interface IEventService {
   /**
    * Returns the persisted application settings.
    */
-  getAppSettings(): Promise<AppSettings | undefined>;
+  getAppSettings(): Promise<AppSettings>;
 
   /**
    * Persists the application settings to disk.

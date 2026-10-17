@@ -64,15 +64,12 @@ export const App = () => {
 
     RendererEventService.instance
       .getAppSettings()
-      .catch((err) => {
-        showError('Failed to load app settings', err);
-      })
-      .then((settings) => {
-        if (settings) {
-          useAppSettingsStore.getState().initialize(settings);
-        }
-        RendererEventService.instance.emit(RendererEvent.RendererReady);
-      });
+      .then(
+        (settings) => useAppSettingsStore.getState().initialize(settings),
+        // the app still starts, with the default settings
+        (err) => showError('Failed to load app settings', err)
+      )
+      .then(() => RendererEventService.instance.emit(RendererEvent.RendererReady));
   }, []);
 
   return (

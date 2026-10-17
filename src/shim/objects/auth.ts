@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { TokenEndpointResponse } from 'openid-client';
 
 export enum AuthorizationType {
   BEARER = 'bearer',
@@ -42,9 +41,6 @@ export const Oauth2BaseAuthorizationInformation = z.object({
   tokenUrl: z.string(),
   scope: z.string(),
   clientAuthenticationMethod: z.enum(OAuth2ClientAuthenticationMethod),
-
-  /** To persist retrieved access tokens. Not configurable */
-  tokens: z.object<TokenEndpointResponse>().optional(),
 });
 export type Oauth2BaseAuthorizationInformation = z.infer<typeof Oauth2BaseAuthorizationInformation>;
 

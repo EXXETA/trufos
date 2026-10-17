@@ -1,3 +1,4 @@
+import { VERIFY_TLS_CERTIFICATES_LABEL } from 'shim/app-settings';
 import { describe, it, expect } from 'vitest';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { mapRequestError } from './request-error';
@@ -70,6 +71,12 @@ describe('mapRequestError', () => {
       'ERR_TLS_CERT_ALTNAME_INVALID',
     ])('maps certificate code %s', (code) => {
       expect(mapRequestError(systemError(code)).title).toBe('Certificate Error');
+    });
+
+    it('points to the setting that turns off verifying certificates', () => {
+      expect(mapRequestError(systemError('DEPTH_ZERO_SELF_SIGNED_CERT')).description).toContain(
+        `"${VERIFY_TLS_CERTIFICATES_LABEL}"`
+      );
     });
   });
 

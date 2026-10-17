@@ -3,9 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { AppSettingsModal } from './AppSettingsModal';
 
-const { openLogDirectoryMock, showErrorMock } = vi.hoisted(() => ({
+const { openLogDirectoryMock, showErrorMock, updateSettingsMock, appSettings } = vi.hoisted(() => ({
   openLogDirectoryMock: vi.fn<() => Promise<void>>(),
   showErrorMock: vi.fn(),
+  updateSettingsMock: vi.fn(),
+  appSettings: { theme: 'system', verifyTlsCertificates: true },
 }));
 
 vi.mock('@/services/event/renderer-event-service', () => ({
@@ -17,15 +19,34 @@ vi.mock('@/error/errorHandler', () => ({
 }));
 
 vi.mock('@/state/appSettingsStore', () => ({
-  selectThemePreference: (s: { theme: string }) => s.theme,
-  useAppSettingsActions: () => ({ updateSettings: vi.fn() }),
-  useAppSettingsStore: (selector: (s: { theme: string }) => unknown) =>
-    selector({ theme: 'system' }),
+  selectThemePreference: (s: typeof appSettings) => s.theme,
+  selectVerifyTlsCertificates: (s: typeof appSettings) => s.verifyTlsCertificates,
+  useAppSettingsActions: () => ({ updateSettings: updateSettingsMock }),
+  useAppSettingsStore: (selector: (s: typeof appSettings) => unknown) => selector(appSettings),
 }));
 
 describe('AppSettingsModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    appSettings.verifyTlsCertificates = true;
+  });
+
+  it('shows whether TLS certificates are verified', () => {
+    appSettings.verifyTlsCertificates = false;
+    render(<AppSettingsModal isOpen onClose={vi.fn()} />);
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Verify TLS certificates' });
+    expect(checkbox.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('turns off verifying TLS certificates', async () => {
+    render(<AppSettingsModal isOpen onClose={vi.fn()} />);
+    const checkbox = screen.getByRole('checkbox', { name: 'Verify TLS certificates' });
+    expect(checkbox.getAttribute('aria-checked')).toBe('true');
+
+    await userEvent.click(checkbox);
+
+    expect(updateSettingsMock).toHaveBeenCalledExactlyOnceWith({ verifyTlsCertificates: false });
   });
 
   it('opens the logs folder via the event service', async () => {

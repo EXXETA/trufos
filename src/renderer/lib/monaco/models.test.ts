@@ -134,6 +134,13 @@ describe('editor models', () => {
       expect(persistence.setTextBody).not.toHaveBeenCalled();
     });
 
+    it('leaves the model as it is if loading was canceled', async () => {
+      await loadModelContent(getBodyModel(REQUEST_ID), async () => 'loaded');
+      await loadModelContent(getBodyModel(REQUEST_ID), async () => undefined);
+
+      expect(getBodyModel(REQUEST_ID).getValue()).toBe('loaded');
+    });
+
     it('replaces text typed while the content was loading and does not send it', async () => {
       const { promise, resolve } = Promise.withResolvers<string>();
       const loaded = loadModelContent(getBodyModel(REQUEST_ID), () => promise);
