@@ -5,7 +5,7 @@ import { FormDataBody, RequestBody } from 'shim/objects/request';
 import { TrufosId } from 'shim/objects/id';
 import { TrufosResponse } from 'shim/objects/response';
 import { ScriptType } from 'shim/scripting';
-import { SortMode } from '@/state/interface/SortMode';
+import { SortMode } from 'shim/sort-mode';
 
 type FormDataField = FormDataBody['fields'][number];
 

@@ -1,5 +1,6 @@
 import '@/styles/index.css';
 import { useEffect } from 'react';
+import { useDefaultLayout } from 'react-resizable-panels';
 import { Menubar } from '@/view/Menubar';
 import { RequestWindow } from '@/view/RequestWindow';
 import { CollectionRunner } from '@/view/CollectionRunner';
@@ -35,6 +36,7 @@ export const App = () => {
   const isCollectionSettingsOpen = useViewStore(selectIsCollectionSettingsOpen);
   const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
   const isAppSettingsOpen = useViewStore(selectIsAppSettingsOpen);
+  const layout = useDefaultLayout({ id: 'trufos.main' });
   const {
     closeCollectionRunner,
     closeCollectionSettings,
@@ -82,12 +84,17 @@ export const App = () => {
             {isCollectionRunnerOpen ? (
               <CollectionRunner open onClose={closeCollectionRunner} />
             ) : (
-              <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
-                <ResizablePanel defaultSize="25%" minSize={MIN_SIDEBAR_PIXELS}>
+              <ResizablePanelGroup
+                orientation="horizontal"
+                className="h-full w-full"
+                defaultLayout={layout.defaultLayout}
+                onLayoutChanged={layout.onLayoutChanged}
+              >
+                <ResizablePanel id="sidebar" defaultSize="25%" minSize={MIN_SIDEBAR_PIXELS}>
                   <Menubar />
                 </ResizablePanel>
                 <ResizableHandle />
-                <ResizablePanel defaultSize="75%" minSize={MIN_REQUEST_WINDOW_PIXELS}>
+                <ResizablePanel id="request" defaultSize="75%" minSize={MIN_REQUEST_WINDOW_PIXELS}>
                   <RequestWindow />
                 </ResizablePanel>
               </ResizablePanelGroup>

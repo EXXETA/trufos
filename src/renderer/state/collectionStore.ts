@@ -19,7 +19,9 @@ import {
 import { showError } from '@/error/errorHandler';
 import {
   CollectionCommand,
+  CollectionInfo,
   CollectionModel,
+  CollectionSnapshot,
   CollectionStructure,
   CollectionTree,
   CommandType,
@@ -34,7 +36,15 @@ import { TrufosId } from 'shim/objects/id';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
-import { SortMode } from '@/state/interface/SortMode';
+import { SortMode } from 'shim/sort-mode';
+import type { CollectionUiState } from 'shim/collection-ui-state';
+import { z } from 'zod';
+import {
+  createUiStateSender,
+  restoreUiState,
+  STORE_UI_STATE_KEYS,
+  StoreUiState,
+} from '@/state/helper/collection-ui-state';
 
 const eventService = RendererEventService.instance;
 const httpService = HttpService.instance;
@@ -79,6 +89,11 @@ function selectModelState(model: CollectionModel): ModelState {
   return { collection, selectedEnvironmentKey, folders, requests, savedRequests, childIds };
 }
 
+/** Returns whether the two collections are the same, i.e. the same one in the same directory. */
+function isSameCollection(a: CollectionInfo, b: CollectionInfo): boolean {
+  return a.id === b.id && a.dirPath === b.dirPath;
+}
+
 /** The fields of a request that are edited with an Immer recipe, see `editSelectedRequest`. */
 type RecipeField = 'headers' | 'url' | 'body';
 
@@ -109,6 +124,8 @@ function reported<A extends unknown[]>(
 export interface CollectionStoreWithState {
   store: CollectionStore;
   collectionState: CollectionState;
+  /** Sends the UI state of the collection to main right away instead of debounced. */
+  flushUiState(): Promise<void>;
 }
 
 /**
@@ -120,15 +137,16 @@ export interface CollectionStoreWithState {
  * of the commands they send.
  */
 export const createCollectionStore = (
-  snapshot: CollectionModel,
+  { model: snapshot, ui }: CollectionSnapshot,
   send: SendCommand,
   fetchSnapshot: FetchSnapshot
 ): CollectionStoreWithState => {
   console.debug('Creating collection store with collection', snapshot.collection.id);
   // the state only calls back after the store below was created
-  const collectionState = new CollectionState(snapshot, send, fetchSnapshot, (model) =>
-    syncWithModel(store, model)
-  );
+  const collectionState = new CollectionState(snapshot, send, fetchSnapshot, (model, uiState) => {
+    if (isSameCollection(get().collection, model.collection)) syncWithModel(store, model);
+    else openCollectionUi(model, uiState);
+  });
   const get = (): CollectionStoreState & CollectionStateActions => store.getState();
 
   /** Sends a command. Rejects instead of throwing if it cannot be applied. */
@@ -258,22 +276,42 @@ export const createCollectionStore = (
     if (folders.has(id)) setFolderOpen(id);
   };
 
+  /**
+   * Takes over the model of another collection that was opened and restores its UI state. The
+   * stored request is selected like any other, so its editor models are created and loaded.
+   */
+  const openCollectionUi = (model: CollectionModel, uiState?: CollectionUiState) => {
+    const previousRequestId = get().selectedRequestId;
+    // the request belongs to another collection, its editor changes must not be sent
+    if (previousRequestId != null) disposeModelsForRequest(previousRequestId);
+    const { selectedRequestId, ...restored } = restoreUiState(model, uiState);
+    store.setState({
+      ...selectModelState(model),
+      ...restored,
+      selectedRequestId: undefined,
+      selectedIds: new Set(),
+    });
+    console.info('Opened collection', model.collection.id);
+    if (selectedRequestId != null) void get().setSelectedRequest(selectedRequestId);
+  };
+
+  const { selectedRequestId: restoredRequestId, ...restored } = restoreUiState(snapshot, ui);
+
   const store = createStore<CollectionStoreState & CollectionStateActions>()(
     immer((set) => ({
       ...selectModelState(snapshot),
-      openFolders: new Set(),
+      ...restored,
       selectedIds: new Set(),
-      currentScriptType: ScriptType.PRE_REQUEST,
-      sortMode: SortMode.DEFAULT,
 
+      // the selection changes once main broadcast the other collection, see openCollectionUi
       changeCollection: reported('Could not open the collection', async (dirPath) => {
-        await changeSelectedRequest(undefined);
+        await flushModelEdits();
         console.info('Opening collection at', dirPath);
         await eventService.openCollection(dirPath);
       }),
 
       createCollection: reported('Could not create the collection', async (dirPath, title) => {
-        await changeSelectedRequest(undefined);
+        await flushModelEdits();
         console.info('Creating collection at', dirPath);
         await eventService.createCollection(dirPath, title);
       }),
@@ -497,11 +535,8 @@ export const createCollectionStore = (
       }),
 
       closeCollection: reported('Could not close the collection', async (dirPath) => {
-        const { collection } = get();
-        const targetPath = dirPath ?? collection.dirPath;
-        if (targetPath === collection.dirPath) {
-          await changeSelectedRequest(undefined);
-        }
+        const targetPath = dirPath ?? get().collection.dirPath;
+        await flushModelEdits();
         console.info('Closing collection at', targetPath);
         await eventService.closeCollection(targetPath);
       }),
@@ -515,34 +550,31 @@ export const createCollectionStore = (
     }))
   );
 
-  return { store, collectionState };
+  if (restoredRequestId != null) void get().setSelectedRequest(restoredRequestId);
+
+  // main stores the UI state with the open collection, so it is part of the collection's snapshot
+  const uiStateSender = createUiStateSender((dirPath, uiState) =>
+    eventService.saveCollectionUiState(dirPath, uiState)
+  );
+  store.subscribe((state, previous) => {
+    if (STORE_UI_STATE_KEYS.some((key) => state[key] !== previous[key])) {
+      uiStateSender.schedule(state.collection.dirPath, z.encode(StoreUiState, state));
+    }
+  });
+
+  return { store, collectionState, flushUiState: uiStateSender.flush };
 };
 
 /**
- * Takes over the model into the store. If another collection was opened, the UI state is reset;
- * otherwise it is pruned to IDs that still exist.
+ * Takes over a new model of the open collection into the store. The UI state is pruned to IDs that
+ * still exist.
  */
 function syncWithModel(store: CollectionStore, model: CollectionModel) {
-  const state = store.getState();
-  const isNewCollection =
-    state.collection.id !== model.collection.id ||
-    state.collection.dirPath !== model.collection.dirPath;
-  const { selectedRequestId } = state;
+  const { selectedRequestId, openFolders, selectedIds } = store.getState();
 
-  if (selectedRequestId != null && (isNewCollection || !model.requests.has(selectedRequestId))) {
+  if (selectedRequestId != null && !model.requests.has(selectedRequestId)) {
     // the request was deleted or discarded, its editor changes must not recreate it
     disposeModelsForRequest(selectedRequestId);
-  }
-
-  if (isNewCollection) {
-    store.setState({
-      ...selectModelState(model),
-      selectedRequestId: undefined,
-      openFolders: new Set(),
-      selectedIds: new Set(),
-    });
-    console.info('Opened collection', model.collection.id);
-    return;
   }
 
   store.setState({
@@ -551,9 +583,9 @@ function syncWithModel(store: CollectionStore, model: CollectionModel) {
       selectedRequestId != null && model.requests.has(selectedRequestId)
         ? selectedRequestId
         : undefined,
-    openFolders: retainExisting(state.openFolders, (id) => model.folders.has(id)),
+    openFolders: retainExisting(openFolders, (id) => model.folders.has(id)),
     selectedIds: retainExisting(
-      state.selectedIds,
+      selectedIds,
       (id) => model.requests.has(id) || model.folders.has(id)
     ),
   });

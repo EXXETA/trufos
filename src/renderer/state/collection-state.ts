@@ -3,9 +3,11 @@ import {
   applyCommandTo,
   CollectionCommand,
   CollectionModel,
+  CollectionSnapshot,
   CollectionStateEvent,
   CommandEnvelope,
 } from 'shim/collection-model';
+import type { CollectionUiState } from 'shim/collection-ui-state';
 
 /**
  * Sends a command to the main process. Resolves with the model version main applied it as, which
@@ -14,10 +16,13 @@ import {
 export type SendCommand = (envelope: CommandEnvelope) => Promise<number>;
 
 /** Fetches the complete state of the open collection from the main process. */
-export type FetchSnapshot = () => Promise<CollectionModel>;
+export type FetchSnapshot = () => Promise<CollectionSnapshot>;
 
-/** Called with the new visible model whenever it changes. */
-export type OnModelChange = (model: CollectionModel) => void;
+/**
+ * Called with the new visible model whenever it changes.
+ * @param ui the UI state of the snapshot that replaced the model, if a snapshot did
+ */
+export type OnModelChange = (model: CollectionModel, ui?: CollectionUiState) => void;
 
 /** A command that was sent but whose patches did not arrive yet. */
 interface PendingCommand {
@@ -90,7 +95,7 @@ export class CollectionState {
     if (event.kind === 'snapshot') {
       this.pending = [];
       this.buffered = [];
-      this.setConfirmed(event.model);
+      this.setConfirmed(event.model, event.ui);
     } else if (event.version <= this.confirmed.version) {
       // the patches of a command that a snapshot already contained
       this.removePending(event.commandId);
@@ -154,7 +159,7 @@ export class CollectionState {
    * e.g. because a snapshot of another collection was broadcast while it was fetched.
    * @param buffered the patches that arrived while the snapshot was fetched
    */
-  private rebaseOnto(snapshot: CollectionModel, buffered: PatchesEvent[]) {
+  private rebaseOnto({ model: snapshot, ui }: CollectionSnapshot, buffered: PatchesEvent[]) {
     if (snapshot.version >= this.confirmed.version) {
       // A pending command is part of the snapshot if main replied with a version the snapshot
       // has, or if its patches arrived and are part of the snapshot. Re-applying it on top would
@@ -167,7 +172,7 @@ export class CollectionState {
           !contained.has(envelope.commandId) &&
           (appliedVersion == null || appliedVersion > snapshot.version)
       );
-      this.setConfirmed(snapshot);
+      this.setConfirmed(snapshot, ui);
     }
     // patches the snapshot already contains only confirm their command, the others are applied
     for (const event of buffered) this.receive(event);
@@ -188,8 +193,11 @@ export class CollectionState {
     this.pending = this.pending.filter(({ envelope }) => envelope.commandId !== commandId);
   }
 
-  /** Replaces the confirmed model and rebases the pending commands onto it. */
-  private setConfirmed(model: CollectionModel) {
+  /**
+   * Replaces the confirmed model and rebases the pending commands onto it.
+   * @param ui the UI state of the snapshot the model is from, if it is from one
+   */
+  private setConfirmed(model: CollectionModel, ui?: CollectionUiState) {
     this.confirmed = model;
     let visible = model;
     this.pending = this.pending.filter(({ envelope }) => {
@@ -202,6 +210,6 @@ export class CollectionState {
       }
     });
     this.visible = visible;
-    this.onChange(visible);
+    this.onChange(visible, ui);
   }
 }

@@ -15,7 +15,9 @@ import type {
 } from 'shim';
 import { AppSettings } from 'shim/app-settings';
 import { MainProcessEvent } from 'shim/event-service';
-import type { CollectionModel } from 'shim/collection-model';
+import type { CollectionSnapshot } from 'shim/collection-model';
+import { CollectionUiState } from 'shim/collection-ui-state';
+import { StateService } from 'main/persistence/service/state-service';
 import type { CollectionBase } from 'shim/objects/collection';
 import { sendToRenderer } from './send-to-renderer';
 import { SettingsService } from '../persistence/service/settings-service';
@@ -118,8 +120,12 @@ export class MainEventService implements IEventService {
     logger.debug('Registered event channels on backend');
   }
 
-  async getCollectionState(): Promise<CollectionModel> {
-    return collectionState.model;
+  async getCollectionState(): Promise<CollectionSnapshot> {
+    return collectionState.snapshot;
+  }
+
+  async saveCollectionUiState(dirPath: string, uiState: unknown): Promise<void> {
+    await StateService.instance.saveUiState(dirPath, CollectionUiState.parse(uiState));
   }
 
   async dispatch(envelope: unknown): Promise<number> {
@@ -221,11 +227,11 @@ export class MainEventService implements IEventService {
   }
 
   async getAppSettings(): Promise<AppSettings> {
-    return SettingsService.instance.settings.preferences;
+    return SettingsService.instance.settings;
   }
 
   async saveAppSettings(settings: AppSettings): Promise<void> {
-    await SettingsService.instance.updateSettings({ preferences: AppSettings.parse(settings) });
+    await SettingsService.instance.setSettings(AppSettings.parse(settings));
   }
 
   async getHistory(): Promise<HistoryEntrySummary[]> {

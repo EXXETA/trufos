@@ -26,7 +26,7 @@ import {
   getMoveIndex,
   getRangeSelection,
 } from './treeUtilities';
-import { SortMode } from '@/state/interface/SortMode';
+import { SortMode } from 'shim/sort-mode';
 import { FolderIcon, SmallArrow } from '@/components/icons';
 import { httpMethodColor } from '@/services/StyleHelper';
 import { cn } from '@/lib/utils';

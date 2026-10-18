@@ -18,6 +18,7 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
 
   useEffect(() => {
     let collectionState: CollectionState | undefined;
+    let flushUiState: (() => Promise<void>) | undefined;
     let disposed = false;
 
     // Registered before the snapshot is fetched: earlier changes are part of the snapshot
@@ -28,11 +29,12 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
       if (!disposed) collectionState?.receive(event);
     };
 
-    // Send all pending editor changes to main before the window closes
+    // Send all pending editor changes and the UI state to main before the window closes
     const onBeforeClose: MainProcessEventListener<MainProcessEvent.BeforeClose> = async () => {
       try {
         console.info('Saving all editor changes before close');
-        await flushModelEdits();
+        // the UI state is only sent, failures are logged by the store
+        await Promise.all([flushModelEdits(), flushUiState?.()]);
       } catch (error) {
         console.error('Error while saving editor changes before closing:', error);
       } finally {
@@ -54,6 +56,7 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
           () => rendererEventService.getCollectionState()
         );
         collectionState = created.collectionState;
+        flushUiState = created.flushUiState;
         setStore(created.store);
       } catch (error) {
         showError("Couldn't load collection store", error);

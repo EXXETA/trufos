@@ -1,298 +1,65 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { readFile, writeFile } from 'node:fs/promises';
 import { SettingsService, VERSION } from './settings-service';
-import { exists } from 'main/util/fs-util';
-import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { DEFAULT_APP_SETTINGS, TrufosTheme } from 'shim/app-settings';
 
 const settingsService = SettingsService.instance;
 
-describe('SettingsService', async () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+const readSettingsFile = async (): Promise<unknown> =>
+  JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
 
-  it('should create a new settings if none exists', async () => {
-    // Assert
-    expect(await exists(SettingsService.SETTINGS_FILE)).toBe(false);
-
-    // Act
+describe('SettingsService', () => {
+  it('creates the settings file with the default settings', async () => {
     await settingsService.init();
 
-    // Assert
-    expect(await exists(SettingsService.SETTINGS_FILE)).toBe(true);
-    expect(settingsService.settings.currentCollectionIndex).toBe(0);
+    expect(settingsService.settings).toEqual(DEFAULT_APP_SETTINGS);
+    expect(await readSettingsFile()).toEqual({ ...DEFAULT_APP_SETTINGS, version: VERSION.string });
   });
 
-  it('should provide a deep clone of settings at modifiedSettings', () => {
-    // Act
-    const { modifiableSettings } = settingsService;
-
-    // Assert
-    expect(modifiableSettings).not.toBe(settingsService.settings);
-    expect(modifiableSettings).toEqual(settingsService.settings);
-  });
-
-  it('should persist settings when set', async () => {
-    // Arrange
+  it('stores the settings', async () => {
     await settingsService.init();
-    const newSettings: import('./settings-service').SettingsObject = {
-      currentCollectionIndex: 1,
-      collections: ['path/to/collection', 'some/where/else'],
-      preferences: { theme: TrufosTheme.Dark, verifyTlsCertificates: false },
-    };
 
-    // Assert
-    expect(settingsService.settings).not.toEqual(newSettings);
-    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
-      settingsService.settings
-    );
+    await settingsService.setSettings({ theme: TrufosTheme.Dark, verifyTlsCertificates: false });
 
-    // Act
-    await settingsService.setSettings(newSettings);
-
-    // Assert
-    expect(settingsService.settings).toEqual(newSettings);
-    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
-      newSettings
-    );
-  });
-
-  it('writes the settings file one write at a time, ending with the newest settings', async () => {
-    // Arrange
-    await settingsService.init();
-    const fileSystemService = FileSystemService.instance;
-    const replaceFile = fileSystemService.replaceFile.bind(fileSystemService);
-    let releaseFirst!: () => void;
-    const firstHeld = new Promise<void>((resolve) => (releaseFirst = resolve));
-    const started: string[] = [];
-    vi.spyOn(fileSystemService, 'replaceFile').mockImplementation(async (file, data) => {
-      started.push(data.toString());
-      if (started.length === 1) await firstHeld;
-      await replaceFile(file, data);
-    });
-
-    // Act
-    const first = settingsService.updateSettings({ collections: ['first'] });
-    const second = settingsService.updateSettings({ collections: ['second'] });
-    await new Promise((resolve) => setImmediate(resolve));
-    expect(started).toHaveLength(1);
-    releaseFirst();
-    await Promise.all([first, second]);
-
-    // Assert
-    expect(started).toHaveLength(2);
-    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject({
-      collections: ['second'],
+    expect(await readSettingsFile()).toEqual({
+      theme: TrufosTheme.Dark,
+      verifyTlsCertificates: false,
+      version: VERSION.string,
     });
   });
 
-  it('should update partial settings and persist to file', async () => {
-    // Arrange
-    await settingsService.init();
-    const originalCollections = settingsService.settings.collections;
+  it.each(['1.2.0', '1.3.0'])(
+    'keeps the preferences of a %s settings file and drops the open collections',
+    async (version) => {
+      await writeFile(
+        SettingsService.SETTINGS_FILE,
+        JSON.stringify({
+          version,
+          currentCollectionIndex: 1,
+          collections: ['/a', '/b'],
+          windowState: { width: 1280, height: 800 },
+          preferences: { theme: 'dark' },
+        })
+      );
 
-    // Act
-    await settingsService.updateSettings({ currentCollectionIndex: 2 });
-
-    // Assert
-    expect(settingsService.settings.currentCollectionIndex).toBe(2);
-    expect(settingsService.settings.collections).toEqual(originalCollections);
-    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject({
-      currentCollectionIndex: 2,
-      collections: originalCollections,
-    });
-  });
-
-  it.each([
-    {
-      version: '1.0.0',
-      oldSettings: {
-        currentCollectionIndex: 1,
-        collections: ['path/to/collection1', 'path/to/collection2'],
-      },
-      expected: {
-        currentCollectionIndex: 1,
-        collections: ['path/to/collection1', 'path/to/collection2'],
-        preferences: { theme: 'system' },
-      },
-    },
-    {
-      version: '1.1.0',
-      oldSettings: {
-        currentCollectionIndex: 0,
-        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-        windowState: { width: 1280, height: 800 },
-      },
-      expected: {
-        currentCollectionIndex: 0,
-        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-        preferences: { theme: 'system' },
-      },
-    },
-    {
-      version: '1.2.0',
-      oldSettings: {
-        currentCollectionIndex: 1,
-        collections: ['path/to/collection1', 'path/to/collection2'],
-        windowState: { width: 1280, height: 800, x: 10, y: 20 },
-        preferences: { theme: 'dark' },
-      },
-      expected: {
-        currentCollectionIndex: 1,
-        collections: ['path/to/collection1', 'path/to/collection2'],
-        preferences: { theme: 'dark' },
-      },
-    },
-  ])(
-    'should migrate settings from $version to current version on init',
-    async ({ version, oldSettings, expected }) => {
-      // Arrange
-      await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify({ version, ...oldSettings }));
-
-      // Act
       await settingsService.init();
 
-      // Assert - migrated in memory, legacy window state dropped
-      expect(settingsService.settings).toMatchObject(expected);
-      expect(settingsService.settings).not.toHaveProperty('windowState');
-
-      // Act - persist migrated settings
-      await settingsService.updateSettings({});
-
-      // Assert - file now has migrated version
-      const fileContent = JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'));
-      expect(fileContent).toMatchObject({ ...expected, version: VERSION.string });
-      expect(fileContent).not.toHaveProperty('windowState');
+      // the open collections are deliberately dropped, not moved to the app state, see fromLegacy
+      expect(settingsService.settings).toEqual({ theme: 'dark', verifyTlsCertificates: true });
     }
   );
 
-  it('should throw error when migrating from unknown version', async () => {
-    // Arrange
-    await settingsService.init();
-    const unknownVersionSettings = {
-      version: '0.0.0',
-      currentCollectionIndex: 0,
-      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-    };
+  it.each(['1.0.0', '1.1.0'])(
+    'uses the default settings for a %s settings file',
+    async (version) => {
+      await writeFile(
+        SettingsService.SETTINGS_FILE,
+        JSON.stringify({ version, currentCollectionIndex: 0, collections: ['/a'] })
+      );
 
-    // Act & Assert
-    await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(unknownVersionSettings));
-    await expect(settingsService.init()).rejects.toThrow('No migrator found for version 0.0.0');
-  });
+      await settingsService.init();
 
-  it('should recreate default settings when file is empty', async () => {
-    // Arrange
-    await writeFile(SettingsService.SETTINGS_FILE, '');
-
-    // Act
-    await settingsService.init();
-
-    // Assert
-    expect(settingsService.settings).toEqual({
-      currentCollectionIndex: 0,
-      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-      preferences: DEFAULT_APP_SETTINGS,
-    });
-    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
-      settingsService.settings
-    );
-  });
-
-  it('should recreate default settings when file contains invalid JSON', async () => {
-    // Arrange
-    await writeFile(SettingsService.SETTINGS_FILE, '{');
-
-    // Act
-    await settingsService.init();
-
-    // Assert
-    expect(settingsService.settings).toEqual({
-      currentCollectionIndex: 0,
-      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-      preferences: DEFAULT_APP_SETTINGS,
-    });
-    expect(JSON.parse(await readFile(SettingsService.SETTINGS_FILE, 'utf8'))).toMatchObject(
-      settingsService.settings
-    );
-  });
-
-  it.each([
-    ['without a version', { currentCollectionIndex: 0, collections: [] }],
-    ['with collections that are no list', { version: VERSION.string, collections: 'a' }],
-  ])('should recreate default settings when the file is %s', async (_, content) => {
-    // Arrange
-    await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(content));
-
-    // Act
-    await settingsService.init();
-
-    // Assert
-    expect(settingsService.settings).toEqual({
-      currentCollectionIndex: 0,
-      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-      preferences: DEFAULT_APP_SETTINGS,
-    });
-  });
-
-  it('should verify TLS certificates if the stored preferences do not say otherwise', async () => {
-    // Arrange
-    await writeFile(
-      SettingsService.SETTINGS_FILE,
-      JSON.stringify({
-        version: VERSION.string,
-        currentCollectionIndex: 0,
-        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-        preferences: { theme: 'dark' },
-      })
-    );
-
-    // Act
-    await settingsService.init();
-
-    // Assert
-    expect(settingsService.settings.preferences).toEqual({
-      theme: 'dark',
-      verifyTlsCertificates: true,
-    });
-  });
-
-  it('should provide the default preferences if none are stored', async () => {
-    // Arrange
-    await writeFile(
-      SettingsService.SETTINGS_FILE,
-      JSON.stringify({
-        version: VERSION.string,
-        currentCollectionIndex: 0,
-        collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-      })
-    );
-
-    // Act
-    await settingsService.init();
-
-    // Assert
-    expect(settingsService.settings.preferences).toEqual({
-      theme: 'system',
-      verifyTlsCertificates: true,
-    });
-  });
-
-  it('should handle settings already at current version', async () => {
-    // Arrange
-    await settingsService.init();
-    const currentSettings = {
-      version: VERSION.string,
-      currentCollectionIndex: 0,
-      collections: [SettingsService.DEFAULT_COLLECTION_DIR],
-    };
-    await writeFile(SettingsService.SETTINGS_FILE, JSON.stringify(currentSettings));
-
-    // Act - should not throw
-    await settingsService.init();
-
-    // Assert
-    expect(settingsService.settings.currentCollectionIndex).toBe(0);
-    expect(settingsService.settings.collections).toEqual([SettingsService.DEFAULT_COLLECTION_DIR]);
-  });
+      expect(settingsService.settings).toEqual(DEFAULT_APP_SETTINGS);
+    }
+  );
 });

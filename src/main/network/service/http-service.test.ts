@@ -918,8 +918,8 @@ describe('HttpService', () => {
     const dispatchers = { get: vi.fn(async (): Promise<Dispatcher> => mockAgent) };
     const httpService = new HttpService(dispatchers);
     vi.spyOn(SettingsService.instance, 'settings', 'get').mockReturnValue({
-      ...SettingsService.instance.settings,
-      preferences: { theme: 'system', verifyTlsCertificates: false },
+      theme: 'system',
+      verifyTlsCertificates: false,
     });
     const request: TrufosRequest = {
       id: randomUUID(),

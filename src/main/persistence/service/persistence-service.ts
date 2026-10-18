@@ -34,7 +34,7 @@ import {
 } from './info-files/latest';
 import { migrateInfoFile } from './info-files/migrators';
 import { SecretService } from './secret-service';
-import { SettingsService } from './settings-service';
+import { StateService } from './state-service';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { sanitizeTitle, uniqueNameAsync } from 'shim/string';
 import {
@@ -87,7 +87,7 @@ export class PersistenceService {
    * Creates the default collection if it does not exist.
    */
   public async createDefaultCollectionIfNotExists(): Promise<void> {
-    const dirPath = SettingsService.DEFAULT_COLLECTION_DIR;
+    const dirPath = StateService.DEFAULT_COLLECTION_DIR;
     if (!(await exists(path.join(dirPath, getInfoFileName('collection'))))) {
       logger.info('Creating default collection at', dirPath);
       const collection = generateDefaultCollection(dirPath);

@@ -1,6 +1,7 @@
 import {
   applyCommandWithPatches,
   CollectionModel,
+  CollectionSnapshot,
   CollectionStateEvent,
   CommandEnvelope,
 } from 'shim/collection-model';
@@ -56,7 +57,9 @@ export class FakeCollectionMain {
   }
 
   /** Implements `IEventService.getCollectionState`. */
-  getCollectionState = async (): Promise<CollectionModel> => structuredClone(this.model);
+  getCollectionState = async (): Promise<CollectionSnapshot> => ({
+    model: structuredClone(this.model),
+  });
 
   /** Broadcasts an event to all listeners, like `MainProcessEvent.CollectionStateChanged`. */
   emit(event: CollectionStateEvent): void {

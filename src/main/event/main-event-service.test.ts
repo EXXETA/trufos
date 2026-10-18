@@ -9,6 +9,7 @@ import { TrufosResponse } from 'shim/objects/response';
 import { RequestMethod } from 'shim/objects/request-method';
 import { CollectionModel, CommandType, normalizeCollection } from 'shim/collection-model';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
+import { CollectionUiState } from 'shim/collection-ui-state';
 import { MainProcessEvent } from 'shim/event-service';
 
 vi.mock('electron', () => ({
@@ -101,11 +102,27 @@ describe('MainEventService', () => {
   });
 
   describe('collection state', () => {
-    it('getCollectionState() returns the model', async () => {
-      const model = makeModel();
-      vi.spyOn(CollectionStateService.instance, 'model', 'get').mockReturnValue(model);
+    it('getCollectionState() returns the snapshot', async () => {
+      const snapshot = { model: makeModel(), ui: CollectionUiState.parse({}) };
+      vi.spyOn(CollectionStateService.instance, 'snapshot', 'get').mockReturnValue(snapshot);
 
-      await expect(new MainEventService().getCollectionState()).resolves.toBe(model);
+      await expect(new MainEventService().getCollectionState()).resolves.toBe(snapshot);
+    });
+
+    it('saveCollectionUiState() validates the UI state and stores it', async () => {
+      const { StateService } = await import('../persistence/service/state-service.js');
+      const saveUiState = vi.spyOn(StateService.instance, 'saveUiState').mockResolvedValue();
+      const eventService = new MainEventService();
+
+      await eventService.saveCollectionUiState('/dir', { openFolders: ['f1'] } as never);
+      await expect(
+        eventService.saveCollectionUiState('/dir', { openFolders: 42 } as never)
+      ).rejects.toThrow();
+
+      expect(saveUiState).toHaveBeenCalledExactlyOnceWith(
+        '/dir',
+        CollectionUiState.parse({ openFolders: ['f1'] })
+      );
     });
 
     it('dispatch() passes the envelope to the collection state', async () => {

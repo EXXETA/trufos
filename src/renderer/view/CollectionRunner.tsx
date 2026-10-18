@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDefaultLayout } from 'react-resizable-panels';
 import { ChevronDown, ChevronRight, Loader2, Play, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -218,6 +219,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [totalDuration, setTotalDuration] = useState<number | null>(null);
+  const layout = useDefaultLayout({ id: 'trufos.collection-runner' });
 
   // Aborted to invalidate an in-flight run (stop button, collection switch, unmount) along with
   // its in-flight request: the run and the request it is on share one controller.
@@ -413,8 +415,13 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   if (!open) return null;
 
   return (
-    <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
-      <ResizablePanel defaultSize="25%" minSize={MIN_SIDEBAR_PIXELS}>
+    <ResizablePanelGroup
+      orientation="horizontal"
+      className="h-full w-full"
+      defaultLayout={layout.defaultLayout}
+      onLayoutChanged={layout.onLayoutChanged}
+    >
+      <ResizablePanel id="requests" defaultSize="25%" minSize={MIN_SIDEBAR_PIXELS}>
         <aside className="bg-sidebar flex h-full flex-col">
           <div className="border-border flex items-center gap-2 border-b px-4 py-3">
             <span className="text-text-secondary shrink-0 text-xs">Environment</span>
@@ -595,7 +602,7 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
 
       <ResizableHandle />
 
-      <ResizablePanel defaultSize="75%" minSize={MIN_RESULTS_PIXELS}>
+      <ResizablePanel id="results" defaultSize="75%" minSize={MIN_RESULTS_PIXELS}>
         <div className="grid h-full grid-rows-[auto_auto_1fr_auto] p-6">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div className="min-w-0">

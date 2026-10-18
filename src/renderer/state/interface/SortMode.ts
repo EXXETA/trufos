@@ -1,11 +1,6 @@
-/** How the sidebar orders the items of the collection. */
-export enum SortMode {
-  DEFAULT = 'default',
-  AZ_ASC = 'az-asc',
-  AZ_DESC = 'az-desc',
-  TIME_DESC = 'time-desc',
-  TIME_ASC = 'time-asc',
-}
+import { SortMode } from 'shim/sort-mode';
+
+/** The order in which the sort button cycles through the sort modes. */
 export const SORT_CYCLE: SortMode[] = [
   SortMode.DEFAULT,
   SortMode.AZ_ASC,
