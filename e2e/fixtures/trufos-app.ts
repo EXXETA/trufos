@@ -34,8 +34,8 @@ export interface LaunchOptions {
 interface TrufosFixtures {
   /**
    * The temporary `userData` directory shared by every instance launched within a test. Because
-   * the app derives `settings.json`, the default collection and its logs from it, pointing it at a
-   * fresh directory isolates the whole test.
+   * the app derives `settings.json`, `state.json`, the default collection and its logs from it,
+   * pointing it at a fresh directory isolates the whole test.
    */
   userDataDir: string;
 

@@ -202,7 +202,7 @@ export class HttpService {
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
       dispatcher: await this.dispatchers.get({
-        verifyTlsCertificates: SettingsService.instance.settings.preferences.verifyTlsCertificates,
+        verifyTlsCertificates: SettingsService.instance.settings.verifyTlsCertificates,
         clientCertificate: model.collection.clientCertificate,
       }),
       method: request.method,

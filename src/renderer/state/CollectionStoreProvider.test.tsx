@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { CollectionStoreProvider } from './CollectionStoreProvider';
-import { useCollectionStore } from '@/state/collectionStore';
+import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
+import { SortMode } from 'shim/sort-mode';
 import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { CommandType } from 'shim/collection-model';
 import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
@@ -17,6 +19,7 @@ const { listeners, eventService, models } = vi.hoisted(() => {
       emit: vi.fn(),
       getCollectionState: vi.fn(),
       dispatch: vi.fn(),
+      saveCollectionUiState: vi.fn(),
     },
     models: {
       flushModelEdits: vi.fn(),
@@ -59,6 +62,7 @@ beforeEach(() => {
   eventService.getCollectionState.mockImplementation(main.getCollectionState);
   eventService.dispatch.mockImplementation(main.dispatch);
   models.flushModelEdits.mockResolvedValue(undefined);
+  eventService.saveCollectionUiState.mockResolvedValue(undefined);
 });
 
 const Title = () => <span>{useCollectionStore((state) => state.collection.title)}</span>;
@@ -102,6 +106,32 @@ describe('CollectionStoreProvider', () => {
 
     expect(models.flushModelEdits).toHaveBeenCalledOnce();
     expect(eventService.emit).toHaveBeenCalledWith(RendererEvent.ReadyToClose);
+  });
+
+  it('sends the UI state to main before the window closes', async () => {
+    const SortAlphabetically = () => {
+      const { setSortMode } = useCollectionActions();
+      useEffect(() => setSortMode(SortMode.AZ_ASC), [setSortMode]);
+      return <Title />;
+    };
+    render(
+      <CollectionStoreProvider>
+        <SortAlphabetically />
+      </CollectionStoreProvider>
+    );
+    await screen.findByText('Test');
+
+    await act(async () => {
+      await listeners.get(MainProcessEvent.BeforeClose)?.({});
+    });
+
+    expect(eventService.saveCollectionUiState).toHaveBeenCalledWith(
+      main.model.collection.dirPath,
+      expect.objectContaining({ sortMode: SortMode.AZ_ASC })
+    );
+    expect(eventService.saveCollectionUiState.mock.invocationCallOrder[0]).toBeLessThan(
+      eventService.emit.mock.invocationCallOrder[0]
+    );
   });
 
   it('removes its listeners on unmount', async () => {

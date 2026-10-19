@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { CollectionState } from './collection-state';
 import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
 import { makeModel } from 'shim/__mocks__/collection-fixtures';
+import { CollectionUiState } from 'shim/collection-ui-state';
 import {
   CollectionCommand,
   CollectionModel,
@@ -113,6 +114,14 @@ describe('CollectionState', () => {
 
     expect(state.model.requests.has('r1')).toBe(false);
     await pending;
+  });
+
+  it('passes on the UI state of a snapshot', () => {
+    const ui = CollectionUiState.parse({ openFolders: ['f1'] });
+
+    main.emit({ kind: 'snapshot', model: structuredClone(main.model), ui });
+
+    expect(onChange).toHaveBeenLastCalledWith(state.model, ui);
   });
 
   it('resyncs when a version is skipped', async () => {
@@ -261,9 +270,9 @@ describe('CollectionState', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     let releaseSnapshot!: () => void;
     vi.spyOn(main, 'getCollectionState').mockImplementation(() =>
-      new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() =>
-        structuredClone(main.model)
-      )
+      new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() => ({
+        model: structuredClone(main.model),
+      }))
     );
     main.holdBroadcasts = true;
     const resync = state.resync();
@@ -283,7 +292,7 @@ describe('CollectionState', () => {
     let releaseSnapshot!: () => void;
     const stale = structuredClone(main.model);
     vi.spyOn(main, 'getCollectionState').mockImplementation(() =>
-      new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() => stale)
+      new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() => ({ model: stale }))
     );
     main.holdBroadcasts = true;
     const resync = state.resync();
@@ -323,7 +332,7 @@ describe('CollectionState', () => {
     const snapshot = vi
       .spyOn(main, 'getCollectionState')
       .mockImplementation(() =>
-        new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() => stale)
+        new Promise<void>((resolve) => (releaseSnapshot = resolve)).then(() => ({ model: stale }))
       );
     const resync = state.resync();
     const other = makeModel({ id: 'other' });

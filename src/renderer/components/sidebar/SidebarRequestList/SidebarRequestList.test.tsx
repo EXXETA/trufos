@@ -2,7 +2,7 @@ import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { CollectionStoreProvider, createCollectionStore } from '@/state/collectionStore';
-import { SortMode } from '@/state/interface/SortMode';
+import { SortMode } from 'shim/sort-mode';
 import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
 import { makeCollection, makeRequest } from 'shim/__mocks__/collection-fixtures';
 import { normalizeCollection } from 'shim/collection-model';
@@ -27,7 +27,7 @@ function setup() {
     )
   );
   const { store, collectionState } = createCollectionStore(
-    structuredClone(main.model),
+    { model: structuredClone(main.model) },
     (envelope) => main.dispatch(envelope),
     main.getCollectionState
   );

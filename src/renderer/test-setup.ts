@@ -28,4 +28,6 @@ globalThis.ResizeObserver = class ResizeObserver {
 
 afterEach(() => {
   cleanup();
+  // resizable panels keep their layout there
+  localStorage.clear();
 });

@@ -3,12 +3,13 @@ import { EventEmitter } from 'node:events';
 import { freeze } from 'immer';
 import { Initializable } from 'main/shared/initializable';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { SettingsService } from 'main/persistence/service/settings-service';
+import { StateService } from 'main/persistence/service/state-service';
 import { SerialQueue } from 'main/util/serial-queue';
 import {
   applyCommandWithPatches,
   CollectionCommand,
   CollectionModel,
+  CollectionSnapshot,
   CollectionStateEvent,
   CommandEnvelope,
   normalizeCollection,
@@ -21,7 +22,7 @@ import type { RequestFiles } from 'main/persistence/service/persistence-service'
 import { getCommandEffects } from './command-effects';
 
 const persistenceService = PersistenceService.instance;
-const settingsService = SettingsService.instance;
+const stateService = StateService.instance;
 
 /** How long writing the info file of a request is postponed after its last edit. */
 export const REQUEST_INFO_DEBOUNCE_MS = 2000;
@@ -106,20 +107,25 @@ export class CollectionStateService
     return this._model;
   }
 
+  /** The complete state of the open collection, including the UI state stored for it. */
+  public get snapshot(): CollectionSnapshot {
+    const { model } = this;
+    return { model, ui: stateService.uiState(model.collection.dirPath) };
+  }
+
   /**
    * Loads the last used collection. If that fails, the default collection is loaded instead.
    */
   public async init(): Promise<void> {
-    const { settings } = settingsService;
     await persistenceService.createDefaultCollectionIfNotExists();
 
-    const collectionDir = settings.collections[settings.currentCollectionIndex];
+    const collectionDir = stateService.currentCollection;
     try {
       await this.load(collectionDir);
     } catch (e) {
       logger.error(`Failed to load collection at ${collectionDir}:`, e);
       logger.info('Loading default collection instead.');
-      await this.load(SettingsService.DEFAULT_COLLECTION_DIR);
+      await this.load(StateService.DEFAULT_COLLECTION_DIR);
     }
   }
 
@@ -149,27 +155,19 @@ export class CollectionStateService
    */
   public closeCollection(dirPath?: string): Promise<void> {
     return this.queue.run(async () => {
-      dirPath ??= this.model.collection.dirPath;
-      logger.info('Closing collection at', dirPath);
+      const closedDirPath = dirPath ?? this.model.collection.dirPath;
+      logger.info('Closing collection at', closedDirPath);
 
-      if (
-        dirPath === SettingsService.DEFAULT_COLLECTION_DIR ||
-        settingsService.settings.collections.length <= 1
-      ) {
+      if (closedDirPath === StateService.DEFAULT_COLLECTION_DIR) {
         logger.warn('Cannot close the default collection.');
         return;
       }
 
-      if (dirPath === this._model?.collection.dirPath) {
-        await this.loadModel(SettingsService.DEFAULT_COLLECTION_DIR);
+      if (closedDirPath === this._model?.collection.dirPath) {
+        await this.loadModel(StateService.DEFAULT_COLLECTION_DIR);
       }
 
-      // remove the collection from the list of open collections
-      const settings = settingsService.modifiableSettings;
-      const current = settings.collections[settings.currentCollectionIndex];
-      settings.collections = settings.collections.filter((path) => path !== dirPath);
-      settings.currentCollectionIndex = Math.max(0, settings.collections.indexOf(current));
-      await settingsService.setSettings(settings);
+      await stateService.close(closedDirPath);
     });
   }
 
@@ -180,7 +178,7 @@ export class CollectionStateService
   public async listCollections(): Promise<CollectionBase[]> {
     const collections: CollectionBase[] = [];
 
-    for (const dirPath of settingsService.settings.collections) {
+    for (const dirPath of stateService.openCollections) {
       try {
         collections.push(await persistenceService.loadCollectionBase(dirPath));
       } catch (e) {
@@ -296,6 +294,13 @@ export class CollectionStateService
       commandId: envelope.commandId,
     });
 
+    if (next.selectedEnvironmentKey !== prev.selectedEnvironmentKey) {
+      // the selection is app state, not part of the collection, so a failure is only logged
+      await stateService
+        .selectEnvironment(next.collection.dirPath, next.selectedEnvironmentKey)
+        .catch((error) => logger.error('Failed to store the selected environment:', error));
+    }
+
     const effects = getCommandEffects(prev, next, envelope.command);
     if (effects.dirtyRequestId != null) this.markDirty(effects.dirtyRequestId);
     for (const id of effects.cleanRequestIds ?? []) this.markClean(id);
@@ -374,10 +379,12 @@ export class CollectionStateService
     const previous = this._model;
     const collection = await persistenceService.loadCollection(dirPath);
 
-    // keep the selected environment when the same collection is reloaded
-    const selectedEnvironmentKey =
-      previous?.collection.id === collection.id ? previous.selectedEnvironmentKey : undefined;
-    const model = normalizeCollection(collection, [], selectedEnvironmentKey);
+    const model = normalizeCollection(collection);
+    // the app state has the environment selected last, also when the collection is reloaded
+    model.selectedEnvironmentKey = stateService.selectedEnvironment(
+      collection.dirPath,
+      collection.environments
+    );
     const drafts = [...model.requests.values()].filter((request) => request.draft);
     const savedRequests = await Promise.all(
       drafts.map((draft) => persistenceService.loadSavedRequest(draft.id, draft.parentId))
@@ -394,19 +401,12 @@ export class CollectionStateService
     this._model = freeze(model, true);
     // the edits of the previous model were written before, or could not be written at all
     for (const id of [...this.dirtyRequests.keys()]) this.markClean(id);
-    this.emit('changed', { kind: 'snapshot', model: this._model });
+    this.emit('changed', { kind: 'snapshot', ...this.snapshot });
     if (collection.dirPath !== previous?.collection.dirPath) this.emit('collection-changed');
   }
 
-  /** Adds the collection to the open collections in the settings and makes it the current one. */
+  /** Adds the collection to the open collections and makes it the current one. */
   private async addToOpenCollections(dirPath: string) {
-    const settings = settingsService.modifiableSettings;
-    const collectionIndex = settings.collections.indexOf(dirPath);
-    if (collectionIndex === -1) {
-      settings.currentCollectionIndex = settings.collections.push(dirPath) - 1;
-    } else {
-      settings.currentCollectionIndex = collectionIndex;
-    }
-    await settingsService.setSettings(settings);
+    await stateService.open(dirPath);
   }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createCollectionStore } from './collectionStore';
 import { FakeCollectionMain } from '@/__mocks__/fake-collection-main';
 import { makeCollection, makeFolder, makeRequest } from 'shim/__mocks__/collection-fixtures';
@@ -21,12 +21,16 @@ import { AuthorizationType } from 'shim/objects/auth';
 import { RequestBodyType } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { ScriptType } from 'shim/scripting';
+import { SortMode } from 'shim/sort-mode';
+import { CollectionUiState } from 'shim/collection-ui-state';
+import { UI_STATE_SAVE_DELAY_MS } from '@/state/helper/collection-ui-state';
 
 vi.mock('@/services/event/renderer-event-service', () => ({
   RendererEventService: {
     instance: {
       openCollection: vi.fn().mockResolvedValue(undefined),
       closeCollection: vi.fn().mockResolvedValue(undefined),
+      saveCollectionUiState: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));
@@ -78,17 +82,21 @@ const defaultCollection = () =>
     makeRequest('r3', COL_ID),
   ]);
 
-const setup = (collection: Collection = defaultCollection(), savedRequests = []) => {
+const setup = (
+  collection: Collection = defaultCollection(),
+  savedRequests = [],
+  ui?: CollectionUiState
+) => {
   const main = new FakeCollectionMain(normalizeCollection(collection, savedRequests));
-  const { store, collectionState } = createCollectionStore(
-    structuredClone(main.model),
+  const { store, collectionState, flushUiState } = createCollectionStore(
+    { model: structuredClone(main.model), ui },
     // looked up per call, so tests can replace it
     (envelope) => main.dispatch(envelope),
     main.getCollectionState
   );
   main.onEvent((event) => collectionState.receive(event));
   const commands = (): CollectionCommand[] => main.received.map(({ command }) => command);
-  return { main, store, commands };
+  return { main, store, commands, flushUiState };
 };
 
 type Setup = ReturnType<typeof setup>;
@@ -551,8 +559,24 @@ describe('collections', () => {
 
     await ctx.store.getState().changeCollection('/other');
 
-    expect(flushModelEdits).toHaveBeenCalledWith('r1');
+    expect(vi.mocked(flushModelEdits).mock.invocationCallOrder[0]).toBeLessThan(
+      eventService.openCollection.mock.invocationCallOrder[0]
+    );
     expect(eventService.openCollection).toHaveBeenCalledWith('/other');
+    // the selection changes once main broadcast the other collection
+    expect(ctx.store.getState().selectedRequestId).toBe('r1');
+  });
+
+  it('drops the editor changes of the request when another collection is opened', () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r1');
+
+    ctx.main.emit({
+      kind: 'snapshot',
+      model: normalizeCollection(makeCollection('other', [makeRequest('o1', 'other')])),
+    });
+
+    expect(disposeModelsForRequest).toHaveBeenCalledWith('r1');
     expect(ctx.store.getState().selectedRequestId).toBeUndefined();
   });
 
@@ -572,9 +596,139 @@ describe('collections', () => {
 
     await ctx.store.getState().closeCollection();
 
-    expect(flushModelEdits).toHaveBeenCalledWith('r1');
-    expect(ctx.store.getState().selectedRequestId).toBeUndefined();
+    expect(flushModelEdits).toHaveBeenCalled();
     expect(eventService.closeCollection).toHaveBeenCalledWith(`/${COL_ID}`);
+  });
+});
+
+describe('UI state', () => {
+  const uiState = (state: Partial<CollectionUiState>) => CollectionUiState.parse(state);
+  const otherCollection = () =>
+    normalizeCollection(makeCollection('other', [makeRequest('o1', 'other')]));
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('restores the UI state of the snapshot', () => {
+    const { store } = setup(
+      defaultCollection(),
+      [],
+      uiState({
+        selectedRequestId: 'r2',
+        openFolders: ['F'],
+        sortMode: SortMode.AZ_DESC,
+        currentScriptType: ScriptType.POST_RESPONSE,
+      })
+    );
+
+    const { selectedRequestId, openFolders, sortMode, currentScriptType } = store.getState();
+    expect(selectedRequestId).toBe('r2');
+    expect([...openFolders].sort()).toEqual(['F', 'G']);
+    expect(sortMode).toBe(SortMode.AZ_DESC);
+    expect(currentScriptType).toBe(ScriptType.POST_RESPONSE);
+    expect(loadEditorContent).toHaveBeenCalledExactlyOnceWith('r2');
+  });
+
+  it('does not restore IDs that no longer exist', () => {
+    const { store } = setup(
+      defaultCollection(),
+      [],
+      uiState({ selectedRequestId: 'gone', openFolders: ['F', 'gone'] })
+    );
+
+    const { selectedRequestId, openFolders } = store.getState();
+    expect(selectedRequestId).toBeUndefined();
+    expect([...openFolders]).toEqual(['F']);
+  });
+
+  it('restores the UI state of another collection that is opened', () => {
+    const ctx = setup();
+    ctx.store.getState().setSortMode(SortMode.TIME_ASC);
+
+    ctx.main.emit({
+      kind: 'snapshot',
+      model: otherCollection(),
+      ui: uiState({ selectedRequestId: 'o1' }),
+    });
+
+    expect(ctx.store.getState().selectedRequestId).toBe('o1');
+    expect(ctx.store.getState().sortMode).toBe(SortMode.DEFAULT);
+  });
+
+  it('sends nothing for the restored UI state', () => {
+    vi.useFakeTimers();
+    setup(defaultCollection(), [], uiState({ selectedRequestId: 'r2' }));
+
+    vi.advanceTimersByTime(UI_STATE_SAVE_DELAY_MS);
+
+    expect(eventService.saveCollectionUiState).not.toHaveBeenCalled();
+  });
+
+  it('sends the latest UI state to main once it stopped changing', () => {
+    vi.useFakeTimers();
+    const ctx = setup();
+
+    ctx.store.getState().setSortMode(SortMode.AZ_ASC);
+    ctx.store.getState().setFolderOpen('F');
+    vi.advanceTimersByTime(UI_STATE_SAVE_DELAY_MS - 1);
+    expect(eventService.saveCollectionUiState).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+
+    expect(eventService.saveCollectionUiState).toHaveBeenCalledExactlyOnceWith(`/${COL_ID}`, {
+      openFolders: ['F'],
+      sortMode: SortMode.AZ_ASC,
+      currentScriptType: ScriptType.PRE_REQUEST,
+    });
+  });
+
+  it('flushUiState sends the pending UI state right away', async () => {
+    const ctx = setup();
+    ctx.store.getState().setCurrentScriptType(ScriptType.POST_RESPONSE);
+
+    await ctx.flushUiState();
+
+    expect(eventService.saveCollectionUiState).toHaveBeenCalledExactlyOnceWith(
+      `/${COL_ID}`,
+      expect.objectContaining({ currentScriptType: ScriptType.POST_RESPONSE })
+    );
+  });
+
+  it('sends the pending UI state of a collection before another one is opened', () => {
+    const ctx = setup();
+    ctx.store.getState().setSortMode(SortMode.TIME_ASC);
+
+    ctx.main.emit({ kind: 'snapshot', model: otherCollection() });
+
+    expect(eventService.saveCollectionUiState).toHaveBeenCalledExactlyOnceWith(
+      `/${COL_ID}`,
+      expect.objectContaining({ sortMode: SortMode.TIME_ASC })
+    );
+  });
+
+  it('sends that no request is selected once the selected one is deleted', async () => {
+    const ctx = setup();
+    ctx.store.getState().setSelectedRequest('r3');
+
+    await ctx.store.getState().deleteItem('r3');
+    await ctx.flushUiState();
+
+    expect(eventService.saveCollectionUiState).toHaveBeenLastCalledWith(
+      `/${COL_ID}`,
+      expect.not.objectContaining({ selectedRequestId: 'r3' })
+    );
+  });
+
+  it('only logs if the UI state cannot be sent', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    eventService.saveCollectionUiState.mockRejectedValueOnce(new Error('failed'));
+    const ctx = setup();
+    ctx.store.getState().setSortMode(SortMode.AZ_ASC);
+
+    await expect(ctx.flushUiState()).resolves.toBeUndefined();
+
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
 

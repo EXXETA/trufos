@@ -1,5 +1,6 @@
 import { TrufosResponse, CollectionBase, VariableObject } from './objects';
-import type { CollectionModel, CollectionStateEvent, CommandEnvelope } from './collection-model';
+import type { CollectionSnapshot, CollectionStateEvent, CommandEnvelope } from './collection-model';
+import type { CollectionUiStateInput } from './collection-ui-state';
 import { AppSettings } from './app-settings';
 import { HistoryEntry, HistoryEntrySummary } from './history';
 
@@ -101,7 +102,15 @@ export interface IEventService {
    * Returns the complete state of the open collection. Afterwards, the state is kept up to date
    * with {@link MainProcessEvent.CollectionStateChanged} events.
    */
-  getCollectionState(): Promise<CollectionModel>;
+  getCollectionState(): Promise<CollectionSnapshot>;
+
+  /**
+   * Stores the UI state of an open collection, so it is part of its next snapshot. It is ignored
+   * if the collection is not open (anymore).
+   * @param dirPath The directory of the collection.
+   * @param uiState The UI state of the collection.
+   */
+  saveCollectionUiState(dirPath: string, uiState: CollectionUiStateInput): Promise<void>;
 
   /**
    * Applies a command to the open collection and persists the change. The resulting patches are

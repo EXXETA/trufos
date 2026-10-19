@@ -5,7 +5,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { AddFolderIcon, CreateRequestIcon, SwapIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
-import { SortMode, SORT_CYCLE } from '@/state/interface/SortMode';
+import { SortMode } from 'shim/sort-mode';
+import { SORT_CYCLE } from '@/state/interface/SortMode';
 import { SIDEBAR_ICON_BUTTON_CLASS } from './sidebar-toolbar';
 
 const SORT_MODE_LABELS: Record<SortMode, string> = {

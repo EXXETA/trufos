@@ -5,7 +5,7 @@ import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { VariableMap } from 'shim/objects/variables';
 import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
 import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-4-0';
-import { SettingsService } from '../settings-service';
+import { StateService } from '../state-service';
 
 export { createGitIgnore, GIT_IGNORE_CONTENT, GIT_IGNORE_FILE_NAME } from './v2-0-0';
 export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v2-4-0';
@@ -48,7 +48,7 @@ export function fromCollectionInfoFile(
   return Object.assign(omit(infoFile, 'version'), {
     type: 'collection' as const,
     lastModified,
-    isDefault: SettingsService.DEFAULT_COLLECTION_DIR === dirPath,
+    isDefault: StateService.DEFAULT_COLLECTION_DIR === dirPath,
     dirPath,
     children,
   });

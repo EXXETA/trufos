@@ -3,6 +3,7 @@ import { enableMapSet, enablePatches, type Patch } from 'immer';
 import { Collection } from '../objects/collection';
 import { Folder } from '../objects/folder';
 import { TrufosRequest } from '../objects/request';
+import type { CollectionUiState } from '../collection-ui-state';
 
 // both processes apply commands and patches to Map-based models
 enableMapSet();
@@ -49,13 +50,19 @@ export interface CollectionModel {
   childIds: Map<string, string[]>;
 }
 
+/** The complete state of the open collection. */
+export interface CollectionSnapshot {
+  model: CollectionModel;
+  /** The UI state stored for the collection, if any. */
+  ui?: CollectionUiState;
+}
+
 /** What the main process pushes to the renderer whenever its {@link CollectionModel} changes. */
 export type CollectionStateEvent =
-  | {
-      /** The complete model, e.g. after another collection was opened. */
+  | ({
+      /** The complete state, e.g. after another collection was opened. */
       kind: 'snapshot';
-      model: CollectionModel;
-    }
+    } & CollectionSnapshot)
   | {
       /** The changes made by a single command. */
       kind: 'patches';

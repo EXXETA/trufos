@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import { DRAFT_DIR_NAME } from 'main/persistence/constants';
 import type { PersistenceService } from 'main/persistence/service/persistence-service';
-import type { SettingsService } from 'main/persistence/service/settings-service';
+import type { StateService } from 'main/persistence/service/state-service';
 import {
   CollectionCommand,
   CollectionModel,
@@ -14,6 +14,7 @@ import {
   CommandType,
 } from 'shim/collection-model';
 import { Collection } from 'shim/objects/collection';
+import { CollectionUiState } from 'shim/collection-ui-state';
 import { TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
 import { makeCollection, makeRequest } from 'shim/__mocks__/collection-fixtures';
@@ -26,8 +27,10 @@ const firstDirPath = path.join(USER_DATA_DIR, 'collections', 'first');
 const secondDirPath = path.join(USER_DATA_DIR, 'collections', 'second');
 
 let persistenceService: PersistenceService;
-let settingsService: SettingsService;
+let stateService: StateService;
+let DEFAULT_COLLECTION_DIR: string;
 let service: CollectionStateService;
+let createService: () => CollectionStateService;
 let REQUEST_INFO_DEBOUNCE_MS: typeof DebounceMs;
 let events: CollectionStateEvent[];
 
@@ -69,11 +72,12 @@ describe('CollectionStateService', () => {
       PersistenceService: { instance: persistenceService },
     } = await import('../persistence/service/persistence-service.js'));
     ({
-      SettingsService: { instance: settingsService },
-    } = await import('../persistence/service/settings-service.js'));
+      StateService: { instance: stateService, DEFAULT_COLLECTION_DIR },
+    } = await import('../persistence/service/state-service.js'));
     const module = await import('./collection-state-service.js');
     REQUEST_INFO_DEBOUNCE_MS = module.REQUEST_INFO_DEBOUNCE_MS;
-    service = new module.CollectionStateService();
+    createService = () => new module.CollectionStateService();
+    service = createService();
 
     await persistenceService.saveCollection(collection('first', firstDirPath, ['r1', 'r2']), true);
     await persistenceService.saveCollection(
@@ -100,8 +104,23 @@ describe('CollectionStateService', () => {
       expect(service.model.collection.id).toBe('second');
       expect(service.model.childIds.get('second')).toEqual(expect.arrayContaining(['s1', 's2']));
       expect(events).toEqual([{ kind: 'snapshot', model: service.model }]);
-      const { settings } = settingsService;
-      expect(settings.collections[settings.currentCollectionIndex]).toBe(secondDirPath);
+      expect(stateService.currentCollection).toBe(secondDirPath);
+    });
+
+    it('broadcasts the UI state stored for the collection with its snapshot', async () => {
+      // Arrange
+      const ui = CollectionUiState.parse({ selectedRequestId: 's1', openFolders: [] });
+      await service.load(secondDirPath);
+      await stateService.saveUiState(secondDirPath, ui);
+      await service.load(firstDirPath);
+      events.length = 0;
+
+      // Act
+      await service.load(secondDirPath);
+
+      // Assert
+      expect(events).toEqual([{ kind: 'snapshot', model: service.model, ui }]);
+      expect(service.snapshot).toEqual({ model: service.model, ui });
     });
 
     it('loads the saved state of requests with a draft', async () => {
@@ -139,6 +158,86 @@ describe('CollectionStateService', () => {
       expect(service.model.selectedEnvironmentKey).toBe('prod');
     });
 
+    it('selects the environment selected last when the collection is loaded again', async () => {
+      // Arrange
+      await apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {},
+        selectedEnvironmentKey: 'prod',
+      });
+      await service.load(secondDirPath);
+      expect(service.model.selectedEnvironmentKey).toBe('dev');
+
+      // Act
+      await service.load(firstDirPath);
+
+      // Assert
+      expect(service.model.selectedEnvironmentKey).toBe('prod');
+    });
+
+    it('selects the environment selected last after a restart', async () => {
+      // Arrange
+      await apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {},
+        selectedEnvironmentKey: 'prod',
+      });
+      const { StateService } = await import('../persistence/service/state-service.js');
+      const stateFile = JSON.parse(await fs.readFile(StateService.STATE_FILE, 'utf8'));
+      expect(stateFile.collections).toContainEqual({
+        dirPath: firstDirPath,
+        selectedEnvironmentKey: 'prod',
+      });
+
+      // Act
+      const restarted = createService();
+      await restarted.init();
+
+      // Assert
+      expect(restarted.model.selectedEnvironmentKey).toBe('prod');
+    });
+
+    it('remembers that no environment is selected', async () => {
+      // Arrange
+      await apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {},
+        selectedEnvironmentKey: null,
+      });
+
+      // Act
+      await service.load(firstDirPath);
+
+      // Assert
+      expect(service.model.selectedEnvironmentKey).toBeUndefined();
+    });
+
+    it('falls back to the first environment if the stored one no longer exists', async () => {
+      // Arrange
+      await stateService.selectEnvironment(firstDirPath, 'gone');
+
+      // Act
+      await service.load(firstDirPath);
+
+      // Assert
+      expect(service.model.selectedEnvironmentKey).toBe('dev');
+    });
+
+    it('applies an environment selection that could not be stored', async () => {
+      // Arrange
+      vi.spyOn(stateService, 'selectEnvironment').mockRejectedValueOnce(new Error('state locked'));
+
+      // Act
+      await apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {},
+        selectedEnvironmentKey: 'prod',
+      });
+
+      // Assert
+      expect(service.model.selectedEnvironmentKey).toBe('prod');
+    });
+
     it('only announces a change to another collection', async () => {
       // Arrange
       const changed = vi.fn();
@@ -166,12 +265,12 @@ describe('CollectionStateService', () => {
   });
 
   describe('load() failure', () => {
-    it('keeps the current collection if adding the new one to the settings fails', async () => {
+    it('keeps the current collection if adding the new one to the app state fails', async () => {
       // Arrange
-      vi.spyOn(settingsService, 'setSettings').mockRejectedValueOnce(new Error('settings locked'));
+      vi.spyOn(stateService, 'open').mockRejectedValueOnce(new Error('state locked'));
 
       // Act & Assert
-      await expect(service.load(secondDirPath)).rejects.toThrow('settings locked');
+      await expect(service.load(secondDirPath)).rejects.toThrow('state locked');
       expect(service.model.collection.id).toBe('first');
       expect(events).toEqual([]);
       await apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' });
@@ -188,13 +287,41 @@ describe('CollectionStateService', () => {
       await service.closeCollection();
 
       // Assert
-      const { SettingsService } = await import('../persistence/service/settings-service.js');
-      expect(service.model.collection.dirPath).toBe(SettingsService.DEFAULT_COLLECTION_DIR);
-      const { settings } = settingsService;
-      expect(settings.collections).not.toContain(firstDirPath);
-      expect(settings.collections[settings.currentCollectionIndex]).toBe(
-        SettingsService.DEFAULT_COLLECTION_DIR
-      );
+      expect(service.model.collection.dirPath).toBe(DEFAULT_COLLECTION_DIR);
+      expect(stateService.openCollections).not.toContain(firstDirPath);
+      expect(stateService.currentCollection).toBe(DEFAULT_COLLECTION_DIR);
+    });
+
+    it('keeps the default collection open', async () => {
+      // Arrange
+      await persistenceService.createDefaultCollectionIfNotExists();
+      await service.load(DEFAULT_COLLECTION_DIR);
+      await service.load(secondDirPath);
+
+      // Act
+      await service.closeCollection(DEFAULT_COLLECTION_DIR);
+
+      // Assert
+      expect(service.model.collection.id).toBe('second');
+      expect(stateService.openCollections).toContain(DEFAULT_COLLECTION_DIR);
+    });
+
+    it('forgets the selected environment of the closed collection', async () => {
+      // Arrange
+      await apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: {},
+        selectedEnvironmentKey: 'prod',
+      });
+      await service.load(secondDirPath);
+
+      // Act
+      await service.closeCollection(firstDirPath);
+
+      // Assert
+      expect(stateService.openCollections).not.toContain(firstDirPath);
+      await service.load(firstDirPath);
+      expect(service.model.selectedEnvironmentKey).toBe('dev');
     });
 
     it('keeps the current collection when another one is closed', async () => {
@@ -208,9 +335,8 @@ describe('CollectionStateService', () => {
       // Assert
       expect(service.model.collection.id).toBe('second');
       expect(events).toEqual([]);
-      const { settings } = settingsService;
-      expect(settings.collections).not.toContain(firstDirPath);
-      expect(settings.collections[settings.currentCollectionIndex]).toBe(secondDirPath);
+      expect(stateService.openCollections).not.toContain(firstDirPath);
+      expect(stateService.currentCollection).toBe(secondDirPath);
     });
   });
 
@@ -219,9 +345,8 @@ describe('CollectionStateService', () => {
       // Arrange
       await service.load(secondDirPath);
       const missingDirPath = path.join(USER_DATA_DIR, 'collections', 'missing');
-      const settings = settingsService.modifiableSettings;
-      settings.collections.push(missingDirPath);
-      await settingsService.setSettings(settings);
+      await stateService.open(missingDirPath);
+      await stateService.open(secondDirPath);
 
       // Act
       const collections = await service.listCollections();
@@ -231,7 +356,7 @@ describe('CollectionStateService', () => {
         { id: 'first', title: 'first', dirPath: firstDirPath },
         { id: 'second', title: 'second', dirPath: secondDirPath },
       ]);
-      expect(settingsService.settings.collections).not.toContain(missingDirPath);
+      expect(stateService.openCollections).not.toContain(missingDirPath);
     });
 
     it('does not change where the files of the current collection are written', async () => {
@@ -239,9 +364,8 @@ describe('CollectionStateService', () => {
       await service.load(secondDirPath);
       const copyDirPath = path.join(USER_DATA_DIR, 'collections', 'copy');
       await fs.cp(secondDirPath, copyDirPath, { recursive: true });
-      const settings = settingsService.modifiableSettings;
-      settings.collections.push(copyDirPath);
-      await settingsService.setSettings(settings);
+      await stateService.open(copyDirPath);
+      await stateService.open(secondDirPath);
 
       // Act
       await service.listCollections();
@@ -733,8 +857,7 @@ describe('CollectionStateService', () => {
 
       // Assert
       expect(service.model.collection.id).toBe('first');
-      const { settings } = settingsService;
-      expect(settings.collections[settings.currentCollectionIndex]).toBe(firstDirPath);
+      expect(stateService.currentCollection).toBe(firstDirPath);
       expect(events.map((event) => event.kind === 'snapshot' && event.model.collection.id)).toEqual(
         ['second', 'first']
       );

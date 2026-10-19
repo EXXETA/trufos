@@ -7,6 +7,7 @@ import { MenuBuilder } from 'main/menu';
 import path from 'node:path';
 import quit from 'electron-squirrel-startup';
 import { SettingsService } from './persistence/service/settings-service';
+import { StateService } from './persistence/service/state-service';
 import { once } from 'node:events';
 import process from 'node:process';
 import { BodyStore } from 'main/network/service/body-store';
@@ -35,6 +36,7 @@ process.on('unhandledRejection', showError);
 const createWindow = async () => {
   try {
     const settingsService = SettingsService.instance;
+    const stateService = StateService.instance;
     const collectionState = CollectionStateService.instance;
     const mainEventService = MainEventService.instance;
 
@@ -52,6 +54,7 @@ const createWindow = async () => {
 
     if (!safeStorage.isEncryptionAvailable()) throw new Error('Safe storage is not available');
     await settingsService.init();
+    await stateService.init();
     await collectionState.init();
     mainEventService.updateApp(); // check for updates in the background
 
