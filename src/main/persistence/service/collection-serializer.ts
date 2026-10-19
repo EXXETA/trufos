@@ -9,13 +9,8 @@ import {
   SECRETS_FILE_NAME,
 } from 'main/persistence/constants';
 import { omit } from 'main/util/object-util';
-import {
-  extractSecrets,
-  GIT_IGNORE_CONTENT,
-  GIT_IGNORE_FILE_NAME,
-  InfoObject,
-  toInfoFile,
-} from './info-files/latest';
+import { extractSecrets, GIT_IGNORE_LINES, InfoObject, toInfoFile } from './info-files/latest';
+import { GIT_IGNORE_FILE_NAME } from './git-ignore';
 import type { CollectionSnapshot, RequestSnapshot, SnapshotChild } from './snapshot';
 
 /** A single file of a serialized collection, e.g. an archive entry or a file to write to disk. */
@@ -45,7 +40,7 @@ export async function* serializeCollection(
   snapshot: CollectionSnapshot,
   options: SerializeOptions = {}
 ): AsyncGenerator<SerializedEntry> {
-  yield { path: GIT_IGNORE_FILE_NAME, data: GIT_IGNORE_CONTENT };
+  yield { path: GIT_IGNORE_FILE_NAME, data: GIT_IGNORE_LINES.join('\n') };
   yield* serializeNode(snapshot, '', options);
 }
 

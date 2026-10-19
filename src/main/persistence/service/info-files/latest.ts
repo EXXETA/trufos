@@ -7,8 +7,14 @@ import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
 import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-5-0';
 import { StateService } from '../state-service';
 
-export { createGitIgnore, GIT_IGNORE_CONTENT, GIT_IGNORE_FILE_NAME } from './v2-0-0';
-export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v2-5-0';
+export {
+  VERSION,
+  InfoFile,
+  CollectionInfoFile,
+  FolderInfoFile,
+  RequestInfoFile,
+  GIT_IGNORE_LINES,
+} from './v2-5-0';
 
 /** An object that has an info file of its own. Its children are never written to it. */
 export type InfoObject = CollectionInfo | FolderInfo | TrufosRequest;
