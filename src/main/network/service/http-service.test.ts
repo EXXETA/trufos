@@ -139,6 +139,8 @@ describe('HttpService', () => {
 
     // Assert
     expect(result.metaInfo.status).toEqual(200);
+    // @ts-expect-error lastCall may be undefined, the request above was sent
+    expect(mockAgent.getCallHistory()?.lastCall().headers).not.toHaveProperty('content-type');
   });
 
   it('fetchAsync() should calculate the response size using actual file size, ignoring content-length header', async () => {
@@ -435,6 +437,65 @@ describe('HttpService', () => {
     expect(lastCall.headers['x-kept']).toEqual(['yes']);
     // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
     expect(Object.keys(lastCall.headers).some((key) => key.trim() === '')).toBe(false);
+  });
+
+  it('fetchAsync() should send the mime type of a text body as its content type', async () => {
+    // Arrange
+    const url = new URL('https://example.com/text');
+    mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
+    const httpService = new HttpService({ get: async () => mockAgent });
+    vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockImplementation(
+      async () => Readable.from('{}') as fs.ReadStream
+    );
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Text Body Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'application/json' },
+    };
+
+    // Act
+    await httpService.fetchAsync(await prepare(request), recorder);
+
+    // Assert
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
+    expect(lastCall.headers['content-type']).toEqual('application/json');
+  });
+
+  it('fetchAsync() should send neither a body nor a content type for a request without a body', async () => {
+    // Arrange
+    const url = new URL('https://example.com/none');
+    mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
+    const httpService = new HttpService({ get: async () => mockAgent });
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'No Body Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body: { type: RequestBodyType.NONE },
+    };
+
+    // Act
+    await httpService.fetchAsync(await prepare(request), recorder);
+
+    // Assert
+    const lastCall = mockAgent.getCallHistory()?.lastCall();
+    expect(lastCall).toBeDefined();
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
+    expect(lastCall.headers).not.toHaveProperty('content-type');
+    // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
+    expect(lastCall.body).toBeUndefined();
   });
 
   it('fetchAsync() should send form data with text fields', async () => {

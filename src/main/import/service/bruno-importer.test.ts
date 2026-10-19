@@ -392,6 +392,27 @@ body:form-urlencoded {
     }
   });
 
+  it('imports a request without a body', async () => {
+    const collectionDir = await createBrunoCollection('Test', {
+      'none.bru': `
+meta {
+  name: No Body
+  type: http
+  seq: 1
+}
+get {
+  url: https://api.example.com/users
+  body: none
+  auth: none
+}`,
+    });
+
+    const result = await new BrunoImporter().importCollection(collectionDir);
+    const request = result.children[0] as TrufosRequest;
+
+    expect(request.body).toEqual({ type: RequestBodyType.NONE });
+  });
+
   it('imports multipart form body', async () => {
     const collectionDir = await createBrunoCollection('Test', {
       'upload.bru': `

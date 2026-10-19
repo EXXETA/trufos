@@ -1,6 +1,5 @@
 import {
   TrufosURL,
-  RequestBody,
   VariableMap,
   EnvironmentMap,
   RequestMethod,
@@ -12,7 +11,7 @@ import {
 import { ClientCertificate } from 'shim/objects/collection';
 import { SemVer } from 'main/util/semver';
 import { AbstractInfoFileMigrator } from './migrator';
-import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v2-3-0';
+import { InfoFile as OldInfoFile, RequestBody, VERSION as OLD_VERSION } from './v2-3-0';
 import { z } from 'zod';
 
 export const VERSION = new SemVer(2, 4, 0);

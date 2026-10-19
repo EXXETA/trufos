@@ -39,7 +39,7 @@ export function languageToMimeType(language: Language): string {
  * @param mimeType The MIME type string to convert.
  * @return The corresponding language enum value, or undefined if not found.
  */
-export function mimeTypeToLanguage(mimeType: string): Language {
+export function mimeTypeToLanguage(mimeType: string): Language | undefined {
   return MIME_TYPE_TO_LANGUAGE_MAP[mimeType];
 }
 

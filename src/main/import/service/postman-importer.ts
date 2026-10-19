@@ -93,25 +93,6 @@ export class PostmanImporter implements CollectionImporter {
   private importRequest(parent: TrufosCollection | TrufosFolder, item: Item) {
     const { request } = item;
 
-    let bodyInfo: RequestBody | null = null;
-    if (request.body != null) {
-      switch (request.body.mode) {
-        case 'file':
-          bodyInfo = {
-            type: RequestBodyType.FILE,
-            filePath: request.body.file?.src,
-          };
-          break;
-        case 'raw':
-          bodyInfo = {
-            type: RequestBodyType.TEXT,
-            text: request.body.raw,
-            mimeType: request.headers.get('Content-Type') ?? DEFAULT_MIME_TYPE,
-          };
-          break;
-      }
-    }
-
     const trufosRequest: TrufosRequest = {
       id: item.id as string,
       parentId: parent.id,
@@ -125,14 +106,27 @@ export class PostmanImporter implements CollectionImporter {
         isActive: !header.disabled,
       })),
       method: request.method as RequestMethod,
-      body: bodyInfo ?? {
-        type: RequestBodyType.TEXT,
-        mimeType: DEFAULT_MIME_TYPE,
-      },
+      body: this.importBody(request),
       auth: this.importAuth(request.auth),
     };
 
     parent.children.push(trufosRequest);
+  }
+
+  private importBody(request: Item['request']): RequestBody {
+    switch (request.body?.mode) {
+      case 'file':
+        return { type: RequestBodyType.FILE, filePath: request.body.file?.src };
+      case 'raw':
+        return {
+          type: RequestBodyType.TEXT,
+          text: request.body.raw,
+          mimeType: request.headers.get('Content-Type') ?? DEFAULT_MIME_TYPE,
+        };
+      default:
+        // no body, or a mode Trufos cannot import
+        return { type: RequestBodyType.NONE };
+    }
   }
 
   private importAuth(postmanAuth?: PostmanRequestAuth): TrufosRequest['auth'] {

@@ -62,6 +62,7 @@ export type InfoFile = z.infer<typeof InfoFile>;
  * Changes:
  * - Adds optional `auth` field to FolderInfoFile. Requests inherit it from their closest folder.
  * - Ignores the temporary files of atomic writes in the `.gitignore` of the collection.
+ * - Adds the request body type `none`, which sends neither a body nor a Content-Type header.
  */
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();

@@ -9,7 +9,7 @@ import { editor } from 'monaco-editor';
 import { OnMount } from '@monaco-editor/react';
 
 interface BodyTabTextInputProps {
-  language: Language;
+  language?: Language;
   className?: string;
   onMount?: OnMount;
 }

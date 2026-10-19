@@ -9,7 +9,7 @@ import {
 import { useState } from 'react';
 
 export interface SimpleSelectProps<T> {
-  value: T;
+  value?: T;
   onValueChange: (value: T) => void;
   placeholder?: string;
   items: [T, string][];

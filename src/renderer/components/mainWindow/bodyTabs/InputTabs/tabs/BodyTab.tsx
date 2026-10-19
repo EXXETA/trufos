@@ -1,6 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { ReactElement, ReactNode, RefObject, useCallback, useRef } from 'react';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
-import { RequestBodyType } from 'shim/objects/request';
+import { RequestBody, RequestBodyType, TextBody } from 'shim/objects/request';
 import { Divider } from '@/components/shared/Divider';
 import {
   isFormattableLanguage,
@@ -17,91 +17,134 @@ import { WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { editor } from 'monaco-editor';
 
-export const BodyTab = () => {
+/** The label and the initial body of each body type. They are offered in the order of the enum. */
+const BODY_TYPES: {
+  [T in RequestBodyType]: { label: string; create: () => Extract<RequestBody, { type: T }> };
+} = {
+  [RequestBodyType.NONE]: { label: 'None', create: () => ({ type: RequestBodyType.NONE }) },
+  [RequestBodyType.TEXT]: {
+    label: 'Text',
+    create: () => ({ type: RequestBodyType.TEXT, mimeType: 'text/plain' }),
+  },
+  [RequestBodyType.FILE]: { label: 'File', create: () => ({ type: RequestBodyType.FILE }) },
+  [RequestBodyType.FORM_DATA]: {
+    label: 'Form Data',
+    create: () => ({ type: RequestBodyType.FORM_DATA, fields: [] }),
+  },
+};
+
+const BODY_TYPE_ITEMS = Object.values(RequestBodyType).map((type): [RequestBodyType, string] => [
+  type,
+  BODY_TYPES[type].label,
+]);
+
+/** The parts of the body tab that depend on the type of the body. */
+interface BodyEditorParts {
+  /** Controls next to the body type select. */
+  toolbar?: ReactNode;
+  /** Controls on the right of the toolbar. */
+  actions?: ReactNode;
+  content: ReactNode;
+}
+
+interface TextBodyContext {
+  editorRef: RefObject<editor.ICodeEditor | undefined>;
+  setMimeType: (mimeType: string) => void;
+  format: () => void;
+}
+
+function textBodyParts(
+  body: TextBody,
+  { editorRef, setMimeType, format }: TextBodyContext
+): BodyEditorParts {
+  const language = mimeTypeToLanguage(body.mimeType);
+  const canFormat = isFormattableLanguage(language);
+  return {
+    toolbar: (
+      <SimpleSelect<Language>
+        value={language}
+        onValueChange={(language) => setMimeType(languageToMimeType(language))}
+        items={[
+          [Language.JSON, 'JSON'],
+          [Language.XML, 'XML'],
+          [Language.TEXT, 'Plain'],
+        ]}
+      />
+    ),
+    actions: (
+      <Button
+        className={cn('h-6 gap-2', { 'opacity-50': !canFormat })}
+        size="sm"
+        variant="ghost"
+        onClick={format}
+        disabled={!canFormat}
+      >
+        <WandSparkles size={16} />
+        Format
+      </Button>
+    ),
+    content: (
+      <BodyTabTextInput
+        className="pr-4"
+        language={language}
+        onMount={(editorInstance) => {
+          editorRef.current = editorInstance;
+        }}
+      />
+    ),
+  };
+}
+
+function bodyEditorParts(body: RequestBody, text: TextBodyContext): BodyEditorParts {
+  switch (body.type) {
+    case RequestBodyType.NONE:
+      return {
+        content: (
+          <p className="text-text-secondary px-6 text-sm">This request does not have a body.</p>
+        ),
+      };
+    case RequestBodyType.TEXT:
+      return textBodyParts(body, text);
+    case RequestBodyType.FILE:
+      return { content: <BodyTabFileInput className="px-4 pb-2" /> };
+    case RequestBodyType.FORM_DATA:
+      return { content: <FormDataTab /> };
+  }
+}
+
+export const BodyTab = (): ReactElement => {
   const { setRequestBody, setRequestBodyMimeType } = useCollectionActions();
   const editorRef = useRef<editor.ICodeEditor | undefined>(undefined);
+  const body = useCollectionStore((state) => selectRequest(state)!.body);
 
-  const requestBody = useCollectionStore((state) => selectRequest(state)!.body);
-  const mimeType = 'mimeType' in requestBody ? requestBody.mimeType : undefined;
-  const language = mimeTypeToLanguage(mimeType!);
-  const canFormatRequestBody = isFormattableLanguage(language);
-
-  const changeBodyType = useCallback(
-    (type: RequestBodyType) => {
-      switch (type) {
-        case RequestBodyType.TEXT:
-          setRequestBody({ type, mimeType: 'text/plain' });
-          break;
-        case RequestBodyType.FILE:
-          setRequestBody({ type });
-          break;
-        case RequestBodyType.FORM_DATA:
-          setRequestBody({ type, fields: [] });
-          break;
-      }
-    },
-    [setRequestBody]
-  );
-
-  const formatRequestEditorText = useCallback(async () => {
+  const format = useCallback(async () => {
     await editorRef.current?.getAction('editor.action.formatDocument')?.run();
   }, []);
 
+  const { toolbar, actions, content } = bodyEditorParts(body, {
+    editorRef,
+    setMimeType: setRequestBodyMimeType,
+    format,
+  });
+
+  // the type select keeps its place in the tree, so it keeps the focus when the body type changes
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="space-y-2 px-4 pt-2">
         <div className="flex justify-between px-2">
           <div className="flex items-center gap-2 px-2">
             <SimpleSelect<RequestBodyType>
-              value={requestBody?.type ?? RequestBodyType.TEXT}
-              onValueChange={changeBodyType}
-              items={[
-                [RequestBodyType.TEXT, 'Text'],
-                [RequestBodyType.FILE, 'File'],
-                [RequestBodyType.FORM_DATA, 'Form Data'],
-              ]}
+              value={body.type}
+              onValueChange={(type) => setRequestBody(BODY_TYPES[type].create())}
+              items={BODY_TYPE_ITEMS}
             />
-            {requestBody.type === RequestBodyType.TEXT && (
-              <SimpleSelect<Language>
-                value={language}
-                onValueChange={(language) => setRequestBodyMimeType(languageToMimeType(language))}
-                items={[
-                  [Language.JSON, 'JSON'],
-                  [Language.XML, 'XML'],
-                  [Language.TEXT, 'Plain'],
-                ]}
-              />
-            )}
+            {toolbar}
           </div>
-          {requestBody?.type === RequestBodyType.TEXT && (
-            <Button
-              className={cn('h-6 gap-2', { 'opacity-50': !canFormatRequestBody })}
-              size="sm"
-              variant="ghost"
-              onClick={formatRequestEditorText}
-              disabled={!canFormatRequestBody}
-            >
-              <WandSparkles size={16} />
-              Format
-            </Button>
-          )}
+          {actions}
         </div>
         <Divider />
       </div>
-
-      {requestBody.type === RequestBodyType.FORM_DATA ? (
-        <FormDataTab />
-      ) : requestBody.type === RequestBodyType.FILE ? (
-        <BodyTabFileInput className="px-4 pb-2" />
-      ) : (
-        <BodyTabTextInput
-          className="pr-4"
-          language={language}
-          onMount={(editorInstance) => {
-            editorRef.current = editorInstance;
-          }}
-        />
-      )}
+      {content}
     </div>
   );
 };

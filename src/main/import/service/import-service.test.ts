@@ -50,10 +50,7 @@ describe('ImportService', () => {
     });
     expect(firstChild.method).toBe('GET');
     expect(firstChild.headers).toEqual([]);
-    expect(firstChild.body).toEqual({
-      mimeType: 'text/plain',
-      type: 'text',
-    });
+    expect(firstChild.body).toEqual({ type: 'none' });
 
     const secondChild = childrenLevel1[1] as TrufosRequest;
     expect(secondChild.type).toBe('request');
@@ -67,10 +64,7 @@ describe('ImportService', () => {
         value: 'application/json',
       },
     ]);
-    expect(secondChild.body).toEqual({
-      mimeType: 'text/plain',
-      type: 'text',
-    });
+    expect(secondChild.body).toEqual({ type: 'none' });
 
     const thirdChild = childrenLevel1[2] as Folder;
     expect(thirdChild.type).toBe('folder');
@@ -100,10 +94,7 @@ describe('ImportService', () => {
           'Hawk id="dh37fgj492je", ts="1448549987", nonce="eOJZCd", mac="O2TFlvAlMvKVSKOzc6XkfU6+5285k5p3m5dAjxumo2k="',
       },
     ]);
-    expect(firstChildLevel2.body).toEqual({
-      mimeType: 'text/plain',
-      type: 'text',
-    });
+    expect(firstChildLevel2.body).toEqual({ type: 'none' });
 
     const secondChildLevel2 = childrenLevel2[1] as TrufosRequest;
     expect(secondChildLevel2.type).toBe('request');

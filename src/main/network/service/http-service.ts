@@ -9,7 +9,7 @@ import {
   resolveVariablesInStream,
   resolveVariablesInString,
 } from 'main/environment/service/variable-resolver';
-import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
 import { StoredBody, TrufosResponse } from 'shim/objects/response';
@@ -39,6 +39,16 @@ import { SettingsService } from 'main/persistence/service/settings-service';
 const bodyStore = BodyStore.instance;
 const scriptingService = ScriptingService.instance;
 const collectionState = CollectionStateService.instance;
+
+/** The content type of files whose mime type is unknown */
+const DEFAULT_FILE_MIME_TYPE = 'application/octet-stream';
+
+/** A request body as it is sent, with the headers that describe it */
+interface OutgoingBody {
+  body?: Readable | FormData;
+  size?: number;
+  contentType?: string;
+}
 
 declare type HttpHeaders = Record<string, string[]>;
 
@@ -188,9 +198,9 @@ export class HttpService {
       this.trufosHeadersToUndiciHeaders(request.headers)
     );
 
-    const [body, size] = await this.readBody(model, request, textBody);
+    const { body, size, contentType } = await this.readBody(model, request, textBody);
     const sentHeaders = withoutUnsetHeaders({
-      ['content-type']: this.getContentType(request.body),
+      ['content-type']: contentType,
       ['authorization']: authorization,
       ['content-length']: size?.toString(),
       ['user-agent']: `Trufos/${app.getVersion()} (${process.platform} ${process.getSystemVersion()}; ${process.arch})`,
@@ -257,35 +267,42 @@ export class HttpService {
   }
 
   /**
-   * Read the request body from the file system
+   * Reads the request body from the file system, together with the headers that describe it
    * @param request request object
-   * @returns request body as stream or null if there is no body
+   * @returns the body, its size and its content type, each undefined if the request has none
    */
   private async readBody(
     model: CollectionModel,
     request: TrufosRequest,
     textBody?: Readable
-  ): Promise<[(Readable | FormData)?, number?]> {
-    switch (request.body.type) {
-      case RequestBodyType.TEXT: {
-        if (textBody == null) return [];
-        return [resolveVariablesInStream(model, textBody)];
+  ): Promise<OutgoingBody> {
+    const { body } = request;
+    switch (body.type) {
+      case RequestBodyType.NONE:
+        return {};
+      case RequestBodyType.TEXT:
+        if (textBody == null) return {};
+        return { body: resolveVariablesInStream(model, textBody), contentType: body.mimeType };
+      case RequestBodyType.FILE: {
+        if (body.filePath == null) return {};
+        const contentType = body.mimeType ?? DEFAULT_FILE_MIME_TYPE;
+        return { ...(await this.readFileBody(body.filePath)), contentType };
       }
-      case RequestBodyType.FILE:
-        return this.readFileBody(request.body.filePath);
       case RequestBodyType.FORM_DATA: {
+        // undici sets the multipart content type including its boundary
         const form = new FormData();
-        for (const field of request.body.fields) {
+        for (const field of body.fields) {
           switch (field.value.type) {
             case RequestBodyType.TEXT: {
               form.append(field.key, await resolveVariablesInString(model, field.value.text ?? ''));
               break;
             }
             case RequestBodyType.FILE: {
-              const { filePath } = field.value;
+              const { filePath, mimeType } = field.value;
               if (filePath != null) {
-                const mimeType = this.getContentType(field.value);
-                const file = await fs.openAsBlob(filePath, { type: mimeType });
+                const file = await fs.openAsBlob(filePath, {
+                  type: mimeType ?? DEFAULT_FILE_MIME_TYPE,
+                });
                 form.append(field.key, file, field.value.fileName);
               }
               break;
@@ -294,37 +311,21 @@ export class HttpService {
               throw new Error('Unknown form data field value type');
           }
         }
-        return [form];
+        return { body: form };
       }
       default:
         throw new Error('Unknown body type');
     }
   }
 
-  private async readFileBody(filePath?: string): Promise<[Readable?, number?]> {
-    if (filePath == null) return [];
+  private async readFileBody(filePath: string): Promise<{ body: Readable; size: number }> {
     const handle = await fsp.open(filePath);
     try {
       const { size } = await handle.stat();
-      return [handle.createReadStream(), size];
+      return { body: handle.createReadStream(), size };
     } catch (error) {
       await handle.close();
       throw error;
-    }
-  }
-
-  /**
-   * Get the content type of the request body
-   * @param body request body
-   */
-  private getContentType(body?: RequestBody) {
-    if (body != null) {
-      switch (body.type) {
-        case RequestBodyType.TEXT:
-          return body.mimeType ?? 'text/plain';
-        case RequestBodyType.FILE:
-          return body.mimeType ?? 'application/octet-stream';
-      }
     }
   }
 

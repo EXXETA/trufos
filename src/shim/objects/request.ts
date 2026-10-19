@@ -8,10 +8,17 @@ import { TrufosId } from './id';
 export const TEXT_BODY_FILE_NAME = 'request-body.txt';
 
 export enum RequestBodyType {
+  NONE = 'none',
   TEXT = 'text',
   FILE = 'file',
   FORM_DATA = 'form-data',
 }
+
+/** A request without a body. No Content-Type header is sent for it */
+export const NoBody = z.object({
+  type: z.literal(RequestBodyType.NONE),
+});
+export type NoBody = z.infer<typeof NoBody>;
 
 export const TextBody = z.object({
   type: z.literal(RequestBodyType.TEXT),
@@ -48,7 +55,7 @@ export const FormDataBody = z.object({
 });
 export type FormDataBody = z.infer<typeof FormDataBody>;
 
-export const RequestBody = z.discriminatedUnion('type', [TextBody, FileBody, FormDataBody]);
+export const RequestBody = z.discriminatedUnion('type', [NoBody, TextBody, FileBody, FormDataBody]);
 export type RequestBody = z.infer<typeof RequestBody>;
 
 /**

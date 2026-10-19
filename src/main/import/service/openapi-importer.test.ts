@@ -100,10 +100,7 @@ describe('OpenApiImporter', () => {
       query: [{ key: 'limit', value: '10', isActive: true }],
     });
     expect(listPets.headers).toEqual([{ key: 'X-Trace-Id', value: 'trace-1', isActive: true }]);
-    expect(listPets.body).toEqual({
-      type: RequestBodyType.TEXT,
-      mimeType: 'text/plain',
-    });
+    expect(listPets.body).toEqual({ type: RequestBodyType.NONE });
     expect(listPets.auth).toEqual({
       type: AuthorizationType.BEARER,
       token: '',

@@ -1,6 +1,5 @@
 import {
   TrufosURL,
-  RequestBody,
   VariableMap,
   EnvironmentMap,
   RequestMethod,
@@ -15,6 +14,43 @@ import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v2-2-0';
 import { z } from 'zod';
 
 export const VERSION = new SemVer(2, 3, 0);
+
+/** The request body types before `v2.5.0` added `none` */
+export enum RequestBodyType {
+  TEXT = 'text',
+  FILE = 'file',
+  FORM_DATA = 'form-data',
+}
+
+export const TextBody = z.object({
+  type: z.literal(RequestBodyType.TEXT),
+  text: z.string().optional(),
+  mimeType: z.string(),
+});
+export type TextBody = z.infer<typeof TextBody>;
+
+export const FileBody = z.object({
+  type: z.literal(RequestBodyType.FILE),
+  filePath: z.string().optional(),
+  fileName: z.string().optional(),
+  mimeType: z.string().optional(),
+});
+export type FileBody = z.infer<typeof FileBody>;
+
+export const FormDataBody = z.object({
+  type: z.literal(RequestBodyType.FORM_DATA),
+  fields: z.array(
+    z.object({
+      key: z.string(),
+      isActive: z.boolean(),
+      value: z.discriminatedUnion('type', [TextBody, FileBody]),
+    })
+  ),
+});
+export type FormDataBody = z.infer<typeof FormDataBody>;
+
+export const RequestBody = z.discriminatedUnion('type', [TextBody, FileBody, FormDataBody]);
+export type RequestBody = z.infer<typeof RequestBody>;
 
 export const InfoFileBase = z.object({
   id: z.string(),

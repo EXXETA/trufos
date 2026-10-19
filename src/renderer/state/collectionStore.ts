@@ -326,7 +326,7 @@ export const createCollectionStore = (
           url: parseUrl('http://'),
           method: RequestMethod.GET,
           headers: [],
-          body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+          body: { type: RequestBodyType.NONE },
           draft: true,
         };
         await dispatch({ type: CommandType.CREATE_REQUEST, request });
@@ -350,7 +350,7 @@ export const createCollectionStore = (
               body.mimeType = mimeType;
               return;
             default:
-              // form data bodies don't have a mime type
+              // empty and form data bodies don't have a mime type
               return;
           }
         }),

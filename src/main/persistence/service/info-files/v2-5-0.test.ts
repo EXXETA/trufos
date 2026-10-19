@@ -3,14 +3,24 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { FolderInfoFile, GIT_IGNORE_LINES, InfoFileMigrator, VERSION } from './v2-5-0';
+import {
+  FolderInfoFile,
+  GIT_IGNORE_LINES,
+  InfoFileMigrator,
+  RequestInfoFile,
+  VERSION,
+} from './v2-5-0';
 import { GIT_IGNORE_FILE_NAME } from '../git-ignore';
 import {
   CollectionInfoFile as OldCollectionInfoFile,
   FolderInfoFile as OldFolderInfoFile,
+  RequestInfoFile as OldRequestInfoFile,
   VERSION as OLD_VERSION,
 } from './v2-4-0';
 import { AuthorizationType } from 'shim/objects/auth';
+import { RequestBodyType } from 'shim/objects/request';
+import { RequestMethod } from 'shim/objects/request-method';
+import { parseUrl } from 'shim/objects/url';
 
 describe('InfoFileMigrator v2.5.0', () => {
   const migrator = new InfoFileMigrator();
@@ -44,6 +54,24 @@ describe('InfoFileMigrator v2.5.0', () => {
       ...folder,
       auth: { type: AuthorizationType.INHERIT },
     }).not.toBeOfSchemaAsync(FolderInfoFile);
+  });
+
+  it('accepts a request without a body, which older versions do not', async () => {
+    // Arrange
+    const request = {
+      id: randomUUID(),
+      title: 'Request',
+      url: parseUrl('https://example.com'),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.NONE },
+    };
+
+    // Act & Assert
+    await expect({ ...request, version: VERSION.string }).toBeOfSchemaAsync(RequestInfoFile);
+    await expect({ ...request, version: OLD_VERSION.string }).not.toBeOfSchemaAsync(
+      OldRequestInfoFile
+    );
   });
 });
 

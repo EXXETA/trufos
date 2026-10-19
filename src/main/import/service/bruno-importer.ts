@@ -319,7 +319,7 @@ export class BrunoImporter implements CollectionImporter {
       case 'file':
         return { type: RequestBodyType.FILE };
       default:
-        return { type: RequestBodyType.TEXT, mimeType: DEFAULT_MIME_TYPE };
+        return { type: RequestBodyType.NONE };
     }
   }
 
