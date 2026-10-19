@@ -16,7 +16,6 @@ import {
   AuthorizationType,
   BasicAuthorizationInformation,
   BearerAuthorizationInformation,
-  InheritAuthorizationInformation,
 } from 'shim/objects';
 
 const environmentKey = 'test';
@@ -126,36 +125,6 @@ describe('variable-resolver', () => {
     expect(result).toBeUndefined();
   });
 
-  it('getAuthorizationHeader() should return undefined for INHERIT when collection has no auth configured', async () => {
-    // Arrange
-    delete model.collection.auth;
-    const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
-
-    // Act
-    const result = await getAuthorizationHeader(model, auth);
-
-    // Assert
-    expect(result).toBeUndefined();
-  });
-
-  it('getAuthorizationHeader() should resolve INHERIT authorization from collection auth', async () => {
-    // Arrange
-    const collectionAuth: BasicAuthorizationInformation = {
-      type: AuthorizationType.BASIC,
-      username: 'inherit-user',
-      password: 'inherit-pass',
-    };
-    model.collection.auth = collectionAuth;
-    const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
-    const expected = `Basic ${Buffer.from(`${collectionAuth.username}:${collectionAuth.password}`).toString('base64')}`;
-
-    // Act
-    const result = await getAuthorizationHeader(model, auth);
-
-    // Assert
-    expect(result).toBe(expected);
-  });
-
   it('getAuthorizationHeader() should substitute variables for Basic auth credentials', async () => {
     // Arrange
     environment().variables.varUser = { value: 'user1' };
@@ -178,10 +147,9 @@ describe('variable-resolver', () => {
     // Arrange
     model.collection.auth = { type: AuthorizationType.BEARER, token: '{{ var1 }}' };
     model = freeze(model, true);
-    const auth: InheritAuthorizationInformation = { type: AuthorizationType.INHERIT };
 
     // Act
-    const result = await getAuthorizationHeader(model, auth);
+    const result = await getAuthorizationHeader(model, model.collection.auth);
 
     // Assert
     expect(result).toBe(`Bearer ${variableValue}`);

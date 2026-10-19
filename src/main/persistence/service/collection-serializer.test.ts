@@ -89,7 +89,7 @@ describe('serializeCollection()', () => {
     const entries = await collectEntries(snapshot);
     const names = Object.keys(entries);
 
-    expect(entries['.gitignore']).toBe('.draft\n.secrets.bin');
+    expect(entries['.gitignore']).toBe('.draft\n.secrets.bin\n.*.tmp');
     expect(JSON.parse(entries['order.json'])).toEqual([requestA.id, requestB.id, folder.id]);
     expect(names).toContain('my-request/request.json');
     expect(names).toContain('my-request-2/request.json'); // duplicate title suffixed

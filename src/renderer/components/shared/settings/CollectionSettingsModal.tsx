@@ -7,6 +7,7 @@ import {
 import { EnvironmentEditor } from '@/components/shared/settings/EnvironmentTab/EnvironmentEditor';
 import { CertificateEditor } from '@/components/shared/settings/TlsTab/CertificateEditor';
 import { ExportEditor } from '@/components/shared/settings/ExportTab/ExportEditor';
+import { AuthorizationEditor } from '@/components/shared/settings/AuthorizationTab/AuthorizationEditor';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { variableArrayToMap, variableMapToArray } from '@/state/helper/variableMappers';
@@ -16,6 +17,7 @@ import { ClientCertificate } from 'shim/objects/collection';
 import { VariableObjectWithKey } from 'shim/objects/variables';
 import { EnvironmentMap } from 'shim/objects/environment';
 import { CollectionChanges } from 'shim/collection-model';
+import { AuthorizationInformationNoInherit, withoutInherit } from 'shim/objects/auth';
 
 export interface CollectionSettingsModalProps {
   isOpen: boolean;
@@ -33,6 +35,7 @@ type CollectionDraft = {
   environments: EnvironmentMap;
   selectedEnvironment?: string;
   clientCertificate: ClientCertificate | null;
+  auth: AuthorizationInformationNoInherit | null;
 };
 
 export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsModalProps) => {
@@ -43,6 +46,7 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
   const selectedEnvironment = useCollectionStore((s) => s.selectedEnvironmentKey);
   const storedCertificate = useCollectionStore((s) => s.collection.clientCertificate ?? null);
   const collectionTitle = useCollectionStore((s) => s.collection.title);
+  const storedAuth = useCollectionStore((s) => s.collection.auth ?? null);
 
   const buildDraft = (): CollectionDraft => ({
     title: collectionTitle,
@@ -50,6 +54,7 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
     environments,
     selectedEnvironment,
     clientCertificate: storedCertificate,
+    auth: storedAuth,
   });
 
   const [draft, setDraft] = useState<CollectionDraft>(buildDraft);
@@ -70,6 +75,8 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
   const somethingChanged = initialDraft !== null && !deepEqual(draft, initialDraft);
   const canSave = isOverallValid && somethingChanged;
 
+  // the working copy is taken when the dialog opens, so changes made elsewhere meanwhile don't
+  // discard the unsaved input. Saving overwrites them.
   useEffect(() => {
     if (isOpen) {
       const initial = buildDraft();
@@ -85,6 +92,7 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
     if (isChanged('variables')) changes.variables = variableArrayToMap(draft.variables);
     if (isChanged('environments')) changes.environments = draft.environments;
     if (isChanged('clientCertificate')) changes.clientCertificate = draft.clientCertificate;
+    if (isChanged('auth')) changes.auth = draft.auth;
 
     const selectedEnvironmentKey = isChanged('selectedEnvironment')
       ? (draft.selectedEnvironment ?? null)
@@ -137,6 +145,19 @@ export const CollectionSettingsModal = ({ isOpen, onClose }: CollectionSettingsM
               onEnvironmentsChange={(environments) => update({ environments })}
               onEnvironmentSelect={(key) => update({ selectedEnvironment: key ?? undefined })}
             />
+          ),
+        },
+        {
+          value: 'authorization',
+          label: 'Authorization',
+          content: (
+            <div className="h-full overflow-y-auto p-4">
+              <AuthorizationEditor
+                level="collection"
+                auth={draft.auth ?? undefined}
+                onAuthChange={(auth) => update({ auth: withoutInherit(auth) })}
+              />
+            </div>
           ),
         },
         {

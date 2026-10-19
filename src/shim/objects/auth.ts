@@ -163,6 +163,17 @@ export const AuthorizationInformation = z.discriminatedUnion('type', [
 ]);
 export type AuthorizationInformation = z.infer<typeof AuthorizationInformation>;
 
+/**
+ * Returns the authorization unless it inherits one.
+ * @param auth the authorization, or null if there is none
+ * @returns the authorization, or null if it inherits one or there is none
+ */
+export function withoutInherit(
+  auth: AuthorizationInformation | null
+): AuthorizationInformationNoInherit | null {
+  return auth == null || auth.type === AuthorizationType.INHERIT ? null : auth;
+}
+
 const OAUTH2_BASE = {
   type: AuthorizationType.OAUTH2,
   issuerUrl: '',

@@ -5,6 +5,7 @@ import { Menubar } from '@/view/Menubar';
 import { RequestWindow } from '@/view/RequestWindow';
 import { CollectionRunner } from '@/view/CollectionRunner';
 import { CollectionSettingsModal } from '@/components/shared/settings/CollectionSettingsModal';
+import { FolderSettingsModal } from '@/components/shared/settings/FolderSettingsModal';
 import { AppSettingsModal } from '@/components/shared/settings/AppSettingsModal';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -18,6 +19,7 @@ import { useAppSettingsStore } from '@/state/appSettingsStore';
 import {
   selectIsCollectionRunnerOpen,
   selectIsCollectionSettingsOpen,
+  selectFolderSettingsId,
   selectIsCommandPaletteOpen,
   selectIsAppSettingsOpen,
   useViewActions,
@@ -34,12 +36,14 @@ const MIN_REQUEST_WINDOW_PIXELS = 500;
 export const App = () => {
   const isCollectionRunnerOpen = useViewStore(selectIsCollectionRunnerOpen);
   const isCollectionSettingsOpen = useViewStore(selectIsCollectionSettingsOpen);
+  const folderSettingsId = useViewStore(selectFolderSettingsId);
   const isCommandPaletteOpen = useViewStore(selectIsCommandPaletteOpen);
   const isAppSettingsOpen = useViewStore(selectIsAppSettingsOpen);
   const layout = useDefaultLayout({ id: 'trufos.main' });
   const {
     closeCollectionRunner,
     closeCollectionSettings,
+    closeFolderSettings,
     openCommandPalette,
     closeCommandPalette,
     closeAppSettings,
@@ -103,6 +107,7 @@ export const App = () => {
               isOpen={isCollectionSettingsOpen}
               onClose={closeCollectionSettings}
             />
+            <FolderSettingsModal folderId={folderSettingsId} onClose={closeFolderSettings} />
             <CommandPalette open={isCommandPaletteOpen} onClose={closeCommandPalette} />
             <AppSettingsModal isOpen={isAppSettingsOpen} onClose={closeAppSettings} />
           </SidebarProvider>

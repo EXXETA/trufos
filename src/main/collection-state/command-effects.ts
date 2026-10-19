@@ -195,5 +195,9 @@ function getSpecificEffects(
       // the selected environment is not persisted, so selecting one writes nothing
       if (next.collection === prev.collection) return {};
       return { immediate: () => persistenceService.saveCollectionInfo(next.collection) };
+    case CommandType.UPDATE_FOLDER: {
+      const folder = getExistingFolder(next, command.id);
+      return { immediate: () => persistenceService.saveFolder(folder) };
+    }
   }
 }

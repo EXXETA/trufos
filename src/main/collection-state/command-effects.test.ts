@@ -3,7 +3,13 @@ import fs from 'node:fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { exists, USER_DATA_DIR } from 'main/util/fs-util';
 import type { PersistenceService as PersistenceServiceType } from 'main/persistence/service/persistence-service';
-import { DRAFT_DIR_NAME, getScriptFileName, ORDER_FILE_NAME } from 'main/persistence/constants';
+import {
+  DRAFT_DIR_NAME,
+  getScriptFileName,
+  ORDER_FILE_NAME,
+  SECRETS_FILE_NAME,
+} from 'main/persistence/constants';
+import { AuthorizationType } from 'shim/objects/auth';
 import {
   applyCommandTo,
   CollectionCommand,
@@ -500,6 +506,40 @@ describe('getCommandEffects()', () => {
       environments: { dev: { variables: { a: { value: 'b' } } } },
     });
     expect(persisted(loaded)).toEqual(persisted({ ...next, selectedEnvironmentKey: undefined }));
+  });
+
+  it('updateFolder writes the authorization of the folder into its secrets', async () => {
+    // Act
+    const next = await run(model, {
+      type: CommandType.UPDATE_FOLDER,
+      id: 'f1',
+      changes: { auth: { type: AuthorizationType.BEARER, token: 'secret' } },
+    });
+
+    // Assert
+    expect(await readJson('f1', 'folder.json')).not.toHaveProperty('auth');
+    expect(await exists(path.join(dirPath, 'f1', SECRETS_FILE_NAME))).toBe(true);
+    expect(persisted(await reload())).toEqual(persisted(next));
+  });
+
+  it('updateFolder removes the secrets when the folder inherits the authorization again', async () => {
+    // Arrange
+    const current = await run(model, {
+      type: CommandType.UPDATE_FOLDER,
+      id: 'f1',
+      changes: { auth: { type: AuthorizationType.BEARER, token: 'secret' } },
+    });
+
+    // Act
+    const next = await run(current, {
+      type: CommandType.UPDATE_FOLDER,
+      id: 'f1',
+      changes: { auth: null },
+    });
+
+    // Assert
+    expect(await exists(path.join(dirPath, 'f1', SECRETS_FILE_NAME))).toBe(false);
+    expect(persisted(await reload())).toEqual(persisted(next));
   });
 
   it('selecting an environment persists nothing', async () => {

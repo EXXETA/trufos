@@ -13,7 +13,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { freeze } from 'immer';
 import { generateDefaultCollection } from './default-collection';
 import { sanitizeTitle } from 'shim/string';
-import { CollectionInfoFile, RequestInfoFile, GIT_IGNORE_FILE_NAME } from './info-files/latest';
+import { CollectionInfoFile, RequestInfoFile } from './info-files/latest';
+import { GIT_IGNORE_FILE_NAME } from './git-ignore';
 import { PersistenceService } from './persistence-service';
 import {
   DRAFT_DIR_NAME,
@@ -349,20 +350,19 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(newCollection.dirPath, GIT_IGNORE_FILE_NAME))).toBe(true);
   });
 
-  it('saveCollection(recursive=true) should not modify .gitignore if it already exists', async () => {
+  it('saveCollection(recursive=true) should add missing lines to an existing .gitignore', async () => {
     // Arrange
     const newCollection = getExampleCollection();
     await mkdir(newCollection.dirPath, { recursive: true });
     const gitignorePath = path.join(newCollection.dirPath, GIT_IGNORE_FILE_NAME);
-    const originalContent = '.custom\n';
-    await writeFile(gitignorePath, originalContent);
+    await writeFile(gitignorePath, '.custom\n.draft\n');
 
     // Act
     await persistenceService.saveCollection(newCollection, true);
 
     // Assert
     const content = await readFile(gitignorePath, 'utf-8');
-    expect(content).toBe(originalContent);
+    expect(content).toBe('.custom\n.draft\n.secrets.bin\n.*.tmp');
   });
 
   it('saveCollection(recursive=false) should not modify .gitignore', async () => {

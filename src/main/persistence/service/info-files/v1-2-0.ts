@@ -7,10 +7,13 @@ import { SemVer } from 'main/util/semver';
 import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-1-0';
 import { AbstractInfoFileMigrator } from './migrator';
 import { TrufosObjectType } from 'shim/objects';
-import { dirname, join } from 'node:path';
-import fs from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { createGitIgnore } from 'main/persistence/service/git-ignore';
 
 export const VERSION = new SemVer(1, 2, 0);
+
+/** The lines of a collection `.gitignore` file. */
+const GIT_IGNORE_LINES = ['~*'];
 
 type InfoFileBase = {
   id: string;
@@ -44,18 +47,7 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
   public readonly fromVersion = OLD_VERSION.toString();
 
   async migrate(old: OldInfoFile, type: TrufosObjectType, filePath: string): Promise<InfoFile> {
-    if (type === 'collection') await createGitIgnore(dirname(filePath));
+    if (type === 'collection') await createGitIgnore(dirname(filePath), GIT_IGNORE_LINES);
     return Object.assign(old, { version: VERSION.toString() });
   }
-}
-
-/**
- * Creates a collection .gitignore file in the specified directory path.
- * Exported for consistency with later migrators and reuse from services.
- * @param dirPath the directory path where the .gitignore file should be created
- */
-export async function createGitIgnore(dirPath: string) {
-  const gitIgnorePath = join(dirPath, '.gitignore');
-  logger.info(`Creating .gitignore file at`, gitIgnorePath);
-  await fs.writeFile(gitIgnorePath, '~*');
 }

@@ -1,4 +1,4 @@
-import { CollectionChanges, RequestChanges } from 'shim/collection-model';
+import { CollectionChanges, FolderChanges, RequestChanges } from 'shim/collection-model';
 import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { FormDataBody, RequestBody } from 'shim/objects/request';
@@ -237,6 +237,13 @@ export interface CollectionStateActions {
     changes: CollectionChanges,
     selectedEnvironmentKey?: string | null
   ): Promise<boolean>;
+
+  /**
+   * Change the settings of a folder. Settings that are not given stay unchanged.
+   * @param id the folder id
+   * @param changes the settings to change. `auth: null` makes the folder inherit the authorization.
+   */
+  updateFolder(id: TrufosId, changes: FolderChanges): Promise<boolean>;
 
   /**
    * Select the environment whose variables are used. Not persisted.

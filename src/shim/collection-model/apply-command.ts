@@ -129,6 +129,12 @@ export function applyCommand(model: ModelDraft, envelope: CommandEnvelope): void
       }
       return;
     }
+    case CommandType.UPDATE_FOLDER: {
+      const folder = getExistingFolder(model, command.id);
+      assignChanges(folder, command.changes);
+      folder.lastModified = timestamp;
+      return;
+    }
   }
 }
 

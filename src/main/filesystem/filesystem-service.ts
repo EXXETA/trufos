@@ -7,6 +7,9 @@ import path from 'node:path';
 const REPLACEMENT_FILE_NAME =
   /^\..+\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
 
+/** A `.gitignore` pattern that matches the temporary files of {@link FileSystemService.replaceFile}. */
+export const REPLACEMENT_FILE_GIT_IGNORE_PATTERN = '.*.tmp';
+
 /** A temporary file opened for writing. */
 export interface TemporaryFile {
   name: string;

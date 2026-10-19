@@ -11,40 +11,36 @@ import { type FormComponentConfiguration } from './ModularForm';
 export const AUTHORIZATION_NONE = 'none' as const;
 export type AuthorizationTypeOrNone = AuthorizationType | typeof AUTHORIZATION_NONE;
 
-const LABELS: { [K in AuthorizationTypeOrNone]: string } = {
+/** What an authorization belongs to. Folders cannot opt out, collections have nothing to inherit. */
+export type AuthorizationLevel = 'request' | 'folder' | 'collection';
+
+const CONCRETE_TYPES = [
+  AuthorizationType.BEARER,
+  AuthorizationType.BASIC,
+  AuthorizationType.OAUTH2,
+  AuthorizationType.OAUTH1,
+];
+
+const TYPES: { [L in AuthorizationLevel]: AuthorizationTypeOrNone[] } = {
+  request: [AUTHORIZATION_NONE, AuthorizationType.INHERIT, ...CONCRETE_TYPES],
+  folder: [AuthorizationType.INHERIT, ...CONCRETE_TYPES],
+  collection: [AUTHORIZATION_NONE, ...CONCRETE_TYPES],
+};
+
+export const AUTHORIZATION_TYPE_LABELS: { [K in AuthorizationTypeOrNone]: string } = {
   [AUTHORIZATION_NONE]: 'None',
-  [AuthorizationType.INHERIT]: 'Inherit from collection',
+  [AuthorizationType.INHERIT]: 'Inherit from parent',
   [AuthorizationType.BEARER]: 'Bearer Token',
   [AuthorizationType.BASIC]: 'Basic Auth',
   [AuthorizationType.OAUTH2]: 'OAuth 2.0',
   [AuthorizationType.OAUTH1]: 'OAuth 1.0',
 };
 
-const BASE_FORM = {
-  type: {
-    type: 'select' as const,
-    label: 'Authorization Type',
-    options: Object.entries(LABELS).map(([value, label]) => ({ value, label })),
-  },
-};
-
-export const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
-  [AUTHORIZATION_NONE]: {
-    ...BASE_FORM,
-    description: {
-      type: 'label',
-      text: 'No authorization will be applied to this request.',
-    },
-  },
-  [AuthorizationType.INHERIT]: {
-    ...BASE_FORM,
-    description: {
-      type: 'label',
-      text: 'This request will inherit authorization settings from the collection.',
-    },
-  },
+/** The fields of each authorization type, without the type itself. */
+const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
+  [AUTHORIZATION_NONE]: {},
+  [AuthorizationType.INHERIT]: {},
   [AuthorizationType.BEARER]: {
-    ...BASE_FORM,
     token: {
       type: 'text',
       label: 'Token',
@@ -52,7 +48,6 @@ export const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration
     },
   },
   [AuthorizationType.BASIC]: {
-    ...BASE_FORM,
     username: {
       type: 'text',
       label: 'Username',
@@ -65,7 +60,6 @@ export const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration
     },
   },
   [AuthorizationType.OAUTH2]: {
-    ...BASE_FORM,
     method: {
       type: 'select',
       label: 'Grant Type',
@@ -77,7 +71,6 @@ export const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration
     },
   },
   [AuthorizationType.OAUTH1]: {
-    ...BASE_FORM,
     method: {
       type: 'select',
       label: 'Flow',
@@ -117,7 +110,7 @@ const OAUTH1_SHARED_FORM: FormComponentConfiguration = {
   },
 };
 
-export const OAUTH1_FORMS: { [K in OAuth1Method]: FormComponentConfiguration } = {
+const OAUTH1_FORMS: { [K in OAuth1Method]: FormComponentConfiguration } = {
   [OAuth1Method.EXISTING_TOKEN]: {
     token: {
       type: 'text',
@@ -198,7 +191,7 @@ const OAUTH2_BASE_FORM: FormComponentConfiguration = {
   },
 };
 
-export const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
+const OAUTH2_FORMS: { [K in OAuth2Method]: FormComponentConfiguration } = {
   [OAuth2Method.CLIENT_CREDENTIALS]: {
     ...OAUTH2_BASE_FORM,
   },
@@ -275,16 +268,45 @@ const METHOD_FORMS: Partial<
   [AuthorizationType.OAUTH2]: OAUTH2_FORMS,
 };
 
+/** The description of the given type, if it has one. */
+function getDescription(
+  type: AuthorizationTypeOrNone,
+  level: AuthorizationLevel,
+  inheritedDescription?: string
+): string | undefined {
+  switch (type) {
+    case AuthorizationType.INHERIT:
+      return inheritedDescription;
+    case AUTHORIZATION_NONE:
+      return level === 'collection'
+        ? 'Requests that inherit their authorization are sent without one.'
+        : 'No authorization will be applied to this request.';
+  }
+}
+
 /**
- * Returns the form of the given authorization type. OAuth forms depend on the method as well.
+ * Builds the form of an authorization: the type to choose, its description and its fields. OAuth
+ * fields depend on the method as well.
  * @param type the authorization type, or none
  * @param method the OAuth method of an OAuth authorization
+ * @param level what the authorization belongs to. Determines the types to choose from.
+ * @param inheritedDescription describes what an inheriting authorization inherits
  */
-export function getAuthorizationForm(
+export function buildAuthorizationForm(
   type: AuthorizationTypeOrNone,
-  method?: string
+  method: string | undefined,
+  level: AuthorizationLevel,
+  inheritedDescription?: string
 ): FormComponentConfiguration {
-  const form = FORMS[type];
-  const methodForm = method != null ? METHOD_FORMS[type]?.[method] : undefined;
-  return methodForm != null ? { ...form, ...methodForm } : form;
+  const description = getDescription(type, level, inheritedDescription);
+  return {
+    type: {
+      type: 'select',
+      label: 'Authorization Type',
+      options: TYPES[level].map((value) => ({ value, label: AUTHORIZATION_TYPE_LABELS[value] })),
+    },
+    ...(description != null ? { description: { type: 'label', text: description } } : {}),
+    ...FORMS[type],
+    ...(method != null ? METHOD_FORMS[type]?.[method] : undefined),
+  };
 }

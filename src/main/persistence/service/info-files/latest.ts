@@ -4,11 +4,17 @@ import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { VariableMap } from 'shim/objects/variables';
 import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
-import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-4-0';
+import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-5-0';
 import { StateService } from '../state-service';
 
-export { createGitIgnore, GIT_IGNORE_CONTENT, GIT_IGNORE_FILE_NAME } from './v2-0-0';
-export { VERSION, InfoFile, CollectionInfoFile, FolderInfoFile, RequestInfoFile } from './v2-4-0';
+export {
+  VERSION,
+  InfoFile,
+  CollectionInfoFile,
+  FolderInfoFile,
+  RequestInfoFile,
+  GIT_IGNORE_LINES,
+} from './v2-5-0';
 
 /** An object that has an info file of its own. Its children are never written to it. */
 export type InfoObject = CollectionInfo | FolderInfo | TrufosRequest;
@@ -119,8 +125,7 @@ export function extractSecrets(object: InfoObject): Partial<InfoObject> {
         ...split(object, 'auth'),
       };
     case 'request':
-      return split(object, 'auth');
     case 'folder':
-      return {};
+      return split(object, 'auth');
   }
 }

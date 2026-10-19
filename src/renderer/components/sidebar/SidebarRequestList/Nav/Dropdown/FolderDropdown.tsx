@@ -8,6 +8,7 @@ import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { handleMouseEvent } from '@/util/callback-util';
 import { FolderInfo } from 'shim/collection-model';
 import { useCollectionActions } from '@/state/collectionStore';
+import { useViewActions } from '@/state/viewStore';
 
 import { MoreIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,7 @@ export interface FolderDropdownProps {
 
 export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdownProps) => {
   const { copyItem, deleteItem } = useCollectionActions();
+  const { openFolderSettings } = useViewActions();
 
   const openModal = (type: 'folder' | 'request') => {
     onCreateItem({ type, parentId: folder.id });
@@ -52,6 +54,10 @@ export const FolderDropdown = ({ folder, onRename, onCreateItem }: FolderDropdow
 
           <DropdownMenuItem onClick={handleMouseEvent(() => copyItem(folder.id))}>
             Copy Folder
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={handleMouseEvent(() => openFolderSettings(folder.id))}>
+            Folder Settings
           </DropdownMenuItem>
 
           <DropdownMenuItem

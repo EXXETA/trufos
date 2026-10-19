@@ -18,15 +18,15 @@ import {
 } from 'shim/objects/request';
 import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
 import { generateDefaultCollection } from './default-collection';
+import { createGitIgnore, ensureGitIgnore } from './git-ignore';
 import {
   CollectionInfoFile,
-  createGitIgnore,
   extractSecrets,
   FolderInfoFile,
   fromCollectionInfoFile,
   fromFolderInfoFile,
   fromRequestInfoFile,
-  GIT_IGNORE_FILE_NAME,
+  GIT_IGNORE_LINES,
   InfoFile,
   InfoObject,
   RequestInfoFile,
@@ -252,12 +252,9 @@ export class PersistenceService {
    * @param recursive whether to save all children of the collection recursively. Default is false.
    */
   public async saveCollection(collection: Collection, recursive = false): Promise<void> {
-    if (
-      recursive &&
-      ((await fs.mkdir(collection.dirPath, { recursive })) ||
-        !(await exists(path.join(collection.dirPath, GIT_IGNORE_FILE_NAME))))
-    ) {
-      await createGitIgnore(collection.dirPath);
+    if (recursive) {
+      await fs.mkdir(collection.dirPath, { recursive });
+      await ensureGitIgnore(collection.dirPath, GIT_IGNORE_LINES);
     }
     const { children, ...info } = collection;
     await this.saveCollectionInfo(info);
@@ -452,7 +449,7 @@ export class PersistenceService {
       children: [],
     };
     await this.saveCollection(collection); // save collection file
-    await createGitIgnore(dirPath); // create .gitignore file
+    await createGitIgnore(dirPath, GIT_IGNORE_LINES); // create .gitignore file
     return collection;
   }
 

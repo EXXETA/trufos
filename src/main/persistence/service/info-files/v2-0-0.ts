@@ -15,13 +15,12 @@ import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-4-0';
 import { DRAFT_DIR_NAME, SECRETS_FILE_NAME } from 'main/persistence/constants';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { createGitIgnore } from 'main/persistence/service/git-ignore';
 
 export const VERSION = new SemVer(2, 0, 0);
 
-export const GIT_IGNORE_FILE_NAME = '.gitignore';
-
-/** The content of a collection `.gitignore` file: drafts and secrets never enter version control. */
-export const GIT_IGNORE_CONTENT = ['.draft', '.secrets.bin'].join('\n');
+/** The lines of a collection `.gitignore` file: drafts and secrets never enter version control. */
+export const GIT_IGNORE_LINES = ['.draft', '.secrets.bin'];
 
 type InfoFileBase = {
   id: string;
@@ -66,7 +65,7 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
     const dirPath = path.dirname(filePath);
     if (type === 'collection') {
       await this.renameSecretsFile(dirPath);
-      await createGitIgnore(dirPath);
+      await createGitIgnore(dirPath, GIT_IGNORE_LINES);
     } else if (type === 'request') {
       await this.renameSecretsFile(dirPath);
       await this.moveDraftsToDraftDir(dirPath);
@@ -116,14 +115,4 @@ export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, Info
       }
     }
   }
-}
-
-/**
- * Creates a collection .gitignore file in the specified directory path.
- * @param dirPath the directory path where the .gitignore file should be created
- */
-export async function createGitIgnore(dirPath: string) {
-  const filePath = path.join(dirPath, GIT_IGNORE_FILE_NAME);
-  logger.info(`Creating .gitignore file at`, filePath);
-  await fs.writeFile(filePath, GIT_IGNORE_CONTENT);
 }

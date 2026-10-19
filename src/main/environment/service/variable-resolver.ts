@@ -2,7 +2,7 @@ import { Readable } from 'node:stream';
 import { TemplateReplaceStream } from 'template-replace-stream';
 import { VariableObject } from 'shim/objects/variables';
 import { getSystemVariable, getSystemVariables } from './system-variable';
-import { AuthorizationInformation, AuthorizationType } from 'shim/objects';
+import { AuthorizationInformation, AuthorizationInformationNoInherit } from 'shim/objects';
 import { createAuthStrategy } from 'main/network/authentication/auth-strategy-factory';
 import { AuthRequestContext } from 'main/network/authentication/auth-strategy';
 import { CollectionModel } from 'shim/collection-model';
@@ -101,9 +101,9 @@ async function resolveVariablesInAuth<T extends AuthorizationInformation>(
 }
 
 /**
- * Returns the authorization header for the given object. If the object has an authorization type
- * of `INHERIT`, the authorization of the collection is used.
- * @param model The model to read the collection authorization and the variables from.
+ * Returns the authorization header for the given authorization. An inherited authorization has to
+ * be resolved first, see `resolveAuthorization()`.
+ * @param model The model to read the variables from.
  * @param auth The authorization information to get the header for.
  * @param context Information about the request being sent, required by strategies
  * that sign the request (OAuth 1.0).
@@ -111,15 +111,10 @@ async function resolveVariablesInAuth<T extends AuthorizationInformation>(
  */
 export async function getAuthorizationHeader(
   model: CollectionModel,
-  auth?: AuthorizationInformation,
+  auth?: AuthorizationInformationNoInherit,
   context?: AuthRequestContext
 ): Promise<string | undefined> {
-  if (auth == null) {
-    return;
-  } else if (auth.type === AuthorizationType.INHERIT) {
-    return getAuthorizationHeader(model, model.collection.auth, context);
-  } else {
-    const resolved = await resolveVariablesInAuth(model, auth);
-    return await createAuthStrategy(resolved).getAuthHeader(context);
-  }
+  if (auth == null) return;
+  const resolved = await resolveVariablesInAuth(model, auth);
+  return await createAuthStrategy(resolved).getAuthHeader(context);
 }

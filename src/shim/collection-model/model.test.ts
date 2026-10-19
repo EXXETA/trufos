@@ -6,11 +6,13 @@ import {
   assignChanges,
   getAncestorIds,
   getChildren,
+  getAuthorizationSource,
   getDescendantIds,
   getParentFolderIds,
   getTopLevelIds,
   isSelfOrDescendant,
   normalizeCollection,
+  resolveAuthorization,
   walkTree,
 } from './model';
 import { makeExampleCollection, makeRequest } from '../__mocks__/collection-fixtures';
@@ -136,5 +138,54 @@ describe('getTopLevelIds()', () => {
     const model = normalizeCollection(collection);
     expect(getTopLevelIds(model, ['r2', 'f1', 'r3'])).toEqual(['f1', 'r3']);
     expect(getTopLevelIds(model, ['r1', 'f2'])).toEqual(['r1', 'f2']);
+  });
+});
+
+describe('getAuthorizationSource()', () => {
+  const folderAuth = { type: AuthorizationType.BEARER, token: 'folder' } as const;
+  const collectionAuth = { type: AuthorizationType.BEARER, token: 'collection' } as const;
+
+  it('returns the collection if no folder above has an authorization', () => {
+    const model = normalizeCollection({ ...collection, auth: collectionAuth });
+
+    expect(getAuthorizationSource(model, 'f2')).toBe(model.collection);
+    expect(getAuthorizationSource(model, 'col')).toBe(model.collection);
+  });
+
+  it('returns the closest folder that has an authorization', () => {
+    const model = produce(normalizeCollection({ ...collection, auth: collectionAuth }), (draft) => {
+      draft.folders.get('f1')!.auth = folderAuth;
+    });
+
+    expect(getAuthorizationSource(model, 'f2')).toBe(model.folders.get('f1'));
+    expect(getAuthorizationSource(model, 'f1')).toBe(model.folders.get('f1'));
+  });
+});
+
+describe('resolveAuthorization()', () => {
+  const folderAuth = { type: AuthorizationType.BEARER, token: 'folder' } as const;
+  const collectionAuth = { type: AuthorizationType.BEARER, token: 'collection' } as const;
+  const inherit = { type: AuthorizationType.INHERIT } as const;
+
+  it('returns the own authorization of a node that does not inherit', () => {
+    const model = normalizeCollection({ ...collection, auth: collectionAuth });
+
+    expect(resolveAuthorization(model, { auth: folderAuth, parentId: 'f2' })).toBe(folderAuth);
+    expect(resolveAuthorization(model, { parentId: 'f2' })).toBeUndefined();
+  });
+
+  it('returns the authorization of the closest folder that has one', () => {
+    const model = produce(normalizeCollection({ ...collection, auth: collectionAuth }), (draft) => {
+      draft.folders.get('f1')!.auth = folderAuth;
+    });
+
+    expect(resolveAuthorization(model, { auth: inherit, parentId: 'f2' })).toEqual(folderAuth);
+    expect(resolveAuthorization(model, { auth: inherit, parentId: 'col' })).toEqual(collectionAuth);
+  });
+
+  it('returns undefined if neither a folder above nor the collection has an authorization', () => {
+    const model = normalizeCollection(collection);
+
+    expect(resolveAuthorization(model, { auth: inherit, parentId: 'f2' })).toBeUndefined();
   });
 });
