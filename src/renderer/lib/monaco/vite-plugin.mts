@@ -84,7 +84,8 @@ export function monacoAmdPlugin(): Plugin {
         }
       );
     },
-    closeBundle() {
+    // only builds write a bundle; dev and test servers call closeBundle too, when they close
+    writeBundle() {
       if (!config?.build.ssr) {
         cpSync(monacoVsPath, path.join(path.resolve(config.root, config.build.outDir), 'vs'), {
           recursive: true,

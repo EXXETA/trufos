@@ -5,8 +5,6 @@ import { createRoot } from 'react-dom/client';
 import { App } from '@/App';
 import winston from 'winston';
 
-import('@/lib/monaco/config.js'); // lazy load monaco editor to improve startup time
-
 console.info('Initializing renderer process...');
 
 // declare global functions

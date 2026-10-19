@@ -2,6 +2,8 @@ import { Editor, EditorProps, OnMount } from '@monaco-editor/react';
 import { useTheme, TrufosTheme } from '@/contexts/ThemeContext';
 import { editor } from 'monaco-editor';
 import { useEffect, useRef } from 'react';
+// configures @monaco-editor/react to use the bundled monaco before any editor is rendered
+import './config';
 
 interface MonacoEditorProps extends EditorProps {
   /**

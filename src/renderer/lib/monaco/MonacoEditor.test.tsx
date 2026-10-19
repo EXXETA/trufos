@@ -1,103 +1,90 @@
-import { createElement } from 'react';
-import { render } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, waitFor } from '@testing-library/react';
+import { beforeAll, describe, it, expect, vi } from 'vitest';
+import { loader } from '@monaco-editor/react';
+import type * as Monaco from 'monaco-editor';
 import type { editor } from 'monaco-editor';
 
 /**
- * The real monaco-editor core cannot run under jsdom (it throws while building
- * its theme/CSS, since jsdom has no layout engine), so the unit suite cannot
- * mount the actual editor — a faithful end-to-end reproduction of the unmount
- * crash would need a browser/electron e2e test.
- *
- * What this test does cover, against the **real** `@monaco-editor/react`
- * dependency: it stubs only the monaco-core loader with a lightweight fake so
- * the real `<Editor>` component mounts and unmounts, and asserts that
- * `MonacoEditor` (a) drives that lifecycle without throwing and (b) enables
- * `keepCurrentModel`. The `keepCurrentModel` flag is the guard that stops the
- * library from disposing the shared model on unmount — disposing it is what
- * crashes the app on newer monaco-editor versions when switching from the
- * request body editor to a tab without an editor. Dropping the flag fails the
- * second assertion.
+ * The real monaco-editor core cannot run under jsdom (it throws while building its theme/CSS, since
+ * jsdom has no layout engine), so the real `@monaco-editor/react` editor runs on a lightweight fake
+ * of monaco. The library loads its loader with `require()`, which `vi.mock` does not intercept, so
+ * the fake is handed to the real loader via `loader.config()`, as `config.ts` does in the app.
  */
 
-function makeFakeModel(id: string) {
-  return new Proxy({ uri: { toString: () => id }, dispose: () => {} } as Record<string, unknown>, {
-    get: (target, prop) => (prop in target ? target[prop as string] : () => ({ dispose() {} })),
+/** Returns a fake whose own members are used, and every other method returns a disposable. */
+function fake<T extends object>(target: T): T {
+  return new Proxy(target, {
+    get: (target, prop) => (prop in target ? target[prop as keyof T] : () => ({ dispose() {} })),
   });
+}
+
+function makeFakeModel(id: string) {
+  return fake({ uri: { toString: () => id }, dispose: vi.fn() });
 }
 
 function makeFakeEditor() {
   let model: unknown = makeFakeModel('default');
-  return new Proxy(
-    {
-      getModel: () => model,
-      setModel: (next: unknown) => {
-        model = next;
-      },
-      dispose: () => {},
-    } as Record<string, unknown>,
-    { get: (target, prop) => (prop in target ? target[prop as string] : () => ({ dispose() {} })) }
-  );
+  return fake({
+    getModel: () => model,
+    setModel: (next: unknown) => {
+      model = next;
+    },
+    dispose: vi.fn(),
+  });
 }
 
 const fakeMonaco = {
-  editor: new Proxy(
-    { create: () => makeFakeEditor(), getModel: () => null } as Record<string, unknown>,
-    { get: (target, prop) => (prop in target ? target[prop as string] : () => ({ dispose() {} })) }
-  ),
-  languages: new Proxy({}, { get: () => () => ({ dispose() {} }) }),
+  editor: fake({ create: () => makeFakeEditor(), getModel: () => null }),
+  languages: fake({}),
+  Uri: { parse: (uri: string) => ({ toString: () => uri }) },
 };
-
-vi.mock('@monaco-editor/loader', () => ({
-  default: {
-    config: () => {},
-    init: () => Promise.resolve(fakeMonaco),
-    __getMonacoInstance: () => fakeMonaco,
-  },
-}));
 
 vi.mock('@/contexts/ThemeContext', () => ({
   TrufosTheme: { Light: 'light', Dark: 'dark' },
   useTheme: () => ({ theme: 'light' }),
 }));
 vi.mock('monaco-editor', () => ({ editor: {} }));
-
-// Use the real @monaco-editor/react, wrapping <Editor> only to capture the
-// props MonacoEditor passes to it.
-let lastEditorProps: Record<string, unknown> | undefined;
-vi.mock('@monaco-editor/react', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@monaco-editor/react')>();
-  return {
-    ...actual,
-    Editor: (props: Record<string, unknown>) => {
-      lastEditorProps = props;
-      return createElement(actual.Editor, props);
-    },
-  };
-});
+// configuring the loader is covered by MonacoEditor.loader.test.ts
+vi.mock('./config', () => ({}));
 
 import MonacoEditor from './MonacoEditor';
 
+/** Renders the editor and waits until the real `@monaco-editor/react` editor is mounted. */
+async function renderEditor(model: editor.ITextModel) {
+  const onMount = vi.fn();
+  const result = render(<MonacoEditor model={model} onMount={onMount} />);
+  await waitFor(() => expect(onMount).toHaveBeenCalled());
+  const instance: editor.ICodeEditor = onMount.mock.calls[0][0];
+  return { ...result, instance };
+}
+
 describe('MonacoEditor', () => {
-  it('mounts and unmounts the real @monaco-editor/react editor without throwing', async () => {
-    const model = makeFakeModel('shared') as unknown as editor.ITextModel;
+  beforeAll(() => {
+    loader.config({ monaco: fakeMonaco as unknown as typeof Monaco });
+  });
 
-    const { unmount } = render(<MonacoEditor model={model} />);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+  it('mounts the real @monaco-editor/react editor with the given model', async () => {
+    // Arrange
+    const model = makeFakeModel('shared');
 
+    // Act
+    const { instance, unmount } = await renderEditor(model as unknown as editor.ITextModel);
+
+    // Assert
+    expect(instance.getModel()).toBe(model);
     expect(() => unmount()).not.toThrow();
   });
 
-  it('keeps the shared model alive on unmount (keepCurrentModel)', async () => {
-    const model = makeFakeModel('shared') as unknown as editor.ITextModel;
+  it('keeps the shared model alive on unmount', async () => {
+    // Arrange: the model is owned by the model registry, not by the editor
+    const model = makeFakeModel('shared');
+    const { instance, unmount } = await renderEditor(model as unknown as editor.ITextModel);
 
-    const { unmount } = render(<MonacoEditor model={model} />);
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    // The shared model is owned by the model registry, not the editor; the
-    // wrapper must tell @monaco-editor/react not to dispose it on unmount.
-    expect(lastEditorProps?.keepCurrentModel).toBe(true);
-
+    // Act
     unmount();
+
+    // Assert
+    expect(instance.dispose).toHaveBeenCalled();
+    expect(model.dispose).not.toHaveBeenCalled();
   });
 });
