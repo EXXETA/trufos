@@ -32,7 +32,7 @@ import {
 import { HistoryService } from 'main/history/history-service';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import { TrufosId } from 'shim/objects/id';
-import type { CollectionModel } from 'shim/collection-model';
+import { type CollectionModel, resolveAuthorization } from 'shim/collection-model';
 import { DispatcherCache } from 'main/network/service/dispatcher-cache';
 import { SettingsService } from 'main/persistence/service/settings-service';
 
@@ -163,12 +163,13 @@ export class HttpService {
       throw error;
     }
 
-    // set authorization header if the request has authentication information
+    // set authorization header if an authorization applies to the request
     let authorization: string | undefined;
-    if (request.auth != null) {
+    const auth = resolveAuthorization(model, request);
+    if (auth != null) {
       try {
         logger.debug('Generating authentication header');
-        authorization = await getAuthorizationHeader(model, request.auth, {
+        authorization = await getAuthorizationHeader(model, auth, {
           method: request.method,
           url,
         });

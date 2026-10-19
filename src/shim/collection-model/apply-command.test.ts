@@ -364,6 +364,27 @@ describe('applyCommand', () => {
     expect(model.collection).not.toHaveProperty('auth');
   });
 
+  it('sets and removes the authorization of a folder', () => {
+    let model = apply(createModel(), {
+      type: CommandType.UPDATE_FOLDER,
+      id: 'f1',
+      changes: { auth: { type: AuthorizationType.BEARER, token: 't' } },
+    });
+    expect(model.folders.get('f1')).toMatchObject({
+      auth: { type: AuthorizationType.BEARER, token: 't' },
+      lastModified: TIMESTAMP,
+    });
+
+    model = apply(model, { type: CommandType.UPDATE_FOLDER, id: 'f1', changes: { auth: null } });
+    expect(model.folders.get('f1')).not.toHaveProperty('auth');
+  });
+
+  it('rejects updating a folder that does not exist', () => {
+    expect(() =>
+      apply(createModel(), { type: CommandType.UPDATE_FOLDER, id: 'r1', changes: {} })
+    ).toThrow(CommandError);
+  });
+
   it('produces patches that reproduce the change on a replica', () => {
     const source = createModel();
     const replica = structuredClone(source);

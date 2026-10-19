@@ -205,6 +205,45 @@ describe('HttpService', () => {
     expect(lastCall.headers.authorization).toEqual(expectedAuthHeader);
   });
 
+  it('fetchAsync() should send the authorization a request inherits from its folder', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/data');
+    const folderModel = normalizeCollection({
+      ...structuredClone(model.collection),
+      auth: { type: AuthorizationType.BEARER, token: 'collection' },
+      children: [
+        {
+          id: 'folder',
+          parentId: model.collection.id,
+          type: 'folder',
+          lastModified: 0,
+          title: 'Folder',
+          auth: { type: AuthorizationType.BEARER, token: 'folder' },
+          children: [],
+        },
+      ],
+    });
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: 'folder',
+      type: 'request',
+      lastModified: 0,
+      title: 'Inheriting Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+      auth: { type: AuthorizationType.INHERIT },
+    };
+    const httpService = setupMockHttpService(url, null);
+
+    // Act
+    await httpService.fetchAsync(await prepare(request, folderModel), recorder);
+
+    // Assert
+    expect(mockAgent.getCallHistory()?.lastCall()?.headers?.authorization).toEqual('Bearer folder');
+  });
+
   it('fetchAsync() should use custom authorization header over generated', async () => {
     // Arrange
     const username = 'testuser';

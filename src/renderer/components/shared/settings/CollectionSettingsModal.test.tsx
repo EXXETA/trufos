@@ -47,6 +47,15 @@ vi.mock('@/components/shared/settings/TlsTab/CertificateEditor', () => ({
 vi.mock('@/components/shared/settings/ExportTab/ExportEditor', () => ({
   ExportEditor: () => null,
 }));
+vi.mock('@/components/shared/settings/AuthorizationTab/AuthorizationEditor', () => ({
+  AuthorizationEditor: ({
+    onAuthChange,
+  }: {
+    onAuthChange: (auth: { type: 'bearer'; token: string }) => void;
+  }) => (
+    <button onClick={() => onAuthChange({ type: 'bearer', token: 't' })}>Set authorization</button>
+  ),
+}));
 
 describe('CollectionSettingsModal', () => {
   const onClose = vi.fn();
@@ -116,5 +125,19 @@ describe('CollectionSettingsModal', () => {
 
     expect(actions.updateCollection).toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('saves the authorization of the collection', async () => {
+    const user = userEvent.setup();
+    render(<CollectionSettingsModal isOpen={true} onClose={onClose} />);
+
+    await user.click(screen.getByRole('tab', { name: 'Authorization' }));
+    await user.click(screen.getByRole('button', { name: 'Set authorization' }));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(actions.updateCollection).toHaveBeenCalledExactlyOnceWith(
+      { auth: { type: 'bearer', token: 't' } },
+      undefined
+    );
   });
 });

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { useActions } from '@/state/helper/util';
 import type { CreatingItem } from '@/components/sidebar/SidebarRequestList/types';
+import type { TrufosId } from 'shim/objects/id';
 
 /** What the sidebar lists: the requests of the collection or its request history. */
 export type SidebarView = 'requests' | 'history';
@@ -11,6 +12,8 @@ interface ViewState {
   isCollectionRunnerOpen: boolean;
   /** Whether the collection settings modal is open */
   isCollectionSettingsOpen: boolean;
+  /** The folder whose settings modal is open, if any */
+  folderSettingsId?: TrufosId;
   /** Whether the command palette is open */
   isCommandPaletteOpen: boolean;
   /** Whether the app settings modal is open */
@@ -31,6 +34,8 @@ interface ViewActions {
   closeCollectionRunner(): void;
   openCollectionSettings(): void;
   closeCollectionSettings(): void;
+  openFolderSettings(id: TrufosId): void;
+  closeFolderSettings(): void;
   openCommandPalette(): void;
   closeCommandPalette(): void;
   openAppSettings(): void;
@@ -76,6 +81,18 @@ export const useViewStore = create<ViewState & ViewActions>()(
       });
     },
 
+    openFolderSettings(id) {
+      set((state) => {
+        state.folderSettingsId = id;
+      });
+    },
+
+    closeFolderSettings() {
+      set((state) => {
+        state.folderSettingsId = undefined;
+      });
+    },
+
     openCommandPalette() {
       set((state) => {
         state.isCommandPaletteOpen = true;
@@ -117,6 +134,7 @@ export const useViewStore = create<ViewState & ViewActions>()(
 
 export const selectIsCollectionRunnerOpen = (state: ViewState) => state.isCollectionRunnerOpen;
 export const selectIsCollectionSettingsOpen = (state: ViewState) => state.isCollectionSettingsOpen;
+export const selectFolderSettingsId = (state: ViewState) => state.folderSettingsId;
 export const selectIsCommandPaletteOpen = (state: ViewState) => state.isCommandPaletteOpen;
 export const selectIsAppSettingsOpen = (state: ViewState) => state.isAppSettingsOpen;
 export const selectSidebarView = (state: ViewState): SidebarView => state.sidebarView;

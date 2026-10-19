@@ -526,6 +526,10 @@ export const createCollectionStore = (
         }
       ),
 
+      updateFolder: reported('Could not change the folder', async (id, changes) => {
+        await dispatch({ type: CommandType.UPDATE_FOLDER, id, changes });
+      }),
+
       selectEnvironment: reported('Could not select the environment', async (key) => {
         await dispatch({
           type: CommandType.UPDATE_COLLECTION,

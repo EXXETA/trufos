@@ -3,6 +3,11 @@ import { enableMapSet, enablePatches, type Patch } from 'immer';
 import { Collection } from '../objects/collection';
 import { Folder } from '../objects/folder';
 import { TrufosRequest } from '../objects/request';
+import {
+  AuthorizationInformation,
+  AuthorizationInformationNoInherit,
+  AuthorizationType,
+} from '../objects/auth';
 import type { CollectionUiState } from '../collection-ui-state';
 
 // both processes apply commands and patches to Map-based models
@@ -171,6 +176,42 @@ export function isParent(
   id: string
 ): boolean {
   return id === model.collection.id || model.folders.has(id);
+}
+
+/**
+ * Returns where a request or folder inherits its authorization from: the closest folder above it
+ * that has an authorization, or else the collection.
+ * @param model the collection and its folders
+ * @param parentId the ID of the parent of the inheriting request or folder
+ */
+export function getAuthorizationSource(
+  model: Pick<CollectionModel, 'collection' | 'folders'>,
+  parentId: string
+): CollectionInfo | FolderInfo {
+  for (
+    let folder = model.folders.get(parentId);
+    folder != null;
+    folder = model.folders.get(folder.parentId)
+  ) {
+    if (folder.auth != null) return folder;
+  }
+  return model.collection;
+}
+
+/**
+ * Returns the authorization that applies to a request or folder: its own one, or the inherited one
+ * if it inherits it.
+ * @param model the collection and its folders
+ * @param node the request or folder
+ * @returns the applying authorization, or undefined if there is none
+ */
+export function resolveAuthorization(
+  model: Pick<CollectionModel, 'collection' | 'folders'>,
+  node: { auth?: AuthorizationInformation; parentId: string }
+): AuthorizationInformationNoInherit | undefined {
+  const { auth } = node;
+  if (auth?.type !== AuthorizationType.INHERIT) return auth;
+  return getAuthorizationSource(model, node.parentId).auth;
 }
 
 /** Returns the folder or request with the given ID. */

@@ -36,6 +36,12 @@ export const CollectionChanges = z
   .partial();
 export type CollectionChanges = z.infer<typeof CollectionChanges>;
 
+/** The settings of a folder that can be changed. `auth: null` makes the folder inherit it. */
+export const FolderChanges = z
+  .object({ auth: AuthorizationInformationNoInherit.nullable() })
+  .partial();
+export type FolderChanges = z.infer<typeof FolderChanges>;
+
 /** The type of a {@link CollectionCommand}. */
 export enum CommandType {
   CREATE_REQUEST = 'createRequest',
@@ -51,6 +57,7 @@ export enum CommandType {
   SAVE_REQUEST = 'saveRequest',
   DISCARD_REQUEST = 'discardRequest',
   UPDATE_COLLECTION = 'updateCollection',
+  UPDATE_FOLDER = 'updateFolder',
 }
 
 /**
@@ -122,6 +129,8 @@ export const CollectionCommand = z.discriminatedUnion('type', [
      */
     selectedEnvironmentKey: z.string().nullable().optional(),
   }),
+  /** Changes the settings of a folder. */
+  z.object({ type: z.literal(CommandType.UPDATE_FOLDER), id: TrufosId, changes: FolderChanges }),
 ]);
 export type CollectionCommand = z.infer<typeof CollectionCommand>;
 
