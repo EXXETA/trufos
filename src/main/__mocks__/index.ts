@@ -1,7 +1,7 @@
 import { homedir, tmpdir } from 'node:os';
 import { vol } from 'memfs';
 import { vi, beforeEach, expect } from 'vitest';
-import { prettifyError, ZodTypeAny } from 'zod';
+import { prettifyError, ZodType } from 'zod';
 
 // @ts-expect-error mock global logger with console
 global.logger = console;
@@ -20,7 +20,7 @@ beforeEach(() => {
 });
 
 expect.extend({
-  toBeOfSchema(received: unknown, schema: ZodTypeAny) {
+  toBeOfSchema(received: unknown, schema: ZodType) {
     const result = schema.safeParse(received);
     return {
       pass: result.success,
@@ -30,7 +30,7 @@ expect.extend({
           : prettifyError(result.error),
     };
   },
-  async toBeOfSchemaAsync(received: unknown, schema: ZodTypeAny) {
+  async toBeOfSchemaAsync(received: unknown, schema: ZodType) {
     const result = await schema.safeParseAsync(received);
     return {
       pass: result.success,
@@ -44,7 +44,7 @@ expect.extend({
 
 declare module 'vitest' {
   interface Assertion {
-    toBeOfSchema(schema: ZodTypeAny): void;
-    toBeOfSchemaAsync(schema: ZodTypeAny): Promise<void>;
+    toBeOfSchema(schema: ZodType): void;
+    toBeOfSchemaAsync(schema: ZodType): Promise<void>;
   }
 }

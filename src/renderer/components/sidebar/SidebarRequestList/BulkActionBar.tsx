@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ReactElement } from 'react';
-import { LuCopyPlus, LuTrash2, LuX } from 'react-icons/lu';
+import { CopyPlus, Trash2, X } from 'lucide-react';
 
 export interface BulkActionBarProps {
   count: number;
@@ -39,7 +39,7 @@ export const BulkActionBar = ({
           aria-label="Clear selection"
           onClick={onClear}
         >
-          <LuX size={16} />
+          <X size={16} />
         </Button>
 
         <Button
@@ -49,7 +49,7 @@ export const BulkActionBar = ({
           aria-label="Duplicate selected items"
           onClick={onDuplicate}
         >
-          <LuCopyPlus size={16} />
+          <CopyPlus size={16} />
         </Button>
 
         <Button
@@ -60,7 +60,7 @@ export const BulkActionBar = ({
           aria-label="Delete selected items"
           onClick={onDeleteClick}
         >
-          <LuTrash2 size={16} />
+          <Trash2 size={16} />
         </Button>
       </div>
     </div>

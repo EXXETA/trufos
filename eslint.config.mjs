@@ -14,7 +14,7 @@ const TOOLING_FILES = [
   'forge.config.ts',
   'vitest.config.mts',
   'src/*/vite.config.mts',
-  'src/renderer/lib/monaco/vite-plugin.mts',
+  'tools/**',
 ];
 
 export default [

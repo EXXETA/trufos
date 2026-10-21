@@ -1,6 +1,6 @@
 import { SidebarContent } from '@/components/ui/sidebar';
 import { getDateTimeText } from '@/util/format-util';
-import { httpMethodColor } from '@/services/StyleHelper';
+import { httpMethodColor } from '@/lib/http-method-color';
 import { cn } from '@/lib/utils';
 import {
   selectHistoryEntries,

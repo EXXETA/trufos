@@ -11,7 +11,6 @@
     "vitest.config.mts",
     "src/main/vite.config.mts",
     "src/renderer/vite.config.mts",
-    "src/renderer/lib/monaco/vite-plugin.mts",
-    "tools/**/*.ts"
+    "tools/**/*"
   ]
 }

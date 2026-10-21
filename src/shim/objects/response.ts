@@ -1,4 +1,4 @@
-import { HttpHeaders } from 'shim/headers';
+import { HttpHeaders } from './headers';
 import { z } from 'zod';
 
 export const ResponseSize = z.object({

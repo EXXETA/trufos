@@ -8,6 +8,7 @@ import { CollectionSettingsModal } from '@/components/shared/settings/Collection
 import { FolderSettingsModal } from '@/components/shared/settings/FolderSettingsModal';
 import { AppSettingsModal } from '@/components/shared/settings/AppSettingsModal';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -112,6 +113,7 @@ export const App = () => {
             <AppSettingsModal isOpen={isAppSettingsOpen} onClose={closeAppSettings} />
           </SidebarProvider>
         </TooltipProvider>
+        <Toaster />
       </ThemeProvider>
     </CollectionStoreProvider>
   );

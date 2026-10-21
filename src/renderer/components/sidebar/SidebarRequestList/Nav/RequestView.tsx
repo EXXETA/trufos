@@ -1,4 +1,4 @@
-import { httpMethodColor } from '@/services/StyleHelper';
+import { httpMethodColor } from '@/lib/http-method-color';
 import { TrufosRequest } from 'shim/objects/request';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import { cn } from '@/lib/utils';

@@ -52,7 +52,9 @@ const createWindow = async () => {
       safeStorage.setUsePlainTextEncryption(true);
     }
 
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('Safe storage is not available');
+    if (!(await safeStorage.isAsyncEncryptionAvailable())) {
+      throw new Error('Safe storage is not available');
+    }
     await settingsService.init();
     await stateService.init();
     await collectionState.init();

@@ -5,7 +5,7 @@ import { BodyTab } from './BodyTab';
 import { BODY_SIZE_LIMIT } from '@/lib/body';
 import type { editor } from 'monaco-editor';
 import type { StoredBody } from 'shim/objects/response';
-import type { HttpHeaders } from 'shim/headers';
+import type { HttpHeaders } from 'shim/objects/headers';
 import { getSizeText } from '@/util/format-util';
 
 vi.mock('@/lib/ipc-stream', () => ({

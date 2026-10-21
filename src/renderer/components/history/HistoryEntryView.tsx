@@ -1,7 +1,7 @@
 import { ArrowUpRight, X } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { ResponseTabs } from '@/components/mainWindow/bodyTabs/OutputTabs';
-import { httpMethodColor } from '@/services/StyleHelper';
+import { httpMethodColor } from '@/lib/http-method-color';
 import { cn } from '@/lib/utils';
 import { useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import {

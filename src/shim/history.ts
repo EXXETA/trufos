@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HttpHeaders } from './headers';
+import { HttpHeaders } from './objects/headers';
 import { LogLevel } from './logger';
 import { ReceivedResponse, StoredBody } from './objects/response';
 import { RequestMethod } from './objects/request-method';

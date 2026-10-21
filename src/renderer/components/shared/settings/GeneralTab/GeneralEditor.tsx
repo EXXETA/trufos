@@ -4,7 +4,7 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { MdOutlineContentCopy } from 'react-icons/md';
+import { Copy } from 'lucide-react';
 import { TypographyLineClamp } from '@/components/shared/TypographyLineClamp';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 
@@ -56,7 +56,7 @@ export const GeneralEditor = ({ name, onNameChange, onCloseCollection }: General
           </TypographyLineClamp>
 
           <Button variant="secondary" size="icon" onClick={handleCopyPath} title="Copy path">
-            <MdOutlineContentCopy size={16} />
+            <Copy size={16} />
           </Button>
         </div>
       )}

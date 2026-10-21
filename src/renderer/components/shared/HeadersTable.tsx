@@ -6,7 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { HttpHeaders } from 'shim/headers';
+import { HttpHeaders } from 'shim/objects/headers';
 
 export interface KeyValueTableProps {
   /** The rows as key/value pairs. Keys may repeat, e.g. for query parameters. */

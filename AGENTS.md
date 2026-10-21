@@ -111,12 +111,13 @@ yarn test           # Run Vitest tests
 yarn e2e            # Run Playwright end-to-end tests (requires `yarn package` first)
 yarn e2e:ui         # Run the end-to-end tests in Playwright's UI mode
 yarn lint           # Run ESLint
+yarn typecheck      # Type-check all TypeScript projects (shim, main, renderer, e2e, tooling)
 yarn prettier-check # Check formatting
 yarn prettier       # Fix formatting
 ```
 
-Run `yarn test` and `yarn lint` on the touched code after every change, not just before
-opening a PR.
+Run `yarn test`, `yarn lint` and `yarn typecheck` after every change, not just before opening
+a PR. Vitest does not type-check, so type errors only show up in `yarn typecheck`.
 
 ## Testing
 
@@ -181,8 +182,8 @@ Always create or reference a GitHub issue before starting work.
 ## Pull Requests
 
 - Open every PR against the `main` branch.
-- Run `yarn test`, `yarn lint`, and `yarn prettier-check` and fix all failures before
-  opening the PR.
+- Run `yarn test`, `yarn lint`, `yarn typecheck`, and `yarn prettier-check` and fix all
+  failures before opening the PR.
 - The PR title follows Conventional Commits, matching the main commit
   (e.g. `feat: add JSON body editor`).
 - Fill in every section of `.github/pull_request_template.md` (Changes, Testing, Checklist).

@@ -8,9 +8,6 @@ import { makeCollection, makeRequest } from 'shim/__mocks__/collection-fixtures'
 import { normalizeCollection } from 'shim/collection-model';
 import { SidebarRequestList } from './SidebarRequestList';
 
-// SidebarProvider renders a Toaster, which needs a theme context unrelated to this test
-vi.mock('@/components/ui/sonner', () => ({ Toaster: () => null }));
-
 vi.mock('@/services/event/renderer-event-service', () => ({
   RendererEventService: { instance: {} },
 }));

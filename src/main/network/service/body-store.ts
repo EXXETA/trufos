@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { pipeline, Readable, Writable } from 'node:stream';
 import { pipeline as pipelineAsync } from 'node:stream/promises';
 import { FileSystemService } from 'main/filesystem/filesystem-service';
-import type { HttpHeaders } from 'shim/headers';
+import type { HttpHeaders } from 'shim/objects/headers';
 
 const fileSystemService = FileSystemService.instance;
 

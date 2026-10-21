@@ -10,7 +10,10 @@ import { z } from 'zod';
  * end-to-end suite compares it to the current sources to refuse running against outdated bundles.
  */
 
-/** Everything that ends up in, or changes, the bundles in `.vite/build`. */
+/**
+ * Everything that ends up in, or changes, the bundles in `.vite/build`. Tooling outside `src` that
+ * affects the bundles, such as a Vite plugin, has to be listed here explicitly.
+ */
 const BUNDLE_INPUTS = [
   'src',
   'index.html',
@@ -19,6 +22,7 @@ const BUNDLE_INPUTS = [
   'forge.config.ts',
   'forge.env.d.ts',
   'tsconfig.base.json',
+  'tools/vite-plugin-monaco.mts',
 ];
 
 /** Inputs that never end up in a bundle, so changing them must not mark the bundles outdated. */

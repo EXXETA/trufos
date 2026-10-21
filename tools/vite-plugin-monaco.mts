@@ -21,9 +21,6 @@ export function monacoAmdPlugin(): Plugin {
   const monacoVsPath = path.resolve(
     import.meta.dirname,
     '..',
-    '..',
-    '..',
-    '..',
     'node_modules',
     'monaco-editor',
     'min',

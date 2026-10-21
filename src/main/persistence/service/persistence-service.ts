@@ -328,7 +328,7 @@ export class PersistenceService {
     const secrets = extractSecrets(object);
     if (Object.keys(secrets).length > 0) {
       logger.debug(`Saving secrets for ${object.type} with ID [${object.id}]`);
-      await fileSystemService.replaceFile(filePath, secretService.encrypt(JSON.stringify(secrets)));
+      await secretService.writeJson(filePath, secrets);
     } else if (await exists(filePath)) {
       logger.debug(`Removing secrets file for ${object.type} with ID [${object.id}]`);
       await fs.unlink(filePath);
@@ -692,11 +692,15 @@ export class PersistenceService {
     }
   }
 
-  private async loadSecrets(dirPath: string): Promise<Partial<InfoFile>> {
+  /**
+   * Loads the secrets of an info file. They are only validated together with the info file they are
+   * merged into, after migrating it, as they can be in the format of any older version.
+   */
+  private async loadSecrets(dirPath: string): Promise<Record<string, unknown>> {
     const filePath = path.join(dirPath, SECRETS_FILE_NAME);
     if (await exists(filePath)) {
       logger.debug('Loading secrets from', filePath);
-      return JSON.parse(secretService.decrypt(await readFileLimited(filePath)));
+      return await secretService.readJson(filePath, z.record(z.string(), z.unknown()));
     } else {
       return {};
     }
