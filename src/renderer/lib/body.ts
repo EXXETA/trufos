@@ -1,4 +1,4 @@
-import { HttpHeaders } from 'shim/headers';
+import { HttpHeaders } from 'shim/objects/headers';
 
 /** Bodies larger than this are only shown partially. The full body can still be downloaded. */
 export const BODY_SIZE_LIMIT = 5_000_000; // 5 MB

@@ -28,7 +28,7 @@ import {
 } from './treeUtilities';
 import { SortMode } from 'shim/sort-mode';
 import { FolderIcon, SmallArrow } from '@/components/icons';
-import { httpMethodColor } from '@/services/StyleHelper';
+import { httpMethodColor } from '@/lib/http-method-color';
 import { cn } from '@/lib/utils';
 import {
   FolderInfo,

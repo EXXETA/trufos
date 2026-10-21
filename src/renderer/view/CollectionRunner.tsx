@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useBodyData } from '@/hooks/useBodyData';
 import { FolderIcon, SmallArrow } from '@/components/icons';
-import { httpMethodColor } from '@/services/StyleHelper';
+import { httpMethodColor } from '@/lib/http-method-color';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
 import { cn } from '@/lib/utils';
 import {

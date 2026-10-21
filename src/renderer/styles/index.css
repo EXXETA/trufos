@@ -254,11 +254,6 @@
     background-color: var(--disabled);
     color: var(--text-primary);
   }
-  .sidebar-item.selected {
-    background: var(--sidebar-primary);
-    color: var(--sidebar-primary-foreground);
-    font-weight: bold;
-  }
 }
 
 /* Theme Variables */

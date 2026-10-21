@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { getIndentation } from '@/components/sidebar/SidebarRequestList/Nav/indentation';
 import { InlineRename } from '@/components/shared/InlineRename';
 import { FolderIcon } from '@/components/icons';
-import { httpMethodColor } from '@/services/StyleHelper';
+import { httpMethodColor } from '@/lib/http-method-color';
 
 import { RequestMethod } from 'shim/objects/request-method';
 

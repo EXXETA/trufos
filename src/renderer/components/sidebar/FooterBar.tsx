@@ -5,7 +5,7 @@ import { GithubIcon } from '@/components/icons';
 import { Divider } from '@/components/shared/Divider';
 import { SidebarFooter } from '@/components/ui/sidebar';
 import { useViewActions } from '@/state/viewStore';
-import { FiSettings } from 'react-icons/fi';
+import { Settings } from 'lucide-react';
 
 export function FooterBar() {
   const [appVersion, setAppVersion] = useState<string | undefined>(undefined);
@@ -26,7 +26,7 @@ export function FooterBar() {
           className="hover:text-foreground flex cursor-pointer items-center gap-2 text-(--text-secondary) transition-colors duration-300"
         >
           <div className="flex h-6 w-6 items-center justify-center">
-            <FiSettings className="text-lg" />
+            <Settings className="size-4.5" />
           </div>
           <span className="shrink-0 text-[12px] leading-[1.2] font-medium tracking-normal whitespace-pre normal-case no-underline">
             Settings

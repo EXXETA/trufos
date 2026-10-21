@@ -13,7 +13,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { showError } from '@/error/errorHandler';
 import { getSizeText } from '@/util/format-util';
-import { HttpHeaders } from 'shim/headers';
+import { HttpHeaders } from 'shim/objects/headers';
 import { StoredBody } from 'shim/objects/response';
 
 enum OutputType {

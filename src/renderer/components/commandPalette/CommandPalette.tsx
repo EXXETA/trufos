@@ -36,7 +36,7 @@ import {
   useCollectionTree,
 } from '@/state/collectionStore';
 import { useViewActions } from '@/state/viewStore';
-import { httpMethodColor } from '@/services/StyleHelper';
+import { httpMethodColor } from '@/lib/http-method-color';
 import { Divider } from '@/components/shared/Divider';
 import {
   RequestResultsGrid,

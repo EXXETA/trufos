@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
-import { monacoAmdPlugin } from './lib/monaco/vite-plugin.mts';
+import { monacoAmdPlugin } from '../../tools/vite-plugin-monaco.mts';
 
 export default defineConfig({
   plugins: [react({}), tailwindcss(), monacoAmdPlugin()],

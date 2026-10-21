@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+/** Headers of an HTTP message, as received from or sent over the network. */
+export const HttpHeaders = z.record(
+  z.string(),
+  z.union([z.string(), z.string().array(), z.undefined()])
+);
+export type HttpHeaders = z.infer<typeof HttpHeaders>;
+
 export const TrufosHeader = z.object({
   key: z.string(),
   value: z.string(),

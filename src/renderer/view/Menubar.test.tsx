@@ -13,13 +13,6 @@ const renderMenubar = () =>
     </SidebarProvider>
   );
 
-// SidebarProvider itself renders <Toaster /> (components/ui/sonner.tsx), which needs a
-// ThemeProvider ancestor that in turn needs jsdom's window.matchMedia — unrelated to what this
-// test verifies (the pendingCreateItem bridge), so stub it out rather than wiring up theme context.
-vi.mock('@/components/ui/sonner', () => ({
-  Toaster: () => null,
-}));
-
 // Stub the heavy sidebar subtree — this test only cares whether Menubar folds viewStore's
 // pendingCreateItem into the creatingItem prop it passes down, not the subtree's own rendering.
 vi.mock('@/components/sidebar/SidebarHeaderBar', () => ({

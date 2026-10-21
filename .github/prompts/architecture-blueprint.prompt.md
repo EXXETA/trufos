@@ -75,7 +75,7 @@ Document:
 - **Error handling** – typed errors, user-facing toasts, Winston logging
 - **Validation** – Zod schemas, where validation occurs
 - **Logging** – Winston in main process, renderer logging approach
-- **Theming** – next-themes integration, dark/light mode
+- **Theming** – `ThemeContext` (light/dark/system preference), Tailwind theme tokens
 
 ### 8. Testing Architecture
 

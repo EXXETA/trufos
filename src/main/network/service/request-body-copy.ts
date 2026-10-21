@@ -2,7 +2,7 @@ import { pipeline, Readable } from 'node:stream';
 import { finished } from 'node:stream/promises';
 import { FormData, Response } from 'undici';
 import { BodyStore } from 'main/network/service/body-store';
-import type { HttpHeaders } from 'shim/headers';
+import type { HttpHeaders } from 'shim/objects/headers';
 import { BodyRecorder } from './body-recorder';
 
 const bodyStore = BodyStore.instance;

@@ -1,5 +1,4 @@
-import { createLogger, format, transports, type Logger } from 'winston';
-import { Format, TransformableInfo } from 'logform';
+import { createLogger, format, transports, type Logform, type Logger } from 'winston';
 import { app, ipcMain } from 'electron';
 import { LogEntry } from 'shim/logger';
 import { format as formatString } from 'node:util';
@@ -10,7 +9,7 @@ const LOG_SECRET = Symbol('logSecret');
 
 console.info('Saving logs at', app.getPath('logs'));
 
-type TransformableInfoExtended = TransformableInfo & LogEntry;
+type TransformableInfoExtended = Logform.TransformableInfo & LogEntry;
 
 declare global {
   var logger: Logger & {
@@ -23,9 +22,8 @@ declare global {
   };
 }
 
-class SplatFormat implements Format {
-  // @ts-expect-error logform's Format.transform signature uses TransformableInfo but we use an extended type
-  transform(info: TransformableInfoExtended) {
+class SplatFormat implements Logform.Format {
+  transform(info: Logform.TransformableInfo) {
     if (info instanceof Error) {
       // Not a plain assignment: some Error subclasses expose `message` as a getter-only accessor
       // on their prototype (e.g. DOMException, which is what an aborted request rejects with), and
@@ -39,8 +37,8 @@ class SplatFormat implements Format {
       return info;
     }
 
-    let args = info[SPLAT] as unknown[];
-    if (!Array.isArray(args)) args = [];
+    const splat = info[SPLAT];
+    let args: unknown[] = Array.isArray(splat) ? splat : [];
 
     // check if this is a secret log
     if (args.length > 0 && args[0] === LOG_SECRET) {
@@ -49,9 +47,11 @@ class SplatFormat implements Format {
     }
 
     // ensure the message is a string
-    if (typeof info.message !== 'string') {
+    let message = '';
+    if (typeof info.message === 'string') {
+      message = info.message;
+    } else {
       args.unshift(info.message);
-      info.message = '';
     }
 
     // handle broken error object formatting: winston already appended the error's message to the
@@ -59,20 +59,19 @@ class SplatFormat implements Format {
     // shorter than the error's would otherwise be sliced away entirely.
     if (args.length > 0 && args[0] instanceof Error) {
       const duplicate = ` ${args[0].message}`;
-      if (info.message.endsWith(duplicate)) {
-        info.message = info.message.slice(0, -duplicate.length);
+      if (message.endsWith(duplicate)) {
+        message = message.slice(0, -duplicate.length);
       }
     }
 
     // format any other arguments
-    info.message = formatString(info.message, ...args);
+    info.message = formatString(message, ...args);
     return info;
   }
 }
 
-class SecretFilter implements Format {
-  // @ts-expect-error logform's Format.transform signature uses TransformableInfo but we use an extended type
-  transform(info: TransformableInfoExtended) {
+class SecretFilter implements Logform.Format {
+  transform(info: Logform.TransformableInfo) {
     return info.isSecret === true ? false : info;
   }
 }
@@ -100,7 +99,6 @@ const baseLogger = createLogger({
       maxFiles: 10,
       maxsize: 1024 * 1024 * 10, // 10MiB
       tailable: true,
-      // @ts-expect-error SecretFilter.transform returns false for secrets, which is valid logform behavior
       format: format.combine(new SecretFilter(), BASE_FORMAT),
     }),
   ],
@@ -120,7 +118,7 @@ if (!app.isPackaged) {
   logger.add(new transports.Console({ level: 'debug' }));
 }
 
-ipcMain.on('log', (event, data: TransformableInfo & LogEntry) => {
+ipcMain.on('log', (event, data: TransformableInfoExtended) => {
   data[SPLAT] = data.splat;
   omit(data, 'splat');
   logger.write(data);

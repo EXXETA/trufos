@@ -1,6 +1,6 @@
 import { extension } from 'mime-types';
 
-import type { HttpHeaders } from 'shim/headers';
+import type { HttpHeaders } from 'shim/objects/headers';
 
 function getHeaderValue(headers: HttpHeaders, key: string): string | undefined {
   const value = headers[key.toLowerCase()];

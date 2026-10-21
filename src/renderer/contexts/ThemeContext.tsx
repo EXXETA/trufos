@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useSyncExternalStore } from 'react';
 import { TrufosTheme } from 'shim/app-settings';
 import { selectThemePreference, useAppSettingsStore } from '@/state/appSettingsStore';
 
@@ -18,34 +18,27 @@ export const useTheme = () => {
   return context;
 };
 
+const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
+
+const subscribeToSystemTheme = (onChange: () => void) => {
+  const mq = window.matchMedia(DARK_SCHEME_QUERY);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+};
+
 const getSystemTheme = (): TrufosTheme =>
-  window.matchMedia('(prefers-color-scheme: dark)').matches ? TrufosTheme.Dark : TrufosTheme.Light;
+  window.matchMedia(DARK_SCHEME_QUERY).matches ? TrufosTheme.Dark : TrufosTheme.Light;
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const themePreference = useAppSettingsStore(selectThemePreference);
-
-  const [resolvedTheme, setResolvedTheme] = useState<TrufosTheme>(() =>
-    themePreference === 'system' ? getSystemTheme() : (themePreference as TrufosTheme)
-  );
-
-  useEffect(() => {
-    if (themePreference !== 'system') {
-      setResolvedTheme(themePreference as TrufosTheme);
-      return;
-    }
-    setResolvedTheme(getSystemTheme());
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) =>
-      setResolvedTheme(e.matches ? TrufosTheme.Dark : TrufosTheme.Light);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, [themePreference]);
+  const systemTheme = useSyncExternalStore(subscribeToSystemTheme, getSystemTheme);
+  const theme = themePreference === 'system' ? systemTheme : themePreference;
 
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove(TrufosTheme.Light, TrufosTheme.Dark);
-    root.classList.add(resolvedTheme);
-  }, [resolvedTheme]);
+    root.classList.add(theme);
+  }, [theme]);
 
-  return <ThemeContext.Provider value={{ theme: resolvedTheme }}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={{ theme }}>{children}</ThemeContext.Provider>;
 };

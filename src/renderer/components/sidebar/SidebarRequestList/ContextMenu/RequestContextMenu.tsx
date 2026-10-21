@@ -1,5 +1,5 @@
 import React from 'react';
-import { CiMenuKebab } from 'react-icons/ci';
+import { EllipsisVertical } from 'lucide-react';
 import { useCollectionActions } from '@/state/collectionStore';
 import { handleMouseEvent } from '@/util/callback-util';
 import {
@@ -20,7 +20,7 @@ export const RequestContextMenu = ({ requestId }: RequestContextMenuProps) => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <div className="sidebar-row-menu flex h-4 w-4 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
-          <CiMenuKebab className="cursor-pointer hover:fill-[var(--text-secondary)]" />
+          <EllipsisVertical className="size-4 cursor-pointer hover:text-(--text-secondary)" />
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-background">
