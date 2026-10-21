@@ -72,7 +72,7 @@ describe('InfoFileMigrator v2.5.0', () => {
       url: parseUrl('https://example.com'),
       method: RequestMethod.GET,
       headers: [],
-      disabledInheritedHeaders: ['x-tenant'],
+      disabledHeaders: ['x-tenant'],
       body: { type: RequestBodyType.NONE },
     }).toBeOfSchemaAsync(RequestInfoFile);
   });

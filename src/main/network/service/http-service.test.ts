@@ -1,4 +1,5 @@
 import { HttpService } from './http-service';
+import { resolveVariablesInString } from 'main/environment/service/variable-resolver';
 import { Dispatcher, MockAgent, FormData } from 'undici';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -31,6 +32,12 @@ import { HistoryService } from 'main/history/history-service';
 import { SettingsService } from 'main/persistence/service/settings-service';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import type { TrufosResponse } from 'shim/objects/response';
+
+vi.mock('main/environment/service/variable-resolver', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('main/environment/service/variable-resolver')>();
+  return { ...actual, resolveVariablesInString: vi.fn(actual.resolveVariablesInString) };
+});
 
 const mockAgent = new MockAgent({ connections: 1 });
 const recorder = { sent: vi.fn(), scriptLog: vi.fn() } satisfies RequestRecorder;
@@ -204,7 +211,36 @@ describe('HttpService', () => {
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
     // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
-    expect(lastCall.headers.authorization).toEqual(expectedAuthHeader);
+    expect(lastCall.headers.authorization).toEqual([expectedAuthHeader]);
+  });
+
+  it('fetchAsync() should not resolve variables in the generated authorization header', async () => {
+    // Arrange: the token resolves to a value that looks like a template of a defined variable
+    const url = new URL('https://example.com/api/data');
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Templated Token Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.NONE },
+      auth: { type: AuthorizationType.BEARER, token: '{{ token }}' },
+    };
+    const variables = new Map([
+      ['token', '{{ secret }}'],
+      ['secret', 'rewritten'],
+    ]);
+    const httpService = setupMockHttpService(url, null);
+
+    // Act
+    await httpService.fetchAsync(await prepare(request, withVariables(variables)), recorder);
+
+    // Assert
+    const headers = mockAgent.getCallHistory()?.lastCall()?.headers;
+    expect(headers?.authorization).toEqual(['Bearer {{ secret }}']);
   });
 
   it('fetchAsync() should send the authorization a request inherits from its folder', async () => {
@@ -243,7 +279,9 @@ describe('HttpService', () => {
     await httpService.fetchAsync(await prepare(request, folderModel), recorder);
 
     // Assert
-    expect(mockAgent.getCallHistory()?.lastCall()?.headers?.authorization).toEqual('Bearer folder');
+    expect(mockAgent.getCallHistory()?.lastCall()?.headers?.authorization).toEqual([
+      'Bearer folder',
+    ]);
   });
 
   it('fetchAsync() should send the headers a request inherits unless it disables or overrides them', async () => {
@@ -277,7 +315,7 @@ describe('HttpService', () => {
       url: parseUrl(url.toString()),
       method: RequestMethod.GET,
       headers: [{ key: 'x-overridden', value: 'request', isActive: true }],
-      disabledInheritedHeaders: ['x-disabled'],
+      disabledHeaders: ['x-disabled'],
       body: { type: RequestBodyType.NONE },
     };
     const httpService = setupMockHttpService(url, null);
@@ -512,7 +550,33 @@ describe('HttpService', () => {
     const lastCall = mockAgent.getCallHistory()?.lastCall();
     expect(lastCall).toBeDefined();
     // @ts-expect-error lastCall may be undefined, expect() asserts it is defined
-    expect(lastCall.headers['content-type']).toEqual('application/json');
+    expect(lastCall.headers['content-type']).toEqual(['application/json']);
+  });
+
+  it('fetchAsync() should not send the automatic headers the request disables', async () => {
+    // Arrange
+    const url = new URL('https://example.com/disabled');
+    const httpService = setupMockHttpService(url, null);
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Disabled Headers Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      disabledHeaders: ['content-type', 'user-agent'],
+      body: { type: RequestBodyType.TEXT, mimeType: 'application/json' },
+    };
+
+    // Act
+    await httpService.fetchAsync(await prepare(request), recorder);
+
+    // Assert
+    const headers = mockAgent.getCallHistory()?.lastCall()?.headers;
+    expect(headers).not.toHaveProperty('content-type');
+    expect(headers).not.toHaveProperty('user-agent');
   });
 
   it('fetchAsync() should send neither a body nor a content type for a request without a body', async () => {
@@ -917,7 +981,7 @@ describe('HttpService', () => {
         url: url.toString(),
         headers: expect.objectContaining({
           'x-trace': ['abc'],
-          authorization: expect.stringMatching(/^Basic /),
+          authorization: [expect.stringMatching(/^Basic /)],
         }),
       },
       undefined
@@ -978,7 +1042,7 @@ describe('HttpService', () => {
     await httpService.fetchAsync(await prepare(request), recorder);
 
     // Assert
-    expect(recorder.sent.mock.calls[0]?.[0].headers['content-length']).toBe('12');
+    expect(recorder.sent.mock.calls[0]?.[0].headers['content-length']).toEqual(['12']);
     const bodyCopy: BodyCopy | undefined = recorder.sent.mock.calls[0]?.[1];
     await bodyCopy?.done;
     expect(await readText(responseBodyService.openBody(bodyCopy!.id)!)).toEqual('file content');
@@ -1022,6 +1086,51 @@ describe('HttpService', () => {
     // Assert: the file handle is closed once the stream is destroyed
     expect(handles).toHaveLength(1);
     await vi.waitFor(() => expect(handles[0].fd).toBe(-1));
+  });
+
+  it('fetchAsync() should close the file body if resolving the headers fails', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/header-failure');
+    const httpService = new HttpService({ get: async () => mockAgent });
+    await fsp.mkdir(USER_DATA_DIR, { recursive: true });
+    const filePath = path.join(USER_DATA_DIR, `${randomUUID()}.txt`);
+    await fsp.writeFile(filePath, 'file content');
+    const open = fsp.open.bind(fsp);
+    const handles: Awaited<ReturnType<typeof fsp.open>>[] = [];
+    vi.spyOn(fsp, 'open').mockImplementation(async (...args) => {
+      const handle = await open(...args);
+      handles.push(handle);
+      return handle;
+    });
+    const { resolveVariablesInString: resolve } = await vi.importActual<
+      typeof import('main/environment/service/variable-resolver')
+    >('main/environment/service/variable-resolver');
+    vi.mocked(resolveVariablesInString).mockImplementation(async (model, value, ...rest) => {
+      if (value === 'fails') throw new Error('cannot resolve');
+      return await resolve(model, value, ...rest);
+    });
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'File Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [{ key: 'X-Fails', value: 'fails', isActive: true }],
+      body: { type: RequestBodyType.FILE, filePath },
+    };
+
+    try {
+      // Act
+      await expect(httpService.fetchAsync(await prepare(request), recorder)).rejects.toThrow();
+
+      // Assert: the file handle is closed once the stream is destroyed
+      expect(handles).toHaveLength(1);
+      await vi.waitFor(() => expect(handles[0].fd).toBe(-1));
+    } finally {
+      vi.mocked(resolveVariablesInString).mockImplementation(resolve);
+    }
   });
 
   it('fetchAsync() should use the client certificate of the collection', async () => {
@@ -1125,7 +1234,7 @@ describe('HttpService', () => {
     expect(lastCall?.path).toBe(url.pathname);
     expect(lastCall?.headers).toMatchObject({
       'x-token': ['from-script'],
-      authorization: 'Bearer from-script',
+      authorization: ['Bearer from-script'],
     });
   });
 });

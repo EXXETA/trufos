@@ -7,7 +7,7 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components
 import { useCallback, useMemo } from 'react';
 import { TrufosHeader } from 'shim/objects/headers';
 import { HeaderRow } from './HeaderRow';
-import { InheritedHeaderRows, InheritedHeaderRowsProps } from './InheritedHeaderRows';
+import { DerivedHeaderRows, DerivedHeaderRowsProps } from './DerivedHeaderRows';
 
 export interface HeaderEditorProps {
   headers: TrufosHeader[];
@@ -17,14 +17,14 @@ export interface HeaderEditorProps {
    */
   onChange: (change: (headers: TrufosHeader[]) => TrufosHeader[]) => void;
   /**
-   * The headers inherited from the collection and parent folders, shown read-only before the own
-   * ones. Not given for the collection, which inherits nothing.
+   * The automatic and inherited headers, shown read-only before the own ones. Not given for the
+   * collection, which has neither.
    */
-  inherited?: InheritedHeaderRowsProps;
+  derived?: DerivedHeaderRowsProps;
 }
 
 /** Edits the headers of a request, a folder or the collection. */
-export const HeaderEditor = ({ headers, onChange, inherited }: HeaderEditorProps) => {
+export const HeaderEditor = ({ headers, onChange, derived }: HeaderEditorProps) => {
   const allSelected = useMemo(
     () => headers.length > 0 && headers.every((h) => h.isActive),
     [headers]
@@ -116,7 +116,7 @@ export const HeaderEditor = ({ headers, onChange, inherited }: HeaderEditorProps
         </TableHeader>
 
         <TableBody>
-          {inherited != null && <InheritedHeaderRows {...inherited} />}
+          {derived != null && <DerivedHeaderRows {...derived} />}
           {headers.map((header, index) => (
             <HeaderRow
               key={index}

@@ -35,7 +35,7 @@ export const RequestInfoFile = InfoFileBase.extend({
   url: TrufosURL,
   method: z.enum(RequestMethod),
   headers: TrufosHeader.array(),
-  disabledInheritedHeaders: z.string().array().optional(),
+  disabledHeaders: z.string().array().optional(),
   body: RequestBody,
   auth: AuthorizationInformation.optional(),
 });
@@ -67,7 +67,8 @@ export type InfoFile = z.infer<typeof InfoFile>;
  * - Ignores the temporary files of atomic writes in the `.gitignore` of the collection.
  * - Adds the request body type `none`, which sends neither a body nor a Content-Type header.
  * - Adds optional `headers` to CollectionInfoFile and FolderInfoFile, which requests inherit, and
- *   optional `disabledInheritedHeaders` to RequestInfoFile.
+ *   optional `disabledHeaders` to RequestInfoFile, the automatic and inherited headers it does not
+ *   send.
  */
 export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();

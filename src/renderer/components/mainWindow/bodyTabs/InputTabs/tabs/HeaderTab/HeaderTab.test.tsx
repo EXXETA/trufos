@@ -1,13 +1,17 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { TrufosHeader } from 'shim/objects/headers';
-import { InheritedHeader } from 'shim/collection-model';
-import { makeInheritedHeader } from 'shim/__mocks__/collection-fixtures';
+import { AutomaticHeader, AutomaticHeaderKey, InheritedHeader } from 'shim/collection-model';
+import { makeAutomaticHeader, makeInheritedHeader } from 'shim/__mocks__/collection-fixtures';
 import { HeaderTab } from './HeaderTab';
 
 const { actions, selected } = vi.hoisted(() => ({
-  actions: { editHeaders: vi.fn(), setInheritedHeaderEnabled: vi.fn() },
-  selected: { headers: [] as TrufosHeader[], inherited: [] as InheritedHeader[] },
+  actions: { editHeaders: vi.fn(), setHeaderEnabled: vi.fn() },
+  selected: {
+    headers: [] as TrufosHeader[],
+    inherited: [] as InheritedHeader[],
+    automatic: [] as AutomaticHeader[],
+  },
 }));
 
 vi.mock('@/state/collectionStore', () => ({
@@ -20,6 +24,7 @@ describe('HeaderTab', () => {
     vi.clearAllMocks();
     selected.headers = [];
     selected.inherited = [];
+    selected.automatic = [];
   });
 
   it('edits the headers of the selected request', () => {
@@ -41,9 +46,24 @@ describe('HeaderTab', () => {
     render(<HeaderTab />);
 
     // Act
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Send inherited header X-Tenant' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Send header X-Tenant' }));
 
     // Assert
-    expect(actions.setInheritedHeaderEnabled).toHaveBeenCalledExactlyOnceWith('X-Tenant', false);
+    expect(actions.setHeaderEnabled).toHaveBeenCalledExactlyOnceWith('X-Tenant', false);
+  });
+
+  it('shows the automatic headers of the request and toggles them', () => {
+    // Arrange
+    selected.automatic = [makeAutomaticHeader(AutomaticHeaderKey.USER_AGENT, 'Trufos/1.0.0')];
+    render(<HeaderTab />);
+
+    // Act
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Send header User-Agent' }));
+
+    // Assert
+    expect(actions.setHeaderEnabled).toHaveBeenCalledExactlyOnceWith(
+      AutomaticHeaderKey.USER_AGENT,
+      false
+    );
   });
 });

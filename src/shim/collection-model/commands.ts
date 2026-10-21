@@ -17,13 +17,13 @@ const TopLevelIds = z.array(TrufosId).min(1);
 
 /**
  * The fields of a request that can be edited. `auth: null` removes the authorization and
- * `disabledInheritedHeaders: null` enables all inherited headers.
+ * `disabledHeaders: null` enables all automatic and inherited headers.
  */
 export const RequestChanges = z
   .object({
     ...TrufosRequest.pick({ url: true, method: true, headers: true, body: true }).shape,
     auth: AuthorizationInformation.nullable(),
-    disabledInheritedHeaders: z.string().array().nullable(),
+    disabledHeaders: z.string().array().nullable(),
   })
   .partial();
 export type RequestChanges = z.infer<typeof RequestChanges>;

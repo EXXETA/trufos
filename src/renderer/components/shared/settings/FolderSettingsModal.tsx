@@ -86,11 +86,7 @@ const FolderSettingsDialog = ({ folder, onClose }: FolderSettingsDialogProps) =>
           label: 'Headers',
           content: (
             <div className="h-full overflow-y-auto p-4">
-              <HeaderEditor
-                headers={headers}
-                onChange={setHeaders}
-                inherited={{ headers: inherited }}
-              />
+              <HeaderEditor headers={headers} onChange={setHeaders} derived={{ inherited }} />
             </div>
           ),
         },

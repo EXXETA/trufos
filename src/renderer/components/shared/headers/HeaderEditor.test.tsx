@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TrufosHeader } from 'shim/objects/headers';
-import { makeInheritedHeader } from 'shim/__mocks__/collection-fixtures';
+import { makeAutomaticHeader, makeInheritedHeader } from 'shim/__mocks__/collection-fixtures';
+import { AutomaticHeaderKey } from 'shim/collection-model';
 import { HeaderEditor } from './HeaderEditor';
 
 describe('HeaderEditor', () => {
@@ -95,7 +96,7 @@ describe('HeaderEditor', () => {
       <HeaderEditor
         headers={[{ key: 'X-Own', value: 'request', isActive: true }]}
         onChange={onChange}
-        inherited={{ headers: inherited, onEnabledChange: vi.fn() }}
+        derived={{ inherited, onEnabledChange: vi.fn() }}
       />
     );
 
@@ -117,7 +118,7 @@ describe('HeaderEditor', () => {
       <HeaderEditor
         headers={headers}
         onChange={onChange}
-        inherited={{ headers: [makeInheritedHeader('X-Tenant', 'acme')], onEnabledChange }}
+        derived={{ inherited: [makeInheritedHeader('X-Tenant', 'acme')], onEnabledChange }}
       />
     );
 
@@ -136,8 +137,8 @@ describe('HeaderEditor', () => {
       <HeaderEditor
         headers={[]}
         onChange={onChange}
-        inherited={{
-          headers: [
+        derived={{
+          inherited: [
             makeInheritedHeader('X-Tenant', 'acme'),
             makeInheritedHeader('X-Trace', '1', { isDisabled: true }),
           ],
@@ -147,8 +148,8 @@ describe('HeaderEditor', () => {
     );
 
     // Act
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Send inherited header X-Tenant' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Send inherited header X-Trace' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Send header X-Tenant' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Send header X-Trace' }));
 
     // Assert
     expect(onEnabledChange).toHaveBeenNthCalledWith(1, 'X-Tenant', false);
@@ -161,12 +162,89 @@ describe('HeaderEditor', () => {
       <HeaderEditor
         headers={[]}
         onChange={onChange}
-        inherited={{ headers: [makeInheritedHeader('X-Tenant', 'acme')] }}
+        derived={{ inherited: [makeInheritedHeader('X-Tenant', 'acme')] }}
       />
     );
 
     // Assert
     expect(screen.getByText('X-Tenant')).toBeTruthy();
-    expect(screen.queryByRole('checkbox', { name: /inherited/i })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /send header/i })).toBeNull();
+  });
+
+  it('shows the automatic headers first, with a description of values known only when sent', () => {
+    // Act
+    render(
+      <HeaderEditor
+        headers={[]}
+        onChange={onChange}
+        derived={{
+          automatic: [
+            makeAutomaticHeader(AutomaticHeaderKey.CONTENT_TYPE, 'application/json'),
+            makeAutomaticHeader(AutomaticHeaderKey.AUTHORIZATION, undefined, { canDisable: false }),
+          ],
+          inherited: [makeInheritedHeader('X-Tenant', 'acme')],
+          onEnabledChange: vi.fn(),
+        }}
+      />
+    );
+
+    // Assert
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(within(rows[0]).getByText('Content-Type')).toBeTruthy();
+    expect(within(rows[0]).getByText('application/json')).toBeTruthy();
+    expect(within(rows[1]).getByText('generated when sent').className).toContain('italic');
+    expect(within(rows[2]).getByText('X-Tenant')).toBeTruthy();
+  });
+
+  it('only offers to disable the automatic headers that allow it, by their key', () => {
+    // Arrange
+    const onEnabledChange = vi.fn();
+    render(
+      <HeaderEditor
+        headers={[]}
+        onChange={onChange}
+        derived={{
+          automatic: [
+            makeAutomaticHeader(AutomaticHeaderKey.USER_AGENT, 'Trufos/1.0.0'),
+            makeAutomaticHeader(AutomaticHeaderKey.CONTENT_LENGTH, '42', { canDisable: false }),
+          ],
+          inherited: [],
+          onEnabledChange,
+        }}
+      />
+    );
+
+    // Act
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Send header User-Agent' }));
+
+    // Assert
+    expect(screen.queryByRole('checkbox', { name: 'Send header Content-Length' })).toBeNull();
+    expect(onEnabledChange).toHaveBeenCalledExactlyOnceWith(AutomaticHeaderKey.USER_AGENT, false);
+  });
+
+  it('says when an automatic header is only sent with a body, and describes pending values', () => {
+    // Act
+    render(
+      <HeaderEditor
+        headers={[]}
+        onChange={onChange}
+        derived={{
+          automatic: [
+            makeAutomaticHeader(AutomaticHeaderKey.CONTENT_TYPE, 'text/plain', {
+              isConditional: true,
+            }),
+            makeAutomaticHeader(AutomaticHeaderKey.USER_AGENT),
+          ],
+          inherited: [],
+        }}
+      />
+    );
+
+    // Assert
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(within(rows[0]).getByText('text/plain')).toBeTruthy();
+    expect(within(rows[0]).getByText('only if the body is not empty')).toBeTruthy();
+    expect(within(rows[1]).getByText('Trufos/<version>').className).toContain('italic');
+    expect(within(rows[1]).getByText('set when sent')).toBeTruthy();
   });
 });

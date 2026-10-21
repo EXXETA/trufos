@@ -157,20 +157,20 @@ describe('request edits', () => {
     ]);
   });
 
-  it('setInheritedHeaderEnabled disables and enables inherited headers by their normalized key', () => {
-    const { setInheritedHeaderEnabled } = ctx.store.getState();
+  it('setHeaderEnabled disables and enables inherited headers by their normalized key', () => {
+    const { setHeaderEnabled } = ctx.store.getState();
 
-    setInheritedHeaderEnabled('X-Tenant', true);
+    setHeaderEnabled('X-Tenant', true);
     expect(ctx.commands()).toEqual([]);
 
-    setInheritedHeaderEnabled('X-Tenant', false);
-    setInheritedHeaderEnabled('X-Trace', false);
-    expect(request().disabledInheritedHeaders).toEqual(['x-tenant', 'x-trace']);
+    setHeaderEnabled('X-Tenant', false);
+    setHeaderEnabled('X-Trace', false);
+    expect(request().disabledHeaders).toEqual(['x-tenant', 'x-trace']);
 
-    setInheritedHeaderEnabled('x-tenant', true);
-    setInheritedHeaderEnabled('x-trace', true);
-    expect(request().disabledInheritedHeaders).toBeUndefined();
-    expect(ctx.commands().at(-1)).toMatchObject({ changes: { disabledInheritedHeaders: null } });
+    setHeaderEnabled('x-tenant', true);
+    setHeaderEnabled('x-trace', true);
+    expect(request().disabledHeaders).toBeUndefined();
+    expect(ctx.commands().at(-1)).toMatchObject({ changes: { disabledHeaders: null } });
   });
 
   it('query param actions send the complete new url', () => {

@@ -29,6 +29,8 @@ import {
   FolderInfo,
   getAncestorIds,
   getDescendantIds,
+  DerivedHeaders,
+  getDerivedHeaders,
   getInheritedHeaders,
   getTopLevelIds,
   HeaderInheritingNode,
@@ -448,15 +450,15 @@ export const createCollectionStore = (
         if (!deepEqual(headers, request.headers)) editRequest({ headers });
       },
 
-      setInheritedHeaderEnabled: (key, isEnabled) => {
+      setHeaderEnabled: (key, isEnabled) => {
         const request = selectRequest(get());
         if (request == null) return;
-        const disabledKeys = new Set(request.disabledInheritedHeaders);
+        const disabledKeys = new Set(request.disabledHeaders);
         const sizeBefore = disabledKeys.size;
         if (isEnabled) disabledKeys.delete(normalizeHeaderKey(key));
         else disabledKeys.add(normalizeHeaderKey(key));
         if (disabledKeys.size === sizeBefore) return;
-        editRequest({ disabledInheritedHeaders: emptyToNull([...disabledKeys]) });
+        editRequest({ disabledHeaders: emptyToNull([...disabledKeys]) });
       },
 
       addQueryParam: () =>
@@ -665,29 +667,34 @@ export const useCollectionTree = (enabled = true): CollectionTree => {
 export const useInheritedHeaders = ({
   parentId,
   headers,
-  disabledInheritedHeaders,
+  disabledHeaders,
 }: HeaderInheritingNode): InheritedHeader[] => {
   const collection = useCollectionStore((state) => state.collection);
   const folders = useCollectionStore((state) => state.folders);
   return useMemo(
-    () =>
-      getInheritedHeaders({ collection, folders }, { parentId, headers, disabledInheritedHeaders }),
-    [collection, folders, parentId, headers, disabledInheritedHeaders]
+    () => getInheritedHeaders({ collection, folders }, { parentId, headers, disabledHeaders }),
+    [collection, folders, parentId, headers, disabledHeaders]
   );
 };
 
-/** Returns the own and the inherited headers of the selected request. */
-export const useSelectedRequestHeaders = (): {
-  headers: TrufosHeader[];
-  inherited: InheritedHeader[];
-} => {
+/** Returns the own, the inherited and the automatic headers of the selected request. */
+export const useSelectedRequestHeaders = (): DerivedHeaders & { headers: TrufosHeader[] } => {
   const headers = useCollectionStore((state) => selectRequest(state)!.headers);
   const parentId = useCollectionStore((state) => selectRequest(state)!.parentId);
-  const disabledInheritedHeaders = useCollectionStore(
-    (state) => selectRequest(state)!.disabledInheritedHeaders
+  const disabledHeaders = useCollectionStore((state) => selectRequest(state)!.disabledHeaders);
+  const body = useCollectionStore((state) => selectRequest(state)!.body);
+  const auth = useCollectionStore((state) => selectRequest(state)!.auth);
+  const collection = useCollectionStore((state) => state.collection);
+  const folders = useCollectionStore((state) => state.folders);
+  const derived = useMemo(
+    () =>
+      getDerivedHeaders(
+        { collection, folders },
+        { parentId, headers, disabledHeaders, body, auth }
+      ),
+    [collection, folders, parentId, headers, disabledHeaders, body, auth]
   );
-  const inherited = useInheritedHeaders({ parentId, headers, disabledInheritedHeaders });
-  return { headers, inherited };
+  return useMemo(() => ({ headers, ...derived }), [headers, derived]);
 };
 
 /** Returned while no request is selected, so the selector stays stable. */

@@ -79,8 +79,11 @@ export const TrufosRequest = z.object({
   url: TrufosURL,
   method: z.enum(RequestMethod),
   headers: z.array(TrufosHeader),
-  /** The normalized keys of the inherited headers that are not sent, see `normalizeHeaderKey()`. */
-  disabledInheritedHeaders: z.string().array().optional(),
+  /**
+   * The normalized keys of the automatic and inherited headers that are not sent, see
+   * `normalizeHeaderKey()`.
+   */
+  disabledHeaders: z.string().array().optional(),
   body: RequestBody,
   draft: z.boolean().optional(),
   auth: AuthorizationInformation.optional(),

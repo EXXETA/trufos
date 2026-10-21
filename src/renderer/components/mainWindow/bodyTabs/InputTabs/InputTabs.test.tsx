@@ -2,8 +2,8 @@ import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect } from 'vitest';
 import { TrufosHeader } from 'shim/objects/headers';
-import { InheritedHeader } from 'shim/collection-model';
-import { makeInheritedHeader } from 'shim/__mocks__/collection-fixtures';
+import { AutomaticHeader, AutomaticHeaderKey, InheritedHeader } from 'shim/collection-model';
+import { makeAutomaticHeader, makeInheritedHeader } from 'shim/__mocks__/collection-fixtures';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { InputTabs } from './InputTabs';
 
@@ -18,6 +18,7 @@ type MockCollectionState = {
 
 let mockHeaders: TrufosHeader[] = [];
 let mockInherited: InheritedHeader[] = [];
+let mockAutomatic: AutomaticHeader[] = [];
 const mockQueryParams: TrufosQueryParam[] = [];
 
 // Mock child components to avoid their store dependencies
@@ -56,7 +57,11 @@ vi.mock('@/state/collectionStore', () => ({
       ]),
     }),
   selectRequest: (state: MockCollectionState) => state.requests.get(state.selectedRequestId),
-  useSelectedRequestHeaders: () => ({ headers: mockHeaders, inherited: mockInherited }),
+  useSelectedRequestHeaders: () => ({
+    headers: mockHeaders,
+    inherited: mockInherited,
+    automatic: mockAutomatic,
+  }),
 }));
 
 describe('InputTabs', () => {
@@ -170,5 +175,21 @@ describe('InputTabs', () => {
 
     // Assert: one inherited header is overridden, another one disabled
     expect(getByText('Headers (2)')).toBeTruthy();
+  });
+
+  it('should count the automatic headers that are sent', () => {
+    // Arrange
+    mockHeaders = [];
+    mockAutomatic = [
+      makeAutomaticHeader(AutomaticHeaderKey.CONTENT_TYPE, 'text/plain'),
+      makeAutomaticHeader(AutomaticHeaderKey.USER_AGENT, 'Trufos/1.0.0', { isDisabled: true }),
+    ];
+
+    // Act
+    const { getByText } = render(<InputTabs className="" />);
+    mockAutomatic = [];
+
+    // Assert
+    expect(getByText('Headers (1)')).toBeTruthy();
   });
 });

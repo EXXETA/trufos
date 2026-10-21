@@ -6,7 +6,8 @@ import { Folder } from '../objects/folder';
 import { RequestBodyType, TrufosRequest } from '../objects/request';
 import { RequestMethod } from '../objects/request-method';
 import { parseUrl } from '../objects/url';
-import { CollectionModel, InheritedHeader, normalizeCollection } from '../collection-model/model';
+import { CollectionModel, normalizeCollection } from '../collection-model/model';
+import { AutomaticHeader, AutomaticHeaderKey, InheritedHeader } from '../collection-model/headers';
 
 export function makeRequest(
   id: string,
@@ -98,5 +99,22 @@ export function makeInheritedHeader(
     isOverridden: false,
     isDisabled: false,
     ...flags,
+  };
+}
+
+/** Builds a header that Trufos sets itself, see `getAutomaticHeaders()`. */
+export function makeAutomaticHeader(
+  key: AutomaticHeaderKey,
+  value?: string,
+  overrides: Partial<Omit<AutomaticHeader, 'key' | 'value'>> = {}
+): AutomaticHeader {
+  return {
+    key,
+    value,
+    canDisable: true,
+    isConditional: false,
+    isOverridden: false,
+    isDisabled: false,
+    ...overrides,
   };
 }

@@ -162,11 +162,11 @@ export interface CollectionStateActions {
   editHeaders(change: (headers: TrufosHeader[]) => TrufosHeader[]): void;
 
   /**
-   * Enables or disables an inherited header for the currently selected request.
-   * @param key the key of the inherited header
+   * Enables or disables an automatic or inherited header for the currently selected request.
+   * @param key the key of the header
    * @param isEnabled whether the header is sent
    */
-  setInheritedHeaderEnabled(key: string, isEnabled: boolean): void;
+  setHeaderEnabled(key: string, isEnabled: boolean): void;
 
   /**
    * Add a new query parameter to the currently selected request

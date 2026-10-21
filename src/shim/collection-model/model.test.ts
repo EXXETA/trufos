@@ -9,14 +9,12 @@ import {
   getChildren,
   getAuthorizationSource,
   getInheritanceChain,
-  getInheritedHeaders,
   getDescendantIds,
   getParentFolderIds,
   getTopLevelIds,
   isSelfOrDescendant,
   normalizeCollection,
   resolveAuthorization,
-  resolveHeaders,
   walkTree,
 } from './model';
 import { makeExampleCollection, makeRequest } from '../__mocks__/collection-fixtures';
@@ -200,73 +198,6 @@ describe('getInheritanceChain()', () => {
 
     expect(getInheritanceChain(model, 'f2').map(({ id }) => id)).toEqual(['f2', 'f1', 'col']);
     expect(getInheritanceChain(model, 'col').map(({ id }) => id)).toEqual(['col']);
-  });
-});
-
-describe('getInheritedHeaders()', () => {
-  const header = (key: string, value: string, isActive = true) => ({ key, value, isActive });
-
-  it('combines the headers of the collection and the folders above, closer levels overriding', () => {
-    const model = produce(
-      normalizeCollection({
-        ...collection,
-        headers: [header('X-Collection', 'c'), header('X-Shared', 'c'), header('X-Shared', 'c2')],
-      }),
-      (draft) => {
-        draft.folders.get('f1')!.headers = [header('x-shared', 'f1'), header('X-Off', 'f1', false)];
-        draft.folders.get('f2')!.headers = [header('X-Inner', 'f2'), header(' ', 'blank')];
-      }
-    );
-
-    const inherited = getInheritedHeaders(model, { parentId: 'f2' });
-
-    expect(inherited.map(({ header }) => header)).toEqual([
-      header('X-Collection', 'c'),
-      header('x-shared', 'f1'),
-      header('X-Inner', 'f2'),
-    ]);
-    expect(inherited.map(({ source }) => source.id)).toEqual(['col', 'f1', 'f2']);
-  });
-
-  it('marks the headers the node overrides with a sent header or disables', () => {
-    const model = normalizeCollection({
-      ...collection,
-      headers: [header('X-Kept', 'c'), header('X-Disabled', 'c'), header('X-Overridden', 'c')],
-    });
-
-    const inherited = getInheritedHeaders(model, {
-      parentId: 'f2',
-      headers: [header('x-overridden', 'r'), header('X-Kept', 'inactive', false)],
-      disabledInheritedHeaders: ['x-disabled'],
-    });
-
-    expect(inherited.map(({ isOverridden, isDisabled }) => [isOverridden, isDisabled])).toEqual([
-      [false, false],
-      [false, true],
-      [true, false],
-    ]);
-  });
-
-  it('returns nothing if no level has headers', () => {
-    expect(getInheritedHeaders(normalizeCollection(collection), { parentId: 'f2' })).toEqual([]);
-  });
-});
-
-describe('resolveHeaders()', () => {
-  const header = (key: string, value: string, isActive = true) => ({ key, value, isActive });
-  const model = normalizeCollection({
-    ...collection,
-    headers: [header('X-Kept', 'c'), header('X-Disabled', 'c'), header('X-Overridden', 'c')],
-  });
-
-  it('sends the inherited headers that are neither disabled nor overridden, then its own', () => {
-    const headers = resolveHeaders(model, {
-      parentId: 'f2',
-      headers: [header('x-overridden', 'r'), header('X-Kept', 'inactive', false)],
-      disabledInheritedHeaders: ['x-disabled'],
-    });
-
-    expect(headers).toEqual([header('X-Kept', 'c'), header('x-overridden', 'r')]);
   });
 });
 

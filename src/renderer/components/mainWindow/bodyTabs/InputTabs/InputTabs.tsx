@@ -25,13 +25,13 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
 
   const [selectedTab, setSelectedTab] = useState<InputTabValue>('body');
 
-  const { headers, inherited } = useSelectedRequestHeaders();
+  const { headers, inherited, automatic } = useSelectedRequestHeaders();
   const queryParams = useCollectionStore((state) => selectRequest(state)!.url.query);
 
-  // the inherited headers that are sent count as well
+  // the automatic and inherited headers that are sent count as well
   const activeHeaderCount = useMemo(
-    () => getSentHeaders(inherited, headers).length,
-    [inherited, headers]
+    () => getSentHeaders(automatic, inherited, headers).length,
+    [automatic, inherited, headers]
   );
 
   const activeParamsCount = useMemo(
