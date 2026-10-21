@@ -7,6 +7,7 @@ import { RequestBodyType, TrufosRequest } from '../objects/request';
 import { RequestMethod } from '../objects/request-method';
 import { parseUrl } from '../objects/url';
 import { CollectionModel, normalizeCollection } from '../collection-model/model';
+import { AutomaticHeader, AutomaticHeaderKey, InheritedHeader } from '../collection-model/headers';
 
 export function makeRequest(
   id: string,
@@ -81,4 +82,39 @@ export function makeExampleCollection(overrides: Partial<Collection> = {}): Coll
 /** The model of the {@link makeExampleCollection example collection}. */
 export function makeModel(overrides: Partial<Collection> = {}): CollectionModel {
   return normalizeCollection(makeExampleCollection(overrides));
+}
+
+/** The collection that {@link makeInheritedHeader} headers are inherited from. */
+const INHERITED_HEADER_SOURCE = makeModel({ title: 'Collection' }).collection;
+
+/** Builds a header that is inherited from the collection, see `getInheritedHeaders()`. */
+export function makeInheritedHeader(
+  key: string,
+  value: string,
+  flags: Partial<Pick<InheritedHeader, 'isOverridden' | 'isDisabled'>> = {}
+): InheritedHeader {
+  return {
+    header: { key, value, isActive: true },
+    source: INHERITED_HEADER_SOURCE,
+    isOverridden: false,
+    isDisabled: false,
+    ...flags,
+  };
+}
+
+/** Builds a header that Trufos sets itself, see `getAutomaticHeaders()`. */
+export function makeAutomaticHeader(
+  key: AutomaticHeaderKey,
+  value?: string,
+  overrides: Partial<Omit<AutomaticHeader, 'key' | 'value'>> = {}
+): AutomaticHeader {
+  return {
+    key,
+    value,
+    canDisable: true,
+    isConditional: false,
+    isOverridden: false,
+    isDisabled: false,
+    ...overrides,
+  };
 }

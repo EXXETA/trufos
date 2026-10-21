@@ -4,9 +4,11 @@ import { RequestMethod } from '../objects/request-method';
 import { AuthorizationType } from '../objects/auth';
 import {
   assignChanges,
+  emptyToNull,
   getAncestorIds,
   getChildren,
   getAuthorizationSource,
+  getInheritanceChain,
   getDescendantIds,
   getParentFolderIds,
   getTopLevelIds,
@@ -187,5 +189,23 @@ describe('resolveAuthorization()', () => {
     const model = normalizeCollection(collection);
 
     expect(resolveAuthorization(model, { auth: inherit, parentId: 'f2' })).toBeUndefined();
+  });
+});
+
+describe('getInheritanceChain()', () => {
+  it('returns the folders above a node, closest first, followed by the collection', () => {
+    const model = normalizeCollection(collection);
+
+    expect(getInheritanceChain(model, 'f2').map(({ id }) => id)).toEqual(['f2', 'f1', 'col']);
+    expect(getInheritanceChain(model, 'col').map(({ id }) => id)).toEqual(['col']);
+  });
+});
+
+describe('emptyToNull()', () => {
+  it('turns an empty list into null and keeps other lists', () => {
+    const list = [1];
+
+    expect(emptyToNull([])).toBeNull();
+    expect(emptyToNull(list)).toBe(list);
   });
 });

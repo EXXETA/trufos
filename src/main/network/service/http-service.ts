@@ -13,7 +13,6 @@ import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
 import { StoredBody, TrufosResponse } from 'shim/objects/response';
-import { isBlankHeader, TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
 import process from 'node:process';
@@ -32,7 +31,13 @@ import {
 import { HistoryService } from 'main/history/history-service';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import { TrufosId } from 'shim/objects/id';
-import { type CollectionModel, resolveAuthorization } from 'shim/collection-model';
+import {
+  type CollectionModel,
+  DEFAULT_FILE_MIME_TYPE,
+  resolveAuthorization,
+  resolveHeaders,
+  type SentHeader,
+} from 'shim/collection-model';
 import { DispatcherCache } from 'main/network/service/dispatcher-cache';
 import { SettingsService } from 'main/persistence/service/settings-service';
 
@@ -40,14 +45,10 @@ const bodyStore = BodyStore.instance;
 const scriptingService = ScriptingService.instance;
 const collectionState = CollectionStateService.instance;
 
-/** The content type of files whose mime type is unknown */
-const DEFAULT_FILE_MIME_TYPE = 'application/octet-stream';
-
-/** A request body as it is sent, with the headers that describe it */
+/** A request body as it is sent */
 interface OutgoingBody {
   body?: Readable | FormData;
   size?: number;
-  contentType?: string;
 }
 
 declare type HttpHeaders = Record<string, string[]>;
@@ -193,19 +194,21 @@ export class HttpService {
       }
     }
 
-    const headers = await this.resolveVariablesInHeaders(
-      model,
-      this.trufosHeadersToUndiciHeaders(request.headers)
-    );
-
-    const { body, size, contentType } = await this.readBody(model, request, textBody);
-    const sentHeaders = withoutUnsetHeaders({
-      ['content-type']: contentType,
-      ['authorization']: authorization,
-      ['content-length']: size?.toString(),
-      ['user-agent']: `Trufos/${app.getVersion()} (${process.platform} ${process.getSystemVersion()}; ${process.arch})`,
-      ...headers,
-    });
+    const { body, size } = await this.readBody(model, request, textBody);
+    let sentHeaders: HttpHeaders;
+    try {
+      const headers = resolveHeaders(model, request, {
+        authorization,
+        contentLength: size?.toString(),
+        userAgent: this.getUserAgent(),
+        hasBody: body != null,
+      });
+      sentHeaders = this.toUndiciHeaders(await this.resolveVariablesInHeaders(model, headers));
+    } catch (error) {
+      // the body is not sent, so its file is closed right away
+      if (body instanceof Readable) body.destroy();
+      throw error;
+    }
     const [sentBody, bodyCopy] = copyRequestBody(body, sentHeaders);
     recorder.sent({ method: request.method, url, headers: sentHeaders }, bodyCopy);
 
@@ -267,9 +270,10 @@ export class HttpService {
   }
 
   /**
-   * Reads the request body from the file system, together with the headers that describe it
+   * Reads the request body from the file system. Its content type is an automatic header, see
+   * `getAutomaticHeaders()`.
    * @param request request object
-   * @returns the body, its size and its content type, each undefined if the request has none
+   * @returns the body and its size, each undefined if the request has none
    */
   private async readBody(
     model: CollectionModel,
@@ -282,12 +286,10 @@ export class HttpService {
         return {};
       case RequestBodyType.TEXT:
         if (textBody == null) return {};
-        return { body: resolveVariablesInStream(model, textBody), contentType: body.mimeType };
-      case RequestBodyType.FILE: {
+        return { body: resolveVariablesInStream(model, textBody) };
+      case RequestBodyType.FILE:
         if (body.filePath == null) return {};
-        const contentType = body.mimeType ?? DEFAULT_FILE_MIME_TYPE;
-        return { ...(await this.readFileBody(body.filePath)), contentType };
-      }
+        return await this.readFileBody(body.filePath);
       case RequestBodyType.FORM_DATA: {
         // undici sets the multipart content type including its boundary
         const form = new FormData();
@@ -329,33 +331,35 @@ export class HttpService {
     }
   }
 
-  private trufosHeadersToUndiciHeaders(trufosHeaders: TrufosHeader[]): HttpHeaders {
+  /** Groups the headers by their lower-case key. Headers without value are set by undici. */
+  private toUndiciHeaders(sentHeaders: SentHeader[]): HttpHeaders {
     const headers: HttpHeaders = {};
-    for (const header of trufosHeaders) {
-      if (header.isActive && !isBlankHeader(header)) {
-        const key = header.key.toLowerCase();
-        if (!Reflect.has(headers, key)) headers[key] = [];
-        headers[key].push(header.value);
-      }
+    for (const { key, value } of sentHeaders) {
+      if (value == null) continue;
+      const lowerCaseKey = key.toLowerCase();
+      if (!Reflect.has(headers, lowerCaseKey)) headers[lowerCaseKey] = [];
+      headers[lowerCaseKey].push(value);
     }
     return headers;
   }
 
+  /** Resolves the variables in the inherited and own headers. Automatic ones are final. */
   private async resolveVariablesInHeaders(
     model: CollectionModel,
-    headers: HttpHeaders
-  ): Promise<HttpHeaders> {
-    return Object.fromEntries(
-      await Promise.all(
-        Object.entries(headers).map(
-          async ([key, values]) =>
-            [
-              key,
-              await Promise.all(values.map((value) => resolveVariablesInString(model, value))),
-            ] as const
-        )
+    headers: SentHeader[]
+  ): Promise<SentHeader[]> {
+    return await Promise.all(
+      headers.map(async (header) =>
+        header.isAutomatic || header.value == null
+          ? header
+          : { ...header, value: await resolveVariablesInString(model, header.value) }
       )
     );
+  }
+
+  /** Returns the User-Agent header that requests send unless they disable or override it. */
+  private getUserAgent(): string {
+    return `Trufos/${app.getVersion()} (${process.platform} ${process.getSystemVersion()}; ${process.arch})`;
   }
 
   /**
@@ -372,14 +376,4 @@ export class HttpService {
     if (script == null) return model;
     return await scriptingService.executeScript(script, type, log, model);
   }
-}
-
-function withoutUnsetHeaders(
-  headers: Record<string, string | string[] | undefined>
-): Record<string, string | string[]> {
-  return Object.fromEntries(
-    Object.entries(headers).filter(
-      (entry): entry is [string, string | string[]] => entry[1] != null
-    )
-  );
 }

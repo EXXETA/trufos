@@ -3,6 +3,7 @@ import { TrufosRequest } from './request';
 import { VariableMap } from './variables';
 import { EnvironmentMap } from './environment';
 import { AuthorizationInformationNoInherit } from './auth';
+import { TrufosHeader } from './headers';
 import { z } from 'zod';
 import { TrufosId } from './id';
 
@@ -30,6 +31,8 @@ export const Collection = CollectionBase.extend({
   variables: VariableMap,
   environments: EnvironmentMap,
   auth: AuthorizationInformationNoInherit.optional(),
+  /** The headers of all requests of the collection. Folders and requests can override them. */
+  headers: TrufosHeader.array().optional(),
   clientCertificate: ClientCertificate.optional(),
   children: z.discriminatedUnion('type', [Folder, TrufosRequest]).array(),
 });

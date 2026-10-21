@@ -156,22 +156,17 @@ export interface CollectionStateActions {
   sendRequest(id: TrufosId, signal?: AbortSignal): Promise<TrufosResponse | null>;
 
   /**
-   * Add a new header to the currently selected request
+   * Changes the headers of the currently selected request. Nothing is sent if they stay the same.
+   * @param change returns the changed headers. It must not modify the given ones.
    */
-  addHeader(): void;
+  editHeaders(change: (headers: TrufosHeader[]) => TrufosHeader[]): void;
 
   /**
-   * Update a header in the currently selected request
-   * @param index The index of the header to update
-   * @param updatedHeader The new header content
+   * Enables or disables an automatic or inherited header for the currently selected request.
+   * @param key the key of the header
+   * @param isEnabled whether the header is sent
    */
-  updateHeader(index: number, updatedHeader: Partial<TrufosHeader>): void;
-
-  /**
-   * Delete a header from the currently selected request
-   * @param index The index of the header to delete
-   */
-  deleteHeader(index: number): void;
+  setHeaderEnabled(key: string, isEnabled: boolean): void;
 
   /**
    * Add a new query parameter to the currently selected request

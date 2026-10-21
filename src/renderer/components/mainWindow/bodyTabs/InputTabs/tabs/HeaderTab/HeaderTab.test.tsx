@@ -1,102 +1,69 @@
-import { render, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { TrufosHeader } from 'shim/objects/headers';
+import { AutomaticHeader, AutomaticHeaderKey, InheritedHeader } from 'shim/collection-model';
+import { makeAutomaticHeader, makeInheritedHeader } from 'shim/__mocks__/collection-fixtures';
 import { HeaderTab } from './HeaderTab';
 
-/** Shape of the collection store state as far as the mocked selectors are concerned. */
-type MockCollectionState = {
-  selectedRequestId: string;
-  requests: Map<string, { id: string; headers: TrufosHeader[] }>;
-};
-
-const addHeaderMock = vi.fn();
-const deleteHeaderMock = vi.fn();
-const updateHeaderMock = vi.fn();
-
-let mockHeaders: TrufosHeader[] = [];
+const { actions, selected } = vi.hoisted(() => ({
+  actions: { editHeaders: vi.fn(), setHeaderEnabled: vi.fn() },
+  selected: {
+    headers: [] as TrufosHeader[],
+    inherited: [] as InheritedHeader[],
+    automatic: [] as AutomaticHeader[],
+  },
+}));
 
 vi.mock('@/state/collectionStore', () => ({
-  useCollectionActions: () => ({
-    addHeader: addHeaderMock,
-    deleteHeader: deleteHeaderMock,
-    updateHeader: updateHeaderMock,
-  }),
-  useCollectionStore: (selector: (state: MockCollectionState) => unknown) =>
-    selector({
-      selectedRequestId: 'req-1',
-      requests: new Map([['req-1', { id: 'req-1', headers: mockHeaders }]]),
-    }),
-  selectRequest: (state: MockCollectionState) => state.requests.get(state.selectedRequestId),
+  useCollectionActions: () => actions,
+  useSelectedRequestHeaders: () => selected,
 }));
 
 describe('HeaderTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    selected.headers = [];
+    selected.inherited = [];
+    selected.automatic = [];
   });
 
-  it('should select all headers when Select All is clicked', () => {
+  it('edits the headers of the selected request', () => {
     // Arrange
-    mockHeaders = [
-      { key: 'Content-Type', value: 'application/json', isActive: false },
-      { key: 'Authorization', value: 'Bearer token', isActive: false },
-      { key: 'Accept', value: 'json', isActive: true },
-    ];
-    const { getByText } = render(<HeaderTab />);
+    selected.headers = [{ key: 'A', value: '1', isActive: false }];
+    render(<HeaderTab />);
 
     // Act
-    fireEvent.click(getByText('Select All'));
+    fireEvent.click(screen.getByText('Select All'));
 
     // Assert
-    expect(updateHeaderMock).toHaveBeenCalledTimes(3);
-    expect(updateHeaderMock).toHaveBeenCalledWith(0, { isActive: true });
-    expect(updateHeaderMock).toHaveBeenCalledWith(1, { isActive: true });
-    expect(updateHeaderMock).toHaveBeenCalledWith(2, { isActive: true });
+    expect(actions.editHeaders).toHaveBeenCalledTimes(1);
   });
 
-  it('should deselect all headers when all are already selected', () => {
+  it('shows the headers the request inherits and toggles them', () => {
     // Arrange
-    mockHeaders = [
-      { key: 'Content-Type', value: 'application/json', isActive: true },
-      { key: 'Authorization', value: 'Bearer token', isActive: true },
-    ];
-    const { getByText } = render(<HeaderTab />);
+    selected.headers = [{ key: 'X-Own', value: 'request', isActive: true }];
+    selected.inherited = [makeInheritedHeader('X-Tenant', 'acme')];
+    render(<HeaderTab />);
 
     // Act
-    fireEvent.click(getByText('Select All'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Send header X-Tenant' }));
 
     // Assert
-    expect(updateHeaderMock).toHaveBeenCalledTimes(2);
-    expect(updateHeaderMock).toHaveBeenCalledWith(0, { isActive: false });
-    expect(updateHeaderMock).toHaveBeenCalledWith(1, { isActive: false });
+    expect(actions.setHeaderEnabled).toHaveBeenCalledExactlyOnceWith('X-Tenant', false);
   });
 
-  it('should only delete active headers when Delete Selected is clicked', () => {
+  it('shows the automatic headers of the request and toggles them', () => {
     // Arrange
-    mockHeaders = [
-      { key: 'Keep', value: 'this', isActive: false },
-      { key: 'Delete', value: 'this', isActive: true },
-      { key: 'Also-Delete', value: 'this', isActive: true },
-    ];
-    const { getByText } = render(<HeaderTab />);
+    selected.automatic = [makeAutomaticHeader(AutomaticHeaderKey.USER_AGENT, 'Trufos/1.0.0')];
+    render(<HeaderTab />);
 
     // Act
-    fireEvent.click(getByText('Delete Selected'));
-
-    // Assert: deleted from back to front to keep indices stable
-    expect(deleteHeaderMock).toHaveBeenCalledTimes(2);
-    expect(deleteHeaderMock).toHaveBeenCalledWith(2);
-    expect(deleteHeaderMock).toHaveBeenCalledWith(1);
-  });
-
-  it('should not delete anything when no headers are selected', () => {
-    // Arrange
-    mockHeaders = [{ key: 'Keep', value: 'this', isActive: false }];
-    const { getByText } = render(<HeaderTab />);
-
-    // Act
-    fireEvent.click(getByText('Delete Selected'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Send header User-Agent' }));
 
     // Assert
-    expect(deleteHeaderMock).not.toHaveBeenCalled();
+    expect(actions.setHeaderEnabled).toHaveBeenCalledExactlyOnceWith(
+      AutomaticHeaderKey.USER_AGENT,
+      false
+    );
   });
 });

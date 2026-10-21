@@ -170,12 +170,42 @@ export function assignChanges<T extends object>(
   }
 }
 
+/**
+ * Returns a list as a `...Changes` value: `null` for an empty list, which removes the field, see
+ * {@link assignChanges}.
+ */
+export function emptyToNull<T>(list: T[]): T[] | null {
+  return list.length === 0 ? null : list;
+}
+
 /** Returns true if the ID is the collection or a folder, i.e. something that can have children. */
 export function isParent(
   model: Pick<CollectionModel, 'collection' | 'folders'>,
   id: string
 ): boolean {
   return id === model.collection.id || model.folders.has(id);
+}
+
+/**
+ * Returns where a request or folder inherits its settings from: the folders above it, closest
+ * first, followed by the collection.
+ * @param model the collection and its folders
+ * @param parentId the ID of the parent of the inheriting request or folder
+ */
+export function getInheritanceChain(
+  model: Pick<CollectionModel, 'collection' | 'folders'>,
+  parentId: string
+): (CollectionInfo | FolderInfo)[] {
+  const chain: (CollectionInfo | FolderInfo)[] = [];
+  for (
+    let folder = model.folders.get(parentId);
+    folder != null;
+    folder = model.folders.get(folder.parentId)
+  ) {
+    chain.push(folder);
+  }
+  chain.push(model.collection);
+  return chain;
 }
 
 /**
@@ -188,14 +218,9 @@ export function getAuthorizationSource(
   model: Pick<CollectionModel, 'collection' | 'folders'>,
   parentId: string
 ): CollectionInfo | FolderInfo {
-  for (
-    let folder = model.folders.get(parentId);
-    folder != null;
-    folder = model.folders.get(folder.parentId)
-  ) {
-    if (folder.auth != null) return folder;
-  }
-  return model.collection;
+  return (
+    getInheritanceChain(model, parentId).find((source) => source.auth != null) ?? model.collection
+  );
 }
 
 /**
