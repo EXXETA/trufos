@@ -140,4 +140,19 @@ describe('CollectionSettingsModal', () => {
       undefined
     );
   });
+
+  it('saves the headers of the collection', async () => {
+    const user = userEvent.setup();
+    render(<CollectionSettingsModal isOpen={true} onClose={onClose} />);
+
+    await user.click(screen.getByRole('tab', { name: 'Headers' }));
+    await user.click(screen.getByRole('button', { name: /add header/i }));
+    await user.type(screen.getByRole('textbox', { name: 'Header key' }), 'X-Tenant');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(actions.updateCollection).toHaveBeenCalledExactlyOnceWith(
+      { headers: [{ key: 'X-Tenant', value: '', isActive: true }] },
+      undefined
+    );
+  });
 });

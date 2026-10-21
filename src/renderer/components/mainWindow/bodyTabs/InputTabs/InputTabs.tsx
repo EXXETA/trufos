@@ -1,6 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMemo, useState } from 'react';
-import { selectRequest, useCollectionStore } from '@/state/collectionStore';
+import {
+  selectRequest,
+  useCollectionStore,
+  useSelectedRequestHeaders,
+} from '@/state/collectionStore';
 import { HeaderTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/HeaderTab/HeaderTab';
 import { BodyTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/BodyTab';
 import { ParamsTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ParamsTab';
@@ -8,6 +12,7 @@ import { AuthorizationTab } from '@/components/mainWindow/bodyTabs/InputTabs/tab
 import { ScriptTab } from '@/components/mainWindow/bodyTabs/InputTabs/tabs/ScriptTab';
 import { useHotkeys } from '@/hooks/hotKeys/useHotkey';
 import { HOTKEYS } from '@/hooks/hotKeys/hotkeys';
+import { getSentHeaders } from 'shim/collection-model';
 
 interface InputTabsProps {
   className: string;
@@ -20,12 +25,13 @@ export function InputTabs(props: Readonly<InputTabsProps>) {
 
   const [selectedTab, setSelectedTab] = useState<InputTabValue>('body');
 
-  const headers = useCollectionStore((state) => selectRequest(state)!.headers);
+  const { headers, inherited } = useSelectedRequestHeaders();
   const queryParams = useCollectionStore((state) => selectRequest(state)!.url.query);
 
+  // the inherited headers that are sent count as well
   const activeHeaderCount = useMemo(
-    () => headers.filter((header) => header.isActive).length,
-    [headers]
+    () => getSentHeaders(inherited, headers).length,
+    [inherited, headers]
   );
 
   const activeParamsCount = useMemo(

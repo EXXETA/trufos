@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { AuthorizationInformation, AuthorizationInformationNoInherit } from '../objects/auth';
 import { ClientCertificate, Collection } from '../objects/collection';
 import { TrufosRequest } from '../objects/request';
+import { TrufosHeader } from '../objects/headers';
 import { ScriptType } from '../scripting';
 import { TrufosId } from '../objects/id';
 import { FolderInfo } from './model';
@@ -14,31 +15,42 @@ const Index = z.int().nonnegative();
  */
 const TopLevelIds = z.array(TrufosId).min(1);
 
-/** The fields of a request that can be edited. `auth: null` removes the authorization. */
+/**
+ * The fields of a request that can be edited. `auth: null` removes the authorization and
+ * `disabledInheritedHeaders: null` enables all inherited headers.
+ */
 export const RequestChanges = z
   .object({
     ...TrufosRequest.pick({ url: true, method: true, headers: true, body: true }).shape,
     auth: AuthorizationInformation.nullable(),
+    disabledInheritedHeaders: z.string().array().nullable(),
   })
   .partial();
 export type RequestChanges = z.infer<typeof RequestChanges>;
 
 /**
- * The settings of a collection that can be changed. `null` removes the client certificate or the
- * authorization.
+ * The settings of a collection that can be changed. `null` removes the client certificate, the
+ * authorization or the headers.
  */
 export const CollectionChanges = z
   .object({
     ...Collection.pick({ title: true, variables: true, environments: true }).shape,
     clientCertificate: ClientCertificate.nullable(),
     auth: AuthorizationInformationNoInherit.nullable(),
+    headers: TrufosHeader.array().nullable(),
   })
   .partial();
 export type CollectionChanges = z.infer<typeof CollectionChanges>;
 
-/** The settings of a folder that can be changed. `auth: null` makes the folder inherit it. */
+/**
+ * The settings of a folder that can be changed. `auth: null` makes the folder inherit it and
+ * `headers: null` removes its headers.
+ */
 export const FolderChanges = z
-  .object({ auth: AuthorizationInformationNoInherit.nullable() })
+  .object({
+    auth: AuthorizationInformationNoInherit.nullable(),
+    headers: TrufosHeader.array().nullable(),
+  })
   .partial();
 export type FolderChanges = z.infer<typeof FolderChanges>;
 

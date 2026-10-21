@@ -13,7 +13,7 @@ import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
 import { StoredBody, TrufosResponse } from 'shim/objects/response';
-import { isBlankHeader, TrufosHeader } from 'shim/objects/headers';
+import { isSentHeader, TrufosHeader } from 'shim/objects/headers';
 import { calculateResponseSize } from 'main/util/size-calculation';
 import { app } from 'electron';
 import process from 'node:process';
@@ -32,7 +32,7 @@ import {
 import { HistoryService } from 'main/history/history-service';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import { TrufosId } from 'shim/objects/id';
-import { type CollectionModel, resolveAuthorization } from 'shim/collection-model';
+import { type CollectionModel, resolveAuthorization, resolveHeaders } from 'shim/collection-model';
 import { DispatcherCache } from 'main/network/service/dispatcher-cache';
 import { SettingsService } from 'main/persistence/service/settings-service';
 
@@ -195,7 +195,7 @@ export class HttpService {
 
     const headers = await this.resolveVariablesInHeaders(
       model,
-      this.trufosHeadersToUndiciHeaders(request.headers)
+      this.trufosHeadersToUndiciHeaders(resolveHeaders(model, request))
     );
 
     const { body, size, contentType } = await this.readBody(model, request, textBody);
@@ -332,7 +332,7 @@ export class HttpService {
   private trufosHeadersToUndiciHeaders(trufosHeaders: TrufosHeader[]): HttpHeaders {
     const headers: HttpHeaders = {};
     for (const header of trufosHeaders) {
-      if (header.isActive && !isBlankHeader(header)) {
+      if (isSentHeader(header)) {
         const key = header.key.toLowerCase();
         if (!Reflect.has(headers, key)) headers[key] = [];
         headers[key].push(header.value);

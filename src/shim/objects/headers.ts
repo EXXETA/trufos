@@ -25,3 +25,20 @@ export function isValidHeaderName(key: string): boolean {
 export function isBlankHeader(header: TrufosHeader): boolean {
   return header.key.trim() === '';
 }
+
+/**
+ * Check if a header is sent: it is active and has a key.
+ * @param header the header to check
+ */
+export function isSentHeader(header: TrufosHeader): boolean {
+  return header.isActive && !isBlankHeader(header);
+}
+
+/**
+ * Returns the key that identifies a header. HTTP header names are case-insensitive, so headers
+ * whose keys only differ in case have the same one.
+ * @param key the header key
+ */
+export function normalizeHeaderKey(key: string): string {
+  return key.trim().toLowerCase();
+}

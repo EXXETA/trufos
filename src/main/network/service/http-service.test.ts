@@ -246,6 +246,52 @@ describe('HttpService', () => {
     expect(mockAgent.getCallHistory()?.lastCall()?.headers?.authorization).toEqual('Bearer folder');
   });
 
+  it('fetchAsync() should send the headers a request inherits unless it disables or overrides them', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/data');
+    const folderModel = normalizeCollection({
+      ...structuredClone(model.collection),
+      variables: { tenant: { value: 'acme' } },
+      headers: [
+        { key: 'X-Tenant', value: '{{ tenant }}', isActive: true },
+        { key: 'X-Disabled', value: 'collection', isActive: true },
+      ],
+      children: [
+        {
+          id: 'folder',
+          parentId: model.collection.id,
+          type: 'folder',
+          lastModified: 0,
+          title: 'Folder',
+          headers: [{ key: 'X-Overridden', value: 'folder', isActive: true }],
+          children: [],
+        },
+      ],
+    });
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: 'folder',
+      type: 'request',
+      lastModified: 0,
+      title: 'Inheriting Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [{ key: 'x-overridden', value: 'request', isActive: true }],
+      disabledInheritedHeaders: ['x-disabled'],
+      body: { type: RequestBodyType.NONE },
+    };
+    const httpService = setupMockHttpService(url, null);
+
+    // Act
+    await httpService.fetchAsync(await prepare(request, folderModel), recorder);
+
+    // Assert
+    const headers = mockAgent.getCallHistory()?.lastCall()?.headers;
+    expect(headers?.['x-tenant']).toEqual(['acme']);
+    expect(headers?.['x-overridden']).toEqual(['request']);
+    expect(headers).not.toHaveProperty('x-disabled');
+  });
+
   it('fetchAsync() should use custom authorization header over generated', async () => {
     // Arrange
     const username = 'testuser';

@@ -25,13 +25,19 @@ import {
   CollectionStructure,
   CollectionTree,
   CommandType,
+  emptyToNull,
   FolderInfo,
   getAncestorIds,
   getDescendantIds,
+  getInheritedHeaders,
   getTopLevelIds,
+  HeaderInheritingNode,
+  InheritedHeader,
   RequestChanges,
 } from 'shim/collection-model';
 import { FormDataBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { normalizeHeaderKey, TrufosHeader } from 'shim/objects/headers';
+import { deepEqual } from '@/util/object-util';
 import { TrufosId } from 'shim/objects/id';
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
@@ -95,7 +101,7 @@ function isSameCollection(a: CollectionInfo, b: CollectionInfo): boolean {
 }
 
 /** The fields of a request that are edited with an Immer recipe, see `editSelectedRequest`. */
-type RecipeField = 'headers' | 'url' | 'body';
+type RecipeField = 'url' | 'body';
 
 function randomTitle() {
   return (Math.random() + 1).toString(36).substring(7);
@@ -435,20 +441,23 @@ export const createCollectionStore = (
         return await httpService.sendRequest(id, signal);
       },
 
-      addHeader: () =>
-        editSelectedRequest('headers', (headers) => {
-          headers.push({ key: '', value: '', isActive: true });
-        }),
+      editHeaders: (change) => {
+        const request = selectRequest(get());
+        if (request == null) return;
+        const headers = change(request.headers);
+        if (!deepEqual(headers, request.headers)) editRequest({ headers });
+      },
 
-      updateHeader: (index, updatedHeader) =>
-        editSelectedRequest('headers', (headers) => {
-          if (headers[index] != null) Object.assign(headers[index], updatedHeader);
-        }),
-
-      deleteHeader: (index) =>
-        editSelectedRequest('headers', (headers) => {
-          headers.splice(index, 1);
-        }),
+      setInheritedHeaderEnabled: (key, isEnabled) => {
+        const request = selectRequest(get());
+        if (request == null) return;
+        const disabledKeys = new Set(request.disabledInheritedHeaders);
+        const sizeBefore = disabledKeys.size;
+        if (isEnabled) disabledKeys.delete(normalizeHeaderKey(key));
+        else disabledKeys.add(normalizeHeaderKey(key));
+        if (disabledKeys.size === sizeBefore) return;
+        editRequest({ disabledInheritedHeaders: emptyToNull([...disabledKeys]) });
+      },
 
       addQueryParam: () =>
         editSelectedRequest('url', (url) => {
@@ -647,6 +656,38 @@ export const useCollectionTree = (enabled = true): CollectionTree => {
     () => (enabled ? { childIds, folders, requests } : EMPTY_TREE),
     [enabled, childIds, folders, requests]
   );
+};
+
+/**
+ * Returns the headers a request or folder inherits, see {@link getInheritedHeaders}.
+ * @param node the inheriting request or folder. Its headers may be a draft that is not stored yet.
+ */
+export const useInheritedHeaders = ({
+  parentId,
+  headers,
+  disabledInheritedHeaders,
+}: HeaderInheritingNode): InheritedHeader[] => {
+  const collection = useCollectionStore((state) => state.collection);
+  const folders = useCollectionStore((state) => state.folders);
+  return useMemo(
+    () =>
+      getInheritedHeaders({ collection, folders }, { parentId, headers, disabledInheritedHeaders }),
+    [collection, folders, parentId, headers, disabledInheritedHeaders]
+  );
+};
+
+/** Returns the own and the inherited headers of the selected request. */
+export const useSelectedRequestHeaders = (): {
+  headers: TrufosHeader[];
+  inherited: InheritedHeader[];
+} => {
+  const headers = useCollectionStore((state) => selectRequest(state)!.headers);
+  const parentId = useCollectionStore((state) => selectRequest(state)!.parentId);
+  const disabledInheritedHeaders = useCollectionStore(
+    (state) => selectRequest(state)!.disabledInheritedHeaders
+  );
+  const inherited = useInheritedHeaders({ parentId, headers, disabledInheritedHeaders });
+  return { headers, inherited };
 };
 
 /** Returned while no request is selected, so the selector stays stable. */

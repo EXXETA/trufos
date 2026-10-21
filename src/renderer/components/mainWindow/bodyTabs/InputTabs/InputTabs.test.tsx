@@ -2,6 +2,8 @@ import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect } from 'vitest';
 import { TrufosHeader } from 'shim/objects/headers';
+import { InheritedHeader } from 'shim/collection-model';
+import { makeInheritedHeader } from 'shim/__mocks__/collection-fixtures';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { InputTabs } from './InputTabs';
 
@@ -10,11 +12,12 @@ type MockCollectionState = {
   selectedRequestId: string;
   requests: Map<
     string,
-    { id: string; headers: TrufosHeader[]; url: { query: TrufosQueryParam[] } }
+    { id: string; parentId: string; headers: TrufosHeader[]; url: { query: TrufosQueryParam[] } }
   >;
 };
 
 let mockHeaders: TrufosHeader[] = [];
+let mockInherited: InheritedHeader[] = [];
 const mockQueryParams: TrufosQueryParam[] = [];
 
 // Mock child components to avoid their store dependencies
@@ -46,10 +49,14 @@ vi.mock('@/state/collectionStore', () => ({
     selector({
       selectedRequestId: 'req-1',
       requests: new Map([
-        ['req-1', { id: 'req-1', headers: mockHeaders, url: { query: mockQueryParams } }],
+        [
+          'req-1',
+          { id: 'req-1', parentId: 'col', headers: mockHeaders, url: { query: mockQueryParams } },
+        ],
       ]),
     }),
   selectRequest: (state: MockCollectionState) => state.requests.get(state.selectedRequestId),
+  useSelectedRequestHeaders: () => ({ headers: mockHeaders, inherited: mockInherited }),
 }));
 
 describe('InputTabs', () => {
@@ -144,5 +151,24 @@ describe('InputTabs', () => {
 
     // Assert
     expect(getByText('Headers')).toBeTruthy();
+  });
+
+  it('should count the inherited headers that are sent', () => {
+    // Arrange
+    const inherited = (key: string, flags: Parameters<typeof makeInheritedHeader>[2] = {}) =>
+      makeInheritedHeader(key, 'v', flags);
+    mockHeaders = [{ key: 'X-Own', value: 'request', isActive: true }];
+    mockInherited = [
+      inherited('X-Tenant'),
+      inherited('x-own', { isOverridden: true }),
+      inherited('X-Off', { isDisabled: true }),
+    ];
+
+    // Act
+    const { getByText } = render(<InputTabs className="" />);
+    mockInherited = [];
+
+    // Assert: one inherited header is overridden, another one disabled
+    expect(getByText('Headers (2)')).toBeTruthy();
   });
 });

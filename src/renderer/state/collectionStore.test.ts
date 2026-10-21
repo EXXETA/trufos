@@ -140,15 +140,37 @@ describe('request edits', () => {
     expect(after.openFolders).toBe(before.openFolders);
   });
 
-  it('header actions send the complete new header list', () => {
-    const { addHeader, updateHeader, deleteHeader } = ctx.store.getState();
+  it('editHeaders sends the complete new header list, but nothing if it stays the same', () => {
+    const { editHeaders } = ctx.store.getState();
 
-    addHeader();
-    updateHeader(0, { key: 'X-Test', value: '1' });
-    addHeader();
-    deleteHeader(1);
+    editHeaders((headers) => headers.map((header) => ({ ...header })));
+    expect(ctx.commands()).toEqual([]);
+
+    editHeaders((headers) => [...headers, { key: 'X-Test', value: '1', isActive: true }]);
     expect(request().headers).toEqual([{ key: 'X-Test', value: '1', isActive: true }]);
-    expect(ctx.commands().every((command) => command.type === CommandType.EDIT_REQUEST)).toBe(true);
+    expect(ctx.commands()).toEqual([
+      {
+        type: CommandType.EDIT_REQUEST,
+        id: 'r3',
+        changes: { headers: [{ key: 'X-Test', value: '1', isActive: true }] },
+      },
+    ]);
+  });
+
+  it('setInheritedHeaderEnabled disables and enables inherited headers by their normalized key', () => {
+    const { setInheritedHeaderEnabled } = ctx.store.getState();
+
+    setInheritedHeaderEnabled('X-Tenant', true);
+    expect(ctx.commands()).toEqual([]);
+
+    setInheritedHeaderEnabled('X-Tenant', false);
+    setInheritedHeaderEnabled('X-Trace', false);
+    expect(request().disabledInheritedHeaders).toEqual(['x-tenant', 'x-trace']);
+
+    setInheritedHeaderEnabled('x-tenant', true);
+    setInheritedHeaderEnabled('x-trace', true);
+    expect(request().disabledInheritedHeaders).toBeUndefined();
+    expect(ctx.commands().at(-1)).toMatchObject({ changes: { disabledInheritedHeaders: null } });
   });
 
   it('query param actions send the complete new url', () => {
@@ -172,19 +194,14 @@ describe('request edits', () => {
   });
 
   it('sends nothing if a recipe changes nothing', () => {
-    const { updateHeader, setRequestBodyMimeType } = ctx.store.getState();
+    const { setRequestBodyMimeType } = ctx.store.getState();
 
-    updateHeader(0, { key: 'missing' });
     setRequestBodyMimeType(undefined);
     expect(ctx.commands()).toEqual([]);
 
-    ctx.store.getState().addHeader();
+    setRequestBodyMimeType('application/json');
     expect(ctx.commands()).toEqual([
-      {
-        type: CommandType.EDIT_REQUEST,
-        id: 'r3',
-        changes: { headers: [{ key: '', value: '', isActive: true }] },
-      },
+      { type: CommandType.EDIT_REQUEST, id: 'r3', changes: { body: expect.anything() } },
     ]);
   });
 

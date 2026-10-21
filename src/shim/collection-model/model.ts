@@ -8,6 +8,7 @@ import {
   AuthorizationInformationNoInherit,
   AuthorizationType,
 } from '../objects/auth';
+import { isSentHeader, normalizeHeaderKey, TrufosHeader } from '../objects/headers';
 import type { CollectionUiState } from '../collection-ui-state';
 
 // both processes apply commands and patches to Map-based models
@@ -170,12 +171,42 @@ export function assignChanges<T extends object>(
   }
 }
 
+/**
+ * Returns a list as a `...Changes` value: `null` for an empty list, which removes the field, see
+ * {@link assignChanges}.
+ */
+export function emptyToNull<T>(list: T[]): T[] | null {
+  return list.length === 0 ? null : list;
+}
+
 /** Returns true if the ID is the collection or a folder, i.e. something that can have children. */
 export function isParent(
   model: Pick<CollectionModel, 'collection' | 'folders'>,
   id: string
 ): boolean {
   return id === model.collection.id || model.folders.has(id);
+}
+
+/**
+ * Returns where a request or folder inherits its settings from: the folders above it, closest
+ * first, followed by the collection.
+ * @param model the collection and its folders
+ * @param parentId the ID of the parent of the inheriting request or folder
+ */
+export function getInheritanceChain(
+  model: Pick<CollectionModel, 'collection' | 'folders'>,
+  parentId: string
+): (CollectionInfo | FolderInfo)[] {
+  const chain: (CollectionInfo | FolderInfo)[] = [];
+  for (
+    let folder = model.folders.get(parentId);
+    folder != null;
+    folder = model.folders.get(folder.parentId)
+  ) {
+    chain.push(folder);
+  }
+  chain.push(model.collection);
+  return chain;
 }
 
 /**
@@ -188,14 +219,9 @@ export function getAuthorizationSource(
   model: Pick<CollectionModel, 'collection' | 'folders'>,
   parentId: string
 ): CollectionInfo | FolderInfo {
-  for (
-    let folder = model.folders.get(parentId);
-    folder != null;
-    folder = model.folders.get(folder.parentId)
-  ) {
-    if (folder.auth != null) return folder;
-  }
-  return model.collection;
+  return (
+    getInheritanceChain(model, parentId).find((source) => source.auth != null) ?? model.collection
+  );
 }
 
 /**
@@ -212,6 +238,83 @@ export function resolveAuthorization(
   const { auth } = node;
   if (auth?.type !== AuthorizationType.INHERIT) return auth;
   return getAuthorizationSource(model, node.parentId).auth;
+}
+
+/** A header that a request or folder inherits from the collection or a folder above it. */
+export interface InheritedHeader {
+  header: TrufosHeader;
+  /** Where the header is defined. */
+  source: CollectionInfo | FolderInfo;
+  /** Whether the inheriting request or folder has a sent header with the same key. */
+  isOverridden: boolean;
+  /** Whether the inheriting request does not send the header. */
+  isDisabled: boolean;
+}
+
+/** A request or folder that inherits headers. */
+export interface HeaderInheritingNode {
+  parentId: string;
+  headers?: TrufosHeader[];
+  disabledInheritedHeaders?: string[];
+}
+
+/** Returns the normalized keys of the given headers. */
+function getKeys(headers: TrufosHeader[]): Set<string> {
+  return new Set(headers.map(({ key }) => normalizeHeaderKey(key)));
+}
+
+/**
+ * Returns the headers a request or folder inherits: the sent headers of the collection and of every
+ * folder above it. The headers of a closer level replace all headers with the same key of the outer
+ * levels.
+ * @param model the collection and its folders
+ * @param node the inheriting request or folder
+ * @returns the inherited headers, those of the outermost level first
+ */
+export function getInheritedHeaders(
+  model: Pick<CollectionModel, 'collection' | 'folders'>,
+  node: HeaderInheritingNode
+): InheritedHeader[] {
+  let inherited: Omit<InheritedHeader, 'isOverridden' | 'isDisabled'>[] = [];
+  for (const source of getInheritanceChain(model, node.parentId).toReversed()) {
+    const sent = (source.headers ?? []).filter(isSentHeader);
+    const innerKeys = getKeys(sent);
+    inherited = inherited
+      .filter(({ header }) => !innerKeys.has(normalizeHeaderKey(header.key)))
+      .concat(sent.map((header) => ({ header, source })));
+  }
+
+  const ownKeys = getKeys((node.headers ?? []).filter(isSentHeader));
+  const disabledKeys = new Set(node.disabledInheritedHeaders);
+  return inherited.map((entry) => {
+    const key = normalizeHeaderKey(entry.header.key);
+    return { ...entry, isOverridden: ownKeys.has(key), isDisabled: disabledKeys.has(key) };
+  });
+}
+
+/**
+ * Returns the headers that are sent: the inherited ones that are neither disabled nor overridden,
+ * followed by the own sent ones.
+ * @param inherited the inherited headers, see {@link getInheritedHeaders}
+ * @param own the own headers of the request
+ */
+export function getSentHeaders(inherited: InheritedHeader[], own: TrufosHeader[]): TrufosHeader[] {
+  return inherited
+    .filter(({ isOverridden, isDisabled }) => !isOverridden && !isDisabled)
+    .map(({ header }) => header)
+    .concat(own.filter(isSentHeader));
+}
+
+/**
+ * Returns the headers that are sent with a request, see {@link getSentHeaders}.
+ * @param model the collection and its folders
+ * @param request the request
+ */
+export function resolveHeaders(
+  model: Pick<CollectionModel, 'collection' | 'folders'>,
+  request: Pick<TrufosRequest, 'headers' | 'disabledInheritedHeaders' | 'parentId'>
+): TrufosHeader[] {
+  return getSentHeaders(getInheritedHeaders(model, request), request.headers);
 }
 
 /** Returns the folder or request with the given ID. */

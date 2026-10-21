@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  CollectionInfoFile,
   FolderInfoFile,
   GIT_IGNORE_LINES,
   InfoFileMigrator,
@@ -54,6 +55,26 @@ describe('InfoFileMigrator v2.5.0', () => {
       ...folder,
       auth: { type: AuthorizationType.INHERIT },
     }).not.toBeOfSchemaAsync(FolderInfoFile);
+  });
+
+  it('accepts headers on folders and the collection, and disabled inherited headers on requests', async () => {
+    // Arrange
+    const base = { id: randomUUID(), title: 'Object', version: VERSION.string };
+    const headers = [{ key: 'X-Tenant', value: 'acme', isActive: true }];
+
+    // Act & Assert
+    await expect({ ...base, headers }).toBeOfSchemaAsync(FolderInfoFile);
+    await expect({ ...base, variables: {}, environments: {}, headers }).toBeOfSchemaAsync(
+      CollectionInfoFile
+    );
+    await expect({
+      ...base,
+      url: parseUrl('https://example.com'),
+      method: RequestMethod.GET,
+      headers: [],
+      disabledInheritedHeaders: ['x-tenant'],
+      body: { type: RequestBodyType.NONE },
+    }).toBeOfSchemaAsync(RequestInfoFile);
   });
 
   it('accepts a request without a body, which older versions do not', async () => {
