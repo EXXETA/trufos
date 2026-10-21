@@ -91,7 +91,7 @@ Define named environments (e.g. `dev`, `staging`, `prod`) each with their own va
 
 ## Contributing
 
-Check out the [Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md) before you start. Feedback, suggestions, and pull requests are welcome.
+Check out the [Contributing Guidelines](./CONTRIBUTING.md) and [Code of Conduct](./CODE_OF_CONDUCT.md) before you start. Feedback, suggestions, and feature requests are welcome.
 
 ## Licence
 
