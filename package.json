@@ -11,7 +11,7 @@
     "make": "electron-forge make",
     "publish": "electron-forge release",
     "lint": "eslint .",
-    "typecheck": "tsc -p src/shim && tsc -p src/main && tsc -p src/renderer && tsc -p e2e && tsc -p .",
+    "typecheck": "tsc -p src/shim && tsc -p src/main && tsc -p src/renderer && tsc -p plugins && tsc -p e2e && tsc -p .",
     "prettier": "prettier --write '**/*.{ts,tsx,mts,mjs,cjs}'",
     "prettier-check": "prettier --check '**/*.{ts,tsx,mts,mjs,cjs}'",
     "test": "vitest run",

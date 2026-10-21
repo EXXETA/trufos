@@ -61,4 +61,23 @@ describe('Semver', () => {
     // Assert
     expect(actual).toBe(expected);
   });
+
+  it.each<[string, string, boolean]>([
+    ['1.2.3', '1.2.3', true],
+    ['1.2.4', '1.2.3', false],
+    ['1.2.3', '^1.2.3', true],
+    ['1.9.0', '^1.2.3', true],
+    ['1.2.2', '^1.2.3', false],
+    ['2.0.0', '^1.2.3', false],
+    ['0.2.9', '^0.2.3', true],
+    ['0.3.0', '^0.2.3', false],
+    ['0.0.3', '^0.0.3', true],
+    ['0.0.4', '^0.0.3', false],
+  ])('should check whether %s satisfies %s', (version, range, expected) => {
+    expect(SemVer.parse(version).satisfies(range)).toBe(expected);
+  });
+
+  it.each(['>=1.0.0', '~1.0.0', '1.x', '^1'])('should reject the unsupported range %s', (range) => {
+    expect(() => new SemVer(1, 0, 0).satisfies(range)).toThrow();
+  });
 });

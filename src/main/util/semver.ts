@@ -24,10 +24,12 @@ export class SemVer<
 
   public static parse<M extends number, S extends number, P extends number>(
     version: SemVerString<M, S, P>
-  ) {
+  ): SemVer<M, S, P>;
+  public static parse(version: string): SemVer;
+  public static parse(version: string): SemVer {
     const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
     if (!match) throw new Error(`Invalid version: ${version}`);
-    return new SemVer(parseInt(match[1]) as M, parseInt(match[2]) as S, parseInt(match[3]) as P);
+    return new SemVer(parseInt(match[1]), parseInt(match[2]), parseInt(match[3]));
   }
 
   public static compare(a: SemVer, b: SemVer) {
@@ -48,5 +50,21 @@ export class SemVer<
 
   public isEqualTo(version: SemVer) {
     return SemVer.compare(this, version) === 0;
+  }
+
+  /**
+   * Checks whether this version is in the given range. A range is either an exact version
+   * (`1.2.3`) or a caret range (`^1.2.3`), which allows changes that keep the left-most non-zero
+   * part, like npm: `^1.2.3` is `>=1.2.3 <2.0.0`, `^0.2.3` is `>=0.2.3 <0.3.0` and `^0.0.3` is
+   * only `0.0.3`.
+   * @throws if the range is neither of the two
+   */
+  public satisfies(range: string): boolean {
+    if (!range.startsWith('^')) return this.isEqualTo(SemVer.parse(range));
+    const min = SemVer.parse(range.slice(1));
+    if (this.isOlderThan(min)) return false;
+    if (min.major !== 0) return this.major === min.major;
+    if (min.minor !== 0) return this.major === 0 && this.minor === min.minor;
+    return this.isEqualTo(min);
   }
 }

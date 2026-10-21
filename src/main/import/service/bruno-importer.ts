@@ -1,4 +1,4 @@
-import { CollectionImporter } from './import-service.js';
+import type { CollectionImporter, ImportWarning } from 'shim/plugin';
 import { InternalError, InternalErrorType } from 'main/error/internal-error';
 import { bruToJsonV2, bruToEnvJsonV2, BrunoAuth, BrunoRequest } from '@usebruno/lang';
 import { Collection as TrufosCollection } from 'shim/objects/collection';
@@ -18,7 +18,6 @@ import {
   OAuth2PKCECodeChallengeMethod,
   Oauth2BaseAuthorizationInformation,
 } from 'shim';
-import type { ImportWarning } from 'shim/event-service';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 

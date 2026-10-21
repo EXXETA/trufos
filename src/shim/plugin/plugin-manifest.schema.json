@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "default": "",
+      "type": "string"
+    },
+    "engine": {
+      "type": "string",
+      "pattern": "^\\^?\\d+\\.\\d+\\.\\d+$"
+    },
+    "permissions": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "collection:read",
+              "collection:write",
+              "bodies:read",
+              "fs:collection",
+              "fs:pick",
+              "secrets"
+            ]
+          },
+          {
+            "type": "string",
+            "pattern": "^network:(\\*\\.)?[a-z0-9-]+(\\.[a-z0-9-]+)*$"
+          },
+          {
+            "type": "string",
+            "pattern": "^exec:[\\w.-]+$"
+          }
+        ]
+      }
+    },
+    "contributes": {
+      "default": {
+        "importers": [],
+        "exporters": []
+      },
+      "type": "object",
+      "properties": {
+        "importers": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source": {
+                "default": "file",
+                "type": "string",
+                "enum": [
+                  "file",
+                  "directory"
+                ]
+              },
+              "extensions": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[\\w-]+$"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "exporters": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "extensions": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[\\w-]+$"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "version",
+    "engine"
+  ],
+  "additionalProperties": false
+}

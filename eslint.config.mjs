@@ -72,6 +72,29 @@ export default [
     languageOptions: { globals: globals.node },
   },
 
+  // Plugins run in the main process and may only use the public plugin API, `shim/plugin`.
+  {
+    files: ['plugins/**'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: ['main', 'shim'].map((name) => ({
+            name,
+            message: 'Plugins may only import from "shim/plugin", the public plugin API.',
+          })),
+          patterns: [
+            {
+              group: ['main/*', '@/*', 'shim/*', '!shim/plugin', '**/src/*/**'],
+              message: 'Plugins may only import from "shim/plugin", the public plugin API.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // End-to-end suite, which runs in Node via the Playwright runner.
   {
     files: ['e2e/**'],

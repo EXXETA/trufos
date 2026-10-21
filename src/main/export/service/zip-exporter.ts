@@ -3,10 +3,9 @@ import { once } from 'node:events';
 import { createWriteStream } from 'node:fs';
 import { Readable, Writable } from 'node:stream';
 import { configure, TextReader, ZipWriter } from '@zip.js/zip.js';
-import type { ExportOptions } from 'shim/event-service';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { serializeCollection } from 'main/persistence/service/collection-serializer';
-import type { CollectionExporter } from './export-service';
+import type { CollectionExporter, ExportOptions } from 'shim/plugin';
 
 // The Electron main process is a plain Node.js environment without DOM Web Workers, so keep zip.js
 // compression in-process to avoid it trying to spawn workers.

@@ -11,7 +11,6 @@ import type {
   ImportResult,
   ImportStrategy,
   ExportStrategy,
-  ExportOptions,
 } from 'shim';
 import { AppSettings } from 'shim/app-settings';
 import { MainProcessEvent } from 'shim/event-service';
@@ -30,6 +29,8 @@ import { updateElectronApp } from 'update-electron-app';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { HistoryService } from 'main/history/history-service';
 import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
+import { PluginService } from 'main/plugin/plugin-service';
+import type { ExportOptions, PluginContributions } from 'shim/plugin';
 
 // register stream events
 import './stream-events';
@@ -117,6 +118,14 @@ export class MainEventService implements IEventService {
       );
     HistoryService.instance.on('changed', pushHistory);
     collectionState.on('collection-changed', pushHistory);
+    // the renderer lists the contributions of the enabled plugins
+    PluginService.instance.on('changed', () =>
+      sendToRenderer(
+        this.window?.webContents,
+        MainProcessEvent.PluginsChanged,
+        PluginService.instance.contributions
+      )
+    );
     logger.debug('Registered event channels on backend');
   }
 
@@ -244,6 +253,10 @@ export class MainEventService implements IEventService {
 
   async clearHistory(): Promise<void> {
     HistoryService.instance.clear(collectionState.model.collection.dirPath);
+  }
+
+  async getPluginContributions(): Promise<PluginContributions> {
+    return PluginService.instance.contributions;
   }
 
   async openLogDirectory(): Promise<void> {
