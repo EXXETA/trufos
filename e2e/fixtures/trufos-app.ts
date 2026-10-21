@@ -75,10 +75,11 @@ function headlessLinuxArgs(): string[] {
 /**
  * Keeps the app's encrypted storage away from the real OS keyring.
  *
- * `main.ts` aborts when `safeStorage.isEncryptionAvailable()` returns false, so these flags have to
- * make encryption available rather than switch it off. On macOS a real Keychain lookup blocks on a
- * modal authorization prompt that no automated run can answer — the process stays alive and never
- * reaches `new BrowserWindow`. On Linux a headless runner has no keyring to talk to at all.
+ * `main.ts` aborts when `safeStorage.isAsyncEncryptionAvailable()` resolves to false, so these flags
+ * have to make encryption available rather than switch it off. On macOS a real Keychain lookup
+ * blocks on a modal authorization prompt that no automated run can answer — the process stays alive
+ * and never reaches `new BrowserWindow`. On Linux a headless runner has no keyring to talk to at
+ * all.
  */
 function keyringArgs(): string[] {
   return process.platform === 'darwin' ? ['--use-mock-keychain'] : ['--password-store=basic'];
