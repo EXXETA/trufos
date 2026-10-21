@@ -111,6 +111,22 @@ describe('PluginService', () => {
     expect(activate).toHaveBeenCalledWith({ pluginId: 'fake', log: expect.any(Object) });
   });
 
+  it('lists the plugins from their manifests', async () => {
+    const service = await createService(testPlugin());
+
+    expect(service.pluginInfos).toEqual([
+      {
+        id: 'test-plugin',
+        name: 'Test Plugin',
+        version: '1.0.0',
+        description: testPluginManifest.description,
+        permissions: [],
+        enabled: true,
+        error: undefined,
+      },
+    ]);
+  });
+
   it('can be initialized again', async () => {
     const service = await createService(testPlugin());
 
@@ -141,14 +157,25 @@ describe('PluginService', () => {
     expect(await service.getImporter('future.x')).toBeUndefined();
   });
 
-  it('disables a plugin with the ID of another plugin', async () => {
-    const service = await createService(testPlugin(), testPlugin());
+  it('ignores a plugin with the ID of another plugin', async () => {
+    const second = testPlugin();
+    const service = await createService(testPlugin(), second);
 
     expect(service.pluginInfos).toEqual([
       expect.objectContaining({ id: 'test-plugin', error: undefined }),
-      expect.objectContaining({ id: 'test-plugin', error: expect.stringContaining('ID') }),
     ]);
     expect(service.contributions.importers).toHaveLength(1);
+    await service.getImporter('test-plugin.title');
+    expect(second.load).not.toHaveBeenCalled();
+  });
+
+  it('takes a snapshot of the plugins and their contributions', async () => {
+    const service = await createService(testPlugin());
+
+    expect(service.snapshot).toEqual({
+      plugins: service.pluginInfos,
+      contributions: service.contributions,
+    });
   });
 
   it('disables a plugin for the session if its activation fails', async () => {
@@ -253,6 +280,12 @@ describe('PluginService', () => {
 
     expect(service.pluginInfos[0].enabled).toBe(false);
     expect(service.contributions.importers).toEqual([]);
+  });
+
+  it('rejects enabling an unknown plugin', async () => {
+    const service = await createService(testPlugin());
+
+    await expect(service.setEnabled('unknown', false)).rejects.toThrow('No plugin found');
   });
 
   it('enables a disabled plugin', async () => {

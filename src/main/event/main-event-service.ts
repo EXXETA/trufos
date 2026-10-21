@@ -30,7 +30,7 @@ import { DisplayableError } from 'shim/error/DisplayableError';
 import { HistoryService } from 'main/history/history-service';
 import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 import { PluginService } from 'main/plugin/plugin-service';
-import type { ExportOptions, PluginContributions } from 'shim/plugin';
+import type { ExportOptions, PluginsSnapshot } from 'shim/plugin';
 
 // register stream events
 import './stream-events';
@@ -118,12 +118,12 @@ export class MainEventService implements IEventService {
       );
     HistoryService.instance.on('changed', pushHistory);
     collectionState.on('collection-changed', pushHistory);
-    // the renderer lists the contributions of the enabled plugins
+    // the renderer lists the plugins and the contributions of the enabled ones
     PluginService.instance.on('changed', () =>
       sendToRenderer(
         this.window?.webContents,
         MainProcessEvent.PluginsChanged,
-        PluginService.instance.contributions
+        PluginService.instance.snapshot
       )
     );
     logger.debug('Registered event channels on backend');
@@ -255,8 +255,12 @@ export class MainEventService implements IEventService {
     HistoryService.instance.clear(collectionState.model.collection.dirPath);
   }
 
-  async getPluginContributions(): Promise<PluginContributions> {
-    return PluginService.instance.contributions;
+  async getPlugins(): Promise<PluginsSnapshot> {
+    return PluginService.instance.snapshot;
+  }
+
+  async setPluginEnabled(id: string, enabled: boolean): Promise<void> {
+    await PluginService.instance.setEnabled(id, enabled);
   }
 
   async openLogDirectory(): Promise<void> {

@@ -13,23 +13,77 @@ const HostPattern = z.string().regex(/^(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)*$/);
 /** The name of an executable, e.g. `git`. */
 const BinaryName = z.string().regex(/^[\w.-]+$/);
 
+/** What a permission gives a plugin access to. */
+export enum PluginPermissionScope {
+  COLLECTION = 'collection',
+  BODIES = 'bodies',
+  FS = 'fs',
+  SECRETS = 'secrets',
+  NETWORK = 'network',
+  EXEC = 'exec',
+}
+
+/** Whether a permission allows reading or changing its scope. */
+export enum PluginPermissionAccess {
+  READ = 'read',
+  WRITE = 'write',
+}
+
+/** Which files a permission of the {@link PluginPermissionScope.FS} scope gives access to. */
+export enum PluginFileArea {
+  /** The files of the open collection. */
+  COLLECTION = 'collection',
+  /** The files and directories the user picks in a dialog. */
+  PICK = 'pick',
+}
+
 /**
- * A permission a plugin declares in its manifest. The host API handed to a plugin is built from
- * its permissions, so a plugin only gets the parts of it that it declared.
+ * A permission of a plugin. The host API handed to a plugin is built from its permissions, so a
+ * plugin only gets the parts of it that it declared. Every scope but {@link
+ * PluginPermissionScope.SECRETS} narrows the permission with a `value`, whose type depends on the
+ * scope, so code that handles permissions switches over the scope and is checked for handling every
+ * scope.
  */
-export const PluginPermission = z.union([
-  z.enum([
-    'collection:read',
-    'collection:write',
-    'bodies:read',
-    'fs:collection',
-    'fs:pick',
-    'secrets',
-  ]),
-  z.templateLiteral(['network:', HostPattern]),
-  z.templateLiteral(['exec:', BinaryName]),
+export const PluginPermission = z.discriminatedUnion('scope', [
+  z.strictObject({
+    scope: z.literal(PluginPermissionScope.COLLECTION),
+    value: z.enum(PluginPermissionAccess),
+  }),
+  z.strictObject({
+    scope: z.literal(PluginPermissionScope.BODIES),
+    value: z.literal(PluginPermissionAccess.READ),
+  }),
+  z.strictObject({ scope: z.literal(PluginPermissionScope.FS), value: z.enum(PluginFileArea) }),
+  z.strictObject({ scope: z.literal(PluginPermissionScope.SECRETS) }),
+  z.strictObject({ scope: z.literal(PluginPermissionScope.NETWORK), value: HostPattern }),
+  z.strictObject({ scope: z.literal(PluginPermissionScope.EXEC), value: BinaryName }),
 ]);
 export type PluginPermission = z.infer<typeof PluginPermission>;
+
+/**
+ * A permission as a manifest writes it, `<scope>:<value>` or just `<scope>`, e.g.
+ * `collection:read`, `network:*.github.com` or `secrets`. It is parsed into a
+ * {@link PluginPermission}. The string is validated before it is parsed, so the JSON Schema of the
+ * manifest lists the permissions an editor can suggest.
+ */
+export const PluginPermissionText = z
+  .union([
+    z.enum([
+      'collection:read',
+      'collection:write',
+      'bodies:read',
+      'fs:collection',
+      'fs:pick',
+      'secrets',
+    ]),
+    z.templateLiteral(['network:', HostPattern]),
+    z.templateLiteral(['exec:', BinaryName]),
+  ])
+  .transform((text) => {
+    const [scope, value] = text.split(/:(.*)/);
+    return value === undefined ? { scope } : { scope, value };
+  })
+  .pipe(PluginPermission);
 
 /** An importer that reads a collection of another tool. */
 export const ImporterContribution = z.strictObject({
@@ -92,7 +146,8 @@ export const PluginManifest = z.strictObject({
    * exact version (`1.2.3`) or a caret range (`^1.2.3`).
    */
   engine: z.string().regex(/^\^?\d+\.\d+\.\d+$/),
-  permissions: z.array(PluginPermission).default([]),
+  // a prefault applies before parsing, so the JSON Schema of the manifest shows the default
+  permissions: z.array(PluginPermissionText).prefault([]),
   contributes: PluginContributes.default({ importers: [], exporters: [] }),
 });
 export type PluginManifest = z.infer<typeof PluginManifest>;

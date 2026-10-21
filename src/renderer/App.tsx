@@ -14,6 +14,7 @@ import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/componen
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
 import { useHistoryStore } from '@/state/historyStore';
+import { usePluginStore } from '@/state/pluginStore';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { useAppSettingsStore } from '@/state/appSettingsStore';
@@ -65,9 +66,13 @@ export const App = () => {
       .on(MainProcessEvent.ShowHistory, () => useViewStore.getState().setSidebarView('history'))
       .on(MainProcessEvent.HistoryChanged, (_event, payload) =>
         useHistoryStore.getState().receive(payload)
+      )
+      .on(MainProcessEvent.PluginsChanged, (_event, payload) =>
+        usePluginStore.getState().receive(payload)
       );
     // later changes, e.g. when the collection changes, are pushed by the main process
     void useHistoryStore.getState().load();
+    void usePluginStore.getState().load();
 
     RendererEventService.instance
       .getAppSettings()

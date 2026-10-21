@@ -3,7 +3,7 @@ import type { CollectionSnapshot, CollectionStateEvent, CommandEnvelope } from '
 import type { CollectionUiStateInput } from './collection-ui-state';
 import { AppSettings } from './app-settings';
 import { HistoryEntry, HistoryEntrySummary } from './history';
-import type { PluginContributions, QualifiedId } from './plugin/contributions';
+import type { PluginsSnapshot, QualifiedId } from './plugin/contributions';
 import type { ExportOptions, ImportWarning } from './plugin/host';
 
 /**
@@ -21,7 +21,10 @@ export enum MainProcessEvent {
    * first.
    */
   HistoryChanged = 'history-changed',
-  /** A plugin was enabled or disabled. The payload is the new {@link PluginContributions}. */
+  /**
+   * A plugin was enabled or disabled, or failed to activate. The payload is the new
+   * {@link PluginsSnapshot}.
+   */
   PluginsChanged = 'plugins-changed',
   /** Opens the app settings modal (app menu). */
   ShowAppSettings = 'show-app-settings',
@@ -53,7 +56,7 @@ export interface MainProcessEventPayloads {
   [MainProcessEvent.BeforeClose]: [];
   [MainProcessEvent.CollectionStateChanged]: [event: CollectionStateEvent];
   [MainProcessEvent.HistoryChanged]: [entries: HistoryEntrySummary[]];
-  [MainProcessEvent.PluginsChanged]: [contributions: PluginContributions];
+  [MainProcessEvent.PluginsChanged]: [snapshot: PluginsSnapshot];
   [MainProcessEvent.ShowAppSettings]: [];
   [MainProcessEvent.ShowCollectionRunner]: [];
   [MainProcessEvent.ShowCollectionSettings]: [];
@@ -266,8 +269,16 @@ export interface IEventService {
   clearHistory(): Promise<void>;
 
   /**
-   * Returns the contributions of all enabled plugins. Afterwards, they are kept up to date with
-   * {@link MainProcessEvent.PluginsChanged} events.
+   * Returns all plugins, whether they can be used or not, and the contributions of the enabled
+   * ones. Afterwards, they are kept up to date with {@link MainProcessEvent.PluginsChanged} events.
    */
-  getPluginContributions(): Promise<PluginContributions>;
+  getPlugins(): Promise<PluginsSnapshot>;
+
+  /**
+   * Enables or disables a plugin and stores the choice. A disabled plugin is deactivated. The change
+   * is broadcast as {@link MainProcessEvent.PluginsChanged}.
+   * @param id The ID of the plugin.
+   * @param enabled Whether the plugin is enabled.
+   */
+  setPluginEnabled(id: string, enabled: boolean): Promise<void>;
 }

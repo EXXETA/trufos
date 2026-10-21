@@ -135,7 +135,10 @@ already covers the directory.
   change to `shim/plugin` bumps the major. `main/util/semver.ts` is extended with range matching
   if it does not have it.
 - `main` is the main-process bundle; `renderer` is optional until stage 1.5.
-- `permissions` is a closed Zod enum. Initial set:
+- `permissions` are compact strings (`<scope>:<value>` or `<scope>`) from a closed set. The
+  schema validates them as strings, so the generated JSON Schema lists them for editors, and parses
+  each into an object with a `value` typed per scope (`{ scope: 'network', value: '*.github.com' }`).
+  Everything after the manifest works with the objects and switches over `scope`. Initial set:
 
   | Permission               | Grants                                                    |
   | ------------------------ | --------------------------------------------------------- |
@@ -231,13 +234,15 @@ Responsibilities:
    startup. Stage 2 adds `userData/plugins/<id>/<version>/` directories with a `plugin.json` and
    a signature check.
 
-2. **Validation.** Every manifest is parsed with `PluginManifest`. An invalid manifest, an
-   `engine` range the current API does not satisfy, or a duplicate id disables the plugin with a
-   logged reason that the Plugins page shows.
+2. **Validation.** Every manifest is parsed with `PluginManifest`. An `engine` range the current
+   API does not satisfy disables the plugin with a logged reason that the Plugins page shows. A
+   plugin with an invalid manifest or an id that another plugin already has is ignored with a
+   logged reason, so plugin ids stay unique; a test keeps the ids of the bundled plugins unique.
 3. **Contribution index.** From the manifests alone, the service builds the lists the app needs:
    importers and exporters with their file filters, commands, menu entries, auth types, panels.
-   The renderer gets them through `IEventService.getPluginContributions()` and a
-   `MainProcessEvent.PluginsChanged` event when they change (enable, disable, install).
+   The renderer gets them together with the list of plugins as one `PluginsSnapshot` through
+   `IEventService.getPlugins()` and a `MainProcessEvent.PluginsChanged` event when they change
+   (enable, disable, install).
 4. **Activation.** The first time a contribution is used, the service loads the plugin's `main`
    entry, builds the `PluginHost` from the manifest's permissions and calls `activate()`. The
    returned `PluginInstance` is cached. Activation errors disable the plugin for the session.

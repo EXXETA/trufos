@@ -1,4 +1,4 @@
-import type { ExporterContribution, ImporterContribution } from './manifest';
+import type { ExporterContribution, ImporterContribution, PluginPermission } from './manifest';
 
 /**
  * The ID of a contribution outside its plugin: the ID of the plugin and the ID of the contribution
@@ -28,7 +28,7 @@ export function splitQualifiedId(
   return { pluginId: id.slice(0, index), contributionId: id.slice(index + 1) };
 }
 
-/** A contribution of an enabled plugin, as the app lists it. */
+/** A contribution of an enabled plugin, marked with its {@link QualifiedId} and its plugin. */
 type IndexedContribution<T extends { id: string }> = Omit<T, 'id'> & {
   id: QualifiedId;
   pluginId: string;
@@ -37,18 +37,26 @@ type IndexedContribution<T extends { id: string }> = Omit<T, 'id'> & {
 export type IndexedImporter = IndexedContribution<ImporterContribution>;
 export type IndexedExporter = IndexedContribution<ExporterContribution>;
 
+/** The contributions of all enabled plugins, built from their manifests. */
+export interface PluginContributions {
+  importers: IndexedImporter[];
+  exporters: IndexedExporter[];
+}
+
 /** What the app knows about a plugin without loading it. */
 export interface PluginInfo {
   id: string;
   name: string;
   version: string;
+  description: string;
+  permissions: PluginPermission[];
   enabled: boolean;
   /** Why the plugin cannot be used in this session, e.g. its activation failed. */
   error?: string;
 }
 
-/** The contributions of all enabled plugins, built from their manifests. */
-export interface PluginContributions {
-  importers: IndexedImporter[];
-  exporters: IndexedExporter[];
+/** All plugins and the contributions of the enabled ones, taken at the same moment. */
+export interface PluginsSnapshot {
+  plugins: PluginInfo[];
+  contributions: PluginContributions;
 }

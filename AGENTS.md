@@ -58,8 +58,13 @@ Key renderer directories:
 - IPC communication must go through typed handlers defined in `src/main/event/` and exposed
   via preload.
 - Use **Zod** for runtime validation and schema definitions. Validate data at runtime
-  boundaries (IPC payloads, files read from disk, network responses) instead of asserting
+  boundaries (files read from disk, network responses, plugin code) instead of asserting
   types with casts.
+- IPC between main and renderer is **not** such a boundary: both are built and typechecked
+  together, and every call goes through the typed `IEventService`. Type IPC handler parameters
+  with their real types and do not re-validate them. Parse with Zod only where the schema adds
+  something beyond the type, e.g. defaults, transforms or structural rules such as a command
+  envelope.
 - Use **Winston** for logging in the main process.
 
 ### UI Components & Styling
@@ -87,7 +92,7 @@ Key renderer directories:
 - Prefer typed, structured comparisons: compare the relevant fields explicitly, or use a
   dedicated deep-equality helper.
 - Prefer stable, typed data models plus **Zod** parsing over ad hoc string serialization
-  when data crosses a boundary (IPC, persistence). Parse into a typed structure once at the
+  when data crosses a boundary (persistence, network). Parse into a typed structure once at the
   boundary and work with that structure afterwards.
 
 ### Files, Streams & Temporary Files

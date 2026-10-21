@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { PluginManifest, PluginPermission } from './manifest';
+import {
+  PluginFileArea,
+  PluginManifest,
+  type PluginPermission,
+  PluginPermissionAccess,
+  PluginPermissionScope,
+  PluginPermissionText,
+} from './manifest';
 
 const MINIMAL_MANIFEST = { id: 'postman', name: 'Postman', version: '1.0.0', engine: '^1.0.0' };
 
@@ -63,26 +70,35 @@ describe('PluginManifest', () => {
   });
 });
 
-describe('PluginPermission', () => {
-  it.each([
-    'collection:read',
-    'collection:write',
-    'fs:pick',
-    'network:api.github.com',
-    'network:*.github.com',
-    'exec:git',
-  ])('accepts "%s"', (permission) => {
-    expect(PluginPermission.safeParse(permission).success).toBe(true);
+describe('PluginPermissionText', () => {
+  const { COLLECTION, BODIES, FS, SECRETS, NETWORK, EXEC } = PluginPermissionScope;
+  const { READ, WRITE } = PluginPermissionAccess;
+
+  it.each<[string, PluginPermission]>([
+    ['collection:read', { scope: COLLECTION, value: READ }],
+    ['collection:write', { scope: COLLECTION, value: WRITE }],
+    ['bodies:read', { scope: BODIES, value: READ }],
+    ['fs:collection', { scope: FS, value: PluginFileArea.COLLECTION }],
+    ['fs:pick', { scope: FS, value: PluginFileArea.PICK }],
+    ['secrets', { scope: SECRETS }],
+    ['network:api.github.com', { scope: NETWORK, value: 'api.github.com' }],
+    ['network:*.github.com', { scope: NETWORK, value: '*.github.com' }],
+    ['exec:git', { scope: EXEC, value: 'git' }],
+  ])('parses "%s"', (text, expected) => {
+    expect(PluginPermissionText.parse(text)).toEqual(expected);
   });
 
   it.each([
+    'collection',
     'collection:delete',
+    'bodies:write',
+    'secrets:all',
     'network:',
     'network:*',
     'network:a.*.com',
     'exec:',
     'exec:rm -rf',
-  ])('rejects "%s"', (permission) => {
-    expect(PluginPermission.safeParse(permission).success).toBe(false);
+  ])('rejects "%s"', (text) => {
+    expect(PluginPermissionText.safeParse(text).success).toBe(false);
   });
 });

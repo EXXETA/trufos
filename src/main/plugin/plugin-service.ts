@@ -16,6 +16,7 @@ import {
   type PluginInfo,
   type PluginInstance,
   type PluginLogger,
+  type PluginsSnapshot,
   PluginManifest,
   qualifyId,
   splitQualifiedId,
@@ -97,12 +98,19 @@ export class PluginService extends EventEmitter<PluginServiceEvents> implements 
     for (const bundled of this.bundled) this.register(bundled);
   }
 
+  /** All plugins and the contributions of the enabled ones. */
+  public get snapshot(): PluginsSnapshot {
+    return { plugins: this.pluginInfos, contributions: this.contributions };
+  }
+
   /** All plugins with a valid manifest, whether they can be used or not. */
   public get pluginInfos(): PluginInfo[] {
     return this.plugins.map(({ manifest, error }) => ({
       id: manifest.id,
       name: manifest.name,
       version: manifest.version,
+      description: manifest.description,
+      permissions: manifest.permissions,
       enabled: this.isEnabled(manifest.id),
       error,
     }));
@@ -195,16 +203,18 @@ export class PluginService extends EventEmitter<PluginServiceEvents> implements 
 
     const manifest = result.data;
     const log = createPluginLogger(manifest.id);
+    // the ID of a plugin is unique, so everything about a plugin can be looked up by it
+    if (this.plugins.some((plugin) => plugin.manifest.id === manifest.id)) {
+      log.error('Ignoring the plugin: another plugin has the same ID');
+      return;
+    }
     const error = this.whyUnusable(manifest);
     if (error !== undefined) log.error(`Disabled: ${error}`);
     this.plugins.push({ manifest, load, log, error });
   }
 
   /** @returns why a plugin with the given manifest cannot be used, or undefined if it can */
-  private whyUnusable({ id, engine }: PluginManifest): string | undefined {
-    if (this.plugins.some(({ manifest }) => manifest.id === id)) {
-      return `Another plugin has the ID "${id}"`;
-    }
+  private whyUnusable({ engine }: PluginManifest): string | undefined {
     if (!SemVer.parse(PLUGIN_API_VERSION).satisfies(engine)) {
       return `Requires plugin API ${engine}, but the app provides ${PLUGIN_API_VERSION}`;
     }
