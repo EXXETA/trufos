@@ -5,7 +5,7 @@ import path from 'node:path';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import type { ImportStrategy } from 'shim/event-service';
 import type { PluginInstance, PluginModule } from 'shim/plugin';
-import testPluginManifest from '../../../plugins/__fixtures__/test-plugin/plugin.json';
+import testPluginManifest from 'plugins/__fixtures__/test-plugin/plugin.json';
 import type { BundledPlugin } from './bundled-plugins';
 import { PluginService, VERSION } from './plugin-service';
 
@@ -13,7 +13,7 @@ import { PluginService, VERSION } from './plugin-service';
 function testPlugin(): BundledPlugin {
   return {
     manifest: testPluginManifest,
-    load: vi.fn(() => import('../../../plugins/__fixtures__/test-plugin/src/main.js')),
+    load: vi.fn(() => import('plugins/__fixtures__/test-plugin/src/main.js')),
   };
 }
 
@@ -91,7 +91,7 @@ describe('PluginService', () => {
     expect(JSON.parse(await readFile(targetPath, 'utf8'))).toEqual({ dirPath: '/collection' });
   });
 
-  it.each<ImportStrategy>(['Postman', 'test-plugin.unknown', 'unknown.title'])(
+  it.each<ImportStrategy>(['Bruno', 'test-plugin.unknown', 'unknown.title'])(
     'returns no importer for "%s"',
     async (id) => {
       const plugin = testPlugin();

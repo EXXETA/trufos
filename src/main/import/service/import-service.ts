@@ -1,7 +1,6 @@
 import { InternalError, InternalErrorType } from 'main/error/internal-error';
 import { Collection } from 'shim/objects/collection';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { PostmanImporter } from './postman-importer';
 import { OpenApiImporter } from './openapi-importer';
 import { BrunoImporter } from './bruno-importer';
 import type { ImportStrategy } from 'shim/event-service';
@@ -18,7 +17,6 @@ export class ImportService {
   public static readonly instance = new ImportService();
 
   static {
-    ImportService.instance.registerImporter('Postman', new PostmanImporter());
     ImportService.instance.registerImporter('OpenAPI', new OpenApiImporter());
     ImportService.instance.registerImporter('Bruno', new BrunoImporter());
   }
@@ -33,7 +31,7 @@ export class ImportService {
    * Imports a third-party collection from the given file or directory
    * @param srcFilePath the file or directory to read from
    * @param targetDirPath the directory to save the imported collection to. Will create a subdirectory based on the collection title.
-   * @param strategy the import strategy to use (e.g. Postman), or the ID of an importer of a plugin
+   * @param strategy the import strategy to use (e.g. Bruno), or the ID of an importer of a plugin
    * @param title an optional title override for the imported collection
    * @returns the imported collection
    */

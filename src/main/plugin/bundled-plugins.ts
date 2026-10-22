@@ -1,4 +1,5 @@
 import type { PluginModule } from 'shim/plugin';
+import postmanManifest from 'plugins/postman/plugin.json';
 
 /** A plugin that ships with the app. */
 export interface BundledPlugin {
@@ -18,4 +19,6 @@ export interface BundledPlugin {
 }
 
 /** The plugins that ship with the app. */
-export const BUNDLED_PLUGINS: readonly BundledPlugin[] = [];
+export const BUNDLED_PLUGINS: readonly BundledPlugin[] = [
+  { manifest: postmanManifest, load: () => import('plugins/postman/src/main.js') },
+];

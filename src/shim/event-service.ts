@@ -79,7 +79,7 @@ export interface RendererEventPayloads {
 }
 
 /** A built-in importer, or the {@link QualifiedId} of an importer contributed by a plugin. */
-export type ImportStrategy = 'Postman' | 'OpenAPI' | 'Bruno' | 'Insomnia' | QualifiedId;
+export type ImportStrategy = 'OpenAPI' | 'Bruno' | 'Insomnia' | QualifiedId;
 
 export interface ImportResult {
   /** The directory the collection was imported into. Open it to make it the current one. */

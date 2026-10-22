@@ -1,4 +1,4 @@
-import type { CollectionImporter } from 'shim/plugin';
+import fs from 'node:fs/promises';
 import {
   Collection as PostmanCollection,
   CollectionDefinition,
@@ -6,21 +6,25 @@ import {
   ItemGroup,
   RequestAuth as PostmanRequestAuth,
 } from 'postman-collection';
-import { Collection as TrufosCollection } from 'shim/objects/collection';
-import { Folder as TrufosFolder } from 'shim/objects/folder';
-import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { parseUrl } from 'shim/objects/url';
-import { RequestMethod } from 'shim/objects/request-method';
-import fs from 'node:fs/promises';
-import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
 import {
   AuthorizationType,
-  OAuth2AuthorizationInformation,
+  type CollectionImporter,
+  type Folder as TrufosFolder,
+  type OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
   OAuth2PKCECodeChallengeMethod,
-  Oauth2BaseAuthorizationInformation,
-} from 'shim';
+  type Oauth2BaseAuthorizationInformation,
+  parseUrl,
+  type PluginLogger,
+  type RequestBody,
+  RequestBodyType,
+  type RequestMethod,
+  type Collection as TrufosCollection,
+  type TrufosRequest,
+  VARIABLE_NAME_REGEX,
+  type VariableObject,
+} from 'shim/plugin';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 
@@ -29,6 +33,8 @@ const DEFAULT_MIME_TYPE = 'text/plain';
  * folders and requests. It imports using the DFS algorithm.
  */
 export class PostmanImporter implements CollectionImporter {
+  constructor(private readonly log: PluginLogger) {}
+
   public async importCollection(srcFilePath: string) {
     // read Postman collection
     const json = JSON.parse(await fs.readFile(srcFilePath, 'utf8')) as CollectionDefinition;
@@ -45,7 +51,7 @@ export class PostmanImporter implements CollectionImporter {
             } as VariableObject,
           ] as const
       );
-    logger.info('Loaded', variablesArray.length, 'collection variables');
+    this.log.info(`Loaded ${variablesArray.length} collection variables`);
 
     const variables: Record<string, VariableObject> = {};
     variablesArray.forEach(([key, val]) => (variables[key] = val));
@@ -153,7 +159,7 @@ export class PostmanImporter implements CollectionImporter {
         return this.importOAuth2(parameters);
       }
       default:
-        logger.warn('Unsupported auth type while importing from Postman:', postmanAuth.type);
+        this.log.warn(`Unsupported auth type while importing from Postman: ${postmanAuth.type}`);
         return;
     }
   }

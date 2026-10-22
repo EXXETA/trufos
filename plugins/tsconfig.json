@@ -5,5 +5,7 @@
     "lib": ["ESNext"],
     "types": ["node"]
   },
-  "include": ["**/*"]
+  "include": ["**/*"],
+  // Build tooling, covered by the root tsconfig.json instead.
+  "exclude": ["vitest.config.mts", "**/node_modules"]
 }

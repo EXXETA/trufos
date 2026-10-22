@@ -5,6 +5,9 @@
   "description": "Trufos - A cross-platform REST client",
   "main": ".vite/build/main.cjs",
   "repository": "github:EXXETA/trufos",
+  "workspaces": [
+    "plugins/*"
+  ],
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
@@ -41,7 +44,6 @@
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/mime-types": "^3.0.1",
     "@types/node": "^24.13.6",
-    "@types/postman-collection": "^3.5.11",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@typescript-eslint/eslint-plugin": "^8.72.0",
@@ -97,7 +99,6 @@
     "mime-types": "^3.0.2",
     "monaco-editor": "^0.57.0",
     "openid-client": "^6.8.8",
-    "postman-collection": "^5.3.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-resizable-panels": "^4.14.8",
