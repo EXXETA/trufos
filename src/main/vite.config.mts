@@ -8,6 +8,7 @@ export default defineConfig({
     alias: {
       main: import.meta.dirname,
       shim: path.resolve(import.meta.dirname, '..', 'shim'),
+      plugins: path.resolve(import.meta.dirname, '..', '..', 'plugins'),
       // Force CJS entry: ohm-js ESM bundle only exports { default, extras },
       // so require('ohm-js').grammar is undefined without this alias.
       'ohm-js': path.resolve(import.meta.dirname, '..', '..', 'node_modules', 'ohm-js', 'index.js'),

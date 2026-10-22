@@ -9,6 +9,7 @@
     "forge.config.ts",
     "forge.env.d.ts",
     "vitest.config.mts",
+    "plugins/vitest.config.mts",
     "src/main/vite.config.mts",
     "src/renderer/vite.config.mts",
     "tools/**/*"

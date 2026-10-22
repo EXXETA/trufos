@@ -16,6 +16,7 @@ import { z } from 'zod';
  */
 const BUNDLE_INPUTS = [
   'src',
+  'plugins',
   'index.html',
   'package.json',
   'yarn.lock',
@@ -26,7 +27,8 @@ const BUNDLE_INPUTS = [
 ];
 
 /** Inputs that never end up in a bundle, so changing them must not mark the bundles outdated. */
-const NOT_BUNDLED = /(\.test\.tsx?$|(^|\/)__mocks__\/|(^|\/)test-setup\.ts$)/;
+const NOT_BUNDLED =
+  /(\.test\.tsx?$|(^|\/)__mocks__\/|(^|\/)__fixtures__\/|(^|\/)test-setup\.ts$|(^|\/)vitest\.config\.mts$)/;
 
 /**
  * Kept outside of `.vite/`: Forge packages that directory into the app. `node_modules/.cache` is

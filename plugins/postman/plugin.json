@@ -1,0 +1,12 @@
+{
+  "$schema": "../../src/shim/plugin/plugin-manifest.schema.json",
+  "id": "postman",
+  "name": "Postman",
+  "version": "1.0.0",
+  "description": "Imports Postman v2.1 collections.",
+  "engine": "^1.0.0",
+  "permissions": [],
+  "contributes": {
+    "importers": [{ "id": "collection", "name": "Postman", "extensions": ["json"] }]
+  }
+}

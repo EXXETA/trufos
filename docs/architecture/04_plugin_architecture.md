@@ -95,7 +95,9 @@ plugins/
 ```
 
 Each plugin's `package.json` declares its own dependencies with exact versions. Yarn's
-`nodeLinker: node-modules` hoists them; nothing changes for `yarn install --immutable`.
+`nodeLinker: node-modules` hoists them. Every workspace and its dependencies are part of `yarn.lock`,
+so adding a plugin or changing its dependencies needs a `yarn install` and a committed lockfile;
+otherwise `yarn install --immutable` fails in CI.
 
 `yarn typecheck` gains `tsc -p plugins/<name>` per plugin (or one `plugins/tsconfig.json` with
 project references). `yarn test` picks plugins up through a Vitest workspace entry. `yarn lint`

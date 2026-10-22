@@ -18,7 +18,8 @@ import { FilePicker } from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
 import type { ImportStrategy } from 'shim/event-service';
-import type { ImportWarning } from 'shim/plugin';
+import type { ImportWarning, IndexedImporter } from 'shim/plugin';
+import { selectPluginContributions, usePluginStore } from '@/state/pluginStore';
 import { showError } from '@/error/errorHandler';
 import { toast } from '@/components/ui/sonner';
 
@@ -91,6 +92,95 @@ const TitleInput: React.FC<TitleInputProps> = ({ value, onChange }) => {
   );
 };
 
+interface ImportTargetProps {
+  targetEntry?: DroppedEntryInfo;
+  onTargetEntryChange: (entry?: DroppedEntryInfo) => void;
+  title: string;
+  onTitleChange: (title: string) => void;
+}
+
+/** Where an imported collection is written to and its name, shown below the source. */
+const ImportTarget: React.FC<ImportTargetProps> = ({
+  targetEntry,
+  onTargetEntryChange,
+  title,
+  onTitleChange,
+}) => {
+  return (
+    <>
+      {/* Flow separator */}
+      <div className="flex items-center justify-center">
+        <div className="bg-separator h-px flex-1" />
+        <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
+        <div className="bg-separator h-px flex-1" />
+      </div>
+      <FilePicker
+        title="Select directory for new collection"
+        description="This is where the imported collection will be placed"
+        entry={targetEntry}
+        icon={<FolderPlusIcon size={36} />}
+        onFileSelected={onTargetEntryChange}
+        onFileRemoved={() => onTargetEntryChange(undefined)}
+        directoryMode
+        controlled
+      />
+      <TitleInput value={title} onChange={onTitleChange} />
+    </>
+  );
+};
+
+const FILE_TYPE_LIST = new Intl.ListFormat('en', { type: 'disjunction' });
+
+/** What the import dialog needs to know about an importer to show its tab. */
+type ImportSourceInfo = Pick<IndexedImporter, 'name' | 'source' | 'extensions'> & {
+  id: ImportStrategy;
+};
+
+/** Importers built into the app, until they become plugins as well. */
+const BUILT_IN_IMPORTERS: ImportSourceInfo[] = [
+  { id: 'OpenAPI', name: 'OpenAPI', source: 'file', extensions: ['json', 'yaml', 'yml'] },
+  { id: 'Bruno', name: 'Bruno', source: 'directory', extensions: [] },
+];
+
+interface ImportSourceProps {
+  importer: ImportSourceInfo;
+  srcEntry?: DroppedEntryInfo;
+  onSrcEntryChange: (entry?: DroppedEntryInfo) => void;
+}
+
+/** Picks the file or directory an importer reads. */
+const ImportSource: React.FC<ImportSourceProps> = ({
+  importer: { name, source, extensions },
+  srcEntry,
+  onSrcEntryChange,
+}) => {
+  const isDirectory = source === 'directory';
+  const fileTypes = extensions.map((extension) => `.${extension}`);
+  return (
+    <FilePicker
+      title={
+        isDirectory
+          ? `Select ${name} collection directory`
+          : 'Select file of the original collection'
+      }
+      description={
+        isDirectory
+          ? `Select the folder containing the ${name} collection`
+          : fileTypes.length > 0
+            ? `${name} exports ${FILE_TYPE_LIST.format(fileTypes)} files`
+            : `Select the file exported by ${name}`
+      }
+      accept={!isDirectory && fileTypes.length > 0 ? fileTypes.join(',') : undefined}
+      directoryMode={isDirectory}
+      entry={srcEntry}
+      icon={<FolderSearchIcon size={36} />}
+      onFileSelected={onSrcEntryChange}
+      onFileRemoved={() => onSrcEntryChange(undefined)}
+      controlled
+    />
+  );
+};
+
 const ImportTabsContent: React.FC<{
   children: React.ReactNode;
   strategy: ImportStrategyWithTrufos;
@@ -118,6 +208,8 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   open = true,
 }) => {
   const { changeCollection } = useCollectionActions();
+  const { importers } = usePluginStore(selectPluginContributions);
+  const sources: ImportSourceInfo[] = [...importers, ...BUILT_IN_IMPORTERS];
 
   const [strategy, setStrategy] = useState<ImportStrategyWithTrufos>('Trufos');
   const [srcEntry, setSrcEntry, resetSrcEntry] = useStateResettable<DroppedEntryInfo>();
@@ -198,9 +290,11 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
         >
           <TabsList className="mt-1 mb-2 ml-0.5 overflow-visible">
             <TabsTrigger value="Trufos">Trufos</TabsTrigger>
-            <TabsTrigger value="Postman">Postman</TabsTrigger>
-            <TabsTrigger value="OpenAPI">OpenAPI</TabsTrigger>
-            <TabsTrigger value="Bruno">Bruno</TabsTrigger>
+            {sources.map(({ id, name }) => (
+              <TabsTrigger key={id} value={id}>
+                {name}
+              </TabsTrigger>
+            ))}
             <TabsTrigger value="Insomnia">Insomnia</TabsTrigger>
           </TabsList>
 
@@ -217,95 +311,21 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             />
           </ImportTabsContent>
 
-          <ImportTabsContent strategy="Postman">
-            <FilePicker
-              title="Select file of the original collection"
-              description="Postman exports .json files"
-              entry={srcEntry}
-              icon={<FolderSearchIcon size={36} />}
-              onFileSelected={setSrcEntry}
-              onFileRemoved={() => setSrcEntry(undefined)}
-              accept=".json"
-              controlled
-            />
-            {/* Flow separator */}
-            <div className="flex items-center justify-center">
-              <div className="bg-separator h-px flex-1" />
-              <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
-              <div className="bg-separator h-px flex-1" />
-            </div>
-            <FilePicker
-              title="Select directory for new collection"
-              description="This is where the imported collection will be placed"
-              entry={targetEntry}
-              icon={<FolderPlusIcon size={36} />}
-              onFileSelected={setTargetEntry}
-              onFileRemoved={() => setTargetEntry(undefined)}
-              directoryMode
-              controlled
-            />
-            <TitleInput value={title ?? ''} onChange={setTitle} />
-          </ImportTabsContent>
-
-          <ImportTabsContent strategy="OpenAPI">
-            <FilePicker
-              title="Select file of the OpenAPI definition"
-              description="OpenAPI definitions use .json, .yaml, or .yml files"
-              entry={srcEntry}
-              icon={<FolderSearchIcon size={36} />}
-              onFileSelected={setSrcEntry}
-              onFileRemoved={() => setSrcEntry(undefined)}
-              accept=".json,.yaml,.yml"
-              controlled
-            />
-            {/* Flow separator */}
-            <div className="flex items-center justify-center">
-              <div className="bg-separator h-px flex-1" />
-              <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
-              <div className="bg-separator h-px flex-1" />
-            </div>
-            <FilePicker
-              title="Select directory for new collection"
-              description="This is where the imported collection will be placed"
-              entry={targetEntry}
-              icon={<FolderPlusIcon size={36} />}
-              onFileSelected={setTargetEntry}
-              onFileRemoved={() => setTargetEntry(undefined)}
-              directoryMode
-              controlled
-            />
-            <TitleInput value={title ?? ''} onChange={setTitle} />
-          </ImportTabsContent>
-
-          <ImportTabsContent strategy="Bruno">
-            <FilePicker
-              title="Select Bruno collection directory"
-              description="Select the folder containing the bruno.json file"
-              entry={srcEntry}
-              icon={<FolderSearchIcon size={36} />}
-              onFileSelected={setSrcEntry}
-              onFileRemoved={() => setSrcEntry(undefined)}
-              directoryMode
-              controlled
-            />
-            {/* Flow separator */}
-            <div className="flex items-center justify-center">
-              <div className="bg-separator h-px flex-1" />
-              <div className="border-t-separator mx-5 h-0 w-0 border-x-[6px] border-t-8 border-x-transparent" />
-              <div className="bg-separator h-px flex-1" />
-            </div>
-            <FilePicker
-              title="Select directory for new collection"
-              description="This is where the imported collection will be placed"
-              entry={targetEntry}
-              icon={<FolderPlusIcon size={36} />}
-              onFileSelected={setTargetEntry}
-              onFileRemoved={() => setTargetEntry(undefined)}
-              directoryMode
-              controlled
-            />
-            <TitleInput value={title ?? ''} onChange={setTitle} />
-          </ImportTabsContent>
+          {sources.map((importer) => (
+            <ImportTabsContent key={importer.id} strategy={importer.id}>
+              <ImportSource
+                importer={importer}
+                srcEntry={srcEntry}
+                onSrcEntryChange={setSrcEntry}
+              />
+              <ImportTarget
+                targetEntry={targetEntry}
+                onTargetEntryChange={setTargetEntry}
+                title={title ?? ''}
+                onTitleChange={setTitle}
+              />
+            </ImportTabsContent>
+          ))}
 
           <ImportTabsContent strategy="Insomnia" gap={false}>
             <span>Coming soon...</span>
