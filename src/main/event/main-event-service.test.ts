@@ -11,6 +11,7 @@ import { CollectionModel, CommandType, normalizeCollection } from 'shim/collecti
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { CollectionUiState } from 'shim/collection-ui-state';
 import { MainProcessEvent } from 'shim/event-service';
+import { PluginService } from 'main/plugin/plugin-service';
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -90,11 +91,12 @@ describe('MainEventService', () => {
     ({ MainEventService } = await import('./main-event-service'));
 
     // Every test builds its own MainEventService, and each one subscribes to the shared
-    // HistoryService and CollectionStateService. Lift the cap so those accumulating subscriptions
+    // HistoryService, CollectionStateService and PluginService. Lift the cap so those accumulating subscriptions
     // are not mistaken for a listener leak once the suite grows past Node's default of ten.
     const { HistoryService } = await import('../history/history-service.js');
     HistoryService.instance.setMaxListeners(0);
     CollectionStateService.instance.setMaxListeners(0);
+    PluginService.instance.setMaxListeners(0);
   });
 
   it('should register event functions on the backend', async () => {
@@ -256,6 +258,30 @@ describe('MainEventService', () => {
       await expect(
         eventService.resolveVariablesInString('{{ missing }}/users')
       ).resolves.toBeNull();
+    });
+  });
+
+  describe('plugins', () => {
+    it('pushes the plugins and their contributions when they change', () => {
+      const webContentsSend = vi.fn();
+      const eventService = new MainEventService();
+      eventService.window = { webContents: { send: webContentsSend } } as never;
+
+      PluginService.instance.emit('changed');
+
+      expect(webContentsSend).toHaveBeenCalledWith(MainProcessEvent.PluginsChanged, {
+        plugins: [],
+        contributions: { importers: [], exporters: [] },
+      });
+    });
+
+    it('enables a plugin', async () => {
+      const setEnabled = vi.spyOn(PluginService.instance, 'setEnabled').mockResolvedValueOnce();
+      const eventService = new MainEventService();
+
+      await eventService.setPluginEnabled('postman', false);
+
+      expect(setEnabled).toHaveBeenCalledWith('postman', false);
     });
   });
 

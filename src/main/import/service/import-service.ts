@@ -4,20 +4,13 @@ import { PersistenceService } from 'main/persistence/service/persistence-service
 import { PostmanImporter } from './postman-importer';
 import { OpenApiImporter } from './openapi-importer';
 import { BrunoImporter } from './bruno-importer';
-import type { ImportStrategy, ImportWarning } from 'shim/event-service';
+import type { ImportStrategy } from 'shim/event-service';
 import { sanitizeTitle, uniqueNameAsync } from 'shim/string';
 import { exists, isEmpty } from 'main/util/fs-util';
+import { PluginService } from 'main/plugin/plugin-service';
+import type { CollectionImporter, ImportWarning } from 'shim/plugin';
 import fs from 'node:fs/promises';
 import path from 'path';
-
-export interface CollectionImporter {
-  /**
-   * Reads a third-party collection from the given file or directory
-   * @param srcFilePath the file or directory to read from
-   */
-  importCollection(srcFilePath: string): Promise<Collection>;
-  getWarnings?(): ImportWarning[];
-}
 
 const persistenceService = PersistenceService.instance;
 
@@ -40,7 +33,7 @@ export class ImportService {
    * Imports a third-party collection from the given file or directory
    * @param srcFilePath the file or directory to read from
    * @param targetDirPath the directory to save the imported collection to. Will create a subdirectory based on the collection title.
-   * @param strategy the import strategy to use (e.g. Postman)
+   * @param strategy the import strategy to use (e.g. Postman), or the ID of an importer of a plugin
    * @param title an optional title override for the imported collection
    * @returns the imported collection
    */
@@ -51,7 +44,8 @@ export class ImportService {
     title?: string
   ): Promise<{ collection: Collection; warnings: ImportWarning[] }> {
     // select importer
-    const importer = this.importers.get(strategy);
+    const importer =
+      this.importers.get(strategy) ?? (await PluginService.instance.getImporter(strategy));
     if (importer === undefined) {
       throw new InternalError(
         InternalErrorType.UNSUPPORTED_IMPORT_STRATEGY,

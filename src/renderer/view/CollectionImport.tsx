@@ -17,7 +17,8 @@ import {
 import { FilePicker } from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
-import type { ImportStrategy, ImportWarning } from 'shim/event-service';
+import type { ImportStrategy } from 'shim/event-service';
+import type { ImportWarning } from 'shim/plugin';
 import { showError } from '@/error/errorHandler';
 import { toast } from '@/components/ui/sonner';
 

@@ -1,4 +1,4 @@
-import { CollectionImporter } from './import-service';
+import type { CollectionImporter } from 'shim/plugin';
 import {
   Collection as PostmanCollection,
   CollectionDefinition,

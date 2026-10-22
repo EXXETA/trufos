@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../src/shim/plugin/plugin-manifest.schema.json",
+  "id": "test-plugin",
+  "name": "Test Plugin",
+  "version": "1.0.0",
+  "description": "Contributes one of each contribution type. Used by the tests of the plugin service.",
+  "engine": "^1.0.0",
+  "contributes": {
+    "importers": [{ "id": "title", "name": "Title", "extensions": ["json"] }],
+    "exporters": [{ "id": "title", "name": "Title", "extensions": ["json"] }]
+  }
+}

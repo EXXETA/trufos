@@ -91,4 +91,6 @@ export class RendererEventService implements IEventService {
   getHistory = createEventMethod('getHistory');
   getHistoryEntry = createEventMethod('getHistoryEntry');
   clearHistory = createEventMethod('clearHistory');
+  getPlugins = createEventMethod('getPlugins');
+  setPluginEnabled = createEventMethod('setPluginEnabled');
 }

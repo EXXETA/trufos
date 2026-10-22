@@ -1,0 +1,100 @@
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type PluginInfo, PluginPermissionAccess, PluginPermissionScope } from 'shim/plugin';
+import { AppPluginsTab } from './AppPluginsTab';
+
+const { setEnabledMock, pluginState } = vi.hoisted(() => ({
+  setEnabledMock: vi.fn(),
+  pluginState: { plugins: [] as PluginInfo[] },
+}));
+
+vi.mock('@/state/pluginStore', () => ({
+  selectPlugins: (state: typeof pluginState) => state.plugins,
+  usePluginActions: () => ({ setEnabled: setEnabledMock }),
+  usePluginStore: (selector: (state: typeof pluginState) => unknown) => selector(pluginState),
+}));
+
+function plugin(overrides: Partial<PluginInfo> = {}): PluginInfo {
+  return {
+    id: 'git',
+    name: 'Git',
+    version: '1.2.0',
+    description: 'Commits and pushes collections.',
+    permissions: [],
+    enabled: true,
+    ...overrides,
+  };
+}
+
+describe('AppPluginsTab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pluginState.plugins = [];
+  });
+
+  it('says so when no plugins are installed', () => {
+    render(<AppPluginsTab />);
+
+    expect(screen.getByText('No plugins are installed.')).toBeTruthy();
+  });
+
+  it('shows a plugin with its version, description and permissions', () => {
+    pluginState.plugins = [
+      plugin({
+        permissions: [
+          { scope: PluginPermissionScope.COLLECTION, value: PluginPermissionAccess.READ },
+          { scope: PluginPermissionScope.NETWORK, value: '*.github.com' },
+          { scope: PluginPermissionScope.EXEC, value: 'git' },
+        ],
+      }),
+    ];
+
+    render(<AppPluginsTab />);
+
+    expect(screen.getByText('Git')).toBeTruthy();
+    expect(screen.getByText('1.2.0')).toBeTruthy();
+    expect(screen.getByText('Commits and pushes collections.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Permissions: Read the open collection, Connect to *.github.com, Run the program git.'
+      )
+    ).toBeTruthy();
+  });
+
+  it('says so when a plugin needs no permissions', () => {
+    pluginState.plugins = [plugin()];
+
+    render(<AppPluginsTab />);
+
+    expect(screen.getByText('Needs no permissions.')).toBeTruthy();
+  });
+
+  it('shows why a plugin cannot be used', () => {
+    pluginState.plugins = [plugin({ error: 'Requires plugin API ^2.0.0' })];
+
+    render(<AppPluginsTab />);
+
+    expect(screen.getByText('Requires plugin API ^2.0.0')).toBeTruthy();
+  });
+
+  it('disables an enabled plugin', async () => {
+    pluginState.plugins = [plugin()];
+    render(<AppPluginsTab />);
+    const checkbox = screen.getByRole('checkbox', { name: /Git/ });
+    expect(checkbox.getAttribute('aria-checked')).toBe('true');
+
+    await userEvent.click(checkbox);
+
+    expect(setEnabledMock).toHaveBeenCalledExactlyOnceWith('git', false);
+  });
+
+  it('enables a disabled plugin', async () => {
+    pluginState.plugins = [plugin({ enabled: false })];
+    render(<AppPluginsTab />);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /Git/ }));
+
+    expect(setEnabledMock).toHaveBeenCalledExactlyOnceWith('git', true);
+  });
+});

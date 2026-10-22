@@ -15,6 +15,7 @@ import { FileSystemService } from 'main/filesystem/filesystem-service';
 import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { sendToRenderer } from 'main/event/send-to-renderer';
 import { closeAfterFlush } from 'main/close-window';
+import { PluginService } from 'main/plugin/plugin-service';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -56,6 +57,7 @@ const createWindow = async () => {
       throw new Error('Safe storage is not available');
     }
     await settingsService.init();
+    await PluginService.instance.init();
     await stateService.init();
     await collectionState.init();
     mainEventService.updateApp(); // check for updates in the background

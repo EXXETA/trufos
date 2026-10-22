@@ -75,18 +75,6 @@ describe('historyStore', () => {
     expect(useHistoryStore.getState().selectedEntry).toBeUndefined();
   });
 
-  it('should reject malformed entries from the main process', async () => {
-    getHistoryMock.mockResolvedValue([{ id: 'a' } as HistoryEntrySummary]);
-
-    await useHistoryStore.getState().load();
-
-    expect(showErrorMock).toHaveBeenCalledWith(
-      'Received an invalid request history',
-      expect.anything()
-    );
-    expect(useHistoryStore.getState().entries).toEqual([]);
-  });
-
   it('should load the full entry when selected', async () => {
     getHistoryEntryMock.mockResolvedValue(entry('a'));
 
@@ -116,18 +104,6 @@ describe('historyStore', () => {
     await useHistoryStore.getState().clear();
 
     expect(clearHistoryMock).toHaveBeenCalledOnce();
-  });
-
-  it('should validate entries received from the main process', () => {
-    useHistoryStore.getState().receive([summary('a')]);
-    expect(useHistoryStore.getState().entries.map((e) => e.id)).toEqual(['a']);
-
-    expect(() => useHistoryStore.getState().receive([{ id: 'b' }])).not.toThrow();
-    expect(showErrorMock).toHaveBeenCalledWith(
-      'Received an invalid request history',
-      expect.anything()
-    );
-    expect(useHistoryStore.getState().entries.map((e) => e.id)).toEqual(['a']);
   });
 
   it('should take over the entries pushed by the main process', () => {

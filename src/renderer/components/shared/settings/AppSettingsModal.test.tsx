@@ -49,6 +49,14 @@ describe('AppSettingsModal', () => {
     expect(updateSettingsMock).toHaveBeenCalledExactlyOnceWith({ verifyTlsCertificates: false });
   });
 
+  it('shows the plugins on their own tab', async () => {
+    render(<AppSettingsModal isOpen onClose={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Plugins' }));
+
+    expect(screen.getByText('No plugins are installed.')).toBeTruthy();
+  });
+
   it('opens the logs folder via the event service', async () => {
     openLogDirectoryMock.mockResolvedValueOnce();
     render(<AppSettingsModal isOpen onClose={vi.fn()} />);

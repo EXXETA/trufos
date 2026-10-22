@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { HistoryEntry, HistoryEntrySummary } from 'shim/history';
+import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { useActions } from '@/state/helper/util';
 import { showError } from '@/error/errorHandler';
@@ -20,10 +20,9 @@ interface HistoryActions {
   load(): Promise<void>;
   /**
    * Takes over a list received from the main process, e.g. the one it pushes after every change.
-   * This is the store's IPC boundary: an invalid list is reported instead of taken over.
-   * @param payload the entries as received via IPC
+   * @param entries the entries, newest first
    */
-  receive(payload: unknown): void;
+  receive(entries: HistoryEntrySummary[]): void;
   select(id: string): Promise<void>;
   /** Closes the selected entry. */
   deselect(): void;
@@ -42,13 +41,7 @@ export const useHistoryStore = create<HistoryState & HistoryActions>()(
       }
     },
 
-    receive(payload) {
-      const result = HistoryEntrySummary.array().safeParse(payload);
-      if (!result.success) {
-        showError('Received an invalid request history', result.error);
-        return;
-      }
-      const entries = result.data;
+    receive(entries) {
       set((state) => {
         state.entries = entries;
         // the selected entry may have been evicted, cleared, or belong to another collection
@@ -65,7 +58,7 @@ export const useHistoryStore = create<HistoryState & HistoryActions>()(
         state.selectedEntry = undefined;
       });
       try {
-        const entry = HistoryEntry.optional().parse(await eventService.getHistoryEntry(id));
+        const entry = await eventService.getHistoryEntry(id);
         // ignore the result if another entry was selected in the meantime
         if (get().selectedId !== id) return;
         set((state) => {

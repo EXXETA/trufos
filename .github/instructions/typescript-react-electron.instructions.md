@@ -44,7 +44,7 @@ description: TypeScript, React, and Electron coding standards for the Trufos pro
 - The **renderer process** (`src/renderer/`) must communicate with the main process exclusively through typed IPC channels exposed via the preload script.
 - Define IPC channel types in `src/shim/` so both processes share the same contract.
 - Never use `remote` module or `nodeIntegration: true`.
-- Validate all data received via IPC using Zod before processing.
+- Do not re-validate IPC arguments with Zod: main and renderer are typechecked together through the typed `IEventService`, so type handler parameters with their real types. Use Zod where it adds something beyond the type (defaults, transforms, structural rules) and for data from outside the build: files, network responses, plugins.
 
 ## Error Handling
 

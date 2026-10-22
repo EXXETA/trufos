@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { Readable } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TextWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
-import type { ExportOptions } from 'shim/event-service';
+import type { ExportOptions } from 'shim/plugin';
 import { Collection } from 'shim/objects/collection';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';

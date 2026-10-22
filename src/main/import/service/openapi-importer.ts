@@ -1,5 +1,5 @@
 import { dereference } from '@readme/openapi-parser';
-import { CollectionImporter } from './import-service';
+import type { CollectionImporter } from 'shim/plugin';
 import { importSecurity, ImportedSecurity } from './openapi-security';
 import { createExampleGenerator, ExampleGenerator, ExampleSchema } from './schema-example';
 import {

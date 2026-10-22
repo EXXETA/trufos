@@ -1,0 +1,9 @@
+{
+  // Plugins run in the main process, like src/main, and use the plugin API in src/shim/plugin only.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "types": ["node"]
+  },
+  "include": ["**/*"]
+}
