@@ -78,9 +78,6 @@ export interface RendererEventPayloads {
   [RendererEvent.ReadyToClose]: [];
 }
 
-/** A built-in importer, or the {@link QualifiedId} of an importer contributed by a plugin. */
-export type ImportStrategy = 'Insomnia' | QualifiedId;
-
 export interface ImportResult {
   /** The directory the collection was imported into. Open it to make it the current one. */
   dirPath: string;
@@ -193,13 +190,13 @@ export interface IEventService {
    * collection name (or the name the user provides) similar to createCollection semantics.
    * @param srcFilePath The path to the collection export file (e.g. Postman JSON file).
    * @param targetDirPath The existing directory that will contain the imported collection directory.
-   * @param strategy The import strategy / tool the file originates from.
+   * @param strategy The {@link QualifiedId} of the importer of a plugin to use.
    * @param title
    */
   importCollection(
     srcFilePath: string,
     targetDirPath: string,
-    strategy: ImportStrategy,
+    strategy: QualifiedId,
     title?: string
   ): Promise<ImportResult>;
 

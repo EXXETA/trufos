@@ -62,6 +62,10 @@ export class OpenApiImporter implements CollectionImporter {
   constructor(private readonly log: PluginLogger) {}
 
   public async importCollection(srcFilePath: string) {
+    // The parser reads the document and the files of its relative $refs itself, not through
+    // host.fs, so the "fs:pick" permission in the manifest covers reads the host does not see.
+    // It also follows $refs to http(s) URLs, which no "network" permission declares: a known
+    // blind spot, because the parser cannot turn off HTTP without turning off file $refs too.
     const document = (await dereference(srcFilePath, {
       dereference: { circular: 'ignore' },
     })) as OpenApiDocument;

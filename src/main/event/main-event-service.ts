@@ -5,13 +5,7 @@ import {
   resolveVariablesInString,
 } from 'main/environment/service/variable-resolver';
 import { HttpService } from 'main/network/service/http-service';
-import type {
-  TrufosResponse,
-  IEventService,
-  ImportResult,
-  ImportStrategy,
-  ExportStrategy,
-} from 'shim';
+import type { TrufosResponse, IEventService, ImportResult, ExportStrategy } from 'shim';
 import { AppSettings } from 'shim/app-settings';
 import { MainProcessEvent } from 'shim/event-service';
 import type { CollectionSnapshot } from 'shim/collection-model';
@@ -30,7 +24,7 @@ import { DisplayableError } from 'shim/error/DisplayableError';
 import { HistoryService } from 'main/history/history-service';
 import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 import { PluginService } from 'main/plugin/plugin-service';
-import type { ExportOptions, PluginsSnapshot } from 'shim/plugin';
+import type { ExportOptions, PluginsSnapshot, QualifiedId } from 'shim/plugin';
 
 // register stream events
 import './stream-events';
@@ -195,7 +189,7 @@ export class MainEventService implements IEventService {
   async importCollection(
     srcFilePath: string,
     targetDirPath: string,
-    strategy: ImportStrategy,
+    strategy: QualifiedId,
     title?: string
   ): Promise<ImportResult> {
     const { collection, warnings } = await importService.importCollection(

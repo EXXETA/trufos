@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PluginManifest } from 'shim/plugin';
@@ -16,6 +16,12 @@ function manifest(permissions: string[] = []) {
 }
 
 describe('createPluginHost', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), 'plugin-host-'));
+  });
+
   it('names the plugin the host is built for', () => {
     const host = createPluginHost(manifest());
 
@@ -60,7 +66,7 @@ describe('createPluginHost', () => {
 
   it('reads a file as bytes or as text', async () => {
     const host = createPluginHost(manifest(['fs:pick']));
-    const filePath = path.join(tmpdir(), 'file.txt');
+    const filePath = path.join(tempDir, 'file.txt');
     await writeFile(filePath, 'content');
 
     const bytes = await host.fs.readFile(filePath);
@@ -73,7 +79,7 @@ describe('createPluginHost', () => {
 
   it('writes text', async () => {
     const host = createPluginHost(manifest(['fs:pick']));
-    const filePath = path.join(tmpdir(), 'file.txt');
+    const filePath = path.join(tempDir, 'file.txt');
 
     await host.fs.writeFile(filePath, 'content');
 
@@ -82,7 +88,7 @@ describe('createPluginHost', () => {
 
   it('lists a directory by names or by entries', async () => {
     const host = createPluginHost(manifest(['fs:collection']));
-    const dirPath = path.join(tmpdir(), 'dir');
+    const dirPath = path.join(tempDir, 'dir');
     await mkdir(path.join(dirPath, 'sub'), { recursive: true });
     await writeFile(path.join(dirPath, 'file.txt'), '');
 
@@ -98,7 +104,7 @@ describe('createPluginHost', () => {
 
   it('stats a file', async () => {
     const host = createPluginHost(manifest(['fs:collection']));
-    const filePath = path.join(tmpdir(), 'file.txt');
+    const filePath = path.join(tempDir, 'file.txt');
     await writeFile(filePath, 'content');
 
     const stats = await host.fs.stat(filePath);
@@ -110,7 +116,7 @@ describe('createPluginHost', () => {
 
   it('writes binary data', async () => {
     const host = createPluginHost(manifest(['fs:pick']));
-    const filePath = path.join(tmpdir(), 'file.bin');
+    const filePath = path.join(tempDir, 'file.bin');
     const data = new Uint8Array([0, 1, 2, 255]);
 
     await host.fs.writeFile(filePath, data);

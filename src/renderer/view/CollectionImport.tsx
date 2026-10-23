@@ -17,8 +17,7 @@ import {
 import { FilePicker } from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
-import type { ImportStrategy } from 'shim/event-service';
-import type { ImportWarning, IndexedImporter } from 'shim/plugin';
+import type { ImportWarning, IndexedImporter, QualifiedId } from 'shim/plugin';
 import { selectPluginContributions, usePluginStore } from '@/state/pluginStore';
 import { showError } from '@/error/errorHandler';
 import { toast } from '@/components/ui/sonner';
@@ -72,7 +71,8 @@ function showImportWarnings(warnings: ImportWarning[]) {
   });
 }
 
-declare type ImportStrategyWithTrufos = ImportStrategy | 'Trufos';
+/** A tab of the import dialog: opening a Trufos collection, an importer of a plugin, or a placeholder. */
+type ImportTab = 'Trufos' | 'Insomnia' | QualifiedId;
 
 interface TitleInputProps {
   value: string;
@@ -131,13 +131,8 @@ const ImportTarget: React.FC<ImportTargetProps> = ({
 
 const FILE_TYPE_LIST = new Intl.ListFormat('en', { type: 'disjunction' });
 
-/** What the import dialog needs to know about an importer to show its tab. */
-type ImportSourceInfo = Pick<IndexedImporter, 'name' | 'source' | 'extensions'> & {
-  id: ImportStrategy;
-};
-
 interface ImportSourceProps {
-  importer: ImportSourceInfo;
+  importer: IndexedImporter;
   srcEntry?: DroppedEntryInfo;
   onSrcEntryChange: (entry?: DroppedEntryInfo) => void;
 }
@@ -177,7 +172,7 @@ const ImportSource: React.FC<ImportSourceProps> = ({
 
 const ImportTabsContent: React.FC<{
   children: React.ReactNode;
-  strategy: ImportStrategyWithTrufos;
+  strategy: ImportTab;
   /** Whether to include default vertical spacing (gap) */
   gap?: boolean;
 }> = ({ children, strategy, gap = true }) => {
@@ -203,9 +198,8 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 }) => {
   const { changeCollection } = useCollectionActions();
   const { importers } = usePluginStore(selectPluginContributions);
-  const sources: ImportSourceInfo[] = importers;
 
-  const [strategy, setStrategy] = useState<ImportStrategyWithTrufos>('Trufos');
+  const [strategy, setStrategy] = useState<ImportTab>('Trufos');
   const [srcEntry, setSrcEntry, resetSrcEntry] = useStateResettable<DroppedEntryInfo>();
   const [targetEntry, setTargetEntry, resetTargetEntry] = useStateResettable<DroppedEntryInfo>();
   const [title, setTitle, resetTitle] = useStateResettable('');
@@ -226,6 +220,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   }, [open, strategy]);
 
   const doImport = useCallback(async () => {
+    if (strategy === 'Insomnia') return;
     setIsImporting(true);
     let dirPath = srcEntry!.path;
     if (strategy !== 'Trufos') {
@@ -279,12 +274,12 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 
         <Tabs
           value={strategy}
-          onValueChange={(v) => setStrategy(v as ImportStrategy)}
+          onValueChange={(v) => setStrategy(v as ImportTab)}
           className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList className="mt-1 mb-2 ml-0.5 overflow-visible">
             <TabsTrigger value="Trufos">Trufos</TabsTrigger>
-            {sources.map(({ id, name }) => (
+            {importers.map(({ id, name }) => (
               <TabsTrigger key={id} value={id}>
                 {name}
               </TabsTrigger>
@@ -305,7 +300,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             />
           </ImportTabsContent>
 
-          {sources.map((importer) => (
+          {importers.map((importer) => (
             <ImportTabsContent key={importer.id} strategy={importer.id}>
               <ImportSource
                 importer={importer}

@@ -45,15 +45,6 @@ export interface PluginLogger {
   error(message: string, ...meta: unknown[]): void;
 }
 
-/**
- * Reads and writes files for a plugin. Granted by a permission of the `fs` scope.
- *
- * Every method mirrors the signature of its namesake in Node's `fs/promises`, with the subset of
- * options that is plain data, and binary data typed as `Uint8Array` instead of `Buffer`. Methods
- * that return handles or watchers are not mirrored. New methods are added with the first plugin
- * that needs them. Only content that has to be in memory anyway, such as a collection to import,
- * is read as a whole.
- */
 /** An entry of a directory, the part of Node's `fs.Dirent` a plugin gets. */
 export interface PluginDirent {
   readonly name: string;
@@ -68,6 +59,15 @@ export interface PluginStats {
   isDirectory(): boolean;
 }
 
+/**
+ * Reads and writes files for a plugin. Granted by a permission of the `fs` scope.
+ *
+ * Every method mirrors the signature of its namesake in Node's `fs/promises`, with the subset of
+ * options that is plain data, and binary data typed as `Uint8Array` instead of `Buffer`. Methods
+ * that return handles or watchers are not mirrored. New methods are added with the first plugin
+ * that needs them. Only content that has to be in memory anyway, such as a collection to import,
+ * is read as a whole.
+ */
 export interface PluginFileSystem {
   readdir(path: string): Promise<string[]>;
   readdir(path: string, options: { withFileTypes: true }): Promise<PluginDirent[]>;

@@ -3,8 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { DisplayableError } from 'shim/error/DisplayableError';
-import type { ImportStrategy } from 'shim/event-service';
-import type { PluginInstance, PluginModule } from 'shim/plugin';
+import type { PluginInstance, PluginModule, QualifiedId } from 'shim/plugin';
 import testPluginManifest from 'plugins/__fixtures__/test-plugin/plugin.json';
 import type { BundledPlugin } from './bundled-plugins';
 import { PluginService, VERSION } from './plugin-service';
@@ -91,7 +90,7 @@ describe('PluginService', () => {
     expect(JSON.parse(await readFile(targetPath, 'utf8'))).toEqual({ dirPath: '/collection' });
   });
 
-  it.each<ImportStrategy>(['Insomnia', 'test-plugin.unknown', 'unknown.title'])(
+  it.each<QualifiedId>(['test-plugin.unknown', 'unknown.title'])(
     'returns no importer for "%s"',
     async (id) => {
       const plugin = testPlugin();
@@ -110,6 +109,32 @@ describe('PluginService', () => {
 
     expect(activate).toHaveBeenCalledWith(
       expect.objectContaining({ pluginId: 'fake', log: expect.any(Object) })
+    );
+  });
+
+  it('logs when it loads and activates a plugin', async () => {
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => logger);
+    const service = await createService(fakePlugin('fake', vi.fn(fakeInstance)));
+
+    expect(info).toHaveBeenCalledWith('[PLUGIN fake]: Loaded version 1.0.0');
+    expect(info).not.toHaveBeenCalledWith('[PLUGIN fake]: Activated');
+
+    await service.getImporter('fake.x');
+
+    expect(info).toHaveBeenCalledWith('[PLUGIN fake]: Activated');
+  });
+
+  it('logs that a plugin is disabled by the user when it loads it', async () => {
+    await writeFile(
+      PluginService.PLUGINS_FILE,
+      JSON.stringify({ version: VERSION.string, plugins: { 'test-plugin': { enabled: false } } })
+    );
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => logger);
+
+    await createService(testPlugin());
+
+    expect(info).toHaveBeenCalledWith(
+      '[PLUGIN test-plugin]: Loaded version 1.0.0, disabled by the user'
     );
   });
 
