@@ -73,14 +73,4 @@ describe('CollectionImport', () => {
     expect(screen.getByText('Select Hoppscotch collection directory')).toBeTruthy();
     expect(screen.getByText('Select directory for new collection')).toBeTruthy();
   });
-
-  it('shows the built-in importers like the ones of plugins', async () => {
-    render(<CollectionImport />);
-
-    await userEvent.click(screen.getByRole('tab', { name: 'OpenAPI' }));
-    expect(screen.getByText('OpenAPI exports .json, .yaml, or .yml files')).toBeTruthy();
-
-    await userEvent.click(screen.getByRole('tab', { name: 'Bruno' }));
-    expect(screen.getByText('Select Bruno collection directory')).toBeTruthy();
-  });
 });

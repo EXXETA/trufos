@@ -5,16 +5,21 @@ Issue: [#1073](https://github.com/EXXETA/trufos/issues/1073)
 Trufos gets a plugin API so features can be added without every user carrying them. Plugins are
 first-party for the foreseeable future. The architecture is staged: the first stage ships plugins
 inside the app and introduces no new runtime, but the API contract is designed so that later stages
-(separate downloads, third-party plugins in a sandbox) only change how plugin code is loaded, not
-what a plugin looks like.
+(separate downloads) only change how plugin code is loaded, not what a plugin looks like.
+
+The security model is the one of VS Code extensions: plugins are trusted code that runs in the
+app's own process, and what keeps that true is integrity, not isolation. Bundled plugins are part
+of the app; downloaded plugins (stage 2) are built and signed by our CI and the app only loads what
+it can verify. See [Permissions](#permissions) for what the permission list in a manifest is for.
 
 ## Goals and non-goals
 
 Goals, in order:
 
 1. A single, typed contribution API that the existing extensible features (importers, exporters,
-   authentication types, menu entries, commands) move onto. The hard-coded `switch` in
-   `createAuthStrategy()` and the `ImportStrategy` / `ExportStrategy` unions become registries.
+   menu entries, commands) move onto. The `ImportStrategy` / `ExportStrategy` unions become
+   registries. Authentication types stay in core, see
+   [Rejected alternatives](#rejected-alternatives).
 2. Lazy activation: a plugin's code is loaded on first use of one of its contributions, never at
    startup. Declarative contributions (menu entries, commands, panels) are rendered from the
    manifest without loading the plugin.
@@ -24,21 +29,26 @@ Goals, in order:
 
 Non-goals for the first stages:
 
-- Sandboxing or enforcing permissions against malicious code. Every plugin is ours; a sandbox
-  between us and our own code protects nobody. Permissions are declared and shown, and the host
-  API handed to a plugin is built from them, but nothing stops a plugin that lies.
+- Sandboxing, consent dialogs or enforcing permissions against malicious code. Every plugin is
+  ours; a sandbox between us and our own code protects nobody, and in-process nothing could stop a
+  plugin that lies anyway. Permissions are informational and kept truthful by construction, see
+  [Permissions](#permissions). What enforcement would look like if a third-party plugin is ever
+  accepted is kept in the [appendix](#appendix-third-party-plugins) so it does not get designed
+  into the API by accident.
 - A marketplace, third-party publishing, or an npm-published API package.
 - Running user scripts (pre-request, post-response) through the plugin system. That is a separate
   concern: those scripts are third-party code today and run in `node:vm`, which is not a sandbox.
 
 ## Staging
 
-| Stage | What changes                                                                                            | When                                               |
-| ----- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| 1     | Contribution API, manifest, registries, lazy loading. Plugins are Yarn workspaces bundled into the app. | now                                                |
-| 1.5   | Renderer contributions: plugins mount React components into host-provided slots.                        | first plugin that needs its own panel (git)        |
-| 2     | Downloadable plugins: signed zips attached to the Trufos GitHub release, a Plugins page in settings.    | first plugin heavy enough to not ship by default   |
-| 3     | Third-party plugins: one sandboxed renderer per plugin, broker in main, enforced permissions.           | only if a plugin we did not write is ever accepted |
+| Stage | What changes                                                                                            | When                                             |
+| ----- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 1     | Contribution API, manifest, registries, lazy loading. Plugins are Yarn workspaces bundled into the app. | now                                              |
+| 1.5   | Renderer contributions: plugins mount React components into host-provided slots.                        | first plugin that needs its own panel (git)      |
+| 2     | Downloadable plugins: signed zips attached to the Trufos GitHub release, a Plugins page in settings.    | first plugin heavy enough to not ship by default |
+
+There is no planned stage for third-party plugins. The [appendix](#appendix-third-party-plugins)
+records what it would take, so the API does not close that door.
 
 Protocol plugins (gRPC, WebSocket, SSE) additionally need the request and response model to be
 generalised over a `protocol` discriminator. That is its own issue; it is listed under
@@ -53,21 +63,33 @@ against them in review.
    validated with Zod. A plugin never receives a store, a service instance, an Immer draft, a Node
    stream object it could keep, or a callback into the host beyond the ones it registers through the
    API. The renderer already talks to main this way; plugins talk to main the same way.
-2. **Plugins never hold secrets.** A plugin describes a request (method, path, headers, references
-   to variables); the host resolves variables and attaches authentication. Secret variables and
-   authentication data are never passed to plugin code. A plugin that needs its own secrets gets a
-   per-plugin store backed by `safeStorage`.
-3. **Bodies cross the boundary as streams.** Request and response bodies are opened by id and
+2. **Bodies cross the boundary as streams.** Request and response bodies are opened by id and
    returned as a `ReadableStream`, never as a string or buffer (see `shim/ipc-stream.ts`). This is
    the same rule the app follows (AGENTS.md).
-4. **Collection changes go through commands.** A plugin changes the open collection by dispatching a
+3. **Collection changes go through commands.** A plugin changes the open collection by dispatching a
    `CollectionCommand` and learns about changes by subscribing to the same patches the renderer
    gets. There is no second way to mutate the model.
-5. **The host API is derived from the manifest's permissions.** A plugin without
-   `collection:write` is handed a host object without `dispatch()`. This keeps declarations truthful
-   without a sandbox and gives stage 3 a precise list of what to enforce.
-6. **One public entry point.** Plugins import only from `shim/plugin`. Everything else in `src/` is
-   private to the app. An ESLint `no-restricted-imports` rule in `plugins/` enforces it.
+4. **Everything outside the app is a capability of the host, and the host is built from the
+   manifest.** A plugin reads files, talks to the network or runs a program only through `host.fs`,
+   `host.fetch` or `host.exec`, and each capability is only provided if the manifest declares a
+   permission of its scope; otherwise it throws on access. This is not security, it is API
+   discipline: it keeps the permission list truthful by construction and keeps every host
+   capability a named, message-shaped thing, see [Permissions](#permissions).
+5. **One public entry point.** Plugins import only from `shim/plugin`. Everything else in `src/` is
+   private to the app, and Node's own modules that reach outside the process (`node:fs`,
+   `node:child_process`, `node:net`, …) and the global `fetch` are off limits too, because they
+   would bypass rule 4. ESLint rules in `plugins/` enforce both; pure helpers such as `node:path`
+   and `node:crypto` stay allowed, and test files are exempt.
+6. **The entry point is `activate(host)`.** A plugin is a module that exports one function, which
+   receives its host and returns its contributions, like a VS Code extension. The host is passed,
+   not global, see [Rejected alternatives](#rejected-alternatives).
+
+An earlier draft had a rule that plugins never hold secrets, with the host resolving variables and
+attaching authentication. It is dropped: every plugin is our code, and the rule would have ruled
+out the contributions that need a secret to do their job. The host still resolves variables and
+attaches authentication for ordinary requests, because that is where the code lives, not because a
+plugin may not see them. The [appendix](#appendix-third-party-plugins) records that the rule would
+have to return for third-party code.
 
 ## Repository layout
 
@@ -123,7 +145,6 @@ already covers the directory.
     "commands": [{ "id": "commit", "title": "Git: Commit…", "when": "collectionOpen" }],
     "menus": { "collection": [{ "command": "commit" }] },
     "panels": [{ "id": "status", "title": "Git", "slot": "sidebar", "icon": "git-branch" }],
-    "authTypes": [{ "id": "aws-sigv4", "name": "AWS Signature v4" }],
     "requestHooks": true,
     "responseHooks": true
   }
@@ -140,41 +161,83 @@ already covers the directory.
 - `permissions` are compact strings (`<scope>:<value>` or `<scope>`) from a closed set. The
   schema validates them as strings, so the generated JSON Schema lists them for editors, and parses
   each into an object with a `value` typed per scope (`{ scope: 'network', value: '*.github.com' }`).
-  Everything after the manifest works with the objects and switches over `scope`. Initial set:
+  Everything after the manifest works with the objects and switches over `scope`. The scope
+  decides which host capability the plugin gets; the value says what the plugin does with it, in
+  words the Plugins page shows the user. Initial set:
 
-  | Permission               | Grants                                                    |
-  | ------------------------ | --------------------------------------------------------- |
-  | `collection:read`        | `host.collection.getState()`, `onChange()`                |
-  | `collection:write`       | `host.collection.dispatch()`                              |
-  | `bodies:read`            | `host.bodies.open()`                                      |
-  | `fs:collection`          | `host.fs` scoped to the open collection's directory       |
-  | `fs:pick`                | `host.ui.pickFile()`, `pickDirectory()`, `pickSavePath()` |
-  | `network:<host pattern>` | `host.fetch()` to matching hosts                          |
-  | `exec:<binary>`          | `host.exec()` for the named binary (git)                  |
-  | `secrets`                | `host.secrets` per-plugin store                           |
+  | Permission               | Host capability   | Tells the user                            |
+  | ------------------------ | ----------------- | ----------------------------------------- |
+  | `collection:read`        | `host.collection` | reads the open collection                 |
+  | `collection:write`       | `host.collection` | changes the open collection               |
+  | `bodies:read`            | `host.bodies`     | reads request and response bodies         |
+  | `fs:collection`          | `host.fs`         | accesses the files of the open collection |
+  | `fs:pick`                | `host.fs`         | accesses files and folders the user picks |
+  | `network:<host pattern>` | `host.fetch`      | connects to the named hosts               |
+  | `exec:<binary>`          | `host.exec`       | runs the named program (git)              |
+  | `secrets`                | `host.secrets`    | stores its own secrets                    |
+
+  Only `host.fs` exists so far; the others are added with the first contribution that needs them.
+  `host.fs` mirrors Node's `fs/promises` method by method (`readFile`, `writeFile`, later `readdir`,
+  `stat`, …), each with the signature of its namesake, so a plugin author and a library that wants
+  a Node-shaped `fs` need nothing new. Two deliberate deviations keep the API message-shaped:
+  binary data is typed as `Uint8Array` rather than `Buffer`, and methods that return handles or
+  watchers (`open()`, `watch()`) are not mirrored. A stream read, if a plugin ever needs one, is a
+  web `ReadableStream<Uint8Array>`, the same type bodies use.
 
 - `contributes` is the only thing the app needs before the plugin is activated. Everything in it is
   rendered or registered from the manifest alone.
+
+## Permissions
+
+A permission list that drifts from what the plugin does is worse than none, so the list is not
+checked by hand in review. It is kept true by construction:
+
+1. A plugin reaches outside the app through a capability of its host (`host.fs`, later
+   `host.fetch`, `host.exec`, …). The lint rule of design rule 5 catches the accidental second
+   way: importing `node:fs` or calling the global `fetch` out of habit. It does not catch a
+   deliberate workaround such as a dynamic `import()`, and it does not have to; it is a reminder
+   for our own code, not a boundary.
+2. `createPluginHost()` (`main/plugin/plugin-host.ts`) only provides a capability if the manifest
+   declares a permission of its scope. An undeclared capability is a getter that throws
+   `The plugin "x" uses host.fs, but its manifest declares no "fs" permission`.
+3. Plugins take the capabilities they need in `activate()` and hand them to their importers,
+   exporters and so on, instead of reaching for `host.fs` lazily. `bundled-plugins.test.ts`
+   activates every bundled plugin with the host built from its manifest, so a missing permission
+   fails CI instead of a user's import.
+
+The host does not check the value of a permission: `host.fs` reads any path the plugin passes,
+whether or not it is inside the collection, and `host.fetch` will not compare URLs against the
+`network:` pattern. The value is what the Plugins page shows the user, and the plugin's code review
+is what keeps it honest. A dependency that opens files itself (a library reading a file by path)
+is invisible to the lint rule; that blind spot is the same one VS Code has and is accepted.
+
+There is no consent dialog, no stored grant and no re-consent on an update that widens the list.
+Bundled plugins are part of the signed app, and downloaded plugins are signed by the same CI, so
+installing one is trusting us, the same as updating the app. The Plugins page shows the list so the
+user knows what a plugin does, not so they can refuse it.
 
 ## Main-process API
 
 `shim/plugin/host.ts` defines what a plugin sees. Sketch:
 
 ```ts
+// Every capability is typed as present. One whose permission the manifest does not declare throws
+// on access, see Permissions. That keeps plugin code free of null checks for what it declared.
 export interface PluginHost {
+  readonly pluginId: string;
   readonly log: PluginLogger; // winston child logger with the plugin id
-  readonly collection?: {
+  readonly collection: {
     getState(): Promise<CollectionSnapshot>;
     onChange(listener: (event: CollectionStateEvent) => void): Disposable;
-    dispatch?(command: CollectionCommand): Promise<number>; // collection:write
+    dispatch(command: CollectionCommand): Promise<number>; // collection:write
     readonly dirPath: string;
   };
-  readonly bodies?: { open(bodyId: string): Promise<ReadableStream<Uint8Array>> };
-  readonly fs?: PluginFileSystem; // path-scoped: every path is resolved inside the collection dir
-  readonly fetch?: typeof fetch; // host-provided, permission-checked by host pattern
-  readonly exec?: (args: string[], options?: ExecOptions) => Promise<ExecResult>;
+  readonly bodies: { open(bodyId: string): Promise<ReadableStream<Uint8Array>> };
+  readonly fs: PluginFileSystem; // mirrors fs/promises: readFile(), writeFile(), grows with the plugins
+  readonly fetch: typeof fetch; // undici's, host-provided
+  readonly exec: (args: string[], options?: ExecOptions) => Promise<ExecResult>;
   readonly storage: PluginStorage; // JSON, userData/plugins/<id>/storage.json
-  readonly secrets?: PluginSecrets; // safeStorage-backed, per plugin
+  readonly secrets: PluginSecrets; // safeStorage-backed, per plugin
   readonly ui: {
     showMessage(message: string, level?: 'info' | 'warn' | 'error'): void;
     confirm(options: ConfirmOptions): Promise<boolean>;
@@ -186,7 +249,6 @@ export interface PluginHost {
 export interface PluginInstance {
   importers?: Record<string, CollectionImporter>;
   exporters?: Record<string, CollectionExporter>;
-  authTypes?: Record<string, AuthStrategyFactory>;
   commands?: Record<string, (context: CommandContext) => Promise<void>>;
   requestHooks?: RequestHook[];
   responseHooks?: ResponseHook[];
@@ -202,15 +264,11 @@ Points to keep when filling this in:
   `main/import/service/import-service.ts` and `main/export/service/export-service.ts`. They move
   to `shim/plugin` unchanged; the services keep their registries but fill them from
   `PluginService`.
-- `AuthStrategy` (`main/network/authentication/auth-strategy.ts`) already has the right shape:
-  `getAuthHeader(context)` with method and URL. A plugin auth type is a factory from validated
-  auth data to such a strategy. The auth data schema for a plugin type is `z.looseObject` tagged
-  with the plugin's type id; the plugin validates the rest.
 - Request and response hooks mirror Insomnia's: a hook gets a request description it can edit
   (headers, query, body reference) or a response description with `openBody()`. Hooks run in
   `HttpService` next to the existing pre-request and post-response scripts, after the scripts.
-- `fetch` is undici's, wrapped so that the host of every URL is checked against the plugin's
-  `network:` permissions. In stage 1 the check only logs a violation; in stage 3 it throws.
+- `fetch` is undici's. The `network:` pattern of the manifest is shown to the user and not
+  checked against URLs, see [Permissions](#permissions).
 - Every method of `PluginHost` is wrapped so that a throwing plugin never takes the app down:
   errors are logged with the plugin id and surfaced as a `DisplayableError` where a user action
   caused them.
@@ -241,17 +299,16 @@ Responsibilities:
    plugin with an invalid manifest or an id that another plugin already has is ignored with a
    logged reason, so plugin ids stay unique; a test keeps the ids of the bundled plugins unique.
 3. **Contribution index.** From the manifests alone, the service builds the lists the app needs:
-   importers and exporters with their file filters, commands, menu entries, auth types, panels.
+   importers and exporters with their file filters, commands, menu entries, panels.
    The renderer gets them together with the list of plugins as one `PluginsSnapshot` through
    `IEventService.getPlugins()` and a `MainProcessEvent.PluginsChanged` event when they change
    (enable, disable, install).
 4. **Activation.** The first time a contribution is used, the service loads the plugin's `main`
    entry, builds the `PluginHost` from the manifest's permissions and calls `activate()`. The
    returned `PluginInstance` is cached. Activation errors disable the plugin for the session.
-5. **Routing.** `ImportService`, `ExportService`, `createAuthStrategy()`, `HttpService` (hooks),
-   `MenuBuilder` and the command palette ask the service by id. Bundled, built-in behaviour that is
-   not moved to a plugin (the Zip exporter, Basic/Bearer/OAuth auth) is registered the same way,
-   so there is one code path.
+5. **Routing.** `ImportService`, `ExportService`, `HttpService` (hooks), `MenuBuilder` and the
+   command palette ask the service by id. Bundled, built-in behaviour that is not moved to a plugin
+   (the Zip exporter) is registered the same way, so there is one code path.
 6. **State.** `userData/plugins.json` through `JsonFile` with a version and migrators, like
    `settings.json`: per plugin `enabled`, installed version and source (`bundled` or `downloaded`).
 
@@ -283,7 +340,8 @@ bundle is served from the plugin directory through a `trufos-plugin://` protocol
 
 The renderer part talks to its main part only through the plugin's commands and the shared
 collection state. It gets no renderer-internal stores. This keeps the in-process module replaceable
-by a sandboxed iframe for stage 3: a slot that takes a component today takes an iframe tomorrow.
+by a sandboxed iframe if that is ever needed (see the appendix): a slot that takes a component today
+takes an iframe tomorrow.
 
 ## Protocol plugins
 
@@ -337,8 +395,9 @@ through `update-electron-app` from those assets. Plugins ride on the same releas
 - Plugins have unit tests next to their sources, run by the root `yarn test` through a Vitest
   workspace entry. Importer tests move with the importers.
 - `PluginService` has contract tests: manifest validation, engine range, duplicate ids, lazy
-  activation (the entry is not imported before first use), host API shape per permission set,
-  error isolation (a throwing plugin does not break the service).
+  activation (the entry is not imported before first use), error isolation (a throwing plugin does
+  not break the service). `createPluginHost()` has its own: a capability is provided with its
+  permission and throws without it.
 - A `plugins/__fixtures__/` test plugin with every contribution type is used by the service tests
   and by an e2e spec that imports a collection through a plugin importer.
 - The e2e suite is run by the developer or CI, not by agents (AGENTS.md).
@@ -353,19 +412,86 @@ In this order, each as its own pull request:
    `PluginService`; `ImportStrategy` and `ExportStrategy` become ids. `plugins/postman`,
    `plugins/bruno`, `plugins/openapi` with their dependencies; the Zip exporter stays built in.
    `CollectionImport.tsx` renders the strategy list and file filters from the contribution index.
-3. Auth types: `createAuthStrategy()` becomes a registry lookup; built-in types register
-   themselves. No plugin yet, but the seam exists.
-4. Commands and menus: `MenuBuilder` and the command palette include plugin contributions.
+3. Commands and menus: `MenuBuilder` and the command palette include plugin contributions.
    Request and response hooks in `HttpService`.
-5. Git plugin, which drives stage 1.5 (slots and the renderer runtime).
-6. Protocol generalisation, then the gRPC plugin.
+4. Git plugin, which drives stage 1.5 (slots and the renderer runtime).
+5. Protocol generalisation, then the gRPC plugin.
 
 ## Open questions
 
 - Range matching in `main/util/semver.ts`: add it, or keep `engine` to a major version only?
 - Whether `utilityProcess` works with the `RunAsNode` fuse disabled. Only relevant if a trusted
-  native tier is ever wanted; stage 3 as designed does not need it.
+  native tier is ever wanted; the appendix design does not need it.
 - Signature check once at install or on every load. The plugin directory is in the user's own
   profile, so once at install is probably enough.
-- Whether the Zip exporter and the built-in auth types should become plugins for consistency, or
-  stay built in and simply register through the same API.
+- Whether the Zip exporter should become a plugin for consistency, or stay built in and simply
+  register through the same API.
+
+## Rejected alternatives
+
+Decisions taken while building stage 1, with the reasoning, so they are not reopened by accident.
+
+- **Authentication types as plugins.** The seam was planned so a scheme we do not want in core
+  (AWS Signature v4, Hawk, a company-specific token) could be a plugin. The cost is out of
+  proportion: an auth type is a case in the strategy factory, a member of the shared
+  `AuthorizationInformation` union, a form in the request editor, a declaration of which fields
+  are secrets so persistence encrypts them, and a mapping in every importer. Making all of that
+  pluggable is a large API for three built-in types that have no heavy dependency and nothing to
+  lazy-load. Auth stays in core. Revisit only for a scheme with a native or heavy dependency
+  (Kerberos, NTLM) or one that must not ship to every user, and even then adding it to core is
+  probably cheaper than the seam.
+- **Plugins never hold secrets.** Dropped, see [Design rules](#design-rules).
+- **The host as a global instead of `activate(host)`.** A global `trufos` like the one the
+  scripting sandbox provides only works when every plugin has its own global scope. Bundled plugins
+  are code-split chunks of one bundle: same isolate, same module graph, same `globalThis`, so a
+  global cannot be per plugin, and two plugins activating concurrently would race on it. Module
+  top-level code as the entry point also cannot run again after a disable and re-enable, because ES
+  modules evaluate once, and an error at evaluation time is harder to attribute than a rejected
+  `activate()`. VS Code, whose extension host is shared like ours, uses `activate(context)` for the
+  same reasons. A per-plugin runtime could expose the host as a global and still call `activate()`,
+  so nothing is lost.
+- **`node:vm` as the plugin runtime.** It is not a security boundary (Node's own documentation
+  says so, and the escape is one line), so it would buy only a separate global scope. It would cost
+  a separate realm, where every `instanceof`, every `Error` and every `Uint8Array` that crosses the
+  line mismatches, a separate single-file bundle per plugin with `require` handed in, experimental
+  ES module support, and worse stack traces. If isolation is ever wanted, the appendix design is a
+  real boundary at a comparable price.
+- **`Pick<typeof fs/promises, …>` for `host.fs`.** It would keep Node's JSDoc but also Node's
+  signatures: `FileHandle` as a path argument, `Buffer` as the result, `Stream` and iterables as
+  write data, `flag` and `mode` options. All of that would become part of the contract any future
+  transport has to honour. The interface is hand-written with the narrowed types and mirrors
+  Node's method names and semantics instead.
+- **A set for permission lookups.** The lookup runs once per capability when the host is built
+  and is captured in a closure; later accesses return the cached instance. Permissions also carry
+  values (`network:` patterns, `exec:` binaries) that a set of scopes would lose. A capability
+  that ever needs per-call checks builds its own index when it is created.
+
+## Appendix: third-party plugins
+
+Not planned. Recorded so that the API is not designed in a way that rules it out, and so that the
+reasoning does not have to be redone. The consistent lesson from other apps (VS Code, Figma,
+Obsidian, ajour) is that the runtime is swappable but the API contract is not: Figma swapped their
+sandbox engine in days thanks to a thin API layer, Obsidian cannot add one because plugins touch
+everything. The design rules above are what keep a swap possible.
+
+If a plugin we did not write is ever accepted, the stakes become real: collections hold API tokens,
+OAuth secrets and client certificates. What it would take:
+
+- **Runtime:** one hidden, sandboxed Electron renderer per plugin (Chromium OS sandbox, own session
+  partition, no Node), talking to a broker in main over a `MessagePort`. Needs no new dependencies.
+  Rejected: `node:vm` (not a boundary), vm2 (deprecated, escape CVEs), Node's permission model
+  (documented as not a boundary against malicious code), `utilityProcess` alone (no OS sandbox),
+  isolated-vm (native addon, maintenance mode). QuickJS-in-Wasm (Figma's choice) is viable but adds
+  a dependency and a slow interpreter.
+- **Enforcement:** the broker checks every host call against the manifest. The permission values
+  become real: `host.fs` resolves paths inside the collection directory or the picked files only,
+  `host.fetch` allowlists hosts by the `network:` pattern, `host.exec` runs the named binary only.
+- **Secrets:** the dropped rule that plugins never hold secrets returns. The host resolves
+  variables and attaches authentication; secret variables and auth data never reach plugin code.
+  Contributions that need a secret to work, such as an auth scheme, stay first-party.
+- **Consent (Chrome extension model):** the install dialog lists the permissions; the grant is
+  stored per plugin; an update that asks for a permission outside the grant disables the plugin
+  until the user accepts the new list. No runtime prompts.
+- **Renderer:** slots take an iframe instead of a component.
+
+Because the API is already message-shaped, this changes the transport, not the plugin contract.

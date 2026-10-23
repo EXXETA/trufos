@@ -1,4 +1,3 @@
-import fs from 'node:fs/promises';
 import {
   Collection as PostmanCollection,
   CollectionDefinition,
@@ -16,6 +15,7 @@ import {
   OAuth2PKCECodeChallengeMethod,
   type Oauth2BaseAuthorizationInformation,
   parseUrl,
+  type PluginFileSystem,
   type PluginLogger,
   type RequestBody,
   RequestBodyType,
@@ -33,11 +33,14 @@ const DEFAULT_MIME_TYPE = 'text/plain';
  * folders and requests. It imports using the DFS algorithm.
  */
 export class PostmanImporter implements CollectionImporter {
-  constructor(private readonly log: PluginLogger) {}
+  constructor(
+    private readonly log: PluginLogger,
+    private readonly fs: PluginFileSystem
+  ) {}
 
   public async importCollection(srcFilePath: string) {
     // read Postman collection
-    const json = JSON.parse(await fs.readFile(srcFilePath, 'utf8')) as CollectionDefinition;
+    const json = JSON.parse(await this.fs.readFile(srcFilePath, 'utf8')) as CollectionDefinition;
     const postmanCollection = new PostmanCollection(json);
     const variablesArray = postmanCollection.variables
       .all()

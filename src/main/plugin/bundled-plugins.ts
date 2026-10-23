@@ -1,4 +1,6 @@
 import type { PluginModule } from 'shim/plugin';
+import brunoManifest from 'plugins/bruno/plugin.json';
+import openapiManifest from 'plugins/openapi/plugin.json';
 import postmanManifest from 'plugins/postman/plugin.json';
 
 /** A plugin that ships with the app. */
@@ -20,5 +22,7 @@ export interface BundledPlugin {
 
 /** The plugins that ship with the app. */
 export const BUNDLED_PLUGINS: readonly BundledPlugin[] = [
+  { manifest: brunoManifest, load: () => import('plugins/bruno/src/main.js') },
+  { manifest: openapiManifest, load: () => import('plugins/openapi/src/main.js') },
   { manifest: postmanManifest, load: () => import('plugins/postman/src/main.js') },
 ];

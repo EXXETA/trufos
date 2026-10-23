@@ -20,7 +20,7 @@ function describePermission(permission: PluginPermission): string {
     case PluginPermissionScope.FS:
       return permission.value === PluginFileArea.COLLECTION
         ? 'Access the files of the open collection'
-        : 'Ask you to pick files and folders';
+        : 'Access files and folders you pick';
     case PluginPermissionScope.SECRETS:
       return 'Store its own secrets';
     case PluginPermissionScope.NETWORK:

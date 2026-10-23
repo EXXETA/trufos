@@ -61,11 +61,13 @@ describe('OpenAPI import', () => {
 
     try {
       // Act
+      const { PluginService } = await import('main/plugin/plugin-service.js');
+      await PluginService.instance.init();
       const { ImportService } = await import('./import-service.js');
       const { collection } = await ImportService.instance.importCollection(
         srcFilePath,
         targetDirPath,
-        'OpenAPI'
+        'openapi.document'
       );
 
       // Assert

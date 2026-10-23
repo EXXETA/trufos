@@ -3,13 +3,31 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   AuthorizationType,
+  type Folder,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
-} from 'shim/objects/auth';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { Folder } from 'shim/objects/folder';
-import { describe, expect, it } from 'vitest';
+  type PluginFileSystem,
+  type PluginLogger,
+  RequestBodyType,
+  type TrufosRequest,
+} from 'shim/plugin';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { BrunoImporter } from './bruno-importer';
+
+const log: PluginLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+const fileSystem: PluginFileSystem = {
+  readdir: fs.readdir,
+  stat: fs.stat,
+  readFile: fs.readFile,
+  writeFile: fs.writeFile,
+};
+
+// the collections the importer reads are written to a directory of their own, removed afterwards
+let tmp: string;
+beforeAll(async () => {
+  tmp = await fs.mkdtemp(path.join(tmpdir(), 'bruno-test-'));
+});
+afterAll(() => fs.rm(tmp, { recursive: true, force: true }));
 
 /**
  * Creates a temporary Bruno collection directory with the given `.bru` files.
@@ -22,7 +40,7 @@ async function createBrunoCollection(
   collectionName: string,
   files: Record<string, string>
 ): Promise<string> {
-  const collectionDir = await fs.mkdtemp(path.join(tmpdir(), 'bruno-test-'));
+  const collectionDir = await fs.mkdtemp(path.join(tmp, 'collection-'));
   await fs.writeFile(
     path.join(collectionDir, 'bruno.json'),
     JSON.stringify({ version: '1', name: collectionName, uid: 'test-collection-uid' })
@@ -53,7 +71,7 @@ get {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
 
     expect(result.title).toBe('My API');
     expect(result.id).toBe('test-collection-uid');
@@ -79,7 +97,7 @@ headers {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.type).toBe('request');
@@ -112,7 +130,7 @@ params:query {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.url.query).toEqual([
@@ -140,7 +158,7 @@ auth:bearer {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.auth).toEqual({
@@ -168,7 +186,7 @@ auth:basic {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.auth).toEqual({
@@ -193,7 +211,7 @@ get {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.auth).toEqual({ type: AuthorizationType.INHERIT });
@@ -222,7 +240,7 @@ auth:oauth2 {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.auth).toMatchObject({
@@ -261,7 +279,7 @@ auth:oauth2 {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.auth).toMatchObject({
@@ -301,7 +319,7 @@ auth:oauth2 {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.auth).toMatchObject({
@@ -327,7 +345,7 @@ get {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.auth).toBeUndefined();
@@ -353,7 +371,7 @@ body:json {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.body.type).toBe(RequestBodyType.TEXT);
@@ -382,7 +400,7 @@ body:form-urlencoded {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.body.type).toBe(RequestBodyType.TEXT);
@@ -407,7 +425,7 @@ get {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.body).toEqual({ type: RequestBodyType.NONE });
@@ -432,7 +450,7 @@ body:multipart-form {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
     const request = result.children[0] as TrufosRequest;
 
     expect(request.body.type).toBe(RequestBodyType.FORM_DATA);
@@ -444,9 +462,9 @@ body:multipart-form {
   });
 
   it('throws a clear error when bruno.json is missing', async () => {
-    const emptyDir = await fs.mkdtemp(path.join(tmpdir(), 'bruno-empty-'));
+    const emptyDir = await fs.mkdtemp(path.join(tmp, 'empty-'));
 
-    await expect(new BrunoImporter().importCollection(emptyDir)).rejects.toThrow(
+    await expect(new BrunoImporter(log, fileSystem).importCollection(emptyDir)).rejects.toThrow(
       /valid Bruno collection/i
     );
   });
@@ -488,7 +506,7 @@ post {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
 
     expect(result.children).toHaveLength(2);
     const rootRequest = result.children[0] as TrufosRequest;
@@ -556,7 +574,7 @@ script:pre-request {
 }`,
     });
 
-    const importer = new BrunoImporter();
+    const importer = new BrunoImporter(log, fileSystem);
     const result = await importer.importCollection(collectionDir);
 
     expect(result.children).toHaveLength(1);
@@ -599,7 +617,7 @@ vars {
 }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
 
     expect(Object.keys(result.environments)).toHaveLength(2);
     expect(result.environments['dev'].variables['baseUrl'].value).toBe('https://dev.example.com');
@@ -612,7 +630,7 @@ vars {
     const collectionDir = await createBrunoCollection('Test by File', {});
     const brunoJsonPath = path.join(collectionDir, 'bruno.json');
 
-    const result = await new BrunoImporter().importCollection(brunoJsonPath);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(brunoJsonPath);
     expect(result.title).toBe('Test by File');
   });
 
@@ -632,7 +650,7 @@ get {
       'environments/local.bru': `vars { host: localhost }`,
     });
 
-    const result = await new BrunoImporter().importCollection(collectionDir);
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
 
     // Only the 'api' folder should appear — not 'environments'
     expect(result.children).toHaveLength(1);

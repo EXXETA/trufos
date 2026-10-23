@@ -4,7 +4,7 @@
  * the schema is turned into a skeleton the user can fill in.
  */
 
-import { isObject } from 'main/util/object-util';
+import { isObject } from 'shim/plugin';
 import { OpenApiDocument } from './openapi-values';
 
 /**

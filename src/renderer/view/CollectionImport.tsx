@@ -136,12 +136,6 @@ type ImportSourceInfo = Pick<IndexedImporter, 'name' | 'source' | 'extensions'> 
   id: ImportStrategy;
 };
 
-/** Importers built into the app, until they become plugins as well. */
-const BUILT_IN_IMPORTERS: ImportSourceInfo[] = [
-  { id: 'OpenAPI', name: 'OpenAPI', source: 'file', extensions: ['json', 'yaml', 'yml'] },
-  { id: 'Bruno', name: 'Bruno', source: 'directory', extensions: [] },
-];
-
 interface ImportSourceProps {
   importer: ImportSourceInfo;
   srcEntry?: DroppedEntryInfo;
@@ -209,7 +203,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 }) => {
   const { changeCollection } = useCollectionActions();
   const { importers } = usePluginStore(selectPluginContributions);
-  const sources: ImportSourceInfo[] = [...importers, ...BUILT_IN_IMPORTERS];
+  const sources: ImportSourceInfo[] = importers;
 
   const [strategy, setStrategy] = useState<ImportStrategyWithTrufos>('Trufos');
   const [srcEntry, setSrcEntry, resetSrcEntry] = useStateResettable<DroppedEntryInfo>();

@@ -1,0 +1,13 @@
+{
+  "name": "@trufos/plugin-openapi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Imports OpenAPI and Swagger documents into Trufos.",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "@readme/openapi-parser": "9.1.0"
+  },
+  "devDependencies": {
+    "openapi-types": "12.1.3"
+  }
+}

@@ -91,7 +91,7 @@ describe('PluginService', () => {
     expect(JSON.parse(await readFile(targetPath, 'utf8'))).toEqual({ dirPath: '/collection' });
   });
 
-  it.each<ImportStrategy>(['Bruno', 'test-plugin.unknown', 'unknown.title'])(
+  it.each<ImportStrategy>(['Insomnia', 'test-plugin.unknown', 'unknown.title'])(
     'returns no importer for "%s"',
     async (id) => {
       const plugin = testPlugin();
@@ -108,7 +108,9 @@ describe('PluginService', () => {
 
     await service.getImporter('fake.x');
 
-    expect(activate).toHaveBeenCalledWith({ pluginId: 'fake', log: expect.any(Object) });
+    expect(activate).toHaveBeenCalledWith(
+      expect.objectContaining({ pluginId: 'fake', log: expect.any(Object) })
+    );
   });
 
   it('lists the plugins from their manifests', async () => {
@@ -120,7 +122,7 @@ describe('PluginService', () => {
         name: 'Test Plugin',
         version: '1.0.0',
         description: testPluginManifest.description,
-        permissions: [],
+        permissions: [{ scope: 'fs', value: 'pick' }],
         enabled: true,
         error: undefined,
       },

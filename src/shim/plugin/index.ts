@@ -6,3 +6,6 @@ export * from './host';
 export * from './contributions';
 export * from '../objects';
 export { DisplayableError } from '../error/DisplayableError';
+// helpers of the app that plugins need as well, so they are not written twice
+export { truncate, uniqueName } from '../string';
+export { isObject } from '../object';

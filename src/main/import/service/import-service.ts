@@ -1,8 +1,6 @@
 import { InternalError, InternalErrorType } from 'main/error/internal-error';
 import { Collection } from 'shim/objects/collection';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
-import { OpenApiImporter } from './openapi-importer';
-import { BrunoImporter } from './bruno-importer';
 import type { ImportStrategy } from 'shim/event-service';
 import { sanitizeTitle, uniqueNameAsync } from 'shim/string';
 import { exists, isEmpty } from 'main/util/fs-util';
@@ -16,11 +14,7 @@ const persistenceService = PersistenceService.instance;
 export class ImportService {
   public static readonly instance = new ImportService();
 
-  static {
-    ImportService.instance.registerImporter('OpenAPI', new OpenApiImporter());
-    ImportService.instance.registerImporter('Bruno', new BrunoImporter());
-  }
-
+  /** Importers built into the app. Empty since every importer became a plugin, kept as the seam. */
   private readonly importers: Map<ImportStrategy, CollectionImporter> = new Map();
 
   public registerImporter(strategy: ImportStrategy, importer: CollectionImporter) {

@@ -1,13 +1,24 @@
-import { vi, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { Folder } from 'shim/objects/folder';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { AuthorizationType } from 'shim/objects/auth';
-import { sanitizeTitle } from 'shim/string';
+import fs from 'node:fs/promises';
+import {
+  AuthorizationType,
+  type Folder,
+  type PluginLogger,
+  RequestBodyType,
+  type TrufosRequest,
+} from 'shim/plugin';
+import { OpenApiImporter } from './openapi-importer';
 
-vi.unmock('node:fs');
-vi.unmock('node:fs/promises');
+const log: PluginLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+
+// the files the importer reads are written to a directory of their own, removed afterwards
+let tmp: string;
+beforeAll(async () => {
+  tmp = await fs.mkdtemp(path.join(tmpdir(), 'openapi-test-'));
+});
+afterAll(() => fs.rm(tmp, { recursive: true, force: true }));
 
 const OPEN_API_DOCUMENT = {
   openapi: '3.0.3',
@@ -73,12 +84,10 @@ const OPEN_API_DOCUMENT = {
 
 describe('OpenApiImporter', () => {
   it('imports an OpenAPI collection from JSON', async () => {
-    const fs = await import('node:fs/promises');
-    const { OpenApiImporter } = await import('./openapi-importer.js');
-    const srcFilePath = path.join(tmpdir(), 'openapi-import.json');
+    const srcFilePath = path.join(tmp, 'openapi-import.json');
     await fs.writeFile(srcFilePath, JSON.stringify(OPEN_API_DOCUMENT));
 
-    const result = await new OpenApiImporter().importCollection(srcFilePath);
+    const result = await new OpenApiImporter(log).importCollection(srcFilePath);
 
     expect(result.type).toBe('collection');
     expect(result.title).toBe('Petstore API');
@@ -124,9 +133,7 @@ describe('OpenApiImporter', () => {
   });
 
   it('completes relative OpenAPI server URLs with a localhost base URL', async () => {
-    const fs = await import('node:fs/promises');
-    const { OpenApiImporter } = await import('./openapi-importer.js');
-    const srcFilePath = path.join(tmpdir(), 'openapi-relative-server.json');
+    const srcFilePath = path.join(tmp, 'openapi-relative-server.json');
     await fs.writeFile(
       srcFilePath,
       JSON.stringify({
@@ -144,7 +151,7 @@ describe('OpenApiImporter', () => {
       })
     );
 
-    const result = await new OpenApiImporter().importCollection(srcFilePath);
+    const result = await new OpenApiImporter(log).importCollection(srcFilePath);
     const request = result.children[0] as TrufosRequest;
 
     expect(result.variables.baseUrl.value).toBe('http://localhost/api/v2');
@@ -152,9 +159,7 @@ describe('OpenApiImporter', () => {
   });
 
   it('uses OpenAPI server variable defaults before completing URLs', async () => {
-    const fs = await import('node:fs/promises');
-    const { OpenApiImporter } = await import('./openapi-importer.js');
-    const srcFilePath = path.join(tmpdir(), 'openapi-server-variables.json');
+    const srcFilePath = path.join(tmp, 'openapi-server-variables.json');
     await fs.writeFile(
       srcFilePath,
       JSON.stringify({
@@ -180,15 +185,13 @@ describe('OpenApiImporter', () => {
       })
     );
 
-    const result = await new OpenApiImporter().importCollection(srcFilePath);
+    const result = await new OpenApiImporter(log).importCollection(srcFilePath);
 
     expect(result.variables.baseUrl.value).toBe('https://example.org/api');
   });
 
   it('completes Swagger base paths without a host with a localhost base URL', async () => {
-    const fs = await import('node:fs/promises');
-    const { OpenApiImporter } = await import('./openapi-importer.js');
-    const srcFilePath = path.join(tmpdir(), 'swagger-without-host.json');
+    const srcFilePath = path.join(tmp, 'swagger-without-host.json');
     await fs.writeFile(
       srcFilePath,
       JSON.stringify({
@@ -210,15 +213,13 @@ describe('OpenApiImporter', () => {
       })
     );
 
-    const result = await new OpenApiImporter().importCollection(srcFilePath);
+    const result = await new OpenApiImporter(log).importCollection(srcFilePath);
 
     expect(result.variables.baseUrl.value).toBe('http://localhost/legacy');
   });
 
   it('imports every server of a document as an environment', async () => {
-    const fs = await import('node:fs/promises');
-    const { OpenApiImporter } = await import('./openapi-importer.js');
-    const srcFilePath = path.join(tmpdir(), 'openapi-multiple-servers.json');
+    const srcFilePath = path.join(tmp, 'openapi-multiple-servers.json');
     await fs.writeFile(
       srcFilePath,
       JSON.stringify({
@@ -232,7 +233,7 @@ describe('OpenApiImporter', () => {
       })
     );
 
-    const result = await new OpenApiImporter().importCollection(srcFilePath);
+    const result = await new OpenApiImporter(log).importCollection(srcFilePath);
 
     // the first server stays the fallback for when no environment is selected
     expect(result.variables.baseUrl.value).toBe('https://api.example.com/v1');
@@ -249,9 +250,7 @@ describe('OpenApiImporter', () => {
 
   describe('request bodies', () => {
     async function importBody(requestBody: object, schemas?: object) {
-      const fs = await import('node:fs/promises');
-      const { OpenApiImporter } = await import('./openapi-importer.js');
-      const srcFilePath = path.join(tmpdir(), 'openapi-bodies.json');
+      const srcFilePath = path.join(tmp, 'openapi-bodies.json');
       await fs.writeFile(
         srcFilePath,
         JSON.stringify({
@@ -263,7 +262,7 @@ describe('OpenApiImporter', () => {
         })
       );
 
-      const result = await new OpenApiImporter().importCollection(srcFilePath);
+      const result = await new OpenApiImporter(log).importCollection(srcFilePath);
       return (result.children[0] as TrufosRequest).body;
     }
 
@@ -395,9 +394,7 @@ describe('OpenApiImporter', () => {
     };
 
     async function importSecurity(security: object[], operationSecurity?: object[]) {
-      const fs = await import('node:fs/promises');
-      const { OpenApiImporter } = await import('./openapi-importer.js');
-      const srcFilePath = path.join(tmpdir(), 'openapi-security.json');
+      const srcFilePath = path.join(tmp, 'openapi-security.json');
       await fs.writeFile(
         srcFilePath,
         JSON.stringify({
@@ -415,7 +412,7 @@ describe('OpenApiImporter', () => {
         })
       );
 
-      const collection = await new OpenApiImporter().importCollection(srcFilePath);
+      const collection = await new OpenApiImporter(log).importCollection(srcFilePath);
       return { collection, request: collection.children[0] as TrufosRequest };
     }
 
@@ -479,9 +476,7 @@ describe('OpenApiImporter', () => {
 
   describe('query parameters', () => {
     async function importQuery(parameters: object[]) {
-      const fs = await import('node:fs/promises');
-      const { OpenApiImporter } = await import('./openapi-importer.js');
-      const srcFilePath = path.join(tmpdir(), 'openapi-query-parameters.json');
+      const srcFilePath = path.join(tmp, 'openapi-query-parameters.json');
       await fs.writeFile(
         srcFilePath,
         JSON.stringify({
@@ -492,7 +487,7 @@ describe('OpenApiImporter', () => {
         })
       );
 
-      const result = await new OpenApiImporter().importCollection(srcFilePath);
+      const result = await new OpenApiImporter(log).importCollection(srcFilePath);
       return (result.children[0] as TrufosRequest).url.query;
     }
 
@@ -513,12 +508,10 @@ describe('OpenApiImporter', () => {
 
   describe('path parameters', () => {
     async function importPaths(paths: object) {
-      const fs = await import('node:fs/promises');
-      const { OpenApiImporter } = await import('./openapi-importer.js');
-      const srcFilePath = path.join(tmpdir(), 'openapi-path-parameters.json');
+      const srcFilePath = path.join(tmp, 'openapi-path-parameters.json');
       await fs.writeFile(srcFilePath, JSON.stringify({ ...OPEN_API_DOCUMENT, paths }));
 
-      const collection = await new OpenApiImporter().importCollection(srcFilePath);
+      const collection = await new OpenApiImporter(log).importCollection(srcFilePath);
       const { baseUrl, ...pathVariables } = collection.variables;
       expect(baseUrl).toBeDefined();
       return { collection, pathVariables, request: collection.children[0] as TrufosRequest };
@@ -634,9 +627,7 @@ describe('OpenApiImporter', () => {
 
   describe('request titles', () => {
     async function importOperation(operation: object) {
-      const fs = await import('node:fs/promises');
-      const { OpenApiImporter } = await import('./openapi-importer.js');
-      const srcFilePath = path.join(tmpdir(), 'openapi-titles.json');
+      const srcFilePath = path.join(tmp, 'openapi-titles.json');
       await fs.writeFile(
         srcFilePath,
         JSON.stringify({
@@ -645,7 +636,7 @@ describe('OpenApiImporter', () => {
         })
       );
 
-      const result = await new OpenApiImporter().importCollection(srcFilePath);
+      const result = await new OpenApiImporter(log).importCollection(srcFilePath);
       return result.children[0] as TrufosRequest;
     }
 
@@ -660,9 +651,6 @@ describe('OpenApiImporter', () => {
 
       expect(request.title).toBe(
         'Takes native app file from request and creates new appstore application'
-      );
-      expect(sanitizeTitle(request.title)).toBe(
-        'takes-native-app-file-from-request-and-creates-new-appstore'
       );
     });
 
@@ -687,14 +675,12 @@ describe('OpenApiImporter', () => {
       const request = await importOperation({ summary: '  \n ', operationId: 'createApplication' });
 
       expect(request.title).toBe('createApplication');
-      expect(sanitizeTitle(request.title)).toBe('create-application');
     });
 
     it('falls back to the path template if there is neither summary nor operation ID', async () => {
       const request = await importOperation({});
 
       expect(request.title).toBe('/apps/{appId}/versions');
-      expect(sanitizeTitle(request.title)).toBe('apps-app-id-versions');
     });
   });
 });
