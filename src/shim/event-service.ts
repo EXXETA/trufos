@@ -26,6 +26,8 @@ export enum MainProcessEvent {
    * {@link PluginsSnapshot}.
    */
   PluginsChanged = 'plugins-changed',
+  /** Reloads the open collection from disk (Collection menu). */
+  ReloadCollection = 'reload-collection',
   /** Opens the app settings modal (app menu). */
   ShowAppSettings = 'show-app-settings',
   /** Opens the collection runner view (Collection menu). */
@@ -57,6 +59,7 @@ export interface MainProcessEventPayloads {
   [MainProcessEvent.CollectionStateChanged]: [event: CollectionStateEvent];
   [MainProcessEvent.HistoryChanged]: [entries: HistoryEntrySummary[]];
   [MainProcessEvent.PluginsChanged]: [snapshot: PluginsSnapshot];
+  [MainProcessEvent.ReloadCollection]: [];
   [MainProcessEvent.ShowAppSettings]: [];
   [MainProcessEvent.ShowCollectionRunner]: [];
   [MainProcessEvent.ShowCollectionSettings]: [];
@@ -173,6 +176,26 @@ export interface IEventService {
    * @param dirPath The directory path of the collection to close. If not provided, the current collection is closed.
    */
   closeCollection(dirPath?: string): Promise<void>;
+
+  /**
+   * Writes all pending changes of the open collection to disk, so its files match the state of
+   * the app, e.g. before the files may be changed outside the app.
+   */
+  flushCollection(): Promise<void>;
+
+  /**
+   * Reloads the open collection from disk and broadcasts it as a snapshot, e.g. after its files
+   * were changed outside the app. Pending changes are written first.
+   * @throws if the collection cannot be read. The app keeps its state then.
+   */
+  reloadCollection(): Promise<void>;
+
+  /**
+   * Like {@link reloadCollection}, but only broadcasts a snapshot if the files differ from the
+   * state of the app.
+   * @returns whether the collection was reloaded
+   */
+  reloadCollectionIfChanged(): Promise<boolean>;
 
   /**
    * Open a folder dialog and return the selected directory path.

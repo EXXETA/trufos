@@ -256,6 +256,20 @@ export interface CollectionStateActions {
   closeCollection(dirPath?: string): Promise<boolean>;
 
   /**
+   * Write all changes of the collection to disk: the editor changes and those main has not
+   * written yet. Afterwards the files match the app, so they can be changed outside of it.
+   */
+  flushToDisk(): Promise<boolean>;
+
+  /**
+   * Reload the collection from disk, e.g. after its files were changed outside the app. Editor
+   * changes are sent first. The store is updated by the snapshot main broadcasts; the editors of
+   * the selected request are refreshed unless the user edits them meanwhile.
+   * @param onlyIfChanged only reload if the files differ from the state of the app
+   */
+  reloadFromDisk(onlyIfChanged?: boolean): Promise<boolean>;
+
+  /**
    * Move requests and folders, in the given order, to the given index of a parent. None of them
    * may be inside another one or contain the parent.
    * @param ids the requests and folders to move

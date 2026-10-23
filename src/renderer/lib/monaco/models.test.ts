@@ -9,6 +9,7 @@ import {
   getScriptModel,
   loadModelContent,
   MODEL_EDIT_DEBOUNCE_MS,
+  refreshModelContent,
 } from './models';
 
 const persistence = {
@@ -181,6 +182,60 @@ describe('editor models', () => {
 
       await expect(loaded).resolves.toBeUndefined();
       expect(model.isDisposed()).toBe(true);
+    });
+  });
+
+  describe('refreshModelContent', () => {
+    it('replaces the content with what is on disk and does not treat it as an edit', async () => {
+      await refreshModelContent(REQUEST_ID, getBodyModel(REQUEST_ID), async () => 'on disk');
+      vi.advanceTimersByTime(MODEL_EDIT_DEBOUNCE_MS);
+
+      expect(getBodyModel(REQUEST_ID).getValue()).toBe('on disk');
+      expect(persistence.markDraft).not.toHaveBeenCalled();
+      expect(persistence.setTextBody).not.toHaveBeenCalled();
+    });
+
+    it('keeps the undo history if the content did not change', async () => {
+      const model = getBodyModel(REQUEST_ID);
+      await loadModelContent(model, async () => 'same');
+      const versionId = model.getVersionId();
+
+      await refreshModelContent(REQUEST_ID, model, async () => 'same');
+
+      expect(model.getVersionId()).toBe(versionId);
+    });
+
+    it('keeps text typed while the content was read', async () => {
+      const model = getBodyModel(REQUEST_ID);
+      const { promise, resolve } = Promise.withResolvers<string>();
+      const refreshed = refreshModelContent(REQUEST_ID, model, () => promise);
+      type(model, 'typed');
+
+      resolve('on disk');
+      await refreshed;
+
+      expect(model.getValue()).toBe('typed');
+    });
+
+    it('keeps a model with pending edits', async () => {
+      const model = getBodyModel(REQUEST_ID);
+      type(model, 'typed');
+
+      await refreshModelContent(REQUEST_ID, model, async () => 'on disk');
+
+      expect(model.getValue()).toBe('typed');
+    });
+
+    it('skips a model that was disposed while its content was read', async () => {
+      createModelsForRequest('req-2', persistence);
+      const model = getBodyModel('req-2');
+      const { promise, resolve } = Promise.withResolvers<string>();
+      const refreshed = refreshModelContent('req-2', model, () => promise);
+
+      disposeModelsForRequest('req-2');
+      resolve('late');
+
+      await expect(refreshed).resolves.toBeUndefined();
     });
   });
 });

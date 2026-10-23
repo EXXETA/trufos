@@ -185,6 +185,42 @@ export async function loadModelContent(
   }
 }
 
+/**
+ * Replaces the content of a model with what is on disk, unless the user edited it meanwhile.
+ * Unlike {@link loadModelContent}, nothing typed is lost: if the model changed while the content
+ * was read, or it has pending edits, it is left as it is. If the content did not change, the model
+ * is not touched, so its cursor and undo history stay.
+ * @param requestId the ID of the request the model belongs to
+ * @param model the model to refresh
+ * @param load reads the content from disk, or resolves with undefined if reading was canceled.
+ * The model is left as it is then.
+ */
+export async function refreshModelContent(
+  requestId: string,
+  model: editor.ITextModel,
+  load: () => Promise<string | undefined>
+): Promise<void> {
+  const versionId = model.getAlternativeVersionId();
+  const text = await load();
+  if (
+    text === undefined ||
+    model.isDisposed() ||
+    model.getAlternativeVersionId() !== versionId ||
+    pendingEdits.has(requestId) ||
+    loading.has(model) ||
+    model.getValue() === text
+  ) {
+    return;
+  }
+  // marked as loading, so the replaced content is not tracked as an edit
+  loading.set(model, Symbol('refresh'));
+  try {
+    model.setValue(text);
+  } finally {
+    loading.delete(model);
+  }
+}
+
 /** Removes the pending edits of a request and stops their timers. */
 function takePendingEdits(requestId: string): PendingEdit[] {
   const edits = [...(pendingEdits.get(requestId)?.values() ?? [])];

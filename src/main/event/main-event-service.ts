@@ -178,6 +178,18 @@ export class MainEventService implements IEventService {
     await collectionState.closeCollection(dirPath);
   }
 
+  async flushCollection(): Promise<void> {
+    await collectionState.flush();
+  }
+
+  async reloadCollection(): Promise<void> {
+    await collectionState.reload();
+  }
+
+  async reloadCollectionIfChanged(): Promise<boolean> {
+    return await collectionState.reloadIfChanged();
+  }
+
   async showOpenDialog(options: Electron.OpenDialogOptions) {
     return await dialog.showOpenDialog(this.window!, options);
   }

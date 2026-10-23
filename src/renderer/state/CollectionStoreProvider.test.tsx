@@ -20,6 +20,9 @@ const { listeners, eventService, models } = vi.hoisted(() => {
       getCollectionState: vi.fn(),
       dispatch: vi.fn(),
       saveCollectionUiState: vi.fn(),
+      flushCollection: vi.fn(),
+      reloadCollection: vi.fn(),
+      reloadCollectionIfChanged: vi.fn(),
     },
     models: {
       flushModelEdits: vi.fn(),
@@ -63,6 +66,9 @@ beforeEach(() => {
   eventService.dispatch.mockImplementation(main.dispatch);
   models.flushModelEdits.mockResolvedValue(undefined);
   eventService.saveCollectionUiState.mockResolvedValue(undefined);
+  eventService.flushCollection.mockResolvedValue(undefined);
+  eventService.reloadCollection.mockResolvedValue(undefined);
+  eventService.reloadCollectionIfChanged.mockResolvedValue(false);
 });
 
 const Title = () => <span>{useCollectionStore((state) => state.collection.title)}</span>;
@@ -132,6 +138,55 @@ describe('CollectionStoreProvider', () => {
     expect(eventService.saveCollectionUiState.mock.invocationCallOrder[0]).toBeLessThan(
       eventService.emit.mock.invocationCallOrder[0]
     );
+  });
+
+  it('writes everything to disk when the window loses focus, editor changes first', async () => {
+    renderProvider();
+    await screen.findByText('Test');
+
+    await act(async () => {
+      window.dispatchEvent(new Event('blur'));
+    });
+
+    await waitFor(() => expect(eventService.flushCollection).toHaveBeenCalledOnce());
+    expect(models.flushModelEdits.mock.invocationCallOrder[0]).toBeLessThan(
+      eventService.flushCollection.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('reloads the collection if it changed on disk when the window gets focus', async () => {
+    renderProvider();
+    await screen.findByText('Test');
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    await waitFor(() => expect(eventService.reloadCollectionIfChanged).toHaveBeenCalledOnce());
+    expect(eventService.reloadCollection).not.toHaveBeenCalled();
+  });
+
+  it('reloads the collection from the Collection menu', async () => {
+    renderProvider();
+    await screen.findByText('Test');
+
+    await act(async () => {
+      listeners.get(MainProcessEvent.ReloadCollection)?.({});
+    });
+
+    await waitFor(() => expect(eventService.reloadCollection).toHaveBeenCalledOnce());
+  });
+
+  it('stops following the window focus on unmount', async () => {
+    const { unmount } = renderProvider();
+    await screen.findByText('Test');
+
+    unmount();
+    window.dispatchEvent(new Event('blur'));
+    window.dispatchEvent(new Event('focus'));
+
+    expect(eventService.flushCollection).not.toHaveBeenCalled();
+    expect(eventService.reloadCollectionIfChanged).not.toHaveBeenCalled();
   });
 
   it('removes its listeners on unmount', async () => {

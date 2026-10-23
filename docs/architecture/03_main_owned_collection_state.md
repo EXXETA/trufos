@@ -143,6 +143,30 @@ discarded the changes, so text typed meanwhile is replaced instead of sent. If a
 rejected, the user is told and the model is reloaded from disk, so the editor never silently shows
 unsaved text.
 
+## Changes outside the app
+
+The files of a collection may change outside the app, e.g. by a branch switch or a pull. There is no
+file watcher; the renderer keeps the files and the app in sync around the focus of the window
+(`CollectionStoreProvider`):
+
+- **Blur:** the editor changes are sent and main writes the dirty requests
+  (`IEventService.flushCollection()`). While the user is in another app, the files match the app,
+  so nothing it writes later can overwrite a change made meanwhile.
+- **Focus:** `CollectionStateService.reloadIfChanged()` reads the collection into a new model and
+  compares it with the current one, leaving out the version and the modification times: in the
+  current model a node has the time of its last command, in a read model the modification time of
+  its info file. Reading the files the app wrote itself gives the same model, so the common case
+  broadcasts nothing. Otherwise the read model is installed and broadcast as a snapshot.
+- **Collection > Reload from Disk** reloads and broadcasts unconditionally
+  (`CollectionStateService.reload()`).
+
+Text bodies and scripts are not part of the model, so after a reload on focus or from the menu
+the renderer also refreshes the editors of the selected request from disk. A refresh replaces the
+content only if it changed and the user did not edit the editor meanwhile (`refreshModelContent()`),
+so nothing typed is lost. If the files cannot be read, e.g. because of merge conflict markers, the
+current model stays, the error is shown and the next focus tries again. Edits keep being saved, so
+editing a request whose file is broken overwrites it with the state of the app.
+
 ## Other main services
 
 - Main keeps two JSON files of the application in `userData`. Each service holds a `JsonFile`

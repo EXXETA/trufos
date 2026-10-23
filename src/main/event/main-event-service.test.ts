@@ -155,6 +155,8 @@ describe('MainEventService', () => {
       ['openCollection', 'load', ['/dir']],
       ['createCollection', 'createCollection', ['/dir', 'title']],
       ['closeCollection', 'closeCollection', ['/dir']],
+      ['flushCollection', 'flush', []],
+      ['reloadCollection', 'reload', []],
     ] as const)('%s() delegates to the collection state', async (method, target, args) => {
       const spy = vi.spyOn(CollectionStateService.instance, target).mockResolvedValue(undefined);
       const eventService = new MainEventService();
@@ -162,6 +164,13 @@ describe('MainEventService', () => {
       await expect(eventService[method](...args)).resolves.toBeUndefined();
 
       expect(spy).toHaveBeenCalledWith(...args);
+    });
+
+    it('reloadCollectionIfChanged() returns whether the collection state reloaded', async () => {
+      vi.spyOn(CollectionStateService.instance, 'reloadIfChanged').mockResolvedValue(true);
+      const eventService = new MainEventService();
+
+      await expect(eventService.reloadCollectionIfChanged()).resolves.toBe(true);
     });
   });
 

@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ScriptType } from 'shim/scripting';
-import { loadEditorContent } from './editor-content';
+import { loadEditorContent, refreshEditorContent } from './editor-content';
 
 const { bodyModel, scriptModel, openMock } = vi.hoisted(() => {
   const fakeModel = () => ({
@@ -21,6 +21,12 @@ vi.mock('@/lib/monaco/models', () => ({
     const text = await load();
     if (!model.isDisposed()) model.setValue(text);
   }),
+  refreshModelContent: vi.fn(
+    async (_requestId: string, model: typeof bodyModel, load: () => Promise<string>) => {
+      const text = await load();
+      if (!model.isDisposed()) model.setValue(text);
+    }
+  ),
 }));
 
 vi.mock('monaco-editor', () => ({
@@ -130,5 +136,33 @@ describe('loadEditorContent', () => {
     );
     expect(bodySetValue).toHaveBeenCalledExactlyOnceWith('body');
     expect(scriptSetValue).not.toHaveBeenCalled();
+  });
+});
+
+describe('refreshEditorContent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    openMock.mockImplementation(async (input: { type: string; source?: string }) => ({
+      readAll: async () => input.source ?? 'body',
+    }));
+  });
+
+  it('reads the text body and every script from disk', async () => {
+    await refreshEditorContent('req-1');
+
+    expect(openMock).toHaveBeenCalledWith({ type: 'request-body', requestId: 'req-1' }, 'utf-8');
+    for (const source of Object.values(ScriptType)) {
+      expect(openMock).toHaveBeenCalledWith(
+        { type: 'script', source, requestId: 'req-1' },
+        'utf-8'
+      );
+    }
+    expect(bodySetValue).toHaveBeenCalledWith('body');
+  });
+
+  it('reads nothing for a request without editor models', async () => {
+    await refreshEditorContent('deleted');
+
+    expect(openMock).not.toHaveBeenCalled();
   });
 });

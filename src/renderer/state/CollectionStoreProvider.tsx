@@ -73,6 +73,23 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
     };
   }, []);
 
+  // The files of the collection may be changed outside the app, e.g. by git, while the window is
+  // in the background. Everything is written when it loses focus and reloaded when it gets it back.
+  useEffect(() => {
+    if (store == null) return;
+    const onBlur = () => void store.getState().flushToDisk();
+    const onFocus = () => void store.getState().reloadFromDisk(true);
+    const onReload = () => void store.getState().reloadFromDisk();
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    rendererEventService.on(MainProcessEvent.ReloadCollection, onReload);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('focus', onFocus);
+      rendererEventService.removeListener(MainProcessEvent.ReloadCollection, onReload);
+    };
+  }, [store]);
+
   if (store == null) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">

@@ -889,6 +889,133 @@ describe('CollectionStateService', () => {
     });
   });
 
+  describe('reloadIfChanged()', () => {
+    const folder = {
+      id: 'f1',
+      parentId: 'first',
+      type: 'folder',
+      lastModified: 0,
+      title: 'folder',
+    } as const;
+
+    it('does not reload if the files did not change', async () => {
+      // Act
+      const reloaded = await service.reloadIfChanged();
+
+      // Assert
+      expect(reloaded).toBe(false);
+      expect(events).toEqual([]);
+    });
+
+    it('does not reload after the changes the app wrote itself', async () => {
+      // Arrange
+      await apply({ type: CommandType.RENAME, id: 'r1', title: 'renamed' });
+      await apply({ type: CommandType.CREATE_FOLDER, folder });
+      await apply({ type: CommandType.MOVE, ids: ['r2'], parentId: 'f1', index: 0 });
+      await apply({
+        type: CommandType.EDIT_REQUEST,
+        id: 'r1',
+        changes: { method: RequestMethod.PUT },
+      });
+      await apply({
+        type: CommandType.UPDATE_COLLECTION,
+        changes: { title: 'retitled' },
+        selectedEnvironmentKey: 'prod',
+      });
+      await service.flush();
+      events.length = 0;
+
+      // Act
+      const reloaded = await service.reloadIfChanged();
+
+      // Assert
+      expect(reloaded).toBe(false);
+      expect(events).toEqual([]);
+    });
+
+    it('writes pending edits before it compares, so they are kept', async () => {
+      // Arrange
+      await apply({
+        type: CommandType.EDIT_REQUEST,
+        id: 'r1',
+        changes: { method: RequestMethod.PUT },
+      });
+      events.length = 0;
+
+      // Act
+      const reloaded = await service.reloadIfChanged();
+
+      // Assert
+      expect(reloaded).toBe(false);
+      expect(await readRequestInfo('r1', DRAFT_DIR_NAME)).toMatchObject({ method: 'PUT' });
+    });
+
+    it('reloads and broadcasts a snapshot if a request was changed outside the app', async () => {
+      // Arrange
+      const filePath = path.join(firstDirPath, 'r1', 'request.json');
+      const info = JSON.parse(await fs.readFile(filePath, 'utf-8'));
+      await fs.writeFile(filePath, JSON.stringify({ ...info, method: 'DELETE' }));
+      const { version } = service.model;
+
+      // Act
+      const reloaded = await service.reloadIfChanged();
+
+      // Assert
+      expect(reloaded).toBe(true);
+      expect(service.model.requests.get('r1')?.method).toBe(RequestMethod.DELETE);
+      expect(service.model.version).toBeGreaterThan(version);
+      expect(events).toEqual([{ kind: 'snapshot', model: service.model }]);
+    });
+
+    it('reloads if a folder was created outside the app', async () => {
+      // Arrange
+      const other = createService();
+      await other.load(firstDirPath);
+      await other.dispatch(envelope({ type: CommandType.CREATE_FOLDER, folder }));
+
+      // Act
+      const reloaded = await service.reloadIfChanged();
+
+      // Assert
+      expect(reloaded).toBe(true);
+      expect(service.model.folders.get('f1')?.title).toBe('folder');
+    });
+
+    it('reloads if a request was deleted outside the app', async () => {
+      // Arrange
+      await fs.rm(path.join(firstDirPath, 'r2'), { recursive: true });
+
+      // Act
+      const reloaded = await service.reloadIfChanged();
+
+      // Assert
+      expect(reloaded).toBe(true);
+      expect(service.model.requests.has('r2')).toBe(false);
+    });
+
+    it('keeps the model and rejects if the files cannot be read', async () => {
+      // Arrange
+      await fs.writeFile(path.join(firstDirPath, 'r1', 'request.json'), '<<<<<<< HEAD');
+      const model = service.model;
+
+      // Act & Assert
+      await expect(service.reloadIfChanged()).rejects.toThrow();
+      expect(service.model).toBe(model);
+      expect(events).toEqual([]);
+    });
+  });
+
+  describe('reload()', () => {
+    it('reloads and broadcasts a snapshot even if nothing changed', async () => {
+      // Act
+      await service.reload();
+
+      // Assert
+      expect(events).toEqual([{ kind: 'snapshot', model: service.model }]);
+      expect(service.model.collection.id).toBe('first');
+    });
+  });
+
   describe('readRequest()', () => {
     it('waits for queued writes before it reads', async () => {
       // Arrange

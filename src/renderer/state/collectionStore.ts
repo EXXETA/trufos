@@ -5,7 +5,7 @@ import { immer } from 'zustand/middleware/immer';
 import { type Draft, produce } from 'immer';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { HttpService } from '@/services/http/http-service';
-import { loadEditorContent } from '@/lib/monaco/editor-content';
+import { loadEditorContent, refreshEditorContent } from '@/lib/monaco/editor-content';
 import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { CollectionState, FetchSnapshot, SendCommand } from '@/state/collection-state';
@@ -554,6 +554,20 @@ export const createCollectionStore = (
         await flushModelEdits();
         console.info('Closing collection at', targetPath);
         await eventService.closeCollection(targetPath);
+      }),
+
+      flushToDisk: reported('Could not save the collection', async () => {
+        await flushModelEdits();
+        await eventService.flushCollection();
+      }),
+
+      reloadFromDisk: reported('Could not reload the collection', async (onlyIfChanged) => {
+        await flushModelEdits();
+        if (onlyIfChanged) await eventService.reloadCollectionIfChanged();
+        else await eventService.reloadCollection();
+        // text bodies and scripts are not part of the model, so they can change without a snapshot
+        const { selectedRequestId } = get();
+        if (selectedRequestId != null) await refreshEditorContent(selectedRequestId);
       }),
 
       moveItems: reported('Could not move the items', async (ids, parentId, index) => {
