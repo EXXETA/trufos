@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type PluginInfo, PluginPermissionAccess, PluginPermissionScope } from 'shim/plugin';
@@ -55,11 +55,12 @@ describe('AppPluginsTab', () => {
     expect(screen.getByText('Git')).toBeTruthy();
     expect(screen.getByText('1.2.0')).toBeTruthy();
     expect(screen.getByText('Commits and pushes collections.')).toBeTruthy();
-    expect(
-      screen.getByText(
-        'Permissions: Read the open collection, Connect to *.github.com, Run the program git.'
-      )
-    ).toBeTruthy();
+    const permissions = within(screen.getByRole('list', { name: 'Permissions' }));
+    expect(permissions.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Read the open collection',
+      'Connect to *.github.com',
+      'Run the program git',
+    ]);
   });
 
   it('says so when a plugin needs no permissions', () => {
@@ -76,6 +77,15 @@ describe('AppPluginsTab', () => {
     render(<AppPluginsTab />);
 
     expect(screen.getByText('Requires plugin API ^2.0.0')).toBeTruthy();
+  });
+
+  it('shows each plugin as its own entry', () => {
+    pluginState.plugins = [plugin(), plugin({ id: 'jira', name: 'Jira' })];
+
+    render(<AppPluginsTab />);
+
+    expect(screen.getByRole('article', { name: 'Git' })).toBeTruthy();
+    expect(screen.getByRole('article', { name: 'Jira' })).toBeTruthy();
   });
 
   it('disables an enabled plugin', async () => {

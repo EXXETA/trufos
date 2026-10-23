@@ -1,4 +1,17 @@
 import {
+  CircleAlert,
+  Eye,
+  FileText,
+  FolderOpen,
+  FolderTree,
+  Globe,
+  KeyRound,
+  type LucideIcon,
+  PencilLine,
+  Puzzle,
+  Terminal,
+} from 'lucide-react';
+import {
   PluginFileArea,
   type PluginInfo,
   type PluginPermission,
@@ -7,52 +20,115 @@ import {
 } from 'shim/plugin';
 import { selectPlugins, usePluginActions, usePluginStore } from '@/state/pluginStore';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
-/** @returns what the permission allows a plugin to do, in words */
-function describePermission(permission: PluginPermission): string {
+const PILL_CLASS_NAME =
+  'inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium';
+
+/** What a permission allows a plugin to do, in words, and whether that reaches beyond the app. */
+interface PermissionInfo {
+  label: string;
+  icon: LucideIcon;
+  external?: boolean;
+}
+
+/** @returns what the permission allows a plugin to do */
+function describePermission(permission: PluginPermission): PermissionInfo {
   switch (permission.scope) {
     case PluginPermissionScope.COLLECTION:
       return permission.value === PluginPermissionAccess.READ
-        ? 'Read the open collection'
-        : 'Change the open collection';
+        ? { label: 'Read the open collection', icon: Eye }
+        : { label: 'Change the open collection', icon: PencilLine };
     case PluginPermissionScope.BODIES:
-      return 'Read request and response bodies';
+      return { label: 'Read request and response bodies', icon: FileText };
     case PluginPermissionScope.FS:
       return permission.value === PluginFileArea.COLLECTION
-        ? 'Access the files of the open collection'
-        : 'Access files and folders you pick';
+        ? { label: 'Access the files of the open collection', icon: FolderTree }
+        : { label: 'Access files and folders you pick', icon: FolderOpen };
     case PluginPermissionScope.SECRETS:
-      return 'Store its own secrets';
+      return { label: 'Store its own secrets', icon: KeyRound };
     case PluginPermissionScope.NETWORK:
-      return `Connect to ${permission.value}`;
+      return { label: `Connect to ${permission.value}`, icon: Globe, external: true };
     case PluginPermissionScope.EXEC:
-      return `Run the program ${permission.value}`;
+      return { label: `Run the program ${permission.value}`, icon: Terminal, external: true };
   }
 }
 
+const PermissionPill = ({ permission }: { permission: PluginPermission }) => {
+  const { label, icon: Icon, external } = describePermission(permission);
+  return (
+    <li
+      className={cn(
+        PILL_CLASS_NAME,
+        external ? 'bg-state-warning/10 text-state-warning' : 'bg-muted text-text-secondary'
+      )}
+    >
+      <Icon className="size-3.5 shrink-0" aria-hidden />
+      {label}
+    </li>
+  );
+};
+
 const PluginEntry = ({ plugin }: { plugin: PluginInfo }) => {
   const { setEnabled } = usePluginActions();
+  const titleId = `plugin-${plugin.id}-title`;
 
   return (
-    <div className="flex flex-col gap-1">
-      <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-(--text-primary)">
+    <article
+      aria-labelledby={titleId}
+      className={cn(
+        'border-border bg-card flex gap-4 rounded-lg border p-4',
+        plugin.error !== undefined && 'border-danger/40'
+      )}
+    >
+      <div
+        className={cn(
+          'bg-accent-primary/10 text-accent-primary flex size-10 shrink-0 items-center justify-center rounded-lg',
+          !plugin.enabled && 'opacity-50'
+        )}
+      >
+        <Puzzle className="size-5" aria-hidden />
+      </div>
+
+      <div className={cn('flex min-w-0 flex-1 flex-col gap-2', !plugin.enabled && 'opacity-50')}>
+        <div className="flex flex-wrap items-center gap-2">
+          <h4 id={titleId} className="text-text-primary text-sm font-medium">
+            {plugin.name}
+          </h4>
+          <span className={cn(PILL_CLASS_NAME, 'bg-muted text-text-secondary tabular-nums')}>
+            {plugin.version}
+          </span>
+        </div>
+        {plugin.description !== '' && (
+          <p className="text-text-secondary text-sm">{plugin.description}</p>
+        )}
+        {plugin.permissions.length === 0 ? (
+          <span className="text-text-secondary text-xs">Needs no permissions.</span>
+        ) : (
+          <ul aria-label="Permissions" className="flex flex-wrap gap-1.5">
+            {plugin.permissions.map((permission, index) => (
+              // the permissions of a plugin come from its manifest and never change order
+              <PermissionPill key={index} permission={permission} />
+            ))}
+          </ul>
+        )}
+        {plugin.error !== undefined && (
+          <p className="bg-danger/10 text-danger flex items-start gap-2 rounded-md px-3 py-2 text-sm">
+            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+            {plugin.error}
+          </p>
+        )}
+      </div>
+
+      <label className="text-text-secondary flex h-fit shrink-0 cursor-pointer items-center gap-2 text-xs">
         <Checkbox
+          aria-label={`Enable ${plugin.name}`}
           checked={plugin.enabled}
           onCheckedChange={(checked) => setEnabled(plugin.id, checked === true)}
         />
-        <span className="font-medium">{plugin.name}</span>
-        <span className="text-(--text-secondary)">{plugin.version}</span>
+        Enabled
       </label>
-      {plugin.description !== '' && (
-        <span className="text-sm text-(--text-secondary)">{plugin.description}</span>
-      )}
-      <span className="text-sm text-(--text-secondary)">
-        {plugin.permissions.length === 0
-          ? 'Needs no permissions.'
-          : `Permissions: ${plugin.permissions.map(describePermission).join(', ')}.`}
-      </span>
-      {plugin.error !== undefined && <span className="text-danger text-sm">{plugin.error}</span>}
-    </div>
+    </article>
   );
 };
 
@@ -62,10 +138,25 @@ export const AppPluginsTab = () => {
 
   return (
     <div className="flex flex-col gap-6 p-4">
+      <div>
+        <h3 className="text-text-primary text-sm font-medium">Plugins</h3>
+        <p className="text-text-secondary mt-1 text-sm">
+          Plugins add importers and exporters to Trufos. Each one lists the permissions it asks for.
+          Turning a plugin off takes effect immediately.
+        </p>
+      </div>
+
       {plugins.length === 0 ? (
-        <span className="text-sm text-(--text-secondary)">No plugins are installed.</span>
+        <div className="border-border text-text-secondary flex flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-sm">
+          <Puzzle className="size-6" aria-hidden />
+          No plugins are installed.
+        </div>
       ) : (
-        plugins.map((plugin) => <PluginEntry key={plugin.id} plugin={plugin} />)
+        <div className="flex flex-col gap-3">
+          {plugins.map((plugin) => (
+            <PluginEntry key={plugin.id} plugin={plugin} />
+          ))}
+        </div>
       )}
     </div>
   );
