@@ -28,6 +28,11 @@ export enum MainProcessEvent {
   PluginsChanged = 'plugins-changed',
   /** Reloads the open collection from disk (Collection menu). */
   ReloadCollection = 'reload-collection',
+  /**
+   * The text body or a script of these requests of the open collection changed on disk, e.g.
+   * outside the app. The payload is the IDs of the requests.
+   */
+  RequestFilesChanged = 'request-files-changed',
   /** Opens the app settings modal (app menu). */
   ShowAppSettings = 'show-app-settings',
   /** Opens the collection runner view (Collection menu). */
@@ -60,6 +65,7 @@ export interface MainProcessEventPayloads {
   [MainProcessEvent.HistoryChanged]: [entries: HistoryEntrySummary[]];
   [MainProcessEvent.PluginsChanged]: [snapshot: PluginsSnapshot];
   [MainProcessEvent.ReloadCollection]: [];
+  [MainProcessEvent.RequestFilesChanged]: [requestIds: string[]];
   [MainProcessEvent.ShowAppSettings]: [];
   [MainProcessEvent.ShowCollectionRunner]: [];
   [MainProcessEvent.ShowCollectionSettings]: [];
@@ -192,10 +198,10 @@ export interface IEventService {
 
   /**
    * Like {@link reloadCollection}, but only broadcasts a snapshot if the files differ from the
-   * state of the app.
-   * @returns whether the collection was reloaded
+   * state of the app. Text bodies and scripts are not part of that state, so whoever shows them
+   * has to load them again to see a change.
    */
-  reloadCollectionIfChanged(): Promise<boolean>;
+  reloadCollectionIfChanged(): Promise<void>;
 
   /**
    * Open a folder dialog and return the selected directory path.

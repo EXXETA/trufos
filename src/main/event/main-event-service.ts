@@ -103,6 +103,10 @@ export class MainEventService implements IEventService {
     collectionState.on('changed', (event) =>
       sendToRenderer(this.window?.webContents, MainProcessEvent.CollectionStateChanged, event)
     );
+    // the renderer reloads the text bodies and scripts it shows in its editors
+    collectionState.on('request-files-changed', (requestIds) =>
+      sendToRenderer(this.window?.webContents, MainProcessEvent.RequestFilesChanged, requestIds)
+    );
     // the renderer shows the history of the current collection
     const pushHistory = () =>
       sendToRenderer(
@@ -186,8 +190,8 @@ export class MainEventService implements IEventService {
     await collectionState.reload();
   }
 
-  async reloadCollectionIfChanged(): Promise<boolean> {
-    return await collectionState.reloadIfChanged();
+  async reloadCollectionIfChanged(): Promise<void> {
+    await collectionState.reloadIfChanged();
   }
 
   async showOpenDialog(options: Electron.OpenDialogOptions) {

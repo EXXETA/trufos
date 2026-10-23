@@ -12,33 +12,69 @@ plugin changes the files of the open collection by design, so this has to work b
 
 ## Decisions
 
-- **Triggers:** focus of the window and an explicit reload. No file watcher: it would need the
-  same reload logic plus filtering of the app's own writes, emulated recursive watching on Linux
-  and a policy for changes that arrive mid-edit. A watcher can be added later as one more caller
-  of `reloadIfChanged()`.
+- **Triggers:** a file watcher in main, with the focus of the window and an explicit reload as
+  fallbacks. A first version used only focus and the menu; it was extended with the watcher, as in
+  VS Code, because it also catches changes while the window has focus (e.g. by the git plugin),
+  tells which text bodies and scripts changed instead of reading the selected one on every focus,
+  and Node 24 (Electron 45) watches recursively on Linux with one inotify watch per directory
+  instead of polling. The app's own writes need no filtering beyond the ignored files: they read
+  back as the same model. No new dependency (`@parcel/watcher`) is needed.
+- **Changes mid-edit:** a dirty request is written before the comparison, so an edit made in the
+  app wins over a change of the same request outside it. No conflict dialog.
 - **Read failures** (e.g. merge conflict markers in an info file): keep the in-memory model, show
   the error, retry on the next focus or reload. Edits keep saving as today, so editing a request
   whose file is broken overwrites it with the app's version.
 
 ## Design
 
-### Triggers
+### Watcher
 
-`CollectionStoreProvider` drives the reload, because only the renderer can flush the editors:
+The responsibilities are split by layer:
 
-- **blur:** `flushModelEdits()`, then the new IPC `flushCollection()`
-  (`CollectionStateService.flush()`). While the user is in another app, disk and memory match, so
-  nothing the app writes later can clobber an external change.
-- **focus:** the new IPC `reloadCollectionIfChanged()`, then the editor refresh below. A failure
-  is shown with `showError()`.
+- Persistence owns the file layout. `isAppOwnedPath()`, a module function of
+  `persistence-service.ts`, matches the lines Trufos writes into the `.gitignore` of a collection
+  (`GIT_IGNORE_LINES`: `.draft`, `.secrets.bin`, `.*.tmp`). The principle is to watch exactly what
+  git versions; a test makes sure every line is a pattern the matcher supports. Every edit makes a
+  request a draft first, so editing writes only into the ignored `.draft/`. `isContentFile()` and
+  `PersistenceService.requestsOfContentFiles()` share one constant of the text body and script file
+  names; the latter builds a directory-to-ID map once per batch.
+- `CollectionWatcher` (`src/main/collection-state/collection-watcher.ts`) is the mechanism only:
+  `fs.watch(dirPath, { recursive: true, persistent: false })`, an injected ignore rule, and a
+  300 ms debounce after which the changes are reported together as `FileChanges`: the paths the
+  platform named, and `unnamed` if any change came without a file name. A flag instead of an empty
+  list, as a batch can mix named and unnamed changes. Watching another directory drops the pending
+  changes, so a report always belongs to the watched collection.
+- `CollectionStateService` owns the watcher and points it at every collection it installs, as it
+  is the one place that knows when another collection becomes the open one. Its private
+  `filesChanged()` runs `reloadIfChanged()` unless only text bodies and scripts changed and no
+  change was unnamed, and emits `request-files-changed` with the saved requests whose text body or
+  script changed, forwarded as `MainProcessEvent.RequestFilesChanged`. Both are handled and logged
+  separately, so a failed reload does not keep the changed bodies from being announced, and no
+  rejection reaches the watcher, which does not wait for the handler. Saving or copying a
+  request writes these files too, so the renderer gets its own changes back and finds them equal;
+  this is accepted.
+- `FileSystemService` is unchanged. A generic watch there has no second user, and recognising own
+  writes in `replaceFile()` would miss the renames, directory creations and deletions of
+  `PersistenceService`, so the model comparison would still be needed.
+
+A watcher failure is logged; the fallbacks below remain. When the git plugin runs git, its host
+should call `reloadIfChanged()` right afterwards, so its command finishes with the collection
+already up to date instead of after the debounce.
+
+### Fallback triggers
+
+`CollectionStoreProvider` drives them, because only the renderer can flush the editors:
+
+- **blur:** `flushModelEdits()`, then the IPC `flushCollection()`.
+- **focus:** the store action `checkForChanges()`: the IPC `reloadCollectionIfChanged()`, then the
+  editors of the selected request are refreshed in any case, as main cannot tell whether a text body
+  or script changed. A failure is shown through `reported()`; a focus handler in main could only
+  log it. While the watcher runs, focus and a watcher report may refresh the same editor, which is
+  harmless as an equal content changes nothing.
 - **explicit:** an entry "Reload from Disk" in the native Collection menu sends
-  `MainProcessEvent.ReloadCollection`; the renderer flushes the editors and calls the new IPC
-  `reloadCollection()`, which always reloads and broadcasts. The native menu is used instead of the
-  collection dropdown, whose scroll height is fixed to its three header entries. The git plugin
-  calls `CollectionStateService.reload()` from main after it ran git.
-
-Main's queue keeps the order: the flushed editor edits, the flush and the reload check run one
-after another.
+  `MainProcessEvent.ReloadCollection`; the store action `reloadFromDisk()` does the same as
+  `checkForChanges()` with the IPC `reloadCollection()`, which always reloads and broadcasts. The native menu is used instead of the collection dropdown, whose scroll height
+  is fixed to its three header entries.
 
 ### Main
 
@@ -51,22 +87,20 @@ after another.
 
 `loadModel()` keeps its behaviour on top of the two. New public methods, each one queue task:
 
-- `reloadIfChanged(): Promise<boolean>` writes the dirty requests, reads the model and compares it
-  with the current one with `util.isDeepStrictEqual`, the version set equal. If they are equal,
-  nothing happens; otherwise the read model is installed. Returns whether it reloaded.
+- `reloadIfChanged(): Promise<void>` writes the dirty requests, reads the model and compares it
+  with the current one with `util.isDeepStrictEqual`, leaving out the version and the modification
+  times. If they are equal, nothing happens; otherwise the read model is installed.
 - `reload(): Promise<void>` writes the dirty requests, reads and installs the model.
 
 If reading fails, the current model stays and the error is thrown to the caller.
 
 ### Editors
 
-Text bodies and scripts are not part of the model, so a changed body file does not produce a
-snapshot. After a reload on focus or from the menu, the renderer refreshes the editors of the
-selected request (only it has editor models) with `refreshModelContent()`: the content is replaced
-only if it differs from disk and the model did not change while it was read and has no pending
-edits, so nothing typed is lost and the undo history stays when nothing changed. A reload started
-by main (the git plugin) does not refresh the editors yet; that is part of the plugin's command
-flow.
+Text bodies and scripts are not part of the model. On `RequestFilesChanged` for the selected request
+(only it has editor models), on focus and after "Reload from Disk", the renderer refreshes its editors with
+`refreshModelContent()`: the content is replaced only if it differs from disk and the model did not
+change while it was read and has no pending edits, so nothing typed is lost and the undo history
+stays when nothing changed.
 
 ## Testing
 
@@ -74,10 +108,22 @@ flow.
   flush, `reloadIfChanged()` does not broadcast (catches `undefined` vs. missing fields); an
   external change to an info file, a new folder and a deleted request each broadcast one snapshot;
   an unreadable info file keeps the model and throws.
-- Renderer: blur flushes the editors before the collection; focus reloads; an editor whose file
-  changed is reloaded, one with pending edits is not.
-- e2e: a spec renames a request in its info file from the test, blurs and focuses the window and
-  expects the new name in the sidebar. Written, run by the developer or CI.
+- Renderer: blur flushes the editors before the collection; focus checks for changes and refreshes
+  the editors of the selected request even if main reloaded nothing; an editor whose file changed is
+  reloaded, one with pending edits is not.
+- `CollectionWatcher`: on memfs, changes are reported together after the debounce; an unnamed
+  change is reported with the named ones and only once; the ignore rule is applied; switching the directory drops pending changes; a failing or impossible watch is only
+  logged.
+- `createGitIgnoreMatcher()`: drafts, secrets and temporary files at any depth, literal dots, and that
+  every line of `GIT_IGNORE_LINES` is supported.
+- `CollectionStateService` with a mocked watcher: it follows the open collection, ignores the
+  app-owned files, reloads after changes and after an unnamed change, also in a batch with a text
+  body, does not read the collection if only text bodies and scripts changed, announces their
+  requests even if the reload fails, and leaves out requests that are not part of the open
+  collection.
+- e2e: specs rename a request in its info file and expect the new name in the sidebar, without a
+  focus change (watcher), after a focus event and through the menu. Written, run by the developer or
+  CI.
 
 ## Documentation
 

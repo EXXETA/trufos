@@ -73,20 +73,29 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
     };
   }, []);
 
-  // The files of the collection may be changed outside the app, e.g. by git, while the window is
-  // in the background. Everything is written when it loses focus and reloaded when it gets it back.
+  // The files of the collection may be changed outside the app, e.g. by git. Main watches them;
+  // as a fallback for changes the watcher misses, everything is written when the window loses
+  // focus and reloaded if it changed when it gets focus back.
   useEffect(() => {
     if (store == null) return;
     const onBlur = () => void store.getState().flushToDisk();
-    const onFocus = () => void store.getState().reloadFromDisk(true);
+    const onFocus = () => void store.getState().checkForChanges();
     const onReload = () => void store.getState().reloadFromDisk();
+    const onRequestFilesChanged: MainProcessEventListener<MainProcessEvent.RequestFilesChanged> = (
+      _,
+      requestIds
+    ) => void store.getState().refreshRequestContent(requestIds);
     window.addEventListener('blur', onBlur);
     window.addEventListener('focus', onFocus);
-    rendererEventService.on(MainProcessEvent.ReloadCollection, onReload);
+    rendererEventService
+      .on(MainProcessEvent.ReloadCollection, onReload)
+      .on(MainProcessEvent.RequestFilesChanged, onRequestFilesChanged);
     return () => {
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('focus', onFocus);
-      rendererEventService.removeListener(MainProcessEvent.ReloadCollection, onReload);
+      rendererEventService
+        .removeListener(MainProcessEvent.ReloadCollection, onReload)
+        .removeListener(MainProcessEvent.RequestFilesChanged, onRequestFilesChanged);
     };
   }, [store]);
 

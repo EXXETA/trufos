@@ -252,6 +252,19 @@ export const createCollectionStore = (
     return flushed;
   };
 
+  /**
+   * Sends the editor changes, lets main reload the collection from disk and loads the text body and
+   * the scripts of the selected request again. These are not part of the model, so they may have
+   * changed even if main broadcast no snapshot.
+   * @param reload reloads the collection in main
+   */
+  const syncWithDisk = async (reload: () => Promise<void>) => {
+    await flushModelEdits();
+    await reload();
+    const { selectedRequestId } = get();
+    if (selectedRequestId != null) await refreshEditorContent(selectedRequestId);
+  };
+
   /** Removes the top-level items of the multi-selection from it and returns their IDs. */
   const takeTopLevelSelection = (): TrufosId[] => {
     const ids = getTopLevelIds(get(), get().selectedIds);
@@ -561,13 +574,19 @@ export const createCollectionStore = (
         await eventService.flushCollection();
       }),
 
-      reloadFromDisk: reported('Could not reload the collection', async (onlyIfChanged) => {
-        await flushModelEdits();
-        if (onlyIfChanged) await eventService.reloadCollectionIfChanged();
-        else await eventService.reloadCollection();
-        // text bodies and scripts are not part of the model, so they can change without a snapshot
+      checkForChanges: reported('Could not reload the collection', () =>
+        syncWithDisk(() => eventService.reloadCollectionIfChanged())
+      ),
+
+      reloadFromDisk: reported('Could not reload the collection', () =>
+        syncWithDisk(() => eventService.reloadCollection())
+      ),
+
+      refreshRequestContent: reported('Could not load the request', async (requestIds) => {
         const { selectedRequestId } = get();
-        if (selectedRequestId != null) await refreshEditorContent(selectedRequestId);
+        if (selectedRequestId != null && requestIds.includes(selectedRequestId)) {
+          await refreshEditorContent(selectedRequestId);
+        }
       }),
 
       moveItems: reported('Could not move the items', async (ids, parentId, index) => {

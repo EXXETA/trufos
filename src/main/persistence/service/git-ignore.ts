@@ -34,3 +34,21 @@ export async function ensureGitIgnore(dirPath: string, lines: readonly string[])
   const separator = content === '' || content.endsWith('\n') ? '' : '\n';
   await fs.appendFile(filePath, `${separator}${missing.join('\n')}`);
 }
+
+/**
+ * Creates a check whether a path is ignored by `.gitignore` lines. Only the patterns Trufos writes
+ * itself are supported: names without a slash, which match a file or directory of that name at any
+ * depth, with `*` matching any characters of a name.
+ * @param lines the lines of the `.gitignore` file
+ * @returns a check that takes a path relative to the directory of the `.gitignore` file
+ */
+export function createGitIgnoreMatcher(
+  lines: readonly string[]
+): (relativePath: string) => boolean {
+  // the path is split into names, so a wildcard cannot match across a slash
+  const patterns = lines.map(
+    (line) => new RegExp(`^${line.split('*').map(RegExp.escape).join('.*')}$`)
+  );
+  return (relativePath) =>
+    relativePath.split(/[\\/]/).some((name) => patterns.some((pattern) => pattern.test(name)));
+}

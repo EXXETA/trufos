@@ -145,27 +145,50 @@ unsaved text.
 
 ## Changes outside the app
 
-The files of a collection may change outside the app, e.g. by a branch switch or a pull. There is no
-file watcher; the renderer keeps the files and the app in sync around the focus of the window
-(`CollectionStoreProvider`):
+The files of a collection may change outside the app, e.g. by a branch switch or a pull.
+`CollectionStateService` watches the directory of the open collection with a `CollectionWatcher`
+(`fs.watch` with `recursive`), which it points at every collection it installs. The watcher reports
+the changed files together once no change came for 300 ms. It only watches what git versions: the
+files the app adds to the `.gitignore` of a collection (`GIT_IGNORE_LINES`: drafts, secrets and the
+temporary files of `replaceFile()`) are the ones only the app writes, so `isAppOwnedPath()`
+(`persistence-service.ts`) ignores exactly these. Every edit of a request makes it a draft first,
+so editing writes only into `.draft/` and causes no reports at all.
 
-- **Blur:** the editor changes are sent and main writes the dirty requests
-  (`IEventService.flushCollection()`). While the user is in another app, the files match the app,
-  so nothing it writes later can overwrite a change made meanwhile.
-- **Focus:** `CollectionStateService.reloadIfChanged()` reads the collection into a new model and
-  compares it with the current one, leaving out the version and the modification times: in the
-  current model a node has the time of its last command, in a read model the modification time of
-  its info file. Reading the files the app wrote itself gives the same model, so the common case
-  broadcasts nothing. Otherwise the read model is installed and broadcast as a snapshot.
-- **Collection > Reload from Disk** reloads and broadcasts unconditionally
-  (`CollectionStateService.reload()`).
+A report (`FileChanges`) has the paths of the changed files the platform named, and whether a change
+came without a file name (`unnamed`). If only text bodies and scripts changed (`isContentFile()`),
+the collection cannot have changed, as they are not part of the model. Otherwise, or if any change
+was unnamed, the service runs `reloadIfChanged()`: it reads the collection into a new model and compares it with the
+current one, leaving out the version and the modification times. In the current model a node has
+the time of its last command, in a read model the modification time of its info file. Reading the
+files the app wrote itself gives the same model, so the app's own writes, e.g. a rename or a save,
+broadcast nothing. Otherwise the read model is installed and broadcast as a snapshot. Dirty
+requests are written first, so an edit made in the app wins over a change of the same request
+outside it.
 
-Text bodies and scripts are not part of the model, so after a reload on focus or from the menu
-the renderer also refreshes the editors of the selected request from disk. A refresh replaces the
-content only if it changed and the user did not edit the editor meanwhile (`refreshModelContent()`),
-so nothing typed is lost. If the files cannot be read, e.g. because of merge conflict markers, the
-current model stays, the error is shown and the next focus tries again. Edits keep being saved, so
-editing a request whose file is broken overwrites it with the state of the app.
+The saved requests whose text body or script changed are announced as
+`MainProcessEvent.RequestFilesChanged` (`PersistenceService.requestsOfContentFiles()`), also if the
+reload failed, as they do not depend on it: a broken info file does not keep the editors from
+following a branch switch. If one is
+the selected request, the renderer refreshes its editors with `refreshModelContent()`. It replaces
+the content only if it changed and the user did not edit the editor meanwhile, so nothing typed is
+lost. Saving or copying a request writes these files too, so the renderer also gets its own
+changes and finds them equal to its editors; this is accepted rather than tracking which files main
+wrote itself.
+
+A watcher can miss changes or fail, e.g. at the inotify limit on Linux; a failure is only logged.
+As a fallback, the renderer keeps the files and the app in sync around the focus of the window
+(`CollectionStoreProvider`): when it loses focus, the editor changes are sent and main writes the
+dirty requests (`IEventService.flushCollection()`); when it gets focus back, `checkForChanges()`
+lets main reload if the collection changed (`reloadCollectionIfChanged()`) and refreshes the editors
+of the selected request in any case, as main cannot tell whether its text body or scripts changed.
+**Collection > Reload from Disk** (`reloadFromDisk()`) does the same, but main reloads
+unconditionally. While the watcher runs, the focus check and a watcher report may refresh the same
+editor; that is harmless, as a refresh with equal content does nothing.
+
+If the files cannot be read, e.g. because of merge conflict markers, the current model stays and
+the next change or focus tries again. The check on focus and the menu show the error to the user;
+after a watcher report it is only logged, as main cannot show it. Edits keep being saved, so editing
+a request whose file is broken overwrites it with the state of the app.
 
 ## Other main services
 

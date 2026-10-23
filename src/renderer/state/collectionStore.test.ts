@@ -33,7 +33,7 @@ vi.mock('@/services/event/renderer-event-service', () => ({
       saveCollectionUiState: vi.fn().mockResolvedValue(undefined),
       flushCollection: vi.fn().mockResolvedValue(undefined),
       reloadCollection: vi.fn().mockResolvedValue(undefined),
-      reloadCollectionIfChanged: vi.fn().mockResolvedValue(false),
+      reloadCollectionIfChanged: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));
@@ -646,22 +646,46 @@ describe('changes outside the app', () => {
     expect(refreshEditorContent).toHaveBeenCalledExactlyOnceWith('r1');
   });
 
-  it('reloadFromDisk only reloads if the files changed when asked to', async () => {
+  it('checkForChanges reloads if changed and refreshes the editors in any case', async () => {
+    const { store } = setup();
+    store.getState().setSelectedRequest('r1');
+
+    await expect(store.getState().checkForChanges()).resolves.toBe(true);
+
+    expect(vi.mocked(flushModelEdits).mock.invocationCallOrder.at(-1)).toBeLessThan(
+      eventService.reloadCollectionIfChanged.mock.invocationCallOrder[0]
+    );
+    expect(eventService.reloadCollection).not.toHaveBeenCalled();
+    // text bodies and scripts are not part of the collection, so main cannot tell they changed
+    expect(refreshEditorContent).toHaveBeenCalledExactlyOnceWith('r1');
+  });
+
+  it('checkForChanges refreshes no editor without a selected request', async () => {
     const { store } = setup();
 
-    await store.getState().reloadFromDisk(true);
+    await store.getState().checkForChanges();
 
     expect(eventService.reloadCollectionIfChanged).toHaveBeenCalledOnce();
-    expect(eventService.reloadCollection).not.toHaveBeenCalled();
     expect(refreshEditorContent).not.toHaveBeenCalled();
   });
 
-  it('reloadFromDisk shows the error if the files cannot be read', async () => {
+  it('refreshRequestContent refreshes the editors of the selected request only', async () => {
+    const { store } = setup();
+    store.getState().setSelectedRequest('r1');
+
+    await store.getState().refreshRequestContent(['r2']);
+    expect(refreshEditorContent).not.toHaveBeenCalled();
+
+    await expect(store.getState().refreshRequestContent(['r2', 'r1'])).resolves.toBe(true);
+    expect(refreshEditorContent).toHaveBeenCalledExactlyOnceWith('r1');
+  });
+
+  it('checkForChanges shows the error if the files cannot be read', async () => {
     const { store } = setup();
     const error = new Error('Failed to load request info file');
     eventService.reloadCollectionIfChanged.mockRejectedValueOnce(error);
 
-    await expect(store.getState().reloadFromDisk(true)).resolves.toBe(false);
+    await expect(store.getState().checkForChanges()).resolves.toBe(false);
 
     expect(showError).toHaveBeenCalledWith('Could not reload the collection', error);
   });

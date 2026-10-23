@@ -3,7 +3,11 @@ import { EventEmitter } from 'node:events';
 import { isDeepStrictEqual } from 'node:util';
 import { freeze } from 'immer';
 import { Initializable } from 'main/shared/initializable';
-import { PersistenceService } from 'main/persistence/service/persistence-service';
+import {
+  isAppOwnedPath,
+  isContentFile,
+  PersistenceService,
+} from 'main/persistence/service/persistence-service';
 import { StateService } from 'main/persistence/service/state-service';
 import { SerialQueue } from 'main/util/serial-queue';
 import {
@@ -21,6 +25,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import type { RequestFiles } from 'main/persistence/service/persistence-service';
 import { getCommandEffects } from './command-effects';
+import { CollectionWatcher, FileChanges } from './collection-watcher';
 
 const persistenceService = PersistenceService.instance;
 const stateService = StateService.instance;
@@ -34,6 +39,11 @@ type CollectionStateServiceEvents = {
   changed: [event: CollectionStateEvent];
   /** Another collection became the current one. Reloading the current one does not count. */
   'collection-changed': [];
+  /**
+   * The text body or a script of these requests changed on disk, e.g. outside the app. They are not
+   * part of the model, so the renderer reloads them into its editors.
+   */
+  'request-files-changed': [requestIds: TrufosId[]];
 };
 
 /**
@@ -120,6 +130,15 @@ export class CollectionStateService
 
   private _model?: CollectionModel;
 
+  /**
+   * Watches the open collection for changes outside the app. The files only the app writes are not
+   * watched, so editing a draft causes no reloads.
+   */
+  private readonly watcher = new CollectionWatcher(
+    (changes) => this.filesChanged(changes),
+    isAppOwnedPath
+  );
+
   /** Runs everything that changes the model or touches the files of the collection. */
   private readonly queue = new SerialQueue();
 
@@ -178,19 +197,49 @@ export class CollectionStateService
   /**
    * Reloads the current collection from disk like {@link reload}, but only installs and
    * broadcasts it if it differs from the current model. Reading the files the app wrote itself
-   * gives the same model, so this is cheap to call whenever the files may have changed.
-   * @returns whether the collection was reloaded
+   * gives the same model, so this is cheap to call whenever the files may have changed. Text
+   * bodies and scripts are not part of the model, so whoever shows them has to check them
+   * separately.
    * @throws if the collection cannot be read. The current model stays then.
    */
-  public reloadIfChanged(): Promise<boolean> {
+  public reloadIfChanged(): Promise<void> {
     return this.queue.run(async () => {
       await this.writeAllDirtyRequests();
       const current = this.model;
       const model = await this.readModel(current.collection.dirPath);
-      if (haveSameContent(model, current)) return false;
-      await this.installModel(model);
-      return true;
+      if (!haveSameContent(model, current)) await this.installModel(model);
     });
+  }
+
+  /**
+   * Handles changed files of the collection, as reported by the {@link watcher}. Unless only text
+   * bodies and scripts changed, the collection is reloaded if it differs from the model, see
+   * {@link reloadIfChanged}. The requests whose text body or scripts changed are announced with a
+   * `request-files-changed` event, even if the reload failed, as they do not depend on it. Saving or
+   * copying a request writes these files as well, so the renderer also gets its own changes, which
+   * it finds equal to its editors. Failures are logged, as nobody waits for this; the next change
+   * or the next check on focus tries again.
+   */
+  private async filesChanged({ filePaths, unnamed }: FileChanges): Promise<void> {
+    // the watcher does not wait for this, so every failure is logged instead of thrown
+    if (unnamed || filePaths.some((filePath) => !isContentFile(filePath))) {
+      try {
+        await this.reloadIfChanged();
+      } catch (error) {
+        logger.warn('Failed to reload the collection after its files changed:', error);
+      }
+    }
+
+    try {
+      const requestIds = await this.read((model) =>
+        [...persistenceService.requestsOfContentFiles(filePaths)].filter((id) =>
+          model.requests.has(id)
+        )
+      );
+      if (requestIds.length > 0) this.emit('request-files-changed', requestIds);
+    } catch (error) {
+      logger.warn('Failed to announce the changed files of requests:', error);
+    }
   }
 
   /**
@@ -476,7 +525,10 @@ export class CollectionStateService
     // the edits of the previous model were written before, or could not be written at all
     for (const id of [...this.dirtyRequests.keys()]) this.markClean(id);
     this.emit('changed', { kind: 'snapshot', ...this.snapshot });
-    if (model.collection.dirPath !== previous?.collection.dirPath) this.emit('collection-changed');
+    if (model.collection.dirPath !== previous?.collection.dirPath) {
+      this.watcher.watch(model.collection.dirPath);
+      this.emit('collection-changed');
+    }
   }
 
   /** Adds the collection to the open collections and makes it the current one. */

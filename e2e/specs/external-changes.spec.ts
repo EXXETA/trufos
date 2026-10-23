@@ -25,6 +25,15 @@ async function renameRequestOnDisk(userDataDir: string, from: string, to: string
 }
 
 test.describe('changes outside the app', () => {
+  test('picks up a change while the window has focus', async ({ trufos, userDataDir }) => {
+    await expect(sidebarItem(trufos.window, 'Example Request')).toBeVisible();
+
+    await renameRequestOnDisk(userDataDir, 'Example Request', 'Renamed Outside');
+
+    // the watcher of the main process reports the change, no focus change is needed
+    await expect(sidebarItem(trufos.window, 'Renamed Outside')).toBeVisible();
+  });
+
   test('reloads the collection when the window gets focus again', async ({
     trufos,
     userDataDir,

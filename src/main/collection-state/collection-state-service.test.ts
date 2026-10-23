@@ -22,6 +22,10 @@ import type {
   CollectionStateService,
   REQUEST_INFO_DEBOUNCE_MS as DebounceMs,
 } from './collection-state-service';
+import type { CollectionWatcher as Watcher } from './collection-watcher';
+
+// the watcher is tested on its own; here its callbacks are called directly, so no timer runs
+vi.mock('./collection-watcher');
 
 const firstDirPath = path.join(USER_DATA_DIR, 'collections', 'first');
 const secondDirPath = path.join(USER_DATA_DIR, 'collections', 'second');
@@ -33,6 +37,7 @@ let service: CollectionStateService;
 let createService: () => CollectionStateService;
 let REQUEST_INFO_DEBOUNCE_MS: typeof DebounceMs;
 let events: CollectionStateEvent[];
+let CollectionWatcher: typeof Watcher;
 
 const request = makeRequest;
 
@@ -74,6 +79,7 @@ describe('CollectionStateService', () => {
     ({
       StateService: { instance: stateService, DEFAULT_COLLECTION_DIR },
     } = await import('../persistence/service/state-service.js'));
+    ({ CollectionWatcher } = await import('./collection-watcher.js'));
     const module = await import('./collection-state-service.js');
     REQUEST_INFO_DEBOUNCE_MS = module.REQUEST_INFO_DEBOUNCE_MS;
     createService = () => new module.CollectionStateService();
@@ -900,10 +906,9 @@ describe('CollectionStateService', () => {
 
     it('does not reload if the files did not change', async () => {
       // Act
-      const reloaded = await service.reloadIfChanged();
+      await service.reloadIfChanged();
 
       // Assert
-      expect(reloaded).toBe(false);
       expect(events).toEqual([]);
     });
 
@@ -926,10 +931,9 @@ describe('CollectionStateService', () => {
       events.length = 0;
 
       // Act
-      const reloaded = await service.reloadIfChanged();
+      await service.reloadIfChanged();
 
       // Assert
-      expect(reloaded).toBe(false);
       expect(events).toEqual([]);
     });
 
@@ -943,10 +947,9 @@ describe('CollectionStateService', () => {
       events.length = 0;
 
       // Act
-      const reloaded = await service.reloadIfChanged();
+      await service.reloadIfChanged();
 
       // Assert
-      expect(reloaded).toBe(false);
       expect(await readRequestInfo('r1', DRAFT_DIR_NAME)).toMatchObject({ method: 'PUT' });
     });
 
@@ -958,10 +961,9 @@ describe('CollectionStateService', () => {
       const { version } = service.model;
 
       // Act
-      const reloaded = await service.reloadIfChanged();
+      await service.reloadIfChanged();
 
       // Assert
-      expect(reloaded).toBe(true);
       expect(service.model.requests.get('r1')?.method).toBe(RequestMethod.DELETE);
       expect(service.model.version).toBeGreaterThan(version);
       expect(events).toEqual([{ kind: 'snapshot', model: service.model }]);
@@ -974,11 +976,11 @@ describe('CollectionStateService', () => {
       await other.dispatch(envelope({ type: CommandType.CREATE_FOLDER, folder }));
 
       // Act
-      const reloaded = await service.reloadIfChanged();
+      await service.reloadIfChanged();
 
       // Assert
-      expect(reloaded).toBe(true);
       expect(service.model.folders.get('f1')?.title).toBe('folder');
+      expect(events.map((event) => event.kind)).toEqual(['snapshot']);
     });
 
     it('reloads if a request was deleted outside the app', async () => {
@@ -986,11 +988,11 @@ describe('CollectionStateService', () => {
       await fs.rm(path.join(firstDirPath, 'r2'), { recursive: true });
 
       // Act
-      const reloaded = await service.reloadIfChanged();
+      await service.reloadIfChanged();
 
       // Assert
-      expect(reloaded).toBe(true);
       expect(service.model.requests.has('r2')).toBe(false);
+      expect(events.map((event) => event.kind)).toEqual(['snapshot']);
     });
 
     it('keeps the model and rejects if the files cannot be read', async () => {
@@ -1000,6 +1002,153 @@ describe('CollectionStateService', () => {
 
       // Act & Assert
       await expect(service.reloadIfChanged()).rejects.toThrow();
+      expect(service.model).toBe(model);
+      expect(events).toEqual([]);
+    });
+  });
+
+  describe('watching', () => {
+    let changedRequests: string[][];
+
+    /** The watcher of the service under test. */
+    const watcher = () => vi.mocked(CollectionWatcher).mock.instances.at(-1)!;
+
+    /** Reports changed files like the watcher of the service under test does. */
+    const filesChanged = async (filePaths: string[], unnamed = false) => {
+      const [onFilesChanged] = vi.mocked(CollectionWatcher).mock.calls.at(-1)!;
+      await onFilesChanged({ filePaths, unnamed });
+    };
+
+    beforeEach(() => {
+      changedRequests = [];
+      service.on('request-files-changed', (ids) => changedRequests.push(ids));
+    });
+
+    it('watches the open collection and follows it to another one', async () => {
+      // Assert
+      expect(watcher().watch).toHaveBeenLastCalledWith(firstDirPath);
+
+      // Act
+      await service.load(secondDirPath);
+
+      // Assert
+      expect(watcher().watch).toHaveBeenLastCalledWith(secondDirPath);
+    });
+
+    it('does not watch the files only the app writes', () => {
+      // Arrange
+      const [, isIgnored] = vi.mocked(CollectionWatcher).mock.calls.at(-1)!;
+
+      // Assert
+      expect(isIgnored(path.join('r1', DRAFT_DIR_NAME, 'request.json'))).toBe(true);
+      expect(isIgnored(path.join('r1', 'request.json'))).toBe(false);
+    });
+
+    it('reloads the collection if a changed file changed it', async () => {
+      // Arrange
+      const filePath = path.join(firstDirPath, 'r1', 'request.json');
+      const info = JSON.parse(await fs.readFile(filePath, 'utf-8'));
+      await fs.writeFile(filePath, JSON.stringify({ ...info, method: 'DELETE' }));
+
+      // Act
+      await filesChanged([filePath]);
+
+      // Assert
+      expect(service.model.requests.get('r1')?.method).toBe(RequestMethod.DELETE);
+      expect(events.map((event) => event.kind)).toEqual(['snapshot']);
+      expect(changedRequests).toEqual([]);
+    });
+
+    it('announces the requests whose text body or scripts changed', async () => {
+      // Act
+      await filesChanged([
+        path.join(firstDirPath, 'r1', TEXT_BODY_FILE_NAME),
+        path.join(firstDirPath, 'r1', 'pre-request-script.js'),
+        path.join(firstDirPath, 'r2', 'request.json'),
+      ]);
+
+      // Assert
+      expect(changedRequests).toEqual([['r1']]);
+      expect(events).toEqual([]);
+    });
+
+    it('does not read the collection if only text bodies and scripts changed', async () => {
+      // Arrange
+      const loadCollection = vi.spyOn(persistenceService, 'loadCollection');
+
+      // Act
+      await filesChanged([
+        path.join(firstDirPath, 'r1', TEXT_BODY_FILE_NAME),
+        path.join(firstDirPath, 'r2', 'post-response-script.js'),
+      ]);
+
+      // Assert
+      expect(loadCollection).not.toHaveBeenCalled();
+      expect(changedRequests).toEqual([['r1', 'r2']]);
+    });
+
+    it('reloads if the platform did not name a changed file', async () => {
+      // Arrange
+      await fs.rm(path.join(firstDirPath, 'r2'), { recursive: true });
+
+      // Act
+      await filesChanged([], true);
+
+      // Assert
+      expect(service.model.requests.has('r2')).toBe(false);
+      expect(events.map((event) => event.kind)).toEqual(['snapshot']);
+    });
+
+    it('reloads if a change without a file name came together with a text body', async () => {
+      // Arrange
+      await fs.rm(path.join(firstDirPath, 'r2'), { recursive: true });
+
+      // Act
+      await filesChanged([path.join(firstDirPath, 'r1', TEXT_BODY_FILE_NAME)], true);
+
+      // Assert
+      expect(service.model.requests.has('r2')).toBe(false);
+      expect(changedRequests).toEqual([['r1']]);
+    });
+
+    it('announces the changed text bodies even if the collection cannot be read', async () => {
+      // Arrange
+      await fs.writeFile(path.join(firstDirPath, 'r2', 'request.json'), '<<<<<<< HEAD');
+
+      // Act
+      await filesChanged([
+        path.join(firstDirPath, 'r2', 'request.json'),
+        path.join(firstDirPath, 'r1', TEXT_BODY_FILE_NAME),
+      ]);
+
+      // Assert
+      expect(events).toEqual([]);
+      expect(changedRequests).toEqual([['r1']]);
+    });
+
+    it('leaves out requests that are not part of the open collection', async () => {
+      // Arrange
+      await service.load(secondDirPath);
+      events.length = 0;
+
+      // Act
+      await filesChanged([path.join(firstDirPath, 'r1', TEXT_BODY_FILE_NAME)]);
+
+      // Assert
+      expect(changedRequests).toEqual([]);
+      expect(events).toEqual([]);
+    });
+
+    it('keeps the model if the changed files cannot be read', async () => {
+      // Arrange
+      const filePath = path.join(firstDirPath, 'r1', 'request.json');
+      await fs.writeFile(filePath, '<<<<<<< HEAD');
+      const model = service.model;
+
+      // Act
+      await filesChanged([filePath]);
+
+      // Assert
       expect(service.model).toBe(model);
       expect(events).toEqual([]);
     });
