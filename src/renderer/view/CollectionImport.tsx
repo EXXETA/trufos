@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { cn } from '@/lib/utils';
 import { useStateResettable } from '@/util/react-util';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -71,8 +70,8 @@ function showImportWarnings(warnings: ImportWarning[]) {
   });
 }
 
-/** A tab of the import dialog: opening a Trufos collection, an importer of a plugin, or a placeholder. */
-type ImportTab = 'Trufos' | 'Insomnia' | QualifiedId;
+/** A tab of the import dialog: opening a Trufos collection, or an importer of a plugin. */
+type ImportTab = 'Trufos' | QualifiedId;
 
 interface TitleInputProps {
   value: string;
@@ -172,22 +171,11 @@ const ImportSource: React.FC<ImportSourceProps> = ({
 
 const ImportTabsContent: React.FC<{
   children: React.ReactNode;
-  strategy: ImportTab;
-  /** Whether to include default vertical spacing (gap) */
-  gap?: boolean;
-}> = ({ children, strategy, gap = true }) => {
+  tab: ImportTab;
+}> = ({ children, tab }) => {
   return (
-    <TabsContent
-      value={strategy}
-      className="min-h-0 flex-1 overflow-auto rounded-none bg-transparent"
-    >
-      <div
-        className={cn('flex flex-col pr-2', {
-          'gap-6': gap,
-        })}
-      >
-        {children}
-      </div>
+    <TabsContent value={tab} className="min-h-0 flex-1 overflow-auto rounded-none bg-transparent">
+      <div className="flex flex-col gap-6 pr-2">{children}</div>
     </TabsContent>
   );
 };
@@ -220,7 +208,6 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   }, [open, strategy]);
 
   const doImport = useCallback(async () => {
-    if (strategy === 'Insomnia') return;
     setIsImporting(true);
     let dirPath = srcEntry!.path;
     if (strategy !== 'Trufos') {
@@ -246,9 +233,6 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   }, [srcEntry, targetEntry, strategy, title, onClose, changeCollection]);
 
   const dialogFooter = useMemo(() => {
-    if (strategy === 'Insomnia') {
-      return null;
-    }
     return (
       <DialogFooter className="mt-2 justify-center gap-2 sm:justify-center">
         <div className="flex w-full justify-center">
@@ -267,7 +251,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
-      <DialogContent className="flex max-h-[90vh] w-[760px] max-w-3xl flex-col border-none shadow-none">
+      <DialogContent className="flex max-h-[90vh] w-190 max-w-3xl flex-col border-none shadow-none">
         <DialogHeader>
           <DialogTitle>Import Collection</DialogTitle>
         </DialogHeader>
@@ -284,10 +268,9 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
                 {name}
               </TabsTrigger>
             ))}
-            <TabsTrigger value="Insomnia">Insomnia</TabsTrigger>
           </TabsList>
 
-          <ImportTabsContent strategy="Trufos">
+          <ImportTabsContent tab="Trufos">
             <FilePicker
               title="Select directory of the existing collection"
               description="Select the folder containing the collection.json file"
@@ -301,7 +284,7 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
           </ImportTabsContent>
 
           {importers.map((importer) => (
-            <ImportTabsContent key={importer.id} strategy={importer.id}>
+            <ImportTabsContent key={importer.id} tab={importer.id}>
               <ImportSource
                 importer={importer}
                 srcEntry={srcEntry}
@@ -315,10 +298,6 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               />
             </ImportTabsContent>
           ))}
-
-          <ImportTabsContent strategy="Insomnia" gap={false}>
-            <span>Coming soon...</span>
-          </ImportTabsContent>
         </Tabs>
 
         {dialogFooter}

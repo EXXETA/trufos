@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDefaultLayout } from 'react-resizable-panels';
 import { ChevronDown, ChevronRight, Loader2, Play, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -118,7 +119,7 @@ function ResponseBodyPreview({ response }: { response: TrufosResponse }) {
 
   useBodyData(response.body?.id, 'utf-8', setBody);
 
-  return <pre className="text-xs break-words whitespace-pre-wrap">{body}</pre>;
+  return <pre className="text-xs wrap-break-word whitespace-pre-wrap">{body}</pre>;
 }
 
 function ResponseDetail({ response }: { response: TrufosResponse }) {
@@ -130,7 +131,7 @@ function ResponseDetail({ response }: { response: TrufosResponse }) {
   const tabContentClassName = 'border-border mt-3 min-h-0 rounded border bg-transparent p-3';
 
   return (
-    <div className="grid min-h-[320px] grid-rows-[auto_1fr] gap-3">
+    <div className="grid min-h-80 grid-rows-[auto_1fr] gap-3">
       <div className="text-text-secondary flex gap-5 text-sm">
         <span>
           Status:{' '}
@@ -156,7 +157,7 @@ function ResponseDetail({ response }: { response: TrufosResponse }) {
           <ResponseBodyPreview response={response} />
         </TabsContent>
         <TabsContent className={tabContentClassName} value="headers">
-          <pre className="text-xs break-words whitespace-pre-wrap">
+          <pre className="text-xs wrap-break-word whitespace-pre-wrap">
             {formatHeaders(response.headers)}
           </pre>
         </TabsContent>
@@ -166,37 +167,30 @@ function ResponseDetail({ response }: { response: TrufosResponse }) {
 }
 
 function ResultPill({ result }: { result?: RunnerResult }) {
-  const pillClassName =
-    'inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold';
-
   if (!result) {
-    return (
-      <span className={cn(pillClassName, 'bg-background-secondary text-text-secondary')}>
-        Pending
-      </span>
-    );
+    return <Badge>Pending</Badge>;
   }
   if (result.state === 'running') {
     return (
-      <span className={cn(pillClassName, 'bg-accent-primary/10 text-accent-primary')}>
+      <Badge variant="accent">
         <Loader2 className="h-3 w-3 animate-spin" />
         Running
-      </span>
+      </Badge>
     );
   }
   if (result.state === 'passed') {
     return (
-      <span className={cn(pillClassName, 'bg-state-success/10 text-state-success')}>
+      <Badge variant="success">
         <span className="h-1.5 w-1.5 rounded-full bg-current" />
         Passed
-      </span>
+      </Badge>
     );
   }
   return (
-    <span className={cn(pillClassName, 'bg-danger/10 text-danger')}>
+    <Badge variant="danger">
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       Failed
-    </span>
+    </Badge>
   );
 }
 

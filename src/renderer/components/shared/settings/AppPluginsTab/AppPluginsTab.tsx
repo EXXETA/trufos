@@ -19,11 +19,9 @@ import {
   PluginPermissionScope,
 } from 'shim/plugin';
 import { selectPlugins, usePluginActions, usePluginStore } from '@/state/pluginStore';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-
-const PILL_CLASS_NAME =
-  'inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium';
 
 /** What a permission allows a plugin to do, in words, and whether that reaches beyond the app. */
 interface PermissionInfo {
@@ -57,14 +55,11 @@ function describePermission(permission: PluginPermission): PermissionInfo {
 const PermissionPill = ({ permission }: { permission: PluginPermission }) => {
   const { label, icon: Icon, external } = describePermission(permission);
   return (
-    <li
-      className={cn(
-        PILL_CLASS_NAME,
-        external ? 'bg-state-warning/10 text-state-warning' : 'bg-muted text-text-secondary'
-      )}
-    >
-      <Icon className="size-3.5 shrink-0" aria-hidden />
-      {label}
+    <li>
+      <Badge variant={external ? 'warning' : 'neutral'}>
+        <Icon className="size-3.5 shrink-0" aria-hidden />
+        {label}
+      </Badge>
     </li>
   );
 };
@@ -81,43 +76,39 @@ const PluginEntry = ({ plugin }: { plugin: PluginInfo }) => {
         plugin.error !== undefined && 'border-danger/40'
       )}
     >
-      <div
-        className={cn(
-          'bg-accent-primary/10 text-accent-primary flex size-10 shrink-0 items-center justify-center rounded-lg',
-          !plugin.enabled && 'opacity-50'
-        )}
-      >
-        <Puzzle className="size-5" aria-hidden />
-      </div>
-
-      <div className={cn('flex min-w-0 flex-1 flex-col gap-2', !plugin.enabled && 'opacity-50')}>
-        <div className="flex flex-wrap items-center gap-2">
-          <h4 id={titleId} className="text-text-primary text-sm font-medium">
-            {plugin.name}
-          </h4>
-          <span className={cn(PILL_CLASS_NAME, 'bg-muted text-text-secondary tabular-nums')}>
-            {plugin.version}
-          </span>
+      {/* the checkbox stays outside, so a disabled plugin is dimmed but its toggle is not */}
+      <div className={cn('flex min-w-0 flex-1 gap-4', !plugin.enabled && 'opacity-50')}>
+        <div className="bg-accent-primary/10 text-accent-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
+          <Puzzle className="size-5" aria-hidden />
         </div>
-        {plugin.description !== '' && (
-          <p className="text-text-secondary text-sm">{plugin.description}</p>
-        )}
-        {plugin.permissions.length === 0 ? (
-          <span className="text-text-secondary text-xs">Needs no permissions.</span>
-        ) : (
-          <ul aria-label="Permissions" className="flex flex-wrap gap-1.5">
-            {plugin.permissions.map((permission, index) => (
-              // the permissions of a plugin come from its manifest and never change order
-              <PermissionPill key={index} permission={permission} />
-            ))}
-          </ul>
-        )}
-        {plugin.error !== undefined && (
-          <p className="bg-danger/10 text-danger flex items-start gap-2 rounded-md px-3 py-2 text-sm">
-            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-            {plugin.error}
-          </p>
-        )}
+
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 id={titleId} className="text-text-primary text-sm font-medium">
+              {plugin.name}
+            </h4>
+            <Badge className="tabular-nums">{plugin.version}</Badge>
+          </div>
+          {plugin.description !== '' && (
+            <p className="text-text-secondary text-sm">{plugin.description}</p>
+          )}
+          {plugin.permissions.length === 0 ? (
+            <span className="text-text-secondary text-xs">Needs no permissions.</span>
+          ) : (
+            <ul aria-label="Permissions" className="flex flex-wrap gap-1.5">
+              {plugin.permissions.map((permission, index) => (
+                // the permissions of a plugin come from its manifest and never change order
+                <PermissionPill key={index} permission={permission} />
+              ))}
+            </ul>
+          )}
+          {plugin.error !== undefined && (
+            <p className="bg-danger/10 text-danger flex items-start gap-2 rounded-md px-3 py-2 text-sm">
+              <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {plugin.error}
+            </p>
+          )}
+        </div>
       </div>
 
       <label className="text-text-secondary flex h-fit shrink-0 cursor-pointer items-center gap-2 text-xs">

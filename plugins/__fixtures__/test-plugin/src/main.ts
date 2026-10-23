@@ -35,10 +35,7 @@ function titleExporter(fs: PluginFileSystem): CollectionExporter {
   };
 }
 
-export const activate: PluginActivate = (host) => {
-  host.log.info('Activated');
-  return {
-    importers: { title: titleImporter(host.fs) },
-    exporters: { title: titleExporter(host.fs) },
-  };
-};
+export const activate: PluginActivate = (host) => ({
+  importers: { title: titleImporter(host.fs) },
+  exporters: { title: titleExporter(host.fs) },
+});
