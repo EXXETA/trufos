@@ -1,5 +1,4 @@
 import { dereference } from '@readme/openapi-parser';
-import type { CollectionImporter } from 'shim/plugin';
 import { importSecurity, ImportedSecurity } from './openapi-security';
 import { createExampleGenerator, ExampleGenerator, ExampleSchema } from './schema-example';
 import {
@@ -23,14 +22,20 @@ import {
   stringifyExample,
   stringifyParameterValue,
 } from './openapi-values';
-import { Collection as TrufosCollection } from 'shim/objects/collection';
-import { Folder as TrufosFolder } from 'shim/objects/folder';
-import { RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { RequestMethod } from 'shim/objects/request-method';
-import { parseUrl } from 'shim/objects/url';
-import { sanitizeVariableName } from 'shim/objects/variables';
-import { uniqueName } from 'shim/string';
-import { AuthorizationType } from 'shim';
+import {
+  AuthorizationType,
+  type Collection as TrufosCollection,
+  type CollectionImporter,
+  type Folder as TrufosFolder,
+  parseUrl,
+  type PluginLogger,
+  type RequestBody,
+  RequestBodyType,
+  RequestMethod,
+  sanitizeVariableName,
+  type TrufosRequest,
+  uniqueName,
+} from 'shim/plugin';
 import { randomUUID } from 'node:crypto';
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
 
@@ -54,12 +59,18 @@ const HTTP_METHODS = new Map(
 );
 
 export class OpenApiImporter implements CollectionImporter {
+  constructor(private readonly log: PluginLogger) {}
+
   public async importCollection(srcFilePath: string) {
+    // The parser reads the document and the files of its relative $refs itself, not through
+    // host.fs, so the "fs:pick" permission in the manifest covers reads the host does not see.
+    // It also follows $refs to http(s) URLs, which no "network" permission declares: a known
+    // blind spot, because the parser cannot turn off HTTP without turning off file $refs too.
     const document = (await dereference(srcFilePath, {
       dereference: { circular: 'ignore' },
     })) as OpenApiDocument;
 
-    return new OpenApiImport(document).import();
+    return new OpenApiImport(document, this.log).import();
   }
 }
 
@@ -76,7 +87,10 @@ class OpenApiImport {
   private readonly generateExample: ExampleGenerator;
   private readonly documentSecurity?: ImportedSecurity;
 
-  constructor(private readonly document: OpenApiDocument) {
+  constructor(
+    private readonly document: OpenApiDocument,
+    private readonly log: PluginLogger
+  ) {
     this.collection = {
       id: randomUUID(),
       type: 'collection',
@@ -196,7 +210,7 @@ class OpenApiImport {
 
     const baseName = sanitizeVariableName(parameterName);
     if (baseName == null) {
-      logger.warn(`Path parameter {${parameterName}} stays literal in imported URLs`);
+      this.log.warn(`Path parameter {${parameterName}} stays literal in imported URLs`);
       this.pathVariableNames.set(parameterName, undefined);
       return undefined;
     }

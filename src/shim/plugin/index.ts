@@ -6,3 +6,7 @@ export * from './host';
 export * from './contributions';
 export * from '../objects';
 export { DisplayableError } from '../error/DisplayableError';
+// Helpers of the app that plugins need as well. They are part of the API like everything else
+// exported here, so their signatures and behaviour only change with the version of the API.
+export { truncate, uniqueName } from '../string';
+export { isObject } from '../object';

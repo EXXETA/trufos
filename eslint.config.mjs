@@ -4,9 +4,65 @@ import tsParser from '@typescript-eslint/parser';
 import { flatConfigs as importXConfigs } from 'eslint-plugin-import-x';
 import gitignore from 'eslint-config-flat-gitignore';
 import globals from 'globals';
+import { builtinModules } from 'node:module';
 
 /** Everything written in TypeScript: app code, tests and build tooling. */
 const TS_FILES = ['**/*.ts', '**/*.tsx', '**/*.mts'];
+
+const PLUGIN_API_MESSAGE = 'Plugins may only import from "shim/plugin", the public plugin API.';
+
+/**
+ * The `no-restricted-imports` options that keep plugins on the public plugin API, `shim/plugin`.
+ * @param {{ name: string, message: string }[]} morePaths modules to restrict in addition
+ */
+function pluginImports(morePaths = []) {
+  return {
+    paths: [
+      ...['main', 'shim'].map((name) => ({ name, message: PLUGIN_API_MESSAGE })),
+      ...morePaths,
+    ],
+    patterns: [
+      {
+        group: ['main/*', '@/*', 'shim/*', '!shim/plugin', '**/src/*/**'],
+        message: PLUGIN_API_MESSAGE,
+      },
+    ],
+  };
+}
+
+/** Node modules that only compute and never reach the file system, network or other processes. */
+const PURE_NODE_MODULES = new Set([
+  'assert',
+  'assert/strict',
+  'buffer',
+  'crypto',
+  'events',
+  'path',
+  'path/posix',
+  'path/win32',
+  'querystring',
+  'stream',
+  'stream/consumers',
+  'stream/promises',
+  'stream/web',
+  'string_decoder',
+  'timers',
+  'timers/promises',
+  'url',
+  'util',
+  'util/types',
+  'zlib',
+]);
+
+/** Every Node module a plugin must get through its host instead, with and without `node:`. */
+const NODE_BUILTINS = builtinModules
+  .filter((name) => !name.startsWith('node:') && !PURE_NODE_MODULES.has(name))
+  .flatMap((name) => [name, `node:${name}`])
+  .map((name) => ({
+    name,
+    message:
+      'Plugins reach the file system, network and other processes through their host only, see PluginHost.',
+  }));
 
 /** Build tooling that runs in Node outside the app itself (Forge, Vite and Vitest configs). */
 const TOOLING_FILES = [
@@ -77,20 +133,26 @@ export default [
     files: ['plugins/**'],
     languageOptions: { globals: globals.node },
     rules: {
-      'no-restricted-imports': [
+      'no-restricted-imports': ['error', pluginImports()],
+    },
+  },
+
+  // Everything a plugin does outside the app goes through a capability of its host, which it only
+  // gets for a permission in its manifest. Node's own modules and the network globals would bypass
+  // that by accident, so plugin code may only use what stays inside the process. Tests set up files
+  // and are exempt. A rule's options replace the previous block's, so the plugin API restriction is
+  // repeated here.
+  {
+    files: ['plugins/**'],
+    ignores: ['plugins/**/*.test.ts', 'plugins/**/*.config.mts'],
+    rules: {
+      'no-restricted-imports': ['error', pluginImports(NODE_BUILTINS)],
+      'no-restricted-globals': [
         'error',
-        {
-          paths: ['main', 'shim'].map((name) => ({
-            name,
-            message: 'Plugins may only import from "shim/plugin", the public plugin API.',
-          })),
-          patterns: [
-            {
-              group: ['main/*', '@/*', 'shim/*', '!shim/plugin', '**/src/*/**'],
-              message: 'Plugins may only import from "shim/plugin", the public plugin API.',
-            },
-          ],
-        },
+        ...['fetch', 'WebSocket'].map((name) => ({
+          name,
+          message: 'Plugins reach the network through host.fetch only, see PluginHost.',
+        })),
       ],
     },
   },

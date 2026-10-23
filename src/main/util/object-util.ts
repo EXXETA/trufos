@@ -1,3 +1,5 @@
+import { isObject } from 'shim/object';
+
 /**
  * Modifies the given object by deleting the specified properties in a type-safe manner. Like
  * {@link Omit}, but with real effect on the object.
@@ -52,14 +54,6 @@ export function split<T extends object, K extends keyof T>(object: T, ...propert
     }
   }
   return result;
-}
-
-/**
- * @param value the value to check
- * @returns true if the value is a plain object, i.e. not null and not an array
- */
-export function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**

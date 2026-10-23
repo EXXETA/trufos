@@ -7,7 +7,7 @@ import { JsonFile } from 'main/persistence/json-file';
 import { Initializable } from 'main/shared/initializable';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { Collection } from 'shim/objects/collection';
-import type { ExportStrategy, ImportStrategy } from 'shim/event-service';
+import type { ExportStrategy } from 'shim/event-service';
 import {
   type CollectionExporter,
   type CollectionImporter,
@@ -18,6 +18,7 @@ import {
   type PluginLogger,
   type PluginsSnapshot,
   PluginManifest,
+  type QualifiedId,
   qualifyId,
   splitQualifiedId,
 } from 'shim/plugin';
@@ -155,7 +156,7 @@ export class PluginService extends EventEmitter<PluginServiceEvents> implements 
    * @returns the importer, or undefined if no usable plugin contributes it
    * @throws if the plugin cannot be activated or does not implement the importer
    */
-  public async getImporter(id: ImportStrategy): Promise<CollectionImporter | undefined> {
+  public async getImporter(id: QualifiedId): Promise<CollectionImporter | undefined> {
     const resolved = await this.resolve('importers', id);
     if (resolved === undefined) return undefined;
     const { plugin, implementation: importer } = resolved;
@@ -210,6 +211,8 @@ export class PluginService extends EventEmitter<PluginServiceEvents> implements 
     }
     const error = this.whyUnusable(manifest);
     if (error !== undefined) log.error(`Disabled: ${error}`);
+    else if (this.isEnabled(manifest.id)) log.info(`Loaded version ${manifest.version}`);
+    else log.info(`Loaded version ${manifest.version}, disabled by the user`);
     this.plugins.push({ manifest, load, log, error });
   }
 
@@ -285,7 +288,9 @@ export class PluginService extends EventEmitter<PluginServiceEvents> implements 
     if (typeof module?.activate !== 'function') {
       throw new Error('The plugin does not export an activate() function');
     }
-    return await module.activate(createPluginHost(manifest));
+    const instance = await module.activate(createPluginHost(manifest));
+    log.info('Activated');
+    return instance;
   }
 
   private async deactivate(plugin: Plugin) {

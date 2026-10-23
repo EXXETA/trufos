@@ -45,15 +45,64 @@ export interface PluginLogger {
   error(message: string, ...meta: unknown[]): void;
 }
 
+/** An entry of a directory, the part of Node's `fs.Dirent` a plugin gets. */
+export interface PluginDirent {
+  readonly name: string;
+  isFile(): boolean;
+  isDirectory(): boolean;
+}
+
+/** What is known about a file, the part of Node's `fs.Stats` a plugin gets. */
+export interface PluginStats {
+  readonly size: number;
+  isFile(): boolean;
+  isDirectory(): boolean;
+}
+
 /**
- * What a plugin gets from the app when it is activated. It is built from the permissions in the
- * manifest: a part that needs a permission is only present if the plugin declared it. Every call
- * takes and returns plain data, so the host can be moved behind a process boundary later.
+ * Reads and writes files for a plugin. Granted by a permission of the `fs` scope.
+ *
+ * Every method mirrors the signature of its namesake in Node's `fs/promises`, with the subset of
+ * options that is plain data, and binary data typed as `Uint8Array` instead of `Buffer`. Methods
+ * that return handles or watchers are not mirrored. New methods are added with the first plugin
+ * that needs them. Only content that has to be in memory anyway, such as a collection to import,
+ * is read as a whole.
+ */
+export interface PluginFileSystem {
+  readdir(path: string): Promise<string[]>;
+  readdir(path: string, options: { withFileTypes: true }): Promise<PluginDirent[]>;
+  stat(path: string): Promise<PluginStats>;
+  readFile(path: string, options?: { encoding?: null; signal?: AbortSignal }): Promise<Uint8Array>;
+  readFile(
+    path: string,
+    options: BufferEncoding | { encoding: BufferEncoding; signal?: AbortSignal }
+  ): Promise<string>;
+  writeFile(
+    path: string,
+    data: string | Uint8Array,
+    options?: BufferEncoding | { encoding?: BufferEncoding; signal?: AbortSignal }
+  ): Promise<void>;
+}
+
+/**
+ * What a plugin gets from the app when it is activated. Every call takes and returns plain data,
+ * so the host can be moved behind a process boundary later. The host itself is a capability
+ * object, not data: it is not meant to be spread, serialized or passed on. Its capabilities are
+ * not enumerable.
+ *
+ * Everything that reaches outside the app is a capability of the host, and the host is built from
+ * the permissions in the manifest: a capability whose permission the manifest does not declare
+ * throws on access. A lint rule catches the accidental use of Node's own modules or the global
+ * `fetch` in plugin code instead; it is a reminder, not a boundary. A plugin takes the
+ * capabilities it needs in `activate()`, so a missing permission fails the activation test of the
+ * bundled plugins instead of a user's action.
  */
 export interface PluginHost {
   /** The ID of the plugin the host was built for. */
   readonly pluginId: string;
   readonly log: PluginLogger;
+  /** Needs `fs:collection` or `fs:pick`. */
+  readonly fs: PluginFileSystem;
 }
 
 /**

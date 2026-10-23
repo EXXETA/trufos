@@ -5,6 +5,7 @@
   "version": "1.0.0",
   "description": "Contributes one of each contribution type. Used by the tests of the plugin service.",
   "engine": "^1.0.0",
+  "permissions": ["fs:pick"],
   "contributes": {
     "importers": [{ "id": "title", "name": "Title", "extensions": ["json"] }],
     "exporters": [{ "id": "title", "name": "Title", "extensions": ["json"] }]

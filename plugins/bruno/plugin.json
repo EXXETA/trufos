@@ -1,0 +1,12 @@
+{
+  "$schema": "../../src/shim/plugin/plugin-manifest.schema.json",
+  "id": "bruno",
+  "name": "Bruno",
+  "version": "1.0.0",
+  "description": "Imports Bruno collections.",
+  "engine": "^1.0.0",
+  "permissions": ["fs:pick"],
+  "contributes": {
+    "importers": [{ "id": "collection", "name": "Bruno", "source": "directory" }]
+  }
+}

@@ -65,7 +65,7 @@ export async function uniqueNameAsync(
  * @param boundary the boundary to cut at, e.g. a space or a dash
  * @returns the shortened text, without trailing boundaries
  */
-export function truncate(text: string, maxLength: number, boundary: string) {
+export function truncate(text: string, maxLength: number, boundary: string): string {
   if (text.length <= maxLength) return text;
 
   const cut = text.slice(0, maxLength);

@@ -1,23 +1,33 @@
-import type { CollectionImporter, ImportWarning } from 'shim/plugin';
-import { InternalError, InternalErrorType } from 'main/error/internal-error';
+// The types of @usebruno/lang are declared next door and have to travel with every program that
+// includes this file, e.g. the main process through the bundled plugin list.
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
+/// <reference path="./bruno-types.d.ts" />
 import { bruToJsonV2, bruToEnvJsonV2, BrunoAuth, BrunoRequest } from '@usebruno/lang';
-import { Collection as TrufosCollection } from 'shim/objects/collection';
-import { Folder as TrufosFolder } from 'shim/objects/folder';
-import { FormDataBody, RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
-import { parseUrl } from 'shim/objects/url';
-import { RequestMethod } from 'shim/objects/request-method';
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { VARIABLE_NAME_REGEX, VariableObject } from 'shim/objects/variables';
 import {
   AuthorizationType,
-  OAuth2AuthorizationInformation,
+  type CollectionImporter,
+  DisplayableError,
+  type Folder as TrufosFolder,
+  type FormDataBody,
+  type ImportWarning,
+  type OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
   OAuth2PKCECodeChallengeMethod,
-  Oauth2BaseAuthorizationInformation,
-} from 'shim';
+  type Oauth2BaseAuthorizationInformation,
+  parseUrl,
+  type PluginFileSystem,
+  type PluginLogger,
+  type RequestBody,
+  RequestBodyType,
+  RequestMethod,
+  type Collection as TrufosCollection,
+  type TrufosRequest,
+  VARIABLE_NAME_REGEX,
+  type VariableObject,
+} from 'shim/plugin';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 
@@ -48,11 +58,16 @@ export class BrunoImporter implements CollectionImporter {
   private warnings: ImportWarning[] = [];
   private collectionDir = '';
 
+  constructor(
+    private readonly log: PluginLogger,
+    private readonly fs: PluginFileSystem
+  ) {}
+
   public async importCollection(srcFilePath: string): Promise<TrufosCollection> {
     this.warnings = [];
 
     // Accept either the collection directory or the bruno.json file
-    const stat = await fs.stat(srcFilePath);
+    const stat = await this.fs.stat(srcFilePath);
     const collectionDir = stat.isDirectory() ? srcFilePath : path.dirname(srcFilePath);
     this.collectionDir = collectionDir;
 
@@ -60,16 +75,16 @@ export class BrunoImporter implements CollectionImporter {
     const brunoJsonPath = path.join(collectionDir, 'bruno.json');
     let brunoJson: BrunoJson;
     try {
-      brunoJson = JSON.parse(await fs.readFile(brunoJsonPath, 'utf8')) as BrunoJson;
+      brunoJson = JSON.parse(await this.fs.readFile(brunoJsonPath, 'utf8')) as BrunoJson;
     } catch (error) {
-      throw new InternalError(
-        InternalErrorType.COLLECTION_LOAD_ERROR,
+      throw new DisplayableError(
         `Could not read Bruno collection metadata at "${brunoJsonPath}". ` +
           'Make sure the selected directory is a valid Bruno collection containing a readable bruno.json.',
-        error instanceof Error ? error : undefined
+        'Import Error',
+        error
       );
     }
-    logger.info('Importing Bruno collection:', brunoJson.name);
+    this.log.info('Importing Bruno collection:', brunoJson.name);
 
     const collection: TrufosCollection = {
       id: brunoJson.uid ?? crypto.randomUUID(),
@@ -97,10 +112,10 @@ export class BrunoImporter implements CollectionImporter {
     const environments: TrufosCollection['environments'] = {};
 
     try {
-      const files = await fs.readdir(environmentsDir);
+      const files = await this.fs.readdir(environmentsDir);
       for (const file of files.sort()) {
         if (!file.endsWith('.bru')) continue;
-        const content = await fs.readFile(path.join(environmentsDir, file), 'utf8');
+        const content = await this.fs.readFile(path.join(environmentsDir, file), 'utf8');
         const parsed = bruToEnvJsonV2(content);
         const envName = path.basename(file, '.bru');
         const variables: Record<string, VariableObject> = {};
@@ -124,7 +139,7 @@ export class BrunoImporter implements CollectionImporter {
     parent: TrufosCollection | TrufosFolder,
     dirPath: string
   ): Promise<void> {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const entries = await this.fs.readdir(dirPath, { withFileTypes: true });
 
     type SortableEntry = { seq: number; name: string };
     const requests: (SortableEntry & { parsed: BrunoRequest; filePath: string })[] = [];
@@ -138,7 +153,7 @@ export class BrunoImporter implements CollectionImporter {
         if (IGNORED_DIRS.has(entry.name)) continue;
         folders.push({ seq: Infinity, name: entry.name, fullPath });
       } else if (entry.isFile() && entry.name.endsWith('.bru')) {
-        const content = await fs.readFile(fullPath, 'utf8');
+        const content = await this.fs.readFile(fullPath, 'utf8');
         try {
           const parsed = bruToJsonV2(content);
           const seq = parsed.meta?.seq != null ? parseInt(parsed.meta.seq, 10) : Infinity;
@@ -229,7 +244,7 @@ export class BrunoImporter implements CollectionImporter {
 
   private addWarning(warning: ImportWarning) {
     this.warnings.push(warning);
-    logger.warn(warning.message, warning.filePath);
+    this.log.warn(warning.message, warning.filePath);
   }
 
   private getUnsupportedItemType(brunoRequest: BrunoRequest): string {
@@ -390,7 +405,10 @@ export class BrunoImporter implements CollectionImporter {
           callbackUrl: oauth2.callbackUrl ?? '',
         };
       default:
-        logger.warn('Unsupported OAuth2 grant type while importing from Bruno:', oauth2.grantType);
+        this.log.warn(
+          'Unsupported OAuth2 grant type while importing from Bruno:',
+          oauth2.grantType
+        );
         return;
     }
   }

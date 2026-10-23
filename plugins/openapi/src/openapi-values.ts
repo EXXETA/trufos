@@ -3,9 +3,7 @@
  * their parameters.
  */
 
-import { TrufosHeader } from 'shim/objects/headers';
-import { TrufosQueryParam } from 'shim/objects/query-param';
-import { truncate } from 'shim/string';
+import { type TrufosHeader, type TrufosQueryParam, truncate } from 'shim/plugin';
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
 
 export type OpenApiDocument = OpenAPIV2.Document | OpenAPIV3.Document | OpenAPIV3_1.Document;

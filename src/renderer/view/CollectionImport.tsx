@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { cn } from '@/lib/utils';
 import { useStateResettable } from '@/util/react-util';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -17,8 +16,7 @@ import {
 import { FilePicker } from '@/components/ui/file-picker';
 import { DroppedEntryInfo } from '@/components/ui/file-drop-zone';
 import { FolderPlusIcon, FolderSearchIcon } from '@/components/icons';
-import type { ImportStrategy } from 'shim/event-service';
-import type { ImportWarning, IndexedImporter } from 'shim/plugin';
+import type { ImportWarning, IndexedImporter, QualifiedId } from 'shim/plugin';
 import { selectPluginContributions, usePluginStore } from '@/state/pluginStore';
 import { showError } from '@/error/errorHandler';
 import { toast } from '@/components/ui/sonner';
@@ -72,7 +70,8 @@ function showImportWarnings(warnings: ImportWarning[]) {
   });
 }
 
-declare type ImportStrategyWithTrufos = ImportStrategy | 'Trufos';
+/** A tab of the import dialog: opening a Trufos collection, or an importer of a plugin. */
+type ImportTab = 'Trufos' | QualifiedId;
 
 interface TitleInputProps {
   value: string;
@@ -131,19 +130,8 @@ const ImportTarget: React.FC<ImportTargetProps> = ({
 
 const FILE_TYPE_LIST = new Intl.ListFormat('en', { type: 'disjunction' });
 
-/** What the import dialog needs to know about an importer to show its tab. */
-type ImportSourceInfo = Pick<IndexedImporter, 'name' | 'source' | 'extensions'> & {
-  id: ImportStrategy;
-};
-
-/** Importers built into the app, until they become plugins as well. */
-const BUILT_IN_IMPORTERS: ImportSourceInfo[] = [
-  { id: 'OpenAPI', name: 'OpenAPI', source: 'file', extensions: ['json', 'yaml', 'yml'] },
-  { id: 'Bruno', name: 'Bruno', source: 'directory', extensions: [] },
-];
-
 interface ImportSourceProps {
-  importer: ImportSourceInfo;
+  importer: IndexedImporter;
   srcEntry?: DroppedEntryInfo;
   onSrcEntryChange: (entry?: DroppedEntryInfo) => void;
 }
@@ -183,22 +171,11 @@ const ImportSource: React.FC<ImportSourceProps> = ({
 
 const ImportTabsContent: React.FC<{
   children: React.ReactNode;
-  strategy: ImportStrategyWithTrufos;
-  /** Whether to include default vertical spacing (gap) */
-  gap?: boolean;
-}> = ({ children, strategy, gap = true }) => {
+  tab: ImportTab;
+}> = ({ children, tab }) => {
   return (
-    <TabsContent
-      value={strategy}
-      className="min-h-0 flex-1 overflow-auto rounded-none bg-transparent"
-    >
-      <div
-        className={cn('flex flex-col pr-2', {
-          'gap-6': gap,
-        })}
-      >
-        {children}
-      </div>
+    <TabsContent value={tab} className="min-h-0 flex-1 overflow-auto rounded-none bg-transparent">
+      <div className="flex flex-col gap-6 pr-2">{children}</div>
     </TabsContent>
   );
 };
@@ -209,9 +186,8 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 }) => {
   const { changeCollection } = useCollectionActions();
   const { importers } = usePluginStore(selectPluginContributions);
-  const sources: ImportSourceInfo[] = [...importers, ...BUILT_IN_IMPORTERS];
 
-  const [strategy, setStrategy] = useState<ImportStrategyWithTrufos>('Trufos');
+  const [strategy, setStrategy] = useState<ImportTab>('Trufos');
   const [srcEntry, setSrcEntry, resetSrcEntry] = useStateResettable<DroppedEntryInfo>();
   const [targetEntry, setTargetEntry, resetTargetEntry] = useStateResettable<DroppedEntryInfo>();
   const [title, setTitle, resetTitle] = useStateResettable('');
@@ -257,9 +233,6 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
   }, [srcEntry, targetEntry, strategy, title, onClose, changeCollection]);
 
   const dialogFooter = useMemo(() => {
-    if (strategy === 'Insomnia') {
-      return null;
-    }
     return (
       <DialogFooter className="mt-2 justify-center gap-2 sm:justify-center">
         <div className="flex w-full justify-center">
@@ -278,27 +251,26 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
-      <DialogContent className="flex max-h-[90vh] w-[760px] max-w-3xl flex-col border-none shadow-none">
+      <DialogContent className="flex max-h-[90vh] w-190 max-w-3xl flex-col border-none shadow-none">
         <DialogHeader>
           <DialogTitle>Import Collection</DialogTitle>
         </DialogHeader>
 
         <Tabs
           value={strategy}
-          onValueChange={(v) => setStrategy(v as ImportStrategy)}
+          onValueChange={(v) => setStrategy(v as ImportTab)}
           className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList className="mt-1 mb-2 ml-0.5 overflow-visible">
             <TabsTrigger value="Trufos">Trufos</TabsTrigger>
-            {sources.map(({ id, name }) => (
+            {importers.map(({ id, name }) => (
               <TabsTrigger key={id} value={id}>
                 {name}
               </TabsTrigger>
             ))}
-            <TabsTrigger value="Insomnia">Insomnia</TabsTrigger>
           </TabsList>
 
-          <ImportTabsContent strategy="Trufos">
+          <ImportTabsContent tab="Trufos">
             <FilePicker
               title="Select directory of the existing collection"
               description="Select the folder containing the collection.json file"
@@ -311,8 +283,8 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
             />
           </ImportTabsContent>
 
-          {sources.map((importer) => (
-            <ImportTabsContent key={importer.id} strategy={importer.id}>
+          {importers.map((importer) => (
+            <ImportTabsContent key={importer.id} tab={importer.id}>
               <ImportSource
                 importer={importer}
                 srcEntry={srcEntry}
@@ -326,10 +298,6 @@ export const CollectionImport: React.FC<{ onClose?: () => void; open?: boolean }
               />
             </ImportTabsContent>
           ))}
-
-          <ImportTabsContent strategy="Insomnia" gap={false}>
-            <span>Coming soon...</span>
-          </ImportTabsContent>
         </Tabs>
 
         {dialogFooter}

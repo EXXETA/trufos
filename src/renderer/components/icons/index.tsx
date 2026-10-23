@@ -486,70 +486,70 @@ export const CreateRequestIcon = svgToIcon(
       <path
         fill="none"
         stroke="currentColor"
-        stroke-linejoin="round"
-        stroke-linecap="butt"
-        stroke-miterlimit="4"
-        stroke-width="1.3331"
+        strokeLinejoin="round"
+        strokeLinecap="butt"
+        strokeMiterlimit="4"
+        strokeWidth="1.3331"
         d="M17.33 25.337h-10.665c-0.707 0-1.385-0.281-1.885-0.781s-0.781-1.178-0.781-1.885v-14.664c0-0.707 0.281-1.385 0.781-1.885s1.179-0.781 1.885-0.781h18.664c0.667 0 1.333 0.267 1.866 0.8s0.8 1.2 0.8 1.866v7.999"
       ></path>
       <path fill="currentColor"></path>
       <path
         fill="currentColor"
         stroke="currentColor"
-        stroke-linejoin="round"
-        stroke-linecap="butt"
-        stroke-miterlimit="4"
-        stroke-width="1.3331"
+        strokeLinejoin="round"
+        strokeLinecap="butt"
+        strokeMiterlimit="4"
+        strokeWidth="1.3331"
         d="M3.999 11.339h23.996"
       ></path>
       <path fill="currentColor"></path>
       <path
         fill="currentColor"
         stroke="currentColor"
-        stroke-linejoin="miter"
-        stroke-linecap="round"
-        stroke-miterlimit="4"
-        stroke-width="1.3331"
+        strokeLinejoin="miter"
+        strokeLinecap="round"
+        strokeMiterlimit="4"
+        strokeWidth="1.3331"
         d="M7.316 8.539l1.78-0.032"
       ></path>
       <path fill="currentColor"></path>
       <path
         fill="currentColor"
         stroke="currentColor"
-        stroke-linejoin="miter"
-        stroke-linecap="round"
-        stroke-miterlimit="4"
-        stroke-width="1.3331"
+        strokeLinejoin="miter"
+        strokeLinecap="round"
+        strokeMiterlimit="4"
+        strokeWidth="1.3331"
         d="M12.531 8.535h1.733"
       ></path>
       <path fill="currentColor"></path>
       <path
         fill="currentColor"
         stroke="currentColor"
-        stroke-linejoin="miter"
-        stroke-linecap="round"
-        stroke-miterlimit="4"
-        stroke-width="1.3331"
+        strokeLinejoin="miter"
+        strokeLinecap="round"
+        strokeMiterlimit="4"
+        strokeWidth="1.3331"
         d="M19.463 8.535h-1.733"
       ></path>
       <path fill="currentColor"></path>
       <path
         fill="currentColor"
         stroke="currentColor"
-        stroke-linejoin="miter"
-        stroke-linecap="round"
-        stroke-miterlimit="4"
-        stroke-width="1.3331"
+        strokeLinejoin="miter"
+        strokeLinecap="round"
+        strokeMiterlimit="4"
+        strokeWidth="1.3331"
         d="M21.105 22.68h8.219"
       ></path>
       <path fill="currentColor"></path>
       <path
         fill="currentColor"
         stroke="currentColor"
-        stroke-linejoin="miter"
-        stroke-linecap="round"
-        stroke-miterlimit="4"
-        stroke-width="1.3331"
+        strokeLinejoin="miter"
+        strokeLinecap="round"
+        strokeMiterlimit="4"
+        strokeWidth="1.3331"
         d="M25.329 26.89v-8.219"
       ></path>
     </>

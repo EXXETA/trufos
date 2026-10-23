@@ -3,14 +3,14 @@
  * authorization, plus the headers and query parameters that API keys boil down to.
  */
 
-import { TrufosHeader } from 'shim/objects/headers';
-import { TrufosQueryParam } from 'shim/objects/query-param';
 import {
-  AuthorizationInformationNoInherit,
+  type AuthorizationInformationNoInherit,
   AuthorizationType,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
-} from 'shim';
+  type TrufosHeader,
+  type TrufosQueryParam,
+} from 'shim/plugin';
 import { isOpenApi3, OpenApiDocument } from './openapi-values';
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
 
