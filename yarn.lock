@@ -2921,7 +2921,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@trufos/plugin-bruno@workspace:plugins/bruno"
   dependencies:
-    "@usebruno/lang": "npm:0.40.0"
+    "@usebruno/lang": "npm:0.41.0"
   languageName: unknown
   linkType: soft
 
@@ -3406,15 +3406,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@usebruno/lang@npm:0.40.0":
-  version: 0.40.0
-  resolution: "@usebruno/lang@npm:0.40.0"
+"@usebruno/lang@npm:0.41.0":
+  version: 0.41.0
+  resolution: "@usebruno/lang@npm:0.41.0"
   dependencies:
     arcsecond: "npm:^5.0.0"
     dotenv: "npm:^16.3.1"
     lodash: "npm:4.18.1"
     ohm-js: "npm:^16.6.0"
-  checksum: 10c0/47478843700e9386d964579c72c8c2fe57dff9ad6f0880a61f448348acb06c27f99a0effd8c31e9c6a12b85000acd82af7045c78e2df886aa67f072d33d3c392
+  checksum: 10c0/bcbad300de568f20f9fb97e30c61c6f4950ca32d3779cd05e511a3c73f0ed12f0c97b333c85158d410b7e6c72eb9601c822e8cef8ad9b15eaeaf51c16c47a089
   languageName: node
   linkType: hard
 
