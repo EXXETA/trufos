@@ -5,7 +5,7 @@ import { makeCollection, makeFolder, makeRequest } from 'shim/__mocks__/collecti
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { HttpService } from '@/services/http/http-service';
 import { showError } from '@/error/errorHandler';
-import { loadEditorContent } from '@/lib/monaco/editor-content';
+import { loadEditorContent, refreshEditorContent } from '@/lib/monaco/editor-content';
 import { IpcPushStream } from '@/lib/ipc-stream';
 import {
   cancelModelEdits,
@@ -31,6 +31,9 @@ vi.mock('@/services/event/renderer-event-service', () => ({
       openCollection: vi.fn().mockResolvedValue(undefined),
       closeCollection: vi.fn().mockResolvedValue(undefined),
       saveCollectionUiState: vi.fn().mockResolvedValue(undefined),
+      flushCollection: vi.fn().mockResolvedValue(undefined),
+      reloadCollection: vi.fn().mockResolvedValue(undefined),
+      reloadCollectionIfChanged: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));
@@ -49,6 +52,7 @@ vi.mock('@/lib/ipc-stream', () => ({
 
 vi.mock('@/lib/monaco/editor-content', () => ({
   loadEditorContent: vi.fn().mockResolvedValue(undefined),
+  refreshEditorContent: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/monaco/models', async (importOriginal) => {
@@ -615,6 +619,75 @@ describe('collections', () => {
 
     expect(flushModelEdits).toHaveBeenCalled();
     expect(eventService.closeCollection).toHaveBeenCalledWith(`/${COL_ID}`);
+  });
+});
+
+describe('changes outside the app', () => {
+  it('flushToDisk sends the editor changes before main writes everything', async () => {
+    const { store } = setup();
+
+    await expect(store.getState().flushToDisk()).resolves.toBe(true);
+
+    expect(vi.mocked(flushModelEdits).mock.invocationCallOrder[0]).toBeLessThan(
+      eventService.flushCollection.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('reloadFromDisk reloads and refreshes the editors of the selected request', async () => {
+    const { store } = setup();
+    store.getState().setSelectedRequest('r1');
+
+    await expect(store.getState().reloadFromDisk()).resolves.toBe(true);
+
+    expect(vi.mocked(flushModelEdits).mock.invocationCallOrder.at(-1)).toBeLessThan(
+      eventService.reloadCollection.mock.invocationCallOrder[0]
+    );
+    expect(eventService.reloadCollectionIfChanged).not.toHaveBeenCalled();
+    expect(refreshEditorContent).toHaveBeenCalledExactlyOnceWith('r1');
+  });
+
+  it('checkForChanges reloads if changed and refreshes the editors in any case', async () => {
+    const { store } = setup();
+    store.getState().setSelectedRequest('r1');
+
+    await expect(store.getState().checkForChanges()).resolves.toBe(true);
+
+    expect(vi.mocked(flushModelEdits).mock.invocationCallOrder.at(-1)).toBeLessThan(
+      eventService.reloadCollectionIfChanged.mock.invocationCallOrder[0]
+    );
+    expect(eventService.reloadCollection).not.toHaveBeenCalled();
+    // text bodies and scripts are not part of the collection, so main cannot tell they changed
+    expect(refreshEditorContent).toHaveBeenCalledExactlyOnceWith('r1');
+  });
+
+  it('checkForChanges refreshes no editor without a selected request', async () => {
+    const { store } = setup();
+
+    await store.getState().checkForChanges();
+
+    expect(eventService.reloadCollectionIfChanged).toHaveBeenCalledOnce();
+    expect(refreshEditorContent).not.toHaveBeenCalled();
+  });
+
+  it('refreshRequestContent refreshes the editors of the selected request only', async () => {
+    const { store } = setup();
+    store.getState().setSelectedRequest('r1');
+
+    await store.getState().refreshRequestContent(['r2']);
+    expect(refreshEditorContent).not.toHaveBeenCalled();
+
+    await expect(store.getState().refreshRequestContent(['r2', 'r1'])).resolves.toBe(true);
+    expect(refreshEditorContent).toHaveBeenCalledExactlyOnceWith('r1');
+  });
+
+  it('checkForChanges shows the error if the files cannot be read', async () => {
+    const { store } = setup();
+    const error = new Error('Failed to load request info file');
+    eventService.reloadCollectionIfChanged.mockRejectedValueOnce(error);
+
+    await expect(store.getState().checkForChanges()).resolves.toBe(false);
+
+    expect(showError).toHaveBeenCalledWith('Could not reload the collection', error);
   });
 });
 

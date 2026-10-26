@@ -5,7 +5,7 @@ import { immer } from 'zustand/middleware/immer';
 import { type Draft, produce } from 'immer';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { HttpService } from '@/services/http/http-service';
-import { loadEditorContent } from '@/lib/monaco/editor-content';
+import { loadEditorContent, refreshEditorContent } from '@/lib/monaco/editor-content';
 import { useActions } from '@/state/helper/util';
 import { CollectionStateActions } from '@/state/interface/CollectionStateActions';
 import { CollectionState, FetchSnapshot, SendCommand } from '@/state/collection-state';
@@ -250,6 +250,19 @@ export const createCollectionStore = (
       state.selectedRequestId = request?.id;
     });
     return flushed;
+  };
+
+  /**
+   * Sends the editor changes, lets main reload the collection from disk and loads the text body and
+   * the scripts of the selected request again. These are not part of the model, so they may have
+   * changed even if main broadcast no snapshot.
+   * @param reload reloads the collection in main
+   */
+  const syncWithDisk = async (reload: () => Promise<void>) => {
+    await flushModelEdits();
+    await reload();
+    const { selectedRequestId } = get();
+    if (selectedRequestId != null) await refreshEditorContent(selectedRequestId);
   };
 
   /** Removes the top-level items of the multi-selection from it and returns their IDs. */
@@ -554,6 +567,26 @@ export const createCollectionStore = (
         await flushModelEdits();
         console.info('Closing collection at', targetPath);
         await eventService.closeCollection(targetPath);
+      }),
+
+      flushToDisk: reported('Could not save the collection', async () => {
+        await flushModelEdits();
+        await eventService.flushCollection();
+      }),
+
+      checkForChanges: reported('Could not reload the collection', () =>
+        syncWithDisk(() => eventService.reloadCollectionIfChanged())
+      ),
+
+      reloadFromDisk: reported('Could not reload the collection', () =>
+        syncWithDisk(() => eventService.reloadCollection())
+      ),
+
+      refreshRequestContent: reported('Could not load the request', async (requestIds) => {
+        const { selectedRequestId } = get();
+        if (selectedRequestId != null && requestIds.includes(selectedRequestId)) {
+          await refreshEditorContent(selectedRequestId);
+        }
       }),
 
       moveItems: reported('Could not move the items', async (ids, parentId, index) => {

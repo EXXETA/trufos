@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { GIT_IGNORE_FILE_NAME, ensureGitIgnore } from './git-ignore';
+import { GIT_IGNORE_FILE_NAME, createGitIgnoreMatcher, ensureGitIgnore } from './git-ignore';
+import { GIT_IGNORE_LINES } from './info-files/latest';
 
 const LINES = ['.draft', '.secrets.bin', '.*.tmp'];
 
@@ -50,5 +51,38 @@ describe('ensureGitIgnore()', () => {
 
     // Assert
     expect(await readGitIgnore()).toBe(content);
+  });
+});
+
+describe('createGitIgnoreMatcher()', () => {
+  const isIgnored = createGitIgnoreMatcher(LINES);
+
+  it.each([
+    ['.draft'],
+    [path.join('folder', 'request', '.draft', 'request.json')],
+    ['.secrets.bin'],
+    [path.join('request', '.secrets.bin')],
+    [path.join('request', '.request.json.0b5c4a2e-1f3d-4e5a-9b6c-7d8e9f0a1b2c.tmp')],
+  ])('ignores %s', (relativePath) => {
+    expect(isIgnored(relativePath)).toBe(true);
+  });
+
+  it.each([
+    ['collection.json'],
+    [path.join('request', 'request.json')],
+    [path.join('request', 'request-body.txt')],
+    [path.join('drafts', 'request.json')],
+    [path.join('request', 'request.tmp')],
+  ])('does not ignore %s', (relativePath) => {
+    expect(isIgnored(relativePath)).toBe(false);
+  });
+
+  it('takes the dot of a pattern literally', () => {
+    expect(createGitIgnoreMatcher(['.secrets.bin'])('xsecrets.bin')).toBe(false);
+  });
+
+  it('supports every line Trufos writes into a collection', () => {
+    // a slash, a negation or a character class would need a real .gitignore matcher
+    for (const line of GIT_IGNORE_LINES) expect(line).toMatch(/^[^/!?[\]\\]+$/);
   });
 });

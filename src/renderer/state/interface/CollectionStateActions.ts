@@ -256,6 +256,34 @@ export interface CollectionStateActions {
   closeCollection(dirPath?: string): Promise<boolean>;
 
   /**
+   * Write all changes of the collection to disk: the editor changes and those main has not
+   * written yet. Afterwards the files match the app, so they can be changed outside of it.
+   */
+  flushToDisk(): Promise<boolean>;
+
+  /**
+   * Check whether the files of the collection changed outside the app, e.g. when the window gets
+   * focus, as a fallback for changes the watcher of main missed. Editor changes are sent first.
+   * The store is updated by the snapshot main broadcasts if the collection changed; the editors of
+   * the selected request are refreshed in any case, as text bodies and scripts are not part of the
+   * collection. Editors the user edits meanwhile are left as they are.
+   */
+  checkForChanges(): Promise<boolean>;
+
+  /**
+   * Reload the collection from disk, e.g. after its files were changed outside the app. Like
+   * {@link checkForChanges}, but main broadcasts a snapshot even if nothing changed.
+   */
+  reloadFromDisk(): Promise<boolean>;
+
+  /**
+   * Reload the text body and the scripts of the given requests into their editors, as far as they
+   * are open, because their files changed on disk. Editors the user edits are left as they are.
+   * @param requestIds the requests whose files changed
+   */
+  refreshRequestContent(requestIds: TrufosId[]): Promise<boolean>;
+
+  /**
    * Move requests and folders, in the given order, to the given index of a parent. None of them
    * may be inside another one or contain the parent.
    * @param ids the requests and folders to move

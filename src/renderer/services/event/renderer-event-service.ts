@@ -77,6 +77,9 @@ export class RendererEventService implements IEventService {
   openCollection = createEventMethod('openCollection');
   createCollection = createEventMethod('createCollection');
   closeCollection = createEventMethod('closeCollection');
+  flushCollection = createEventMethod('flushCollection');
+  reloadCollection = createEventMethod('reloadCollection');
+  reloadCollectionIfChanged = createEventMethod('reloadCollectionIfChanged');
   saveCollectionUiState = createEventMethod('saveCollectionUiState');
   showOpenDialog = createEventMethod('showOpenDialog');
   showSaveDialog = createEventMethod('showSaveDialog');

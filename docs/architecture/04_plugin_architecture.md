@@ -413,23 +413,32 @@ In this order, each as its own pull request:
    `plugins/bruno`, `plugins/openapi` with their dependencies; the Zip exporter stays built in.
    `CollectionImport.tsx` renders the strategy list and file filters from the contribution index.
 3. Commands and menus: `MenuBuilder` and the command palette include plugin contributions.
-   Request and response hooks in `HttpService`.
+   Request and response hooks in `HttpService`. Built on demand, with the first plugin that needs
+   them (commands and menus with the git plugin), so their shape comes from a real use instead of
+   a guess that the stable API then has to keep.
 4. Git plugin, which drives stage 1.5 (slots and the renderer runtime).
 5. Protocol generalisation, then the gRPC plugin.
 
 ## Open questions
 
-- Range matching in `main/util/semver.ts`: add it, or keep `engine` to a major version only?
 - Whether `utilityProcess` works with the `RunAsNode` fuse disabled. Only relevant if a trusted
   native tier is ever wanted; the appendix design does not need it.
-- Signature check once at install or on every load. The plugin directory is in the user's own
-  profile, so once at install is probably enough.
-- Whether the Zip exporter should become a plugin for consistency, or stay built in and simply
-  register through the same API.
+- Signature check of a downloaded plugin once at install or on every load. The plugin directory is
+  in the user's own profile, so once at install is probably enough. Bundled plugins are not signed
+  at all: they are part of the app's asar, which the app signature and the `OnlyLoadAppFromAsar`
+  fuse already cover.
 
 ## Rejected alternatives
 
 Decisions taken while building stage 1, with the reasoning, so they are not reopened by accident.
+
+- **The Zip exporter as a plugin.** It writes Trufos' own format and needs the persistence layer and
+  the decrypted secrets of a collection (`includeSecrets`), which plugins never get. Its only
+  dependency, `@zip.js/zip.js`, stays in core anyway, because stage 2 unzips downloaded plugins
+  with it. It implements the same `CollectionExporter` interface as plugin exporters and is
+  registered as the built-in `Zip` strategy.
+- **`engine` as a major version only.** `SemVer.satisfies()` in `main/util/semver.ts` matches exact
+  versions and caret ranges, so a plugin can require the minor version that added an API it uses.
 
 - **Authentication types as plugins.** The seam was planned so a scheme we do not want in core
   (AWS Signature v4, Hawk, a company-specific token) could be a plugin. The cost is out of

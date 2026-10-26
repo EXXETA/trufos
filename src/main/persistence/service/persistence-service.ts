@@ -18,7 +18,7 @@ import {
 } from 'shim/objects/request';
 import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
 import { generateDefaultCollection } from './default-collection';
-import { createGitIgnore, ensureGitIgnore } from './git-ignore';
+import { createGitIgnore, createGitIgnoreMatcher, ensureGitIgnore } from './git-ignore';
 import {
   CollectionInfoFile,
   extractSecrets,
@@ -56,6 +56,30 @@ import {
 
 const secretService = SecretService.instance;
 const fileSystemService = FileSystemService.instance;
+
+/** The files of a request that are not part of the request object: its text body and scripts. */
+const CONTENT_FILE_NAMES: ReadonlySet<string> = new Set([
+  TEXT_BODY_FILE_NAME,
+  ...Object.values(ScriptType).map(getScriptFileName),
+]);
+
+/**
+ * Checks whether a file of a collection is only written by the app: drafts, secrets and the
+ * temporary files of atomic writes. The `.gitignore` of a collection excludes exactly these, so
+ * git never changes them.
+ * @param relativePath the path of the file relative to the collection directory
+ */
+export const isAppOwnedPath: (relativePath: string) => boolean =
+  createGitIgnoreMatcher(GIT_IGNORE_LINES);
+
+/**
+ * Checks whether a file is a text body or a script of a request. These are not part of the request
+ * objects, so a change to one of them does not change the collection.
+ * @param filePath the path of the file
+ */
+export function isContentFile(filePath: string): boolean {
+  return CONTENT_FILE_NAMES.has(path.basename(filePath));
+}
 
 /** The files of a request that are needed to send it, see {@link PersistenceService.openRequestFiles}. */
 export interface RequestFiles {
@@ -737,6 +761,22 @@ export class PersistenceService {
   }
 
   /**
+   * Returns the saved requests whose text body or script one of the given files is, see
+   * {@link isContentFile}.
+   * @param filePaths absolute paths of files
+   * @returns the IDs of the requests. Files of drafts or of unknown requests are left out.
+   */
+  public requestsOfContentFiles(filePaths: readonly string[]): Set<string> {
+    const idOfDirPath = new Map([...this.idToPathMap].map(([id, dirPath]) => [dirPath, id]));
+    const ids = new Set<string>();
+    for (const filePath of filePaths) {
+      const id = isContentFile(filePath) ? idOfDirPath.get(path.dirname(filePath)) : undefined;
+      if (id != null) ids.add(id);
+    }
+    return ids;
+  }
+
+  /**
    * Returns the directory path of an object that is already associated with a directory.
    * @param id the ID of the object
    * @throws Error if the object has no known directory
@@ -767,8 +807,7 @@ export class PersistenceService {
 
   /** Copies the text body and every script of a request from one directory into another. */
   private async copyContentFiles(sourceDirPath: string, targetDirPath: string) {
-    const fileNames = [TEXT_BODY_FILE_NAME, ...Object.values(ScriptType).map(getScriptFileName)];
-    for (const fileName of fileNames) {
+    for (const fileName of CONTENT_FILE_NAMES) {
       const filePath = path.join(sourceDirPath, fileName);
       if (await exists(filePath)) await fs.copyFile(filePath, path.join(targetDirPath, fileName));
     }

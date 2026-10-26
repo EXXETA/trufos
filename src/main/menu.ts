@@ -78,6 +78,10 @@ export class MenuBuilder {
         accelerator: 'CmdOrCtrl+Shift+H',
         click: () => sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ShowHistory),
       },
+      {
+        label: 'Reload from Disk',
+        click: () => sendToRenderer(this.mainWindow.webContents, MainProcessEvent.ReloadCollection),
+      },
       { type: 'separator' },
       {
         // CmdOrCtrl+, stays reserved for the general app settings.

@@ -1,8 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { freeze } from 'immer';
+import { isDeepStrictEqual } from 'node:util';
+import { freeze, produce } from 'immer';
 import { Initializable } from 'main/shared/initializable';
-import { PersistenceService } from 'main/persistence/service/persistence-service';
+import {
+  isAppOwnedPath,
+  isContentFile,
+  PersistenceService,
+} from 'main/persistence/service/persistence-service';
 import { StateService } from 'main/persistence/service/state-service';
 import { SerialQueue } from 'main/util/serial-queue';
 import {
@@ -20,6 +25,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import type { RequestFiles } from 'main/persistence/service/persistence-service';
 import { getCommandEffects } from './command-effects';
+import { CollectionWatcher, FileChanges } from './collection-watcher';
 
 const persistenceService = PersistenceService.instance;
 const stateService = StateService.instance;
@@ -33,6 +39,11 @@ type CollectionStateServiceEvents = {
   changed: [event: CollectionStateEvent];
   /** Another collection became the current one. Reloading the current one does not count. */
   'collection-changed': [];
+  /**
+   * The text body or a script of these requests changed on disk, e.g. outside the app. They are not
+   * part of the model, so the renderer reloads them into its editors.
+   */
+  'request-files-changed': [requestIds: TrufosId[]];
 };
 
 /**
@@ -43,6 +54,29 @@ type CollectionStateServiceEvents = {
 export type CommandPlan = (model: CollectionModel) => CollectionCommand | undefined;
 
 const noop = () => {};
+
+/**
+ * Returns the model as it is compared with one read from disk: the version and the modification
+ * times are set to 0, as they always differ. A node's time is that of the last command that changed
+ * it in the app's model, and the modification time of its info file in one read from disk.
+ */
+function comparable(model: CollectionModel): CollectionModel {
+  return produce(model, (draft) => {
+    draft.version = 0;
+    const nodes = [
+      draft.collection,
+      ...draft.folders.values(),
+      ...draft.requests.values(),
+      ...draft.savedRequests.values(),
+    ];
+    for (const node of nodes) node.lastModified = 0;
+  });
+}
+
+/** Whether two models describe the same collection, see {@link comparable}. */
+function haveSameContent(a: CollectionModel, b: CollectionModel): boolean {
+  return isDeepStrictEqual(comparable(a), comparable(b));
+}
 
 /**
  * A request together with its files and the model, taken at the moment it is sent. Its scripts
@@ -92,6 +126,15 @@ export class CollectionStateService
 
   private _model?: CollectionModel;
 
+  /**
+   * Watches the open collection for changes outside the app. The files only the app writes are not
+   * watched, so editing a draft causes no reloads.
+   */
+  private readonly watcher = new CollectionWatcher(
+    (changes) => this.filesChanged(changes),
+    isAppOwnedPath
+  );
+
   /** Runs everything that changes the model or touches the files of the collection. */
   private readonly queue = new SerialQueue();
 
@@ -136,6 +179,63 @@ export class CollectionStateService
    */
   public load(dirPath: string): Promise<void> {
     return this.queue.run(() => this.loadModel(dirPath));
+  }
+
+  /**
+   * Reloads the current collection from disk and broadcasts it as a snapshot, e.g. after its files
+   * were changed outside the app. Dirty requests are written first.
+   * @throws if the collection cannot be read. The current model stays then.
+   */
+  public reload(): Promise<void> {
+    return this.queue.run(() => this.loadModel(this.model.collection.dirPath));
+  }
+
+  /**
+   * Reloads the current collection from disk like {@link reload}, but only installs and
+   * broadcasts it if it differs from the current model. Reading the files the app wrote itself
+   * gives the same model, so this is cheap to call whenever the files may have changed. Text
+   * bodies and scripts are not part of the model, so whoever shows them has to check them
+   * separately.
+   * @throws if the collection cannot be read. The current model stays then.
+   */
+  public reloadIfChanged(): Promise<void> {
+    return this.queue.run(async () => {
+      await this.writeAllDirtyRequests();
+      const current = this.model;
+      const model = await this.readModel(current.collection.dirPath);
+      if (!haveSameContent(model, current)) await this.installModel(model);
+    });
+  }
+
+  /**
+   * Handles changed files of the collection, as reported by the {@link watcher}. Unless only text
+   * bodies and scripts changed, the collection is reloaded if it differs from the model, see
+   * {@link reloadIfChanged}. The requests whose text body or scripts changed are announced with a
+   * `request-files-changed` event, even if the reload failed, as they do not depend on it. Saving or
+   * copying a request writes these files as well, so the renderer also gets its own changes, which
+   * it finds equal to its editors. Failures are logged, as nobody waits for this; the next change
+   * or the next check on focus tries again.
+   */
+  private async filesChanged({ filePaths, unnamed }: FileChanges): Promise<void> {
+    // the watcher does not wait for this, so every failure is logged instead of thrown
+    if (unnamed || filePaths.some((filePath) => !isContentFile(filePath))) {
+      try {
+        await this.reloadIfChanged();
+      } catch (error) {
+        logger.warn('Failed to reload the collection after its files changed:', error);
+      }
+    }
+
+    try {
+      const requestIds = await this.read((model) =>
+        [...persistenceService.requestsOfContentFiles(filePaths)].filter((id) =>
+          model.requests.has(id)
+        )
+      );
+      if (requestIds.length > 0) this.emit('request-files-changed', requestIds);
+    } catch (error) {
+      logger.warn('Failed to announce the changed files of requests:', error);
+    }
   }
 
   /**
@@ -370,13 +470,28 @@ export class CollectionStateService
    * of dirty requests are written first, so their edits survive if possible. Runs on the queue.
    */
   private async loadModel(dirPath: string) {
+    await this.writeAllDirtyRequests();
+    await this.installModel(await this.readModel(dirPath));
+  }
+
+  /**
+   * Writes the info files of all dirty requests, each on its own, so one that fails does not keep
+   * the others from being written. Failures are only logged. Runs on the queue.
+   */
+  private async writeAllDirtyRequests() {
     for (const id of [...this.dirtyRequests.keys()]) {
       await this.writeDirtyRequests([id]).catch((error) => {
-        logger.error(`Failed to write request ${id} before loading a collection:`, error);
+        logger.error(`Failed to write request ${id} before reading the collection:`, error);
       });
     }
+  }
 
-    const previous = this._model;
+  /**
+   * Reads the collection at the given directory into a model, without changing anything. The
+   * version of the model follows the current one, so the renderer can tell old events from new
+   * ones.
+   */
+  private async readModel(dirPath: string): Promise<CollectionModel> {
     const collection = await persistenceService.loadCollection(dirPath);
 
     const model = normalizeCollection(collection);
@@ -392,17 +507,24 @@ export class CollectionStateService
     for (const saved of savedRequests) {
       if (saved != null) model.savedRequests.set(saved.id, saved);
     }
-    // the version never goes back, so the renderer can tell old events from new ones
-    if (previous != null) model.version = previous.version + 1;
+    if (this._model != null) model.version = this._model.version + 1;
+    return freeze(model, true);
+  }
 
+  /** Makes a read model the current one and broadcasts it as a snapshot. Runs on the queue. */
+  private async installModel(model: CollectionModel) {
+    const previous = this._model;
     // the collection only becomes the current one once nothing can fail anymore, so main and the
     // renderer never disagree about which collection is open
-    await this.addToOpenCollections(collection.dirPath);
-    this._model = freeze(model, true);
+    await this.addToOpenCollections(model.collection.dirPath);
+    this._model = model;
     // the edits of the previous model were written before, or could not be written at all
     for (const id of [...this.dirtyRequests.keys()]) this.markClean(id);
     this.emit('changed', { kind: 'snapshot', ...this.snapshot });
-    if (collection.dirPath !== previous?.collection.dirPath) this.emit('collection-changed');
+    if (model.collection.dirPath !== previous?.collection.dirPath) {
+      this.watcher.watch(model.collection.dirPath);
+      this.emit('collection-changed');
+    }
   }
 
   /** Adds the collection to the open collections and makes it the current one. */
