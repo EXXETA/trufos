@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { isDeepStrictEqual } from 'node:util';
-import { freeze } from 'immer';
+import { freeze, produce } from 'immer';
 import { Initializable } from 'main/shared/initializable';
 import {
   isAppOwnedPath,
@@ -55,31 +55,27 @@ export type CommandPlan = (model: CollectionModel) => CollectionCommand | undefi
 
 const noop = () => {};
 
-/** Leaves out the modification time of a node. */
-function withoutTime<T extends { lastModified: number }>({ lastModified: _, ...rest }: T) {
-  return rest;
-}
-
-/** Leaves out the modification times of all nodes in the map. */
-function withoutTimes<T extends { lastModified: number }>(nodes: Map<string, T>) {
-  return new Map([...nodes].map(([id, node]) => [id, withoutTime(node)]));
-}
-
 /**
- * Whether two models describe the same collection. The version and the modification times are
- * left out: in the current model, a node has the time of the last command that changed it, in a
- * model read from disk the modification time of its info file.
+ * Returns the model as it is compared with one read from disk: the version and the modification
+ * times are set to 0, as they always differ. A node's time is that of the last command that changed
+ * it in the app's model, and the modification time of its info file in one read from disk.
  */
-function haveSameContent(a: CollectionModel, b: CollectionModel): boolean {
-  const content = (model: CollectionModel) => ({
-    collection: withoutTime(model.collection),
-    selectedEnvironmentKey: model.selectedEnvironmentKey,
-    folders: withoutTimes(model.folders),
-    requests: withoutTimes(model.requests),
-    savedRequests: withoutTimes(model.savedRequests),
-    childIds: model.childIds,
+function comparable(model: CollectionModel): CollectionModel {
+  return produce(model, (draft) => {
+    draft.version = 0;
+    const nodes = [
+      draft.collection,
+      ...draft.folders.values(),
+      ...draft.requests.values(),
+      ...draft.savedRequests.values(),
+    ];
+    for (const node of nodes) node.lastModified = 0;
   });
-  return isDeepStrictEqual(content(a), content(b));
+}
+
+/** Whether two models describe the same collection, see {@link comparable}. */
+function haveSameContent(a: CollectionModel, b: CollectionModel): boolean {
+  return isDeepStrictEqual(comparable(a), comparable(b));
 }
 
 /**
