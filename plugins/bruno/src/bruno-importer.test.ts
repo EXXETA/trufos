@@ -196,6 +196,35 @@ auth:basic {
     });
   });
 
+  it('imports digest auth', async () => {
+    const collectionDir = await createBrunoCollection('Test', {
+      'digest.bru': `
+meta {
+  name: Digest Auth Request
+  type: http
+  seq: 1
+}
+get {
+  url: https://api.example.com/secure
+  body: none
+  auth: digest
+}
+auth:digest {
+  username: admin
+  password: secret
+}`,
+    });
+
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
+    const request = result.children[0] as TrufosRequest;
+
+    expect(request.auth).toEqual({
+      type: AuthorizationType.DIGEST,
+      username: 'admin',
+      password: 'secret',
+    });
+  });
+
   it('imports inherit auth', async () => {
     const collectionDir = await createBrunoCollection('Test', {
       'inherit.bru': `

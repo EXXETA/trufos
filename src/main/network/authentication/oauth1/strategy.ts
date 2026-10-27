@@ -27,15 +27,11 @@ export interface OAuth1Token {
 export default abstract class OAuth1AuthStrategy<
   T extends OAuth1AuthorizationInformation,
 > extends AuthStrategy<T> {
-  async getAuthHeader(context?: AuthRequestContext): Promise<string> {
-    if (context == null) {
-      throw new Error('OAuth 1.0 requires the request method and URL to sign the request');
-    }
-
+  async getAuthHeader(context: AuthRequestContext): Promise<string> {
     const { token, tokenSecret } = await this.resolveToken();
     return this.buildOAuthHeader({
-      // RFC 5849 §3.4.1.2 requires the method in uppercase; normalize at the entry point.
-      httpMethod: context.method.toUpperCase(),
+      // RFC 5849 §3.4.1.2 requires the method in uppercase, which RequestMethod is
+      httpMethod: context.method,
       url: new URL(context.url),
       token,
       tokenSecret,

@@ -150,6 +150,28 @@ describe('PostmanImporter', () => {
     });
   });
 
+  it('imports digest auth', async () => {
+    const collection = createCollection({
+      type: 'digest',
+      digest: [
+        { key: 'username', value: 'user1' },
+        { key: 'password', value: 'pass1' },
+        { key: 'algorithm', value: 'MD5' },
+      ],
+    });
+    const srcFilePath = path.join(tmpdir(), 'postman-digest.json');
+    await fs.writeFile(srcFilePath, JSON.stringify(collection));
+
+    const result = await new PostmanImporter(log, fileSystem).importCollection(srcFilePath);
+    const request = result.children[0] as TrufosRequest;
+
+    expect(request.auth).toEqual({
+      type: AuthorizationType.DIGEST,
+      username: 'user1',
+      password: 'pass1',
+    });
+  });
+
   it('imports bearer auth', async () => {
     const collection = createCollection({
       type: 'bearer',

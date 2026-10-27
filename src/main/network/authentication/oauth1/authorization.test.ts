@@ -7,6 +7,8 @@ import {
   OAuth1SignatureMethod,
 } from 'shim/objects';
 import AuthorizationOAuth1Strategy from './authorization';
+import { makeAuthRequestContext } from '../__mocks__/auth-request-context';
+import { RequestMethod } from 'shim/objects/request-method';
 
 const NONCE = 'fixednonce';
 const TIMESTAMP = '1234567890';
@@ -144,10 +146,12 @@ describe('AuthorizationOAuth1Strategy', () => {
       'oauth_token=acc&oauth_token_secret=accs',
     ]);
 
-    const header = await strategy.getAuthHeader({
-      method: 'GET',
-      url: 'https://api.example.com/resource',
-    });
+    const header = await strategy.getAuthHeader(
+      makeAuthRequestContext({
+        method: RequestMethod.GET,
+        url: 'https://api.example.com/resource',
+      })
+    );
 
     expect(strategy.calls).toHaveLength(2);
     const params = parseOAuthHeader(header);

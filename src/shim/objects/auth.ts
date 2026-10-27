@@ -3,6 +3,7 @@ import { z } from 'zod';
 export enum AuthorizationType {
   BEARER = 'bearer',
   BASIC = 'basic',
+  DIGEST = 'digest',
   INHERIT = 'inherit',
   OAUTH2 = 'oauth2',
   OAUTH1 = 'oauth1',
@@ -95,12 +96,20 @@ export const BearerAuthorizationInformation = z.object({
 });
 export type BearerAuthorizationInformation = z.infer<typeof BearerAuthorizationInformation>;
 
+/** The fields of the authorization types that authenticate with a username and a password. */
+const CREDENTIALS = { username: z.string(), password: z.string() };
+
 export const BasicAuthorizationInformation = z.object({
   type: z.literal(AuthorizationType.BASIC),
-  username: z.string(),
-  password: z.string(),
+  ...CREDENTIALS,
 });
 export type BasicAuthorizationInformation = z.infer<typeof BasicAuthorizationInformation>;
+
+export const DigestAuthorizationInformation = z.object({
+  type: z.literal(AuthorizationType.DIGEST),
+  ...CREDENTIALS,
+});
+export type DigestAuthorizationInformation = z.infer<typeof DigestAuthorizationInformation>;
 
 export const Oauth1BaseAuthorizationInformation = z.object({
   type: z.literal(AuthorizationType.OAUTH1),
@@ -152,6 +161,7 @@ export type InheritAuthorizationInformation = z.infer<typeof InheritAuthorizatio
 export const AuthorizationInformationNoInherit = z.discriminatedUnion('type', [
   BearerAuthorizationInformation,
   BasicAuthorizationInformation,
+  DigestAuthorizationInformation,
   OAuth2AuthorizationInformation,
   OAuth1AuthorizationInformation,
 ]);
@@ -262,6 +272,7 @@ export function createDefaultAuthorization(
     case AuthorizationType.BEARER:
       return { type, token: '' };
     case AuthorizationType.BASIC:
+    case AuthorizationType.DIGEST:
       return { type, username: '', password: '' };
     case AuthorizationType.OAUTH2: {
       const oauth2Method = z

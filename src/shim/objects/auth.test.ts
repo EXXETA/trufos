@@ -12,6 +12,7 @@ const DEFAULTS: [AuthorizationType, AuthorizationMethod | undefined][] = [
   [AuthorizationType.INHERIT, undefined],
   [AuthorizationType.BEARER, undefined],
   [AuthorizationType.BASIC, undefined],
+  [AuthorizationType.DIGEST, undefined],
   [AuthorizationType.OAUTH2, undefined],
   ...Object.values(OAuth2Method).map((method): [AuthorizationType, AuthorizationMethod] => [
     AuthorizationType.OAUTH2,

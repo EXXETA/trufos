@@ -148,11 +148,9 @@ export class PostmanImporter implements CollectionImporter {
 
     switch (postmanAuth.type) {
       case 'basic':
-        return {
-          type: AuthorizationType.BASIC,
-          username: parameters.get('username') ?? '',
-          password: parameters.get('password') ?? '',
-        };
+        return { type: AuthorizationType.BASIC, ...this.importCredentials(parameters) };
+      case 'digest':
+        return { type: AuthorizationType.DIGEST, ...this.importCredentials(parameters) };
       case 'bearer':
         return {
           type: AuthorizationType.BEARER,
@@ -165,6 +163,17 @@ export class PostmanImporter implements CollectionImporter {
         this.log.warn(`Unsupported auth type while importing from Postman: ${postmanAuth.type}`);
         return;
     }
+  }
+
+  /** Imports the username and password of an authorization that authenticates with them. */
+  private importCredentials(parameters: Map<string, string>): {
+    username: string;
+    password: string;
+  } {
+    return {
+      username: parameters.get('username') ?? '',
+      password: parameters.get('password') ?? '',
+    };
   }
 
   private importOAuth2(

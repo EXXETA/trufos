@@ -94,6 +94,8 @@ function importSecurityScheme(
           return { auth: { type: AuthorizationType.BASIC, username: '', password: '' } };
         case 'bearer':
           return { auth: { type: AuthorizationType.BEARER, token: '' } };
+        case 'digest':
+          return { auth: { type: AuthorizationType.DIGEST, username: '', password: '' } };
       }
       return;
     case 'oauth2': {

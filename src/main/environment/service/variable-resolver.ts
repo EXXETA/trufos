@@ -105,14 +105,14 @@ async function resolveVariablesInAuth<T extends AuthorizationInformation>(
  * be resolved first, see `resolveAuthorization()`.
  * @param model The model to read the variables from.
  * @param auth The authorization information to get the header for.
- * @param context Information about the request being sent, required by strategies
- * that sign the request (OAuth 1.0).
+ * @param context Information about the request being sent, used by strategies
+ * that sign the request (OAuth 1.0) or answer a challenge (Digest).
  * @returns The authorization header as a string, or undefined if no authorization is set.
  */
 export async function getAuthorizationHeader(
   model: CollectionModel,
-  auth?: AuthorizationInformationNoInherit,
-  context?: AuthRequestContext
+  auth: AuthorizationInformationNoInherit | undefined,
+  context: AuthRequestContext
 ): Promise<string | undefined> {
   if (auth == null) return;
   const resolved = await resolveVariablesInAuth(model, auth);

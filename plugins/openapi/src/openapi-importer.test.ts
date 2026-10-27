@@ -430,12 +430,21 @@ describe('OpenApiImporter', () => {
     it('skips requirements that Trufos cannot represent completely', async () => {
       const { collection } = await importSecurity([
         { cookieAuth: [] }, // API keys in cookies are unsupported
-        { digestAuth: [] }, // only basic and bearer HTTP authentication are supported
         { unknownAuth: [] }, // not defined in the security schemes at all
         { bearerAuth: [] },
       ]);
 
       expect(collection.auth).toEqual({ type: AuthorizationType.BEARER, token: '' });
+    });
+
+    it('imports digest authentication', async () => {
+      const { collection } = await importSecurity([{ digestAuth: [] }]);
+
+      expect(collection.auth).toEqual({
+        type: AuthorizationType.DIGEST,
+        username: '',
+        password: '',
+      });
     });
 
     it('imports API keys as the header or query parameter they are', async () => {

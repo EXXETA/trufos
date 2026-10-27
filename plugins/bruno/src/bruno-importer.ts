@@ -355,11 +355,11 @@ export class BrunoImporter implements CollectionImporter {
     }
 
     if (auth.basic != null) {
-      return {
-        type: AuthorizationType.BASIC,
-        username: auth.basic.username ?? '',
-        password: auth.basic.password ?? '',
-      };
+      return { type: AuthorizationType.BASIC, ...this.importCredentials(auth.basic) };
+    }
+
+    if (auth.digest != null) {
+      return { type: AuthorizationType.DIGEST, ...this.importCredentials(auth.digest) };
     }
 
     if (auth.oauth2 != null) {
@@ -367,6 +367,14 @@ export class BrunoImporter implements CollectionImporter {
     }
 
     return;
+  }
+
+  /** Imports the username and password of an authorization that authenticates with them. */
+  private importCredentials(credentials: { username?: string; password?: string }): {
+    username: string;
+    password: string;
+  } {
+    return { username: credentials.username ?? '', password: credentials.password ?? '' };
   }
 
   private importOAuth2(
