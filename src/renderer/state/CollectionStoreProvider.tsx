@@ -10,6 +10,7 @@ import {
 import { CollectionState } from '@/state/collection-state';
 import { flushModelEdits } from '@/lib/monaco/models';
 import { showError } from '@/error/errorHandler';
+import { useViewStore } from '@/state/viewStore';
 
 const rendererEventService = RendererEventService.instance;
 
@@ -85,17 +86,27 @@ export const CollectionStoreProvider: FC<PropsWithChildren> = ({ children }) => 
       _,
       requestIds
     ) => void store.getState().refreshRequestContent(requestIds);
+    // e.g. an MCP client points the user to a request
+    const onShowRequest: MainProcessEventListener<MainProcessEvent.ShowRequest> = (
+      _,
+      requestId
+    ) => {
+      useViewStore.getState().setSidebarView('requests');
+      void store.getState().setSelectedRequest(requestId);
+    };
     window.addEventListener('blur', onBlur);
     window.addEventListener('focus', onFocus);
     rendererEventService
       .on(MainProcessEvent.ReloadCollection, onReload)
-      .on(MainProcessEvent.RequestFilesChanged, onRequestFilesChanged);
+      .on(MainProcessEvent.RequestFilesChanged, onRequestFilesChanged)
+      .on(MainProcessEvent.ShowRequest, onShowRequest);
     return () => {
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('focus', onFocus);
       rendererEventService
         .removeListener(MainProcessEvent.ReloadCollection, onReload)
-        .removeListener(MainProcessEvent.RequestFilesChanged, onRequestFilesChanged);
+        .removeListener(MainProcessEvent.RequestFilesChanged, onRequestFilesChanged)
+        .removeListener(MainProcessEvent.ShowRequest, onShowRequest);
     };
   }, [store]);
 

@@ -30,6 +30,7 @@ import { type CollectionModel, normalizeCollection } from 'shim/collection-model
 import { freeze } from 'immer';
 import { HistoryService } from 'main/history/history-service';
 import { SettingsService } from 'main/persistence/service/settings-service';
+import { DEFAULT_APP_SETTINGS } from 'shim/app-settings';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import type { TrufosResponse } from 'shim/objects/response';
 
@@ -1173,7 +1174,7 @@ describe('HttpService', () => {
     const dispatchers = { get: vi.fn(async (): Promise<Dispatcher> => mockAgent) };
     const httpService = new HttpService(dispatchers);
     vi.spyOn(SettingsService.instance, 'settings', 'get').mockReturnValue({
-      theme: 'system',
+      ...DEFAULT_APP_SETTINGS,
       verifyTlsCertificates: false,
     });
     const request: TrufosRequest = {

@@ -17,6 +17,7 @@ import { Collection } from 'shim/objects/collection';
 import { CollectionUiState } from 'shim/collection-ui-state';
 import { TEXT_BODY_FILE_NAME, TrufosRequest } from 'shim/objects/request';
 import { RequestMethod } from 'shim/objects/request-method';
+import { ScriptType } from 'shim/scripting';
 import { makeCollection, makeRequest } from 'shim/__mocks__/collection-fixtures';
 import type {
   CollectionStateService,
@@ -496,6 +497,32 @@ describe('CollectionStateService', () => {
       // Assert
       expect(applied).toBe(model);
       expect(events).toEqual([]);
+    });
+
+    it('applyTo() announces a changed text body or script, as the renderer did not change it', async () => {
+      // Arrange
+      vi.spyOn(persistenceService, 'writeTextBody').mockResolvedValue();
+      vi.spyOn(persistenceService, 'saveScript').mockResolvedValue();
+      const changed = vi.fn();
+      service.on('request-files-changed', changed);
+
+      // Act
+      await service.applyTo('first', () => ({
+        type: CommandType.SET_TEXT_BODY,
+        id: 'r1',
+        text: '{}',
+      }));
+      await service.applyTo('first', () => ({
+        type: CommandType.SET_SCRIPT,
+        id: 'r1',
+        scriptType: ScriptType.PRE_REQUEST,
+        text: '',
+      }));
+      await service.applyTo('first', () => ({ type: CommandType.RENAME, id: 'r1', title: 'x' }));
+
+      // Assert
+      expect(changed.mock.calls).toEqual([[['r1']], [['r1']]]);
+      service.off('request-files-changed', changed);
     });
 
     it('applyTo() does not run the plan if another collection is open', async () => {

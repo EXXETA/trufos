@@ -188,6 +188,14 @@ describe('HistoryService', () => {
     expect(changed).toHaveBeenCalledOnce();
   });
 
+  it('should only return an entry of the given collection', async () => {
+    await history.record(createRequest(), COLLECTION, async () => null);
+    const [{ id }] = history.list(COLLECTION);
+
+    expect(history.get(id, COLLECTION)?.id).toBe(id);
+    expect(history.get(id, OTHER_COLLECTION)).toBeUndefined();
+  });
+
   it('should list the newest entry first', async () => {
     // Act
     for (const title of ['first', 'second']) {
@@ -252,6 +260,16 @@ describe('HistoryService', () => {
       expect(history.list(COLLECTION)).toEqual([]);
       expect(history.list(OTHER_COLLECTION)).toHaveLength(MAX_HISTORY_ENTRIES);
       expect(release).toHaveBeenCalledWith(requestBody);
+    });
+
+    it('should only recognize the response bodies of its entries', async () => {
+      const { requestBody, responseBody } = await recordWithBodies();
+
+      expect(history.hasResponseBody(responseBody)).toBe(true);
+      expect(history.hasResponseBody(requestBody)).toBe(false);
+
+      history.clear(COLLECTION);
+      expect(history.hasResponseBody(responseBody)).toBe(false);
     });
 
     it('should release the bodies of all entries when cleared', async () => {

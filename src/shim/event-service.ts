@@ -5,6 +5,7 @@ import { AppSettings } from './app-settings';
 import { HistoryEntry, HistoryEntrySummary } from './history';
 import type { PluginsSnapshot, QualifiedId } from './plugin/contributions';
 import type { ExportOptions, ImportWarning } from './plugin/host';
+import type { McpServerStatus } from './mcp';
 
 /**
  * Fire-and-forget IPC events pushed from the main process to the renderer.
@@ -21,6 +22,8 @@ export enum MainProcessEvent {
    * first.
    */
   HistoryChanged = 'history-changed',
+  /** The MCP server started, stopped or failed. The payload is the new {@link McpServerStatus}. */
+  McpServerStatusChanged = 'mcp-server-status-changed',
   /**
    * A plugin was enabled or disabled, or failed to activate. The payload is the new
    * {@link PluginsSnapshot}.
@@ -33,6 +36,11 @@ export enum MainProcessEvent {
    * outside the app. The payload is the IDs of the requests.
    */
   RequestFilesChanged = 'request-files-changed',
+  /**
+   * A request of the open collection was sent outside the renderer, e.g. by an MCP client. The
+   * payload is the ID of the request and its response, which the response panel shows.
+   */
+  ResponseReceived = 'response-received',
   /** Opens the app settings modal (app menu). */
   ShowAppSettings = 'show-app-settings',
   /** Opens the collection runner view (Collection menu). */
@@ -41,6 +49,8 @@ export enum MainProcessEvent {
   ShowCollectionSettings = 'show-collection-settings',
   /** Shows the request history in the sidebar (Collection menu). */
   ShowHistory = 'show-history',
+  /** Selects a request of the open collection, e.g. for an MCP client. The payload is its ID. */
+  ShowRequest = 'show-request',
 }
 
 /**
@@ -63,13 +73,16 @@ export interface MainProcessEventPayloads {
   [MainProcessEvent.BeforeClose]: [];
   [MainProcessEvent.CollectionStateChanged]: [event: CollectionStateEvent];
   [MainProcessEvent.HistoryChanged]: [entries: HistoryEntrySummary[]];
+  [MainProcessEvent.McpServerStatusChanged]: [status: McpServerStatus];
   [MainProcessEvent.PluginsChanged]: [snapshot: PluginsSnapshot];
   [MainProcessEvent.ReloadCollection]: [];
   [MainProcessEvent.RequestFilesChanged]: [requestIds: string[]];
+  [MainProcessEvent.ResponseReceived]: [requestId: string, response: TrufosResponse];
   [MainProcessEvent.ShowAppSettings]: [];
   [MainProcessEvent.ShowCollectionRunner]: [];
   [MainProcessEvent.ShowCollectionSettings]: [];
   [MainProcessEvent.ShowHistory]: [];
+  [MainProcessEvent.ShowRequest]: [requestId: string];
 }
 
 /**
@@ -307,4 +320,21 @@ export interface IEventService {
    * @param enabled Whether the plugin is enabled.
    */
   setPluginEnabled(id: string, enabled: boolean): Promise<void>;
+
+  /**
+   * Returns whether the MCP server runs. Afterwards, it is kept up to date with
+   * {@link MainProcessEvent.McpServerStatusChanged} events.
+   */
+  getMcpServerStatus(): Promise<McpServerStatus>;
+
+  /**
+   * Returns the access token of the MCP server, creating it if there is none yet.
+   */
+  getMcpToken(): Promise<string>;
+
+  /**
+   * Replaces the access token of the MCP server. Clients using the old one are rejected from now on.
+   * @returns the new access token
+   */
+  regenerateMcpToken(): Promise<string>;
 }

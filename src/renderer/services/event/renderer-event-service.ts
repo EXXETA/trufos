@@ -96,4 +96,7 @@ export class RendererEventService implements IEventService {
   clearHistory = createEventMethod('clearHistory');
   getPlugins = createEventMethod('getPlugins');
   setPluginEnabled = createEventMethod('setPluginEnabled');
+  getMcpServerStatus = createEventMethod('getMcpServerStatus');
+  getMcpToken = createEventMethod('getMcpToken');
+  regenerateMcpToken = createEventMethod('regenerateMcpToken');
 }

@@ -27,6 +27,22 @@ export interface CommandEffects {
 }
 
 /**
+ * Whether a command changes files of a request that are not part of the model, i.e. its text body
+ * or a script. Whoever shows those files has to load them again.
+ * @param command the command
+ * @returns the ID of the request whose files the command changes, or undefined if none
+ */
+export function getChangedRequestFiles(command: CollectionCommand): TrufosId | undefined {
+  switch (command.type) {
+    case CommandType.SET_TEXT_BODY:
+    case CommandType.SET_SCRIPT:
+      return command.id;
+    default:
+      return undefined;
+  }
+}
+
+/**
  * Determines how a command that turned `prev` into `next` is persisted. The returned effects
  * only read the given models, which stay unchanged as they are immutable.
  * @param prev the model before the command was applied

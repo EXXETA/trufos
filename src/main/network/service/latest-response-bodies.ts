@@ -28,4 +28,12 @@ export class LatestResponseBodies {
     }
     if (previous != null) bodyStore.release(previous);
   }
+
+  /**
+   * @param bodyId the ID of a body
+   * @returns whether the body is the body of the latest response of a request
+   */
+  has(bodyId: string): boolean {
+    return [...this.bodies.values()].includes(bodyId);
+  }
 }

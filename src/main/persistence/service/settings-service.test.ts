@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFile, writeFile } from 'node:fs/promises';
 import { SettingsService, VERSION } from './settings-service';
 import { DEFAULT_APP_SETTINGS, TrufosTheme } from 'shim/app-settings';
@@ -19,13 +19,28 @@ describe('SettingsService', () => {
   it('stores the settings', async () => {
     await settingsService.init();
 
-    await settingsService.setSettings({ theme: TrufosTheme.Dark, verifyTlsCertificates: false });
+    await settingsService.setSettings({
+      ...DEFAULT_APP_SETTINGS,
+      theme: TrufosTheme.Dark,
+      verifyTlsCertificates: false,
+    });
 
     expect(await readSettingsFile()).toEqual({
+      ...DEFAULT_APP_SETTINGS,
       theme: TrufosTheme.Dark,
       verifyTlsCertificates: false,
       version: VERSION.string,
     });
+  });
+
+  it('notifies once the settings are stored', async () => {
+    await settingsService.init();
+    const changed = vi.fn();
+    settingsService.once('changed', changed);
+
+    await settingsService.setSettings({ ...DEFAULT_APP_SETTINGS, theme: TrufosTheme.Dark });
+
+    expect(changed).toHaveBeenCalledOnce();
   });
 
   it.each(['1.2.0', '1.3.0'])(
@@ -45,7 +60,7 @@ describe('SettingsService', () => {
       await settingsService.init();
 
       // the open collections are deliberately dropped, not moved to the app state, see fromLegacy
-      expect(settingsService.settings).toEqual({ theme: 'dark', verifyTlsCertificates: true });
+      expect(settingsService.settings).toEqual({ ...DEFAULT_APP_SETTINGS, theme: 'dark' });
     }
   );
 

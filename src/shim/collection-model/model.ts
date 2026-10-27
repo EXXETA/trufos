@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { enableMapSet, enablePatches, type Patch } from 'immer';
 import { Collection } from '../objects/collection';
 import { Folder } from '../objects/folder';
-import { TrufosRequest } from '../objects/request';
+import { RequestBodyType, TrufosRequest } from '../objects/request';
+import { RequestMethod } from '../objects/request-method';
+import { parseUrl } from '../objects/url';
 import {
   AuthorizationInformation,
   AuthorizationInformationNoInherit,
@@ -339,4 +341,52 @@ export function getTopLevelIds(source: ParentSource, ids: Iterable<string>): str
 /** Returns true if `id` is `ancestorId` itself or one of its descendants. */
 export function isSelfOrDescendant(source: ParentSource, id: string, ancestorId: string): boolean {
   return id === ancestorId || getAncestorIds(source, id).includes(ancestorId);
+}
+
+/**
+ * Creates a request that was never saved, e.g. one the user adds. Commands must be deterministic,
+ * so the caller chooses the ID.
+ * @param request the ID, parent and title of the request, and optionally its method and URL
+ */
+export function newRequest({
+  id,
+  parentId,
+  title,
+  method = RequestMethod.GET,
+  url = 'http://',
+}: {
+  id: string;
+  parentId: string;
+  title: string;
+  method?: RequestMethod;
+  url?: string;
+}): TrufosRequest {
+  return {
+    id,
+    parentId,
+    type: 'request',
+    lastModified: Date.now(),
+    title,
+    url: parseUrl(url),
+    method,
+    headers: [],
+    body: { type: RequestBodyType.NONE },
+    draft: true,
+  };
+}
+
+/**
+ * Creates an empty folder, see {@link newRequest}.
+ * @param folder the ID, parent and title of the folder
+ */
+export function newFolder({
+  id,
+  parentId,
+  title,
+}: {
+  id: string;
+  parentId: string;
+  title: string;
+}): FolderInfo {
+  return { id, parentId, type: 'folder', title, lastModified: Date.now() };
 }

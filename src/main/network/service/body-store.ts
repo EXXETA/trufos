@@ -78,20 +78,26 @@ export class BodyStore {
    * Opens a stored body for reading. All body files must be read through this method, as they are
    * encrypted.
    * @param id the ID of the body
-   * @param options the encoding of the returned chunks, and the offset of the last byte to read
+   * @param options the encoding of the returned chunks, and the offsets of the first and the last
+   * byte to read
    * @returns the decrypted body, or `undefined` if no body with this ID exists
    */
   public openBody(
     id: string,
-    options: { encoding?: BufferEncoding; end?: number } = {}
+    options: { encoding?: BufferEncoding; start?: number; end?: number } = {}
   ): Readable | undefined {
     const entry = this.bodies.get(id);
     if (entry == null) return;
 
-    const decipher = createDecipheriv(CIPHER, this.key, entry.iv);
+    const { start = 0, end } = options;
+    // CTR encrypts each block with the IV plus the block's index as counter, so decrypting can
+    // start at the block of `start`, skipping the key stream of the bytes before it in that block
+    const decipher = createDecipheriv(CIPHER, this.key, addToCounter(entry.iv, start >> 4));
+    decipher.update(Buffer.alloc(start & 15));
     if (options.encoding != null) decipher.setEncoding(options.encoding);
     // errors reach the consumer through the returned stream
-    return pipeline(fs.createReadStream(entry.filePath, { end: options.end }), decipher, () => {});
+    const file = fs.createReadStream(entry.filePath, { start, end });
+    return pipeline(file, decipher, () => {});
   }
 
   /**
@@ -134,16 +140,22 @@ export class BodyStore {
    * Saves the decrypted body to a file, e.g. one the user chose.
    * @param id the ID of the body
    * @param filePath the path of the file
+   * @param options `exclusive` fails if the file exists instead of replacing it
    * @returns the path of the file, or `null` if the body does not exist
    */
-  public async saveTo(id: string, filePath: string): Promise<string | null> {
+  public async saveTo(
+    id: string,
+    filePath: string,
+    options: { exclusive?: boolean } = {}
+  ): Promise<string | null> {
     const body = this.openBody(id);
     if (!body) {
       logger.warn(`Body not found for ID: ${id}`);
       return null;
     }
 
-    await pipelineAsync(body, fs.createWriteStream(filePath));
+    const flags = options.exclusive === true ? 'wx' : 'w';
+    await pipelineAsync(body, fs.createWriteStream(filePath, { flags }));
     logger.info(`Body saved to ${filePath}`);
     return filePath;
   }
@@ -207,6 +219,18 @@ class EncryptingFileWriter extends Writable {
     this.file.once('close', () => callback(error));
     this.file.destroy();
   }
+}
+
+/**
+ * Adds to the counter of an AES-CTR initialization vector, a 128-bit big-endian integer that
+ * wraps around.
+ * @param iv the initialization vector
+ * @param blocks the number of blocks to add
+ * @returns the initialization vector of the given block
+ */
+function addToCounter(iv: Buffer, blocks: number): Buffer {
+  const counter = (BigInt(`0x${iv.toString('hex')}`) + BigInt(blocks)) % (1n << 128n);
+  return Buffer.from(counter.toString(16).padStart(32, '0'), 'hex');
 }
 
 function deleteFileIfExists(filePath: string): void {

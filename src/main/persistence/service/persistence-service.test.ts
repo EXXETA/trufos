@@ -489,6 +489,34 @@ describe('PersistenceService', () => {
     expect(await exists(path.join(collection.dirPath, saved.title))).toBe(true);
   });
 
+  it('loadTextBodyOfRequest() should load a part of the text body, getTextBodySize() its size', async () => {
+    // Arrange
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.saveRequestInfo(request);
+    await persistenceService.writeTextBody(request, '0123456789');
+
+    // Act
+    const part = await persistenceService.loadTextBodyOfRequest(request, 'utf8', {
+      start: 2,
+      end: 5,
+    });
+
+    // Assert
+    expect(await streamToString(part!)).toBe('2345');
+    expect(await persistenceService.getTextBodySize(request)).toBe(10);
+  });
+
+  it('getTextBodySize() should be 0 without a text body file', async () => {
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.saveRequestInfo(request);
+
+    expect(await persistenceService.getTextBodySize(request)).toBe(0);
+  });
+
   it('loadTextBodyOfRequest() should load the text body of a request with utf8', async () => {
     // Arrange
     const textBody = 'text body';

@@ -45,4 +45,13 @@ describe('LatestResponseBodies', () => {
 
     expect(release).not.toHaveBeenCalled();
   });
+
+  it('should recognize the latest response bodies only', () => {
+    const latest = new LatestResponseBodies();
+    latest.set('request', 'body-1');
+    latest.set('request', 'body-2');
+
+    expect(latest.has('body-2')).toBe(true);
+    expect(latest.has('body-1')).toBe(false);
+  });
 });

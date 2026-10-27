@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { EventEmitter } from 'node:events';
 import { USER_DATA_DIR } from 'main/util/fs-util';
 import { SemVer } from 'main/util/semver';
 import { JsonFile, JsonFileMigrator } from 'main/persistence/json-file';
@@ -30,11 +31,17 @@ const MIGRATORS = {
   '1.3.0': fromLegacy,
 };
 
+/** Event signatures emitted by the {@link SettingsService}. */
+type SettingsServiceEvents = {
+  /** The settings were replaced. */
+  changed: [];
+};
+
 /**
  * Keeps the settings of the application, i.e. the preferences of the user, in `settings.json`. The
  * state of the application, e.g. which collections are open, is kept by the {@link StateService}.
  */
-export class SettingsService implements Initializable {
+export class SettingsService extends EventEmitter<SettingsServiceEvents> implements Initializable {
   public static readonly SETTINGS_FILE = path.join(USER_DATA_DIR, 'settings.json');
 
   public static readonly instance = new SettingsService();
@@ -56,7 +63,8 @@ export class SettingsService implements Initializable {
   }
 
   /** Replaces the settings and stores them. */
-  public setSettings(settings: AppSettings): Promise<void> {
-    return this.file.set(settings);
+  public async setSettings(settings: AppSettings): Promise<void> {
+    await this.file.set(settings);
+    this.emit('changed');
   }
 }

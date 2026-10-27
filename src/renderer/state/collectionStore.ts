@@ -35,14 +35,14 @@ import {
   getTopLevelIds,
   HeaderInheritingNode,
   InheritedHeader,
+  newFolder,
+  newRequest,
   RequestChanges,
 } from 'shim/collection-model';
 import { FormDataBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { normalizeHeaderKey, TrufosHeader } from 'shim/objects/headers';
 import { deepEqual } from '@/util/object-util';
 import { TrufosId } from 'shim/objects/id';
-import { RequestMethod } from 'shim/objects/request-method';
-import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
 import { SortMode } from 'shim/sort-mode';
 import type { CollectionUiState } from 'shim/collection-ui-state';
@@ -338,18 +338,11 @@ export const createCollectionStore = (
       }),
 
       addNewRequest: reported('Could not create the request', async (title, parentId) => {
-        const request: TrufosRequest = {
+        const request = newRequest({
           id: crypto.randomUUID(),
           parentId: parentId ?? get().collection.id,
-          type: 'request',
-          lastModified: Date.now(),
           title: title ?? randomTitle(),
-          url: parseUrl('http://'),
-          method: RequestMethod.GET,
-          headers: [],
-          body: { type: RequestBodyType.NONE },
-          draft: true,
-        };
+        });
         await dispatch({ type: CommandType.CREATE_REQUEST, request });
         console.info('Created new request with ID', request.id);
         revealFolder(request.parentId);
@@ -520,13 +513,11 @@ export const createCollectionStore = (
         }),
 
       addNewFolder: reported('Could not create the folder', async (title, parentId) => {
-        const folder: FolderInfo = {
+        const folder = newFolder({
           id: crypto.randomUUID(),
           parentId: parentId ?? get().collection.id,
-          type: 'folder',
           title: title ?? randomTitle(),
-          lastModified: Date.now(),
-        };
+        });
         await dispatch({ type: CommandType.CREATE_FOLDER, folder });
         revealFolder(folder.parentId);
       }),

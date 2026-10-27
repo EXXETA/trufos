@@ -131,6 +131,14 @@ describe('openFile', () => {
   it('should return undefined for a missing file', async () => {
     await expect(openFile('/missing.txt')).resolves.toBeUndefined();
   });
+
+  it('should stream the given range of the file', async () => {
+    await fs.writeFile('/range.txt', '0123456789', 'utf8');
+
+    await expect(text((await openFile('/range.txt', 'utf8', { start: 2, end: 5 }))!)).resolves.toBe(
+      '2345'
+    );
+  });
 });
 
 describe('isSameOrInside', () => {

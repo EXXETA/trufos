@@ -24,7 +24,7 @@ import { TrufosId } from 'shim/objects/id';
 import { TrufosRequest } from 'shim/objects/request';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import type { RequestFiles } from 'main/persistence/service/persistence-service';
-import { getCommandEffects } from './command-effects';
+import { getChangedRequestFiles, getCommandEffects } from './command-effects';
 import { CollectionWatcher, FileChanges } from './collection-watcher';
 
 const persistenceService = PersistenceService.instance;
@@ -308,6 +308,8 @@ export class CollectionStateService
   /**
    * Plans a command from the current model and applies it, see {@link dispatch}. Both happen on
    * the queue, so the model the command was planned from is the one it is applied to.
+   * A text body or script changed this way is announced with a `request-files-changed` event, as
+   * the renderer did not make the change and has to reload it into its editors.
    * @param collectionId the collection the plan belongs to
    * @param plan the {@link CommandPlan}
    * @returns the model after the command was applied. Rejects if the plan or applying its command
@@ -318,6 +320,8 @@ export class CollectionStateService
     return this.runFor(collectionId, async () => {
       const command = plan(this.model);
       if (command != null) await this.applyEnvelope(this.envelopeOf(command));
+      const changedRequestId = command != null ? getChangedRequestFiles(command) : undefined;
+      if (changedRequestId != null) this.emit('request-files-changed', [changedRequestId]);
       return this.model;
     });
   }

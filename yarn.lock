@@ -915,6 +915,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@hono/node-server@npm:^1.19.9 || ^2.1.3":
+  version: 2.1.5
+  resolution: "@hono/node-server@npm:2.1.5"
+  peerDependencies:
+    hono: ^4 || ^5.0.0-0
+  checksum: 10c0/3c3d5ffcc4a229e532530729b64db623493171bcda7b40ffbac3a46489884f700c881439d8c0d0413cd18793458ca252acedf6a9c13c8c3a024037e47974cacb
+  languageName: node
+  linkType: hard
+
 "@humanfs/core@npm:^0.19.2":
   version: 0.19.2
   resolution: "@humanfs/core@npm:0.19.2"
@@ -1298,6 +1307,37 @@ __metadata:
   dependencies:
     cross-spawn: "npm:^7.0.1"
   checksum: 10c0/84d60b8d467f4252114849f0a33c3763f07898335269eec5c94978ccac9d5680e1e268d993dd1a6d25a91476f9e0992759d7e1f385f9f3a090d862f9bb949603
+  languageName: node
+  linkType: hard
+
+"@modelcontextprotocol/core@npm:2.4.0":
+  version: 2.4.0
+  resolution: "@modelcontextprotocol/core@npm:2.4.0"
+  dependencies:
+    zod: "npm:^4.2.0"
+  checksum: 10c0/4dd07f18c7eee3f3cf7bcea9a7dd11799f13ce2255fda9ae77aff9978a21d16ee4026f63e5a3e13d5d91209acc3e7d6b97d459c1ff1b78f3b872eb0597b3dd53
+  languageName: node
+  linkType: hard
+
+"@modelcontextprotocol/node@npm:^2.1.2":
+  version: 2.1.2
+  resolution: "@modelcontextprotocol/node@npm:2.1.2"
+  dependencies:
+    "@hono/node-server": "npm:^1.19.9 || ^2.1.3"
+    hono: "npm:^4.11.4"
+  peerDependencies:
+    "@modelcontextprotocol/server": ^2.4.0
+  checksum: 10c0/0aebe06454b9e583658f702fd1c8af4eddb91f91a7b5dd7b7ffdbe19d0b8503400e2cbcf8b6511c14767fde5ffcfc73154921c52644269b5e4eb41d600be2594
+  languageName: node
+  linkType: hard
+
+"@modelcontextprotocol/server@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@modelcontextprotocol/server@npm:2.4.0"
+  dependencies:
+    "@modelcontextprotocol/core": "npm:2.4.0"
+    zod: "npm:^4.2.0"
+  checksum: 10c0/e52966e6f115296c6dbfd08550e81773f5f71fb4809c7411b11fcc619b3bd621b07f296a5571de777ea2351eca7003e6b3f4d172fe8c21563be1205b1ee4f0ec
   languageName: node
   linkType: hard
 
@@ -4985,6 +5025,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"hono@npm:^4.11.4":
+  version: 4.13.14
+  resolution: "hono@npm:4.13.14"
+  checksum: 10c0/fdedcb49186e3a5eb0fff39c4fd66112718dc1a98c6df9a385f2fc4799c0e59140e3c45fbac12929d658b659d9eb9ddb9ac09161104336023c23f335668c93fd
+  languageName: node
+  linkType: hard
+
 "hookified@npm:^1.15.0, hookified@npm:^1.15.1":
   version: 1.15.1
   resolution: "hookified@npm:1.15.1"
@@ -7277,6 +7324,8 @@ __metadata:
     "@electron-forge/shared-types": "npm:^8.0.1"
     "@electron/fuses": "npm:2.1.3"
     "@eslint/js": "npm:^10.0.1"
+    "@modelcontextprotocol/node": "npm:^2.1.2"
+    "@modelcontextprotocol/server": "npm:^2.4.0"
     "@monaco-editor/react": "npm:4.8.0-rc.3"
     "@playwright/test": "npm:^1.64.1"
     "@radix-ui/react-checkbox": "npm:^1.4.1"
@@ -8002,7 +8051,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^4.6.7":
+"zod@npm:^4.2.0, zod@npm:^4.6.7":
   version: 4.6.7
   resolution: "zod@npm:4.6.7"
   checksum: 10c0/4ce2eb14034317b7254e347ca37b5ad591cf8333147030cf05b9b5d31692d45073f7f2747aa50cf8c6b29012194d2b22978cecc89969cf34a0d18e89d0ee7d7b

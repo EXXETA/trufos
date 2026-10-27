@@ -96,6 +96,11 @@ describe('applyCommand', () => {
     expect(model.requests.get('r1')!.parentId).toBe('col');
   });
 
+  it('moves to the end of the parent without an index', () => {
+    const model = apply(createModel(), { type: CommandType.MOVE, ids: ['r1'], parentId: 'col' });
+    expect(model.childIds.get('col')).toEqual(['f1', 'r3', 'r1']);
+  });
+
   it('rejects moving a folder into itself or a descendant', () => {
     expect(() =>
       apply(createModel(), { type: CommandType.MOVE, ids: ['f1'], parentId: 'f2', index: 0 })

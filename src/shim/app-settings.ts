@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { McpServerSettings } from './mcp';
 
 export enum TrufosTheme {
   Light = 'light',
@@ -15,6 +16,8 @@ export const AppSettings = z.object({
    * before this existed verify them.
    */
   verifyTlsCertificates: z.boolean().default(true),
+  /** The MCP server agents use to work with the app. Settings stored before this existed have it off. */
+  mcpServer: McpServerSettings.prefault({}),
 });
 export type AppSettings = z.infer<typeof AppSettings>;
 
