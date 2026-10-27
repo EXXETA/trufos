@@ -4,7 +4,7 @@ import { Folder } from 'shim/objects/folder';
 import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
 import { VariableMap } from 'shim/objects/variables';
 import type { CollectionInfo, FolderInfo } from 'shim/collection-model';
-import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-5-0';
+import { InfoFile, VERSION, RequestInfoFile, FolderInfoFile, CollectionInfoFile } from './v2-6-0';
 import { StateService } from '../state-service';
 
 export {
@@ -14,7 +14,7 @@ export {
   FolderInfoFile,
   RequestInfoFile,
   GIT_IGNORE_LINES,
-} from './v2-5-0';
+} from './v2-6-0';
 
 /** An object that has an info file of its own. Its children are never written to it. */
 export type InfoObject = CollectionInfo | FolderInfo | TrufosRequest;
