@@ -40,6 +40,18 @@ class FakeServer extends EventEmitter {
 
 vi.mock('node:http', () => ({ default: { createServer: () => new FakeServer() } }));
 
+// stands in for the module that loads the MCP SDK, and records when it is loaded
+const listenerModule = vi.hoisted(() => ({ loads: 0 }));
+vi.mock('./request-listener', () => {
+  listenerModule.loads++;
+  return {
+    createRequestListener: () => ({
+      listener: () => {},
+      handler: { close: async () => {}, notify: { toolsChanged: () => {} } },
+    }),
+  };
+});
+
 describe('McpServerService', () => {
   let settings: AppSettings;
   let service: McpServerService;
@@ -59,6 +71,26 @@ describe('McpServerService', () => {
   afterEach(async () => {
     await service.stop();
     vi.restoreAllMocks();
+  });
+
+  it('should not load the MCP SDK until the server is started', async () => {
+    vi.resetModules();
+    listenerModule.loads = 0;
+
+    const { McpServerService: FreshService } = await import('main/mcp/mcp-server-service.js');
+    expect(listenerModule.loads).toBe(0);
+
+    // the fresh module reads the settings of a fresh settings service
+    const { SettingsService: FreshSettings } =
+      await import('main/persistence/service/settings-service.js');
+    vi.spyOn(FreshSettings.instance, 'settings', 'get').mockReturnValue({
+      ...DEFAULT_APP_SETTINGS,
+      mcpServer: { ...DEFAULT_APP_SETTINGS.mcpServer, enabled: true },
+    });
+    const fresh = new FreshService();
+    await fresh.update();
+    expect(listenerModule.loads).toBe(1);
+    await fresh.stop();
   });
 
   it('should not run unless it is enabled', async () => {

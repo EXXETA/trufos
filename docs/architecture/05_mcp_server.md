@@ -50,6 +50,11 @@ state, and the factory registers exactly the tools the current permissions allow
 sessionful transport, which Trufos does not use. `toNodeHandler` and the request conversion do not
 import them, so they are not part of the bundle.
 
+The SDK and the tools add about 1 MB to the main bundle. `McpServerService` imports them
+(`request-listener.ts`) with a dynamic `import()` once the server starts, so they are a chunk of
+their own that is not loaded while the server is disabled. A plugin was rejected for this, see
+[Rejected alternatives](#rejected-alternatives).
+
 Implementing the protocol ourselves on Zod was rejected: it would mean implementing both protocol
 revisions, the upgrade of responses to SSE streams and subscriptions, and following every change of
 the specification. The v1 package `@modelcontextprotocol/sdk` is the legacy line and pulls in

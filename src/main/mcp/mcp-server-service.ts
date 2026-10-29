@@ -1,8 +1,7 @@
 import type { McpHttpHandler } from '@modelcontextprotocol/server';
-import { toNodeHandler } from '@modelcontextprotocol/node';
 import type { Immutable } from 'immer';
 import { EventEmitter } from 'node:events';
-import http, { type ServerResponse } from 'node:http';
+import http from 'node:http';
 import { isDeepStrictEqual } from 'node:util';
 import { SettingsService } from 'main/persistence/service/settings-service';
 import type { Initializable } from 'main/shared/initializable';
@@ -10,9 +9,7 @@ import { SerialQueue } from 'main/util/serial-queue';
 import { isErrnoException } from 'main/util/fs-util';
 import { getMcpServerUrl, type McpPermissions, type McpServerStatus } from 'shim/mcp';
 import type { TrufosResponse } from 'shim/objects/response';
-import { checkAccess, type Rejection } from './access-check';
 import { McpAccessToken } from './access-token';
-import { createTrufosMcpHandler } from './mcp-handler';
 import type { McpUiNotifier } from './tools/shared';
 
 const settingsService = SettingsService.instance;
@@ -40,7 +37,8 @@ interface RunningServer {
 /**
  * Runs the MCP server agents use to work with the app, see `docs/architecture/05_mcp_server.md`.
  * The server listens on `127.0.0.1` while it is enabled in the settings, and follows changes of
- * the settings. Requests are checked by {@link checkAccess} before the MCP handler serves them.
+ * the settings. The code that serves requests, and with it the MCP SDK, is only loaded once the
+ * server starts, see `request-listener.ts`.
  */
 export class McpServerService
   extends EventEmitter<McpServerServiceEvents>
@@ -113,18 +111,14 @@ export class McpServerService
     // read before the first request arrives, as requests are checked synchronously
     await accessToken.get();
 
-    const handler = createTrufosMcpHandler(
+    // loaded only now, so the MCP SDK is not loaded while the server is disabled
+    const { createRequestListener } = await import('main/mcp/request-listener.js');
+    const { listener, handler } = createRequestListener(
       () => settingsService.settings.mcpServer.permissions,
-      this
+      this,
+      (token) => accessToken.matches(token)
     );
-    const handle = toNodeHandler(handler, {
-      onerror: (error) => logger.error('Could not handle an MCP request:', error),
-    });
-    const server = http.createServer((request, response) => {
-      const rejection = checkAccess(request, (token) => accessToken.matches(token));
-      if (rejection != null) return reject(response, rejection);
-      void handle(request, response);
-    });
+    const server = http.createServer(listener);
 
     try {
       await new Promise<void>((resolve, rejectListen) => {
@@ -160,12 +154,6 @@ export class McpServerService
     this._status = status;
     this.emit('status-changed', status);
   }
-}
-
-/** Answers a rejected request with a JSON-RPC error, like the guards of the SDK do. */
-function reject(response: ServerResponse, { status, message, headers }: Rejection) {
-  response.writeHead(status, { 'Content-Type': 'application/json', ...headers });
-  response.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message }, id: null }));
 }
 
 /** Explains why the server could not listen on the port, in terms of the settings. */
