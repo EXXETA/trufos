@@ -122,7 +122,7 @@ const Field = ({ id, label, children }: { id: string; label: string; children: R
   </div>
 );
 
-/** A read-only value with a button to copy it. */
+/** A button that copies a value, disabled while the value is not known yet. */
 const CopyButton = ({ value, what }: { value?: string; what: string }) => (
   <Button
     variant="secondary"

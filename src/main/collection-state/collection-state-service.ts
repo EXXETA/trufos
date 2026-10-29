@@ -17,6 +17,7 @@ import {
   CollectionSnapshot,
   CollectionStateEvent,
   CommandEnvelope,
+  getExistingRequest,
   normalizeCollection,
 } from 'shim/collection-model';
 import { CollectionBase } from 'shim/objects/collection';
@@ -346,11 +347,30 @@ export class CollectionStateService
     id: TrufosId,
     reader: (request: TrufosRequest) => Promise<T>
   ): Promise<T | undefined> {
-    this.flush().catch(noop); // already logged, and the reader does not depend on it
-    return this.read(async (model) => {
+    return this.readFiles(async (model) => {
       const request = model.requests.get(id);
       return request == null ? undefined : await reader(request);
     });
+  }
+
+  /**
+   * Like {@link readRequest}, but for a request that has to exist.
+   * @param id the ID of the request
+   * @param reader reads the files. It gets the request as it is when the reader runs.
+   * @returns the result of the reader
+   * @throws a {@link CommandError} if there is no such request
+   */
+  public readExistingRequest<T>(
+    id: TrufosId,
+    reader: (request: TrufosRequest) => Promise<T>
+  ): Promise<T> {
+    return this.readFiles(async (model) => await reader(getExistingRequest(model, id)));
+  }
+
+  /** Reads files of the collection once the dirty requests are written, see {@link readRequest}. */
+  private readFiles<T>(reader: (model: CollectionModel) => Promise<T>): Promise<T> {
+    this.flush().catch(noop); // already logged, and the reader does not depend on it
+    return this.read(reader);
   }
 
   /**
@@ -358,14 +378,12 @@ export class CollectionStateService
    * @param id the ID of the request
    * @throws if there is no such request
    */
-  public async prepareRequest(id: TrufosId): Promise<PreparedRequest> {
-    const prepared = await this.readRequest(id, async (request) => ({
+  public prepareRequest(id: TrufosId): Promise<PreparedRequest> {
+    return this.readExistingRequest(id, async (request) => ({
       request,
       model: this.model,
       ...(await persistenceService.openRequestFiles(request)),
     }));
-    if (prepared == null) throw new Error(`Request ${id} does not exist`);
-    return prepared;
   }
 
   /**

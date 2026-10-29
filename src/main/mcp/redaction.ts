@@ -98,12 +98,20 @@ export function maskAuthorization(auth: AuthorizationInformation): Authorization
  * {@link maskAuthorization} returned
  */
 export function hasMaskedCredential(auth: AuthorizationInformation): boolean {
-  let masked = false;
+  return getCredentials(auth).includes(MASK);
+}
+
+/**
+ * @param auth an authorization
+ * @returns the credentials of the authorization, see {@link mapCredentials}
+ */
+function getCredentials(auth: AuthorizationInformation): string[] {
+  const credentials: string[] = [];
   mapCredentials(auth, (credential) => {
-    masked ||= credential === MASK;
+    credentials.push(credential);
     return credential;
   });
-  return masked;
+  return credentials;
 }
 
 /**
@@ -131,11 +139,7 @@ export function collectSecrets(model: CollectionModel): string[] {
     ...model.savedRequests.values(),
   ];
   for (const { auth } of nodes) {
-    if (auth == null) continue;
-    mapCredentials(auth, (credential) => {
-      secrets.add(credential);
-      return credential;
-    });
+    if (auth != null) getCredentials(auth).forEach((credential) => secrets.add(credential));
   }
 
   return [...secrets].filter((secret) => secret.length >= MIN_REDACTED_LENGTH);

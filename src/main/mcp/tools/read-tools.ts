@@ -13,13 +13,7 @@ import { ScriptType } from 'shim/scripting';
 import { PageInput, readPage } from '../body-pages';
 import { describeRequest, describeTree, searchCollection } from '../collection-views';
 import { collectSecrets, maskVariables, redact, redactSentRequest } from '../redaction';
-import {
-  jsonResult,
-  type McpUiNotifier,
-  readRequestFiles,
-  readResponseBodyPage,
-  RequestIdInput,
-} from './shared';
+import { jsonResult, type McpUiNotifier, readResponseBodyPage, RequestIdInput } from './shared';
 
 const collectionState = CollectionStateService.instance;
 const historyService = HistoryService.instance;
@@ -112,7 +106,7 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
     },
     async ({ requestId, offset, length }) =>
       jsonResult(
-        await readRequestFiles(requestId, async (request) => {
+        await collectionState.readExistingRequest(requestId, async (request) => {
           if (request.body.type !== RequestBodyType.TEXT) {
             throw new Error(`The request has no text body, its body type is ${request.body.type}.`);
           }
@@ -137,7 +131,7 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
       annotations: READ_ONLY,
     },
     async ({ requestId, scriptType }) => {
-      const script = await readRequestFiles(requestId, async (request) => {
+      const script = await collectionState.readExistingRequest(requestId, async (request) => {
         const stream = await persistenceService.loadScript(request, scriptType);
         return stream == null ? '' : await text(stream);
       });
@@ -209,16 +203,16 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
       }),
       annotations: READ_ONLY,
     },
-    async ({ limit }) => {
-      const model = collectionState.model;
-      const secrets = collectSecrets(model);
-      return jsonResult(
-        historyService
-          .list(model.collection.dirPath)
-          .slice(0, limit)
-          .map((summary) => ({ ...summary, url: redact(summary.url, secrets) }))
-      );
-    }
+    async ({ limit }) =>
+      jsonResult(
+        await collectionState.read((model) => {
+          const secrets = collectSecrets(model);
+          return historyService
+            .list(model.collection.dirPath)
+            .slice(0, limit)
+            .map((summary) => ({ ...summary, url: redact(summary.url, secrets) }));
+        })
+      )
   );
 
   server.registerTool(
@@ -231,29 +225,33 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
       inputSchema: z.object({ entryId: z.string().describe('The ID from `get_history`.') }),
       annotations: READ_ONLY,
     },
-    async ({ entryId }) => {
-      const model = collectionState.model;
-      const entry = historyService.get(entryId, model.collection.dirPath);
-      if (entry == null) {
-        throw new Error(`The history of the open collection has no entry with the ID ${entryId}.`);
-      }
+    async ({ entryId }) =>
+      jsonResult(
+        await collectionState.read((model) => {
+          const entry = historyService.get(entryId, model.collection.dirPath);
+          if (entry == null) {
+            throw new Error(
+              `The history of the open collection has no entry with the ID ${entryId}.`
+            );
+          }
 
-      const secrets = collectSecrets(model);
-      const { request } = entry;
-      return jsonResult({
-        ...entry,
-        url: redact(entry.url, secrets),
-        // the body of the sent request is not offered, only its size
-        request: request && {
-          ...redactSentRequest({ ...request, body: undefined }, secrets),
-          bodySize: request.body?.size,
-        },
-        scriptLogs: entry.scriptLogs.map((log) => ({
-          ...log,
-          args: log.args.map((arg) => (typeof arg === 'string' ? redact(arg, secrets) : arg)),
-        })),
-      });
-    }
+          const secrets = collectSecrets(model);
+          const { request } = entry;
+          return {
+            ...entry,
+            url: redact(entry.url, secrets),
+            // the body of the sent request is not offered, only its size
+            request: request && {
+              ...redactSentRequest({ ...request, body: undefined }, secrets),
+              bodySize: request.body?.size,
+            },
+            scriptLogs: entry.scriptLogs.map((log) => ({
+              ...log,
+              args: log.args.map((arg) => (typeof arg === 'string' ? redact(arg, secrets) : arg)),
+            })),
+          };
+        })
+      )
   );
 
   server.registerTool(

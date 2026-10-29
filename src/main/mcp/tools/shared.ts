@@ -1,12 +1,9 @@
 import type { CallToolResult } from '@modelcontextprotocol/server';
 import path from 'node:path';
 import { z } from 'zod';
-import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { HistoryService } from 'main/history/history-service';
 import { BodyStore } from 'main/network/service/body-store';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
-import { CommandError } from 'shim/collection-model';
-import type { TrufosRequest } from 'shim/objects/request';
 import type { TrufosResponse } from 'shim/objects/response';
 import { type BodyPage, readPage } from '../body-pages';
 
@@ -31,24 +28,6 @@ export const AbsolutePath = z
  */
 export function jsonResult(value: unknown): CallToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] };
-}
-
-/**
- * Reads files of a request of the open collection, see {@link CollectionStateService.readRequest}.
- * @param requestId the ID of the request
- * @param reader reads the files
- * @returns the result of the reader
- * @throws a {@link CommandError} if the open collection has no such request
- */
-export async function readRequestFiles<T>(
-  requestId: string,
-  reader: (request: TrufosRequest) => Promise<T>
-): Promise<T> {
-  const read = await CollectionStateService.instance.readRequest(requestId, async (request) => ({
-    result: await reader(request),
-  }));
-  if (read == null) throw new CommandError(`Request ${requestId} does not exist`);
-  return read.result;
 }
 
 /**
