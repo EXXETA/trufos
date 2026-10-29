@@ -18,6 +18,17 @@ describe('redaction', () => {
     ).toMatchObject({ consumerKey: 'key', consumerSecret: MASK, token: '' });
   });
 
+  it.each([AuthorizationType.BASIC, AuthorizationType.DIGEST] as const)(
+    'should mask the password of %s authorization',
+    (type) => {
+      expect(maskAuthorization({ type, username: 'user', password: 'secret' })).toEqual({
+        type,
+        username: 'user',
+        password: MASK,
+      });
+    }
+  );
+
   it('should collect secret variables of all environments and the credentials of requests', () => {
     const model = normalizeCollection(
       makeCollection(

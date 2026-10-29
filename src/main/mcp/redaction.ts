@@ -62,6 +62,7 @@ function mapCredentials(
     case AuthorizationType.BEARER:
       return { ...auth, token: map(auth.token) };
     case AuthorizationType.BASIC:
+    case AuthorizationType.DIGEST:
       return { ...auth, password: map(auth.password) };
     case AuthorizationType.OAUTH2: {
       const clientSecret = map(auth.clientSecret);
