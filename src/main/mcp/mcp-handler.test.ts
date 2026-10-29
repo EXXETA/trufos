@@ -313,7 +313,11 @@ describe('createTrufosMcpHandler', () => {
         },
         outcome: { type: 'aborted' },
         scriptLogs: [
-          { script: ScriptType.PRE_REQUEST, level: 'info', args: ['key secret-api-key', 1] },
+          {
+            script: ScriptType.PRE_REQUEST,
+            level: 'info',
+            args: ['secret-api-key', 'key secret-api-key', 1],
+          },
         ],
       };
       vi.spyOn(HistoryService.instance, 'list').mockReturnValue([summarizeHistoryEntry(entry)]);
@@ -331,8 +335,11 @@ describe('createTrufosMcpHandler', () => {
       expect(entry.request.headers).toEqual({ Authorization: MASK, 'x-api-key': MASK });
       expect(entry.request.body).toBeUndefined();
       expect(entry.request.bodySize).toBe(4);
-      expect(entry.scriptLogs[0].args).toEqual([`key ${MASK}`, 1]);
-      expect(JSON.stringify([entry, summaries])).not.toMatch(/super-secret-token|secret-api-key/);
+      expect(JSON.stringify([entry.request, entry.url, summaries])).not.toMatch(
+        /super-secret-token|secret-api-key/
+      );
+      // a logged secret is masked, free text that only contains it is not, see redaction.ts
+      expect(entry.scriptLogs[0].args).toEqual([MASK, 'key secret-api-key', 1]);
     });
 
     it('should not return entries of other collections', async () => {

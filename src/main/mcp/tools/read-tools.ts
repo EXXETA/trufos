@@ -12,7 +12,7 @@ import { RequestBodyType } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
 import { PageInput, readPage } from '../body-pages';
 import { describeRequest, describeTree, searchCollection } from '../collection-views';
-import { collectSecrets, maskVariables, redact, redactSentRequest } from '../redaction';
+import { collectSecrets, maskVariables, redactHistoryEntry, redactUrl } from '../redaction';
 import { jsonResult, type McpUiNotifier, readResponseBodyPage, RequestIdInput } from './shared';
 
 const collectionState = CollectionStateService.instance;
@@ -210,7 +210,7 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
           return historyService
             .list(model.collection.dirPath)
             .slice(0, limit)
-            .map((summary) => ({ ...summary, url: redact(summary.url, secrets) }));
+            .map((summary) => ({ ...summary, url: redactUrl(summary.url, secrets) }));
         })
       )
   );
@@ -235,20 +235,11 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
             );
           }
 
-          const secrets = collectSecrets(model);
-          const { request } = entry;
+          const { request, ...redacted } = redactHistoryEntry(entry, collectSecrets(model));
           return {
-            ...entry,
-            url: redact(entry.url, secrets),
+            ...redacted,
             // the body of the sent request is not offered, only its size
-            request: request && {
-              ...redactSentRequest({ ...request, body: undefined }, secrets),
-              bodySize: request.body?.size,
-            },
-            scriptLogs: entry.scriptLogs.map((log) => ({
-              ...log,
-              args: log.args.map((arg) => (typeof arg === 'string' ? redact(arg, secrets) : arg)),
-            })),
+            request: request && { ...request, body: undefined, bodySize: request.body?.size },
           };
         })
       )

@@ -1,5 +1,5 @@
 import type { CollectionModel } from 'shim/collection-model';
-import type { SentRequest } from 'shim/history';
+import type { HistoryEntry, SentRequest } from 'shim/history';
 import {
   type AuthorizationInformation,
   AuthorizationType,
@@ -7,6 +7,7 @@ import {
   OAuth2Method,
 } from 'shim/objects/auth';
 import type { HttpHeaders } from 'shim/objects/headers';
+import { buildUrl, parseUrl } from 'shim/objects/url';
 import type { VariableObject } from 'shim/objects/variables';
 
 /*
@@ -20,12 +21,6 @@ export const MASK = '***';
 
 /** Headers whose values are credentials, in lower case. */
 const CREDENTIAL_HEADERS = new Set(['authorization', 'proxy-authorization', 'cookie']);
-
-/**
- * Secrets shorter than this are not searched for in sent requests. Replacing every occurrence of a
- * one or two character secret would garble the whole request.
- */
-const MIN_REDACTED_LENGTH = 4;
 
 /** A variable as it is returned to a client. */
 export interface MaskedVariable extends VariableObject {
@@ -120,7 +115,7 @@ function getCredentials(auth: AuthorizationInformation): string[] {
  * and the credentials of every authorization.
  * @param model the open collection
  */
-export function collectSecrets(model: CollectionModel): string[] {
+export function collectSecrets(model: CollectionModel): ReadonlySet<string> {
   const { collection } = model;
   const secrets = new Set<string>();
   const variableMaps = [
@@ -143,34 +138,87 @@ export function collectSecrets(model: CollectionModel): string[] {
     if (auth != null) getCredentials(auth).forEach((credential) => secrets.add(credential));
   }
 
-  return [...secrets].filter((secret) => secret.length >= MIN_REDACTED_LENGTH);
+  // an empty value is no secret, and would mask every empty value
+  secrets.delete('');
+  return secrets;
+}
+
+/*
+ * Values are only masked if they equal a secret as a whole: a header value, a path segment, a
+ * query value or a script argument. Masking every occurrence of a secret inside a longer text would also change data
+ * that merely contains it, e.g. `/admin/users` for a secret `admin`. A secret that is only part of
+ * a value, e.g. in `Token <secret>` or a signature derived from it, is not found.
+ */
+
+/**
+ * @param value a value that was sent, e.g. a header value or a part of a URL
+ * @param secrets the secrets, see {@link collectSecrets}
+ * @returns the value, or {@link MASK} if it is a secret, also if it is URL-encoded
+ */
+function maskIfSecret(value: string, secrets: ReadonlySet<string>): string {
+  if (secrets.has(value)) return MASK;
+  try {
+    return secrets.has(decodeURIComponent(value)) ? MASK : value;
+  } catch {
+    // not URL-encoded, e.g. a lone `%`
+    return value;
+  }
 }
 
 /**
- * @param text a text that may contain secrets
+ * @param url a URL as it was sent, with all variables resolved
  * @param secrets the secrets, see {@link collectSecrets}
- * @returns the text with every occurrence of a secret masked
+ * @returns the URL with every path segment and query value that is a secret masked
  */
-export function redact(text: string, secrets: readonly string[]): string {
-  // longer secrets first, so a secret that contains a shorter one is masked as a whole
-  return [...secrets]
-    .sort((a, b) => b.length - a.length)
-    .reduce((result, secret) => result.replaceAll(secret, MASK), text);
+export function redactUrl(url: string, secrets: ReadonlySet<string>): string {
+  const { base, query } = parseUrl(url);
+  return buildUrl({
+    base: base
+      .split('/')
+      .map((segment) => maskIfSecret(segment, secrets))
+      .join('/'),
+    query: query.map((parameter) =>
+      parameter.value == null
+        ? parameter
+        : { ...parameter, value: maskIfSecret(parameter.value, secrets) }
+    ),
+  });
 }
 
 /**
  * Masks the secrets in a request as it was sent, with all variables resolved: the values of
- * credential headers completely, and occurrences of secrets in the URL and the other headers.
+ * credential headers completely, and URL parts and other header values that are a secret.
  * @param request the sent request
  * @param secrets the secrets, see {@link collectSecrets}
  */
-export function redactSentRequest(request: SentRequest, secrets: readonly string[]): SentRequest {
+export function redactSentRequest(request: SentRequest, secrets: ReadonlySet<string>): SentRequest {
   const headers: HttpHeaders = {};
   for (const [key, value] of Object.entries(request.headers)) {
     if (value == null) continue;
     const mask = (v: string) =>
-      CREDENTIAL_HEADERS.has(key.toLowerCase()) ? MASK : redact(v, secrets);
+      CREDENTIAL_HEADERS.has(key.toLowerCase()) ? MASK : maskIfSecret(v, secrets);
     headers[key] = Array.isArray(value) ? value.map(mask) : mask(value);
   }
-  return { ...request, url: redact(request.url, secrets), headers };
+  return { ...request, url: redactUrl(request.url, secrets), headers };
+}
+
+/**
+ * Masks the secrets in a history entry: in its URL and sent request, see {@link redactSentRequest},
+ * and script arguments that are a secret, e.g. of `console.log(token)`.
+ * @param entry the history entry
+ * @param secrets the secrets, see {@link collectSecrets}
+ */
+export function redactHistoryEntry(
+  entry: HistoryEntry,
+  secrets: ReadonlySet<string>
+): HistoryEntry {
+  return {
+    ...entry,
+    url: redactUrl(entry.url, secrets),
+    request: entry.request && redactSentRequest(entry.request, secrets),
+    scriptLogs: entry.scriptLogs.map((log) => ({
+      ...log,
+      args: log.args.map((arg) => (typeof arg === 'string' ? maskIfSecret(arg, secrets) : arg)),
+    })),
+  };
 }

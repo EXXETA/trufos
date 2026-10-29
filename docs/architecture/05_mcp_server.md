@@ -91,15 +91,24 @@ appear in `tools/list`. When the permissions change, the server notifies open su
 
 ### Secrets
 
-Results never contain the values of `secret` variables or stored credentials:
+Results do not contain the values of `secret` variables or stored credentials where they appear as
+values of their own:
 
 - The values of secret variables are replaced with `***`.
 - The credential fields of authorizations (`password`, `token`, `clientSecret`, `consumerSecret`,
   `tokenSecret`, `codeVerifier`) are replaced with `***`.
 - In the requests of the history, which were sent with all variables resolved, the values of the
-  `Authorization`, `Proxy-Authorization` and `Cookie` headers are replaced with `***`, and any
-  occurrence of a secret value in the URL and the other headers as well.
+  `Authorization`, `Proxy-Authorization` and `Cookie` headers are replaced with `***`. So are other
+  header values, path segments, query values and script arguments that equal a secret, also
+  URL-encoded.
 - Only response bodies can be read, not the bodies of sent requests.
+
+A secret is only masked where it is a whole value. Masking every occurrence inside longer text would
+change data that merely contains it, e.g. `/admin/users` for a secret `admin`, and the agent could
+not tell. So a secret inside a longer value (`Token <secret>`), a value derived from it (a
+signature) and text that scripts log around it are returned as they are; a script argument that is a
+secret is masked. Response bodies and headers are never
+changed.
 
 This keeps secrets out of the agent's context by default. **It is not a security boundary.** With
 `execute` and `edit`, an agent can create a request that sends `{{apiKey}}` to a server that echoes it

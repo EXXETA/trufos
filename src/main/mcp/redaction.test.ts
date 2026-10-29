@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { normalizeCollection } from 'shim/collection-model';
 import { AuthorizationType, OAuth1Method, OAuth1SignatureMethod } from 'shim/objects/auth';
 import { makeCollection, makeRequest } from 'shim/__mocks__/collection-fixtures';
-import { collectSecrets, MASK, maskAuthorization, redact, redactSentRequest } from './redaction';
+import type { HistoryEntry } from 'shim/history';
+import { RequestMethod } from 'shim/objects/request-method';
+import { ScriptType } from 'shim/scripting';
+import {
+  collectSecrets,
+  MASK,
+  maskAuthorization,
+  redactHistoryEntry,
+  redactSentRequest,
+  redactUrl,
+} from './redaction';
 
 describe('redaction', () => {
   it('should mask set credentials and keep empty ones empty', () => {
@@ -48,37 +58,86 @@ describe('redaction', () => {
       )
     );
 
-    expect(collectSecrets(model).toSorted()).toEqual(
+    expect([...collectSecrets(model)].toSorted()).toEqual(
       ['collection-key', 'prod-key', 'request-password'].toSorted()
     );
   });
 
-  it('should ignore secrets too short to search for', () => {
+  it('should not treat an empty value as a secret', () => {
     const model = normalizeCollection(
-      makeCollection('col', [], { variables: { pin: { value: '123', secret: true } } })
+      makeCollection('col', [], { variables: { unset: { value: '', secret: true } } })
     );
 
-    expect(collectSecrets(model)).toEqual([]);
+    expect(collectSecrets(model).size).toBe(0);
   });
 
-  it('should mask a secret that contains another one as a whole', () => {
-    expect(redact('token=abcd-efgh', ['abcd', 'abcd-efgh'])).toBe(`token=${MASK}`);
+  it('should mask path segments and query values that are a secret', () => {
+    const secrets = new Set(['admin', 'p@ss']);
+
+    expect(redactUrl('https://example.com/admin/users?user=admin&key=p%40ss&flag', secrets)).toBe(
+      `https://example.com/${MASK}/users?user=${MASK}&key=${MASK}&flag`
+    );
   });
 
-  it('should mask credential headers completely and secrets elsewhere', () => {
+  it('should not change values that only contain a secret', () => {
+    const secrets = new Set(['admin']);
+
+    expect(redactUrl('https://example.com/administration?q=admin-panel', secrets)).toBe(
+      'https://example.com/administration?q=admin-panel'
+    );
+  });
+
+  it('should compare a whole query value that contains `=`', () => {
+    expect(redactUrl('https://example.com/?sig=abc==', new Set(['abc==']))).toBe(
+      `https://example.com/?sig=${MASK}`
+    );
+  });
+
+  it('should mask script arguments that are a secret', () => {
+    const entry: HistoryEntry = {
+      id: 'e',
+      requestId: 'r',
+      requestTitle: 'R',
+      timestamp: 0,
+      method: RequestMethod.GET,
+      url: 'https://example.com/?key=top-secret',
+      outcome: { type: 'aborted' },
+      scriptLogs: [
+        { script: ScriptType.PRE_REQUEST, level: 'info', args: ['top-secret', 'top-secret!', 1] },
+      ],
+    };
+
+    expect(redactHistoryEntry(entry, new Set(['top-secret']))).toMatchObject({
+      url: `https://example.com/?key=${MASK}`,
+      scriptLogs: [{ args: [MASK, 'top-secret!', 1] }],
+    });
+  });
+
+  it('should keep values that are not URL-encoded', () => {
+    expect(redactUrl('https://example.com/?discount=100%', new Set(['x']))).toBe(
+      'https://example.com/?discount=100%'
+    );
+  });
+
+  it('should mask credential headers completely and other values that are a secret', () => {
     expect(
       redactSentRequest(
         {
           method: 'GET',
           url: 'https://example.com/?key=secret-key',
-          headers: { cookie: 'session=1', 'x-tags': ['a', 'secret-key'], empty: undefined },
+          headers: {
+            cookie: 'session=1',
+            'x-tags': ['a', 'secret-key'],
+            'x-note': 'uses secret-key',
+            empty: undefined,
+          },
         },
-        ['secret-key']
+        new Set(['secret-key'])
       )
     ).toEqual({
       method: 'GET',
       url: `https://example.com/?key=${MASK}`,
-      headers: { cookie: MASK, 'x-tags': ['a', MASK] },
+      headers: { cookie: MASK, 'x-tags': ['a', MASK], 'x-note': 'uses secret-key' },
     });
   });
 });
