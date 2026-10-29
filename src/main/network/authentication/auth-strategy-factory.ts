@@ -1,6 +1,7 @@
 import { AuthorizationInformation, AuthorizationType } from 'shim/objects';
 import BasicAuthStrategy from './basic-auth';
 import BearerAuthStrategy from './bearer-auth';
+import DigestAuthStrategy from './digest/strategy';
 import AuthStrategy from './auth-strategy';
 import { createOAuth1Strategy } from './oauth1/strategy-factory';
 import { createOAuth2Strategy } from './oauth2/strategy-factory';
@@ -19,6 +20,8 @@ export function createAuthStrategy(
       return new BasicAuthStrategy(auth);
     case AuthorizationType.BEARER:
       return new BearerAuthStrategy(auth);
+    case AuthorizationType.DIGEST:
+      return new DigestAuthStrategy(auth);
     case AuthorizationType.OAUTH2:
       return createOAuth2Strategy(auth);
     case AuthorizationType.OAUTH1:

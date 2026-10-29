@@ -60,6 +60,7 @@ declare module '@usebruno/lang' {
   export interface BrunoAuth {
     bearer?: { token: string };
     basic?: { username: string; password: string };
+    digest?: { username: string; password: string };
     oauth2?: BrunoOAuth2;
   }
 

@@ -17,6 +17,7 @@ export type AuthorizationLevel = 'request' | 'folder' | 'collection';
 const CONCRETE_TYPES = [
   AuthorizationType.BEARER,
   AuthorizationType.BASIC,
+  AuthorizationType.DIGEST,
   AuthorizationType.OAUTH2,
   AuthorizationType.OAUTH1,
 ];
@@ -32,8 +33,23 @@ export const AUTHORIZATION_TYPE_LABELS: { [K in AuthorizationTypeOrNone]: string
   [AuthorizationType.INHERIT]: 'Inherit from parent',
   [AuthorizationType.BEARER]: 'Bearer Token',
   [AuthorizationType.BASIC]: 'Basic Auth',
+  [AuthorizationType.DIGEST]: 'Digest Auth',
   [AuthorizationType.OAUTH2]: 'OAuth 2.0',
   [AuthorizationType.OAUTH1]: 'OAuth 1.0',
+};
+
+/** The fields of the authorization types that authenticate with a username and a password. */
+const CREDENTIALS_FORM: FormComponentConfiguration = {
+  username: {
+    type: 'text',
+    label: 'Username',
+    placeholder: 'Enter username',
+  },
+  password: {
+    type: 'password',
+    label: 'Password',
+    placeholder: 'Enter password',
+  },
 };
 
 /** The fields of each authorization type, without the type itself. */
@@ -47,18 +63,8 @@ const FORMS: { [K in AuthorizationTypeOrNone]: FormComponentConfiguration } = {
       placeholder: 'Enter bearer token',
     },
   },
-  [AuthorizationType.BASIC]: {
-    username: {
-      type: 'text',
-      label: 'Username',
-      placeholder: 'Enter username',
-    },
-    password: {
-      type: 'password',
-      label: 'Password',
-      placeholder: 'Enter password',
-    },
-  },
+  [AuthorizationType.BASIC]: CREDENTIALS_FORM,
+  [AuthorizationType.DIGEST]: CREDENTIALS_FORM,
   [AuthorizationType.OAUTH2]: {
     method: {
       type: 'select',

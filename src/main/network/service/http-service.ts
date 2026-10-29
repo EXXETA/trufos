@@ -1,4 +1,4 @@
-import undici, { FormData } from 'undici';
+import undici, { type Dispatcher, FormData } from 'undici';
 import { getDurationFromNow, getSteadyTimestamp } from 'main/util/time-util';
 import { pipeline } from 'node:stream/promises';
 import fs from 'node:fs';
@@ -32,6 +32,7 @@ import { HistoryService } from 'main/history/history-service';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import { TrufosId } from 'shim/objects/id';
 import {
+  type AutomaticHeaderValues,
   type CollectionModel,
   DEFAULT_FILE_MIME_TYPE,
   resolveAuthorization,
@@ -183,9 +184,11 @@ export class HttpService {
         authorization = await getAuthorizationHeader(model, auth, {
           method: request.method,
           url,
+          getChallenges: () => this.fetchChallenges(model, request, url, signal),
         });
       } catch (e) {
         logger.error('Failed to generate authentication header:', e);
+        if (e instanceof DisplayableError) throw e;
         throw new DisplayableError(
           'Please check your authentication settings and try again.',
           'Authentication Failed',
@@ -197,13 +200,11 @@ export class HttpService {
     const { body, size } = await this.readBody(model, request, textBody);
     let sentHeaders: HttpHeaders;
     try {
-      const headers = resolveHeaders(model, request, {
+      sentHeaders = await this.buildSentHeaders(model, request, {
         authorization,
         contentLength: size?.toString(),
-        userAgent: this.getUserAgent(),
         hasBody: body != null,
       });
-      sentHeaders = this.toUndiciHeaders(await this.resolveVariablesInHeaders(model, headers));
     } catch (error) {
       // the body is not sent, so its file is closed right away
       if (body instanceof Readable) body.destroy();
@@ -215,10 +216,7 @@ export class HttpService {
     // measure duration of the request
     const now = getSteadyTimestamp();
     const responseData = await undici.request(url, {
-      dispatcher: await this.dispatchers.get({
-        verifyTlsCertificates: SettingsService.instance.settings.verifyTlsCertificates,
-        clientCertificate: model.collection.clientCertificate,
-      }),
+      dispatcher: await this.getDispatcher(model),
       method: request.method,
       headers: sentHeaders,
       body: sentBody,
@@ -267,6 +265,64 @@ export class HttpService {
 
     logger.debug(`Returning response with body ${responseBody?.id}`);
     return response;
+  }
+
+  /**
+   * Sends a request without its body, the same way `curl --digest` does, and returns the
+   * challenges of the server if it asks for authentication. The request is not recorded.
+   * @param model the model to resolve the headers with
+   * @param request the request to send
+   * @param url the resolved URL
+   * @returns the values of the `WWW-Authenticate` headers of a 401 response, or an empty array
+   */
+  private async fetchChallenges(
+    model: CollectionModel,
+    request: TrufosRequest,
+    url: string,
+    signal?: AbortSignal
+  ): Promise<string[]> {
+    logger.debug('Sending the request without its body to fetch the authentication challenge');
+    const headers = await this.buildSentHeaders(model, request, { hasBody: false });
+    // a Content-Length the user set themselves would not match the empty body
+    delete headers['content-length'];
+    let response: Dispatcher.ResponseData;
+    try {
+      response = await undici.request(url, {
+        dispatcher: await this.getDispatcher(model),
+        method: request.method,
+        headers,
+        signal,
+      });
+      await response.body.dump();
+    } catch (error) {
+      throw mapRequestError(error);
+    }
+    const { statusCode, headers: responseHeaders } = response;
+    if (statusCode !== 401) return [];
+    const challenges = responseHeaders['www-authenticate'];
+    if (challenges == null) return [];
+    return Array.isArray(challenges) ? challenges : [challenges];
+  }
+
+  /**
+   * Returns the headers a request is sent with, with their variables resolved.
+   * @param values what is known about the automatic headers, except the User-Agent
+   */
+  private async buildSentHeaders(
+    model: CollectionModel,
+    request: TrufosRequest,
+    values: Omit<AutomaticHeaderValues, 'userAgent'>
+  ): Promise<HttpHeaders> {
+    const headers = resolveHeaders(model, request, { ...values, userAgent: this.getUserAgent() });
+    return this.toUndiciHeaders(await this.resolveVariablesInHeaders(model, headers));
+  }
+
+  /** Returns the dispatcher to send the requests of a collection with. */
+  private async getDispatcher(model: CollectionModel): Promise<Dispatcher> {
+    return await this.dispatchers.get({
+      verifyTlsCertificates: SettingsService.instance.settings.verifyTlsCertificates,
+      clientCertificate: model.collection.clientCertificate,
+    });
   }
 
   /**

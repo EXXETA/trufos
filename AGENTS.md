@@ -108,6 +108,22 @@ Key renderer directories:
   be on the same volume as the target, so it is created next to the target as a dotfile instead of
   in the temporary directory.
 
+### Info File Versions
+
+Collections are persisted as versioned info files (`collection.json`, `folder.json`,
+`request.json`). Their secrets, e.g. authorizations, are stored separately but are merged into
+the info file and validated with its schema on load. An older Trufos refuses info files with a
+newer version instead of failing on data it does not know.
+
+- **Bump the info file version whenever an older Trufos could not read what is persisted
+  anymore**: a new field, or a new value of an existing one, e.g. a new authorization type
+  or request body type, even if the schema code itself does not change.
+- Bump the minor version for additions and the major version for changes to the file layout.
+- Add `src/main/persistence/service/info-files/vX-Y-Z.ts` with the schemas and an
+  `InfoFileMigrator` from the previous version whose doc comment lists the changes, register it
+  in `migrators.ts`, re-export it from `latest.ts`, add a test next to it, and update the
+  `version` in `examples/collection/`.
+
 ## Development Commands
 
 ```bash

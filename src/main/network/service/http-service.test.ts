@@ -1195,6 +1195,79 @@ describe('HttpService', () => {
     expect(dispatchers.get).toHaveBeenCalledWith({ verifyTlsCertificates: false });
   });
 
+  it('fetchAsync() should answer the Digest challenge of a request sent without its body', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/digest?a=1');
+    const pool = mockAgent.get(url.origin);
+    const target = url.pathname + url.search;
+    pool.intercept({ path: target, method: 'POST' }).reply(401, '', {
+      headers: { 'www-authenticate': 'Digest realm="r", nonce="n", qop="auth"' },
+    });
+    pool.intercept({ path: target, method: 'POST' }).reply(200, 'OK');
+    const httpService = new HttpService({ get: async () => mockAgent });
+    vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockResolvedValue(
+      Readable.from(['the body']) as fs.ReadStream
+    );
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Digest Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [{ key: 'X-Custom', value: 'custom', isActive: true }],
+      body: { type: RequestBodyType.TEXT, mimeType: 'text/plain' },
+      auth: { type: AuthorizationType.DIGEST, username: 'user', password: 'pass' },
+    };
+
+    // Act
+    const response = await httpService.fetchAsync(await prepare(request), recorder);
+
+    // Assert
+    expect(response.metaInfo.status).toBe(200);
+    const [probe, sent] = mockAgent.getCallHistory()?.calls().slice(-2) ?? [];
+    expect(probe.headers).toMatchObject({ 'x-custom': ['custom'] });
+    expect(probe.headers).not.toHaveProperty('authorization');
+    expect(probe.headers).not.toHaveProperty('content-type');
+    expect(probe.body).toBeFalsy();
+    expect(sent.headers).toMatchObject({
+      'x-custom': ['custom'],
+      'content-type': ['text/plain'],
+      authorization: [
+        expect.stringMatching(
+          /^Digest username="user", realm="r", nonce="n", uri="\/api\/digest\?a=1", response="[0-9a-f]{32}", qop=auth, nc=00000001, cnonce="[0-9a-f]{32}"$/
+        ),
+      ],
+    });
+    // only the request that is sent with its body is recorded
+    expect(recorder.sent).toHaveBeenCalledOnce();
+  });
+
+  it('fetchAsync() should fail with Digest authorization if the server does not challenge', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/no-digest');
+    const httpService = setupMockHttpService(url, 'OK');
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Digest Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.NONE },
+      auth: { type: AuthorizationType.DIGEST, username: 'user', password: 'pass' },
+    };
+
+    // Act & Assert
+    await expect(httpService.fetchAsync(await prepare(request), recorder)).rejects.toMatchObject({
+      title: 'No Digest Challenge',
+    });
+    expect(recorder.sent).not.toHaveBeenCalled();
+  });
+
   it('fetchAsync() should resolve the URL, auth and headers with the variables the pre-request script set', async () => {
     // Arrange
     const url = new URL('https://example.com/api/scripted');

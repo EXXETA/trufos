@@ -110,6 +110,7 @@ export const ModularForm = ({ config, className, data, onDataChanged }: FormProp
           <div key={key} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
             <SecretInput
+              secret
               value={getString(key)}
               onChange={(e) => onDataChanged({ [key]: e.target.value })}
               placeholder={placeholder}

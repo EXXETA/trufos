@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createAuthStrategy } from './auth-strategy-factory';
 import BasicAuthStrategy from './basic-auth';
 import BearerAuthStrategy from './bearer-auth';
+import DigestAuthStrategy from './digest/strategy';
 import {
   AuthorizationInformation,
   AuthorizationType,
@@ -34,6 +35,15 @@ describe('createAuthStrategy()', () => {
     const auth: BearerAuthorizationInformation = { type: AuthorizationType.BEARER, token: 'token' };
     const strategy = createAuthStrategy(auth);
     expect(strategy).toBeInstanceOf(BearerAuthStrategy);
+  });
+
+  it('should create a DigestAuthStrategy for digest authentication', () => {
+    const strategy = createAuthStrategy({
+      type: AuthorizationType.DIGEST,
+      username: 'user',
+      password: 'pass',
+    });
+    expect(strategy).toBeInstanceOf(DigestAuthStrategy);
   });
 
   it('should throw an error for unsupported authentication types', () => {

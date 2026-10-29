@@ -14,6 +14,7 @@ const DEFAULTS: [AuthorizationType, AuthorizationMethod | undefined][] = [
   [AuthorizationType.INHERIT, undefined],
   [AuthorizationType.BEARER, undefined],
   [AuthorizationType.BASIC, undefined],
+  [AuthorizationType.DIGEST, undefined],
   [AuthorizationType.OAUTH2, undefined],
   ...Object.values(OAuth2Method).map((method): [AuthorizationType, AuthorizationMethod] => [
     AuthorizationType.OAUTH2,
@@ -44,7 +45,7 @@ describe('buildAuthorizationForm', () => {
     const type = buildAuthorizationForm(AuthorizationType.BEARER, undefined, level).type;
     const options = type.type === 'select' ? type.options.map((option) => option.value) : [];
 
-    expect(options).toHaveLength(6 - excluded.length);
+    expect(options).toHaveLength(7 - excluded.length);
     for (const value of excluded) expect(options).not.toContain(value);
   });
 

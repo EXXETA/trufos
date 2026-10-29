@@ -7,6 +7,8 @@ import {
   OAuth1SignatureMethod,
 } from 'shim/objects';
 import ExistingTokenOAuth1Strategy from './existing-token';
+import { makeAuthRequestContext } from '../__mocks__/auth-request-context';
+import { RequestMethod } from 'shim/objects/request-method';
 
 const NONCE = 'fixednonce';
 const TIMESTAMP = '1234567890';
@@ -57,10 +59,12 @@ function baseAuth(
 describe('ExistingTokenOAuth1Strategy', () => {
   it('produces a valid HMAC-SHA1 signature over method, base URL and params', async () => {
     const strategy = new TestOAuth1AuthStrategy(baseAuth());
-    const header = await strategy.getAuthHeader({
-      method: 'get',
-      url: 'http://example.com/path?b=2&a=1',
-    });
+    const header = await strategy.getAuthHeader(
+      makeAuthRequestContext({
+        method: RequestMethod.GET,
+        url: 'http://example.com/path?b=2&a=1',
+      })
+    );
     const params = parseOAuthHeader(header);
 
     expect(params.oauth_consumer_key).toBe('ck');
@@ -88,10 +92,12 @@ describe('ExistingTokenOAuth1Strategy', () => {
 
   it('includes oauth_token and the token secret in the signing key (three-legged)', async () => {
     const strategy = new TestOAuth1AuthStrategy(baseAuth({ token: 'tok', tokenSecret: 'ts' }));
-    const header = await strategy.getAuthHeader({
-      method: 'POST',
-      url: 'https://example.com/resource',
-    });
+    const header = await strategy.getAuthHeader(
+      makeAuthRequestContext({
+        method: RequestMethod.POST,
+        url: 'https://example.com/resource',
+      })
+    );
     const params = parseOAuthHeader(header);
 
     expect(params.oauth_token).toBe('tok');
@@ -114,10 +120,12 @@ describe('ExistingTokenOAuth1Strategy', () => {
     const strategy = new TestOAuth1AuthStrategy(
       baseAuth({ signatureMethod: OAuth1SignatureMethod.HMAC_SHA256 })
     );
-    const header = await strategy.getAuthHeader({
-      method: 'GET',
-      url: 'https://example.com/',
-    });
+    const header = await strategy.getAuthHeader(
+      makeAuthRequestContext({
+        method: RequestMethod.GET,
+        url: 'https://example.com/',
+      })
+    );
     const params = parseOAuthHeader(header);
 
     expect(params.oauth_signature_method).toBe('HMAC-SHA256');
@@ -139,10 +147,12 @@ describe('ExistingTokenOAuth1Strategy', () => {
     const strategy = new TestOAuth1AuthStrategy(
       baseAuth({ signatureMethod: OAuth1SignatureMethod.PLAINTEXT, tokenSecret: 't&s' })
     );
-    const header = await strategy.getAuthHeader({
-      method: 'GET',
-      url: 'https://example.com/',
-    });
+    const header = await strategy.getAuthHeader(
+      makeAuthRequestContext({
+        method: RequestMethod.GET,
+        url: 'https://example.com/',
+      })
+    );
     const params = parseOAuthHeader(header);
 
     expect(params.oauth_signature).toBe(`cs&${percentEncode('t&s')}`);
@@ -150,28 +160,27 @@ describe('ExistingTokenOAuth1Strategy', () => {
 
   it('includes the realm when configured', async () => {
     const strategy = new TestOAuth1AuthStrategy(baseAuth({ realm: 'https://example.com' }));
-    const header = await strategy.getAuthHeader({
-      method: 'GET',
-      url: 'https://example.com/',
-    });
+    const header = await strategy.getAuthHeader(
+      makeAuthRequestContext({
+        method: RequestMethod.GET,
+        url: 'https://example.com/',
+      })
+    );
 
     expect(parseOAuthHeader(header).realm).toBe('https://example.com');
   });
 
   it('does not percent-encode the realm value (RFC 5849 §3.5.1 quoted-string)', async () => {
     const strategy = new TestOAuth1AuthStrategy(baseAuth({ realm: 'Photos Realm' }));
-    const header = await strategy.getAuthHeader({
-      method: 'GET',
-      url: 'https://example.com/',
-    });
+    const header = await strategy.getAuthHeader(
+      makeAuthRequestContext({
+        method: RequestMethod.GET,
+        url: 'https://example.com/',
+      })
+    );
 
     // The realm is emitted verbatim as a quoted string, not OAuth percent-encoded.
     expect(header).toContain('realm="Photos Realm"');
     expect(header).not.toContain('Photos%20Realm');
-  });
-
-  it('throws when no request context is provided', async () => {
-    const strategy = new TestOAuth1AuthStrategy(baseAuth());
-    await expect(strategy.getAuthHeader()).rejects.toThrow(/method and URL/i);
   });
 });

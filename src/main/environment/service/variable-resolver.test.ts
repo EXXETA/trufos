@@ -11,6 +11,7 @@ import { Collection } from 'shim/objects/collection';
 import { VariableObject } from 'shim/objects/variables';
 import { randomUUID } from 'node:crypto';
 import { getSystemVariables } from './system-variable';
+import { makeAuthRequestContext } from 'main/network/authentication/__mocks__/auth-request-context';
 import { CollectionModel, normalizeCollection } from 'shim/collection-model';
 import {
   AuthorizationType,
@@ -119,7 +120,7 @@ describe('variable-resolver', () => {
 
   it('getAuthorizationHeader() should return undefined when auth is undefined', async () => {
     // Act
-    const result = await getAuthorizationHeader(model);
+    const result = await getAuthorizationHeader(model, undefined, makeAuthRequestContext());
 
     // Assert
     expect(result).toBeUndefined();
@@ -137,7 +138,7 @@ describe('variable-resolver', () => {
     const expected = `Basic ${Buffer.from('user1:pass1').toString('base64')}`;
 
     // Act
-    const result = await getAuthorizationHeader(model, auth);
+    const result = await getAuthorizationHeader(model, auth, makeAuthRequestContext());
 
     // Assert
     expect(result).toBe(expected);
@@ -149,7 +150,11 @@ describe('variable-resolver', () => {
     model = freeze(model, true);
 
     // Act
-    const result = await getAuthorizationHeader(model, model.collection.auth);
+    const result = await getAuthorizationHeader(
+      model,
+      model.collection.auth,
+      makeAuthRequestContext()
+    );
 
     // Assert
     expect(result).toBe(`Bearer ${variableValue}`);
@@ -166,7 +171,7 @@ describe('variable-resolver', () => {
     const expected = 'Bearer prefix-abc123-suffix';
 
     // Act
-    const result = await getAuthorizationHeader(model, auth);
+    const result = await getAuthorizationHeader(model, auth, makeAuthRequestContext());
 
     // Assert
     expect(result).toBe(expected);
