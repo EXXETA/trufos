@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -59,15 +60,30 @@ export type FormData = Readonly<Record<string, unknown>>;
 /** A change of one field of a form. */
 export type FormDelta = Record<string, string | number | boolean>;
 
+/** A button next to a field. It is disabled while the field is empty or the action is pending. */
+export interface FieldAction {
+  label: string;
+  pending?: boolean;
+  onClick: () => void;
+}
+
 export interface FormProps {
   config: FormComponentConfiguration;
   /** The values to show. Every field is expected to have a value of its type. */
   data: FormData;
   onDataChanged: (delta: FormDelta) => void;
+  /** The actions of the text and email fields, by field key. */
+  fieldActions?: Readonly<Record<string, FieldAction>>;
   className?: string;
 }
 
-export const ModularForm = ({ config, className, data, onDataChanged }: FormProps) => {
+export const ModularForm = ({
+  config,
+  className,
+  data,
+  onDataChanged,
+  fieldActions,
+}: FormProps) => {
   const getString = (key: string) => {
     const value = data[key];
     return typeof value === 'string' ? value : '';
@@ -90,16 +106,29 @@ export const ModularForm = ({ config, className, data, onDataChanged }: FormProp
       case 'text':
       case 'email': {
         const { label, placeholder } = fieldConfig;
+        const action = fieldActions?.[key];
         return (
           <div key={key} className="space-y-2">
             <label className="text-text-primary text-sm font-medium">{label}</label>
-            <Input
-              type={fieldConfig.type}
-              value={getString(key)}
-              onChange={(e) => onDataChanged({ [key]: e.target.value })}
-              placeholder={placeholder}
-              className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                type={fieldConfig.type}
+                value={getString(key)}
+                onChange={(e) => onDataChanged({ [key]: e.target.value })}
+                placeholder={placeholder}
+                className="border-border bg-background-primary text-text-primary placeholder:text-text-secondary focus:ring-accent w-full rounded-md border px-3 py-2 focus:ring-2 focus:outline-hidden"
+              />
+              {action != null && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={action.pending === true || getString(key).trim() === ''}
+                  onClick={action.onClick}
+                >
+                  {action.label}
+                </Button>
+              )}
+            </div>
           </div>
         );
       }

@@ -106,6 +106,13 @@ export interface ImportResult {
   warnings: ImportWarning[];
 }
 
+/** The endpoints an OAuth 2.0 authorization server publishes. */
+export interface OAuth2Endpoints {
+  tokenUrl: string;
+  /** Not every server has one, e.g. if it only supports the client credentials flow. */
+  authorizationUrl?: string;
+}
+
 /** A built-in exporter, or the {@link QualifiedId} of an exporter contributed by a plugin. */
 export type ExportStrategy = 'Zip' | QualifiedId;
 
@@ -152,6 +159,14 @@ export interface IEventService {
    * @param abortKey The key passed to sendRequest.
    */
   abortRequest(abortKey: string): void;
+
+  /**
+   * Fetches the endpoints an authorization server publishes through OpenID Connect discovery. The
+   * request uses the TLS setting and the client certificate of the open collection.
+   * @param issuerUrl The issuer URL. It may contain variables.
+   * @throws if the endpoints cannot be discovered
+   */
+  discoverOAuth2Endpoints(issuerUrl: string): Promise<OAuth2Endpoints>;
 
   /**
    * @returns The version of the app

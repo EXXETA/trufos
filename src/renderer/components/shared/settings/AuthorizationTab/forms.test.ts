@@ -60,6 +60,19 @@ describe('buildAuthorizationForm', () => {
     expect(form.description).toEqual({ type: 'label', text: 'inherited' });
   });
 
+  it('tells only the collection settings that discovery uses the saved values', () => {
+    const description = (level: AuthorizationLevel) =>
+      buildAuthorizationForm(AuthorizationType.OAUTH2, OAuth2Method.CLIENT_CREDENTIALS, level)
+        .description;
+
+    expect(description('collection')).toMatchObject({
+      type: 'label',
+      text: expect.stringContaining('saved'),
+    });
+    expect(description('folder')).toBeUndefined();
+    expect(description('request')).toBeUndefined();
+  });
+
   it('describes no authorization depending on the level', () => {
     const request = buildAuthorizationForm('none', undefined, 'request').description;
     const collection = buildAuthorizationForm('none', undefined, 'collection').description;
