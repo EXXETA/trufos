@@ -145,10 +145,24 @@ describe('DispatcherCache', () => {
   });
 
   it('reports a certificate file that exists but cannot be read in a displayable error', async () => {
-    vi.spyOn(fsp, 'readFile').mockRejectedValueOnce(new Error('EACCES: permission denied'));
+    vi.spyOn(fsp, 'readFile').mockRejectedValueOnce(
+      Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES', path: CERT_PATH })
+    );
 
     await expect(
       cache.get({ verifyTlsCertificates: true, clientCertificate: { certPath: CERT_PATH } })
-    ).rejects.toBeInstanceOf(DisplayableError);
+    ).rejects.toMatchObject({
+      name: 'DisplayableError',
+      description: expect.stringContaining(`"${CERT_PATH}"`),
+    });
+  });
+
+  it('does not blame the certificate files for other failures', async () => {
+    const error = Object.assign(new Error('invalid option'), { code: 'UND_ERR_INVALID_ARG' });
+    createAgent.mockImplementationOnce(() => {
+      throw error;
+    });
+
+    await expect(cache.get({ verifyTlsCertificates: true })).rejects.toBe(error);
   });
 });

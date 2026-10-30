@@ -34,9 +34,7 @@ const DEFAULT_MIME_TYPE = 'text/plain';
  * A Postman collection file. Only the title is checked, as the Postman SDK reads the rest of the
  * file and tolerates what it does not know.
  */
-const CollectionFile = z.custom<CollectionDefinition>(
-  (value) => z.looseObject({ info: z.looseObject({ name: z.string() }) }).safeParse(value).success
-);
+const CollectionFile = z.looseObject({ info: z.looseObject({ name: z.string() }) });
 
 /**
  * An importer for Postman collections. It will import the collection and all of its variables,

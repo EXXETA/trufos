@@ -8,6 +8,7 @@ import {
   authorizationCodeGrant,
   buildAuthorizationUrl,
   calculatePKCECodeChallenge,
+  type Configuration,
   randomPKCECodeVerifier,
   randomState,
   type TokenEndpointResponse,
@@ -15,7 +16,6 @@ import {
 import { openAuthorizationWindow } from '../util/browser-auth';
 import type { CacheKey } from 'main/util/cache';
 import { pickValues } from 'main/util/object-util';
-import type { Dispatcher } from 'undici';
 
 function isPKCEConfig(
   auth:
@@ -35,8 +35,7 @@ export default class AuthCodeFlowAuthorizationStrategy<
     ];
   }
 
-  protected async acquire(dispatcher: Dispatcher): Promise<TokenEndpointResponse> {
-    const configuration = this.getConfiguration(dispatcher);
+  protected async acquire(configuration: Configuration): Promise<TokenEndpointResponse> {
     const parameters = this.getParameters();
 
     // prepare the authorization URL and state

@@ -18,28 +18,20 @@ export default abstract class OAuth2AuthStrategy<
   T extends OAuth2AuthorizationInformation,
 > extends AuthStrategy<T> {
   public async getAuthHeader({ getDispatcher }: AuthRequestContext): Promise<string> {
-    const dispatcher = await getDispatcher();
+    const configuration = this.getConfiguration(getDispatcher);
     const tokens = await OAuth2TokenCache.instance.get(this.getCacheKey(), {
-      acquire: () => this.acquire(dispatcher),
-      refresh: (refreshToken) => this.refresh(refreshToken, dispatcher),
+      acquire: () => this.acquire(configuration),
+      refresh: (refreshToken) =>
+        refreshTokenGrant(configuration, refreshToken, this.getParameters()),
     });
     return `Bearer ${tokens.access_token}`;
   }
 
   /**
    * Acquires new tokens from the authorization server.
-   * @param dispatcher sends the requests to the authorization server
+   * @param configuration the configuration to request the tokens with
    */
-  protected abstract acquire(dispatcher: Dispatcher): Promise<TokenEndpointResponse>;
-
-  /**
-   * Exchanges a refresh token for new tokens.
-   * @param refreshToken the refresh token
-   * @param dispatcher sends the requests to the authorization server
-   */
-  protected refresh(refreshToken: string, dispatcher: Dispatcher): Promise<TokenEndpointResponse> {
-    return refreshTokenGrant(this.getConfiguration(dispatcher), refreshToken, this.getParameters());
-  }
+  protected abstract acquire(configuration: Configuration): Promise<TokenEndpointResponse>;
 
   /**
    * The settings the tokens depend on, in a fixed order. Tokens are reused as long as these stay
@@ -66,8 +58,12 @@ export default abstract class OAuth2AuthStrategy<
     return parameters;
   }
 
-  /** @param dispatcher sends the requests to the authorization server */
-  protected getConfiguration(dispatcher: Dispatcher) {
+  /**
+   * @param getDispatcher returns the dispatcher to send the requests to the authorization server
+   * with. It is called for each of them, as a dispatcher can be replaced and closed in the
+   * meantime, e.g. during the browser login of an auth code flow.
+   */
+  private getConfiguration(getDispatcher: AuthRequestContext['getDispatcher']) {
     // set client authentication method
     let clientAuth: ClientAuth | undefined;
     switch (this.authInfo.clientAuthenticationMethod) {
@@ -93,7 +89,7 @@ export default abstract class OAuth2AuthStrategy<
       clientAuth
     );
 
-    config[customFetch] = (url, init) => this.fetch(dispatcher, url, init);
+    config[customFetch] = async (url, init) => this.fetch(await getDispatcher(), url, init);
 
     // done
     return config;

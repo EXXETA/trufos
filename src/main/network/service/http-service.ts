@@ -138,7 +138,6 @@ export class HttpService {
       return await this.doFetchAsync(prepared, recorder, signal);
     } catch (error) {
       if (signal?.aborted) throw error;
-      if (error instanceof DisplayableError) throw error;
       throw mapRequestError(error);
     }
   }

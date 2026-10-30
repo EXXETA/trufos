@@ -131,8 +131,8 @@ describe('ImportService', () => {
     const targetDirPath = path.join(tmpdir(), randomUUID());
     const importer = {
       importCollection: vi.fn(
-        async (_: string, reportWarning?: (warning: ImportWarning) => void) => {
-          reportWarning?.({ message: 'Skipped something' });
+        async (_: string, reportWarning: (warning: ImportWarning) => void) => {
+          reportWarning({ message: 'Skipped something' });
           return {
             id: 'plugin-collection',
             type: 'collection' as const,

@@ -60,19 +60,29 @@ const HTTP_METHODS = new Map(
   Object.values(RequestMethod).map((method) => [method.toLowerCase(), method])
 );
 
+/** What the import takes for granted in a document. The rest of it is read defensively. */
+const RequiredDocumentParts = z.looseObject({
+  info: z.looseObject({ title: z.string() }),
+  paths: z.record(z.string(), z.unknown()).optional(),
+});
+
 /**
- * An OpenAPI document after the parser read it. Only what the import takes for granted is checked,
- * the rest of the document is read defensively.
+ * @param value the document the parser read
+ * @returns true if the document has the parts the import takes for granted. The types of an OpenAPI
+ * document require more than that, which is assumed here to not reject documents without it.
  */
-const OpenApiDocumentFile = z.custom<OpenApiDocument>(
-  (value) =>
-    z
-      .looseObject({
-        info: z.looseObject({ title: z.string() }),
-        paths: z.record(z.string(), z.unknown()).optional(),
-      })
-      .safeParse(value).success
-);
+function isOpenApiDocument(value: unknown): value is OpenApiDocument {
+  return RequiredDocumentParts.safeParse(value).success;
+}
+
+/** @returns the error to show for a file that is not an OpenAPI document */
+function invalidDocumentError(srcFilePath: string, reason: string, cause?: unknown) {
+  return new DisplayableError(
+    `"${srcFilePath}" is not a valid OpenAPI document. ${reason}`,
+    'Import Error',
+    cause
+  );
+}
 
 export class OpenApiImporter implements CollectionImporter {
   constructor(private readonly log: PluginLogger) {}
@@ -82,18 +92,18 @@ export class OpenApiImporter implements CollectionImporter {
     // host.fs, so the "fs:pick" permission in the manifest covers reads the host does not see.
     // It also follows $refs to http(s) URLs, which no "network" permission declares: a known
     // blind spot, because the parser cannot turn off HTTP without turning off file $refs too.
-    const result = OpenApiDocumentFile.safeParse(
-      await dereference(srcFilePath, { dereference: { circular: 'ignore' } })
-    );
-    if (!result.success) {
-      throw new DisplayableError(
-        `"${srcFilePath}" is not a valid OpenAPI document. It needs a title and its paths must be an object.`,
-        'Import Error',
-        result.error
-      );
+    let document: unknown;
+    try {
+      document = await dereference(srcFilePath, { dereference: { circular: 'ignore' } });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw invalidDocumentError(srcFilePath, message, error);
+    }
+    if (!isOpenApiDocument(document)) {
+      throw invalidDocumentError(srcFilePath, 'It needs a title and its paths must be an object.');
     }
 
-    return new OpenApiImport(result.data, this.log).import();
+    return new OpenApiImport(document, this.log).import();
   }
 }
 

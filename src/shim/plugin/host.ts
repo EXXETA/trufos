@@ -27,7 +27,7 @@ export interface CollectionImporter {
    */
   importCollection(
     srcFilePath: string,
-    reportWarning?: (warning: ImportWarning) => void
+    reportWarning: (warning: ImportWarning) => void
   ): Promise<Collection>;
 }
 
@@ -71,7 +71,8 @@ export interface PluginStats {
  * options that is plain data, and binary data typed as `Uint8Array` instead of `Buffer`. Methods
  * that return handles or watchers are not mirrored. New methods are added with the first plugin
  * that needs them. Only content that has to be in memory anyway, such as a collection to import,
- * is read as a whole.
+ * is read as a whole. A method fails like its namesake, with the `code` of Node's errors, e.g.
+ * `ENOENT`, see {@link isErrnoException}.
  */
 export interface PluginFileSystem {
   readdir(path: string): Promise<string[]>;

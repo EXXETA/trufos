@@ -49,8 +49,7 @@ function describePermission(permission: PluginPermission): PermissionInfo {
   }
 }
 
-const PermissionPill = ({ permission }: { permission: PluginPermission }) => {
-  const { label, icon: Icon, external } = describePermission(permission);
+const PermissionPill = ({ label, icon: Icon, external }: PermissionInfo) => {
   return (
     <li>
       <Badge variant={external ? 'warning' : 'neutral'}>
@@ -64,6 +63,15 @@ const PermissionPill = ({ permission }: { permission: PluginPermission }) => {
 const PluginEntry = ({ plugin }: { plugin: PluginInfo }) => {
   const { setEnabled } = usePluginActions();
   const titleId = `plugin-${plugin.id}-title`;
+  // different permissions can read the same, which says nothing more to the user
+  const permissions = [
+    ...new Map(
+      plugin.permissions.map((permission) => {
+        const info = describePermission(permission);
+        return [info.label, info];
+      })
+    ).values(),
+  ];
 
   return (
     <article
@@ -89,13 +97,12 @@ const PluginEntry = ({ plugin }: { plugin: PluginInfo }) => {
           {plugin.description !== '' && (
             <p className="text-text-secondary text-sm">{plugin.description}</p>
           )}
-          {plugin.permissions.length === 0 ? (
+          {permissions.length === 0 ? (
             <span className="text-text-secondary text-xs">Needs no permissions.</span>
           ) : (
             <ul aria-label="Permissions" className="flex flex-wrap gap-1.5">
-              {plugin.permissions.map((permission, index) => (
-                // the permissions of a plugin come from its manifest and never change order
-                <PermissionPill key={index} permission={permission} />
+              {permissions.map((permission) => (
+                <PermissionPill key={permission.label} {...permission} />
               ))}
             </ul>
           )}

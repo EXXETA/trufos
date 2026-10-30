@@ -1,10 +1,13 @@
 import { OAuth2ClientCrentialsAuthorizationInformation } from 'shim/objects';
 import OAuth2AuthStrategy from './strategy';
-import { clientCredentialsGrant, type TokenEndpointResponse } from 'openid-client';
-import type { Dispatcher } from 'undici';
+import {
+  clientCredentialsGrant,
+  type Configuration,
+  type TokenEndpointResponse,
+} from 'openid-client';
 
 export default class ClientCredentialsAuthorizationStrategy extends OAuth2AuthStrategy<OAuth2ClientCrentialsAuthorizationInformation> {
-  protected async acquire(dispatcher: Dispatcher): Promise<TokenEndpointResponse> {
-    return await clientCredentialsGrant(this.getConfiguration(dispatcher), this.getParameters());
+  protected async acquire(configuration: Configuration): Promise<TokenEndpointResponse> {
+    return await clientCredentialsGrant(configuration, this.getParameters());
   }
 }

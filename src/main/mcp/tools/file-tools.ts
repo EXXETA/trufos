@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { BodyStore } from 'main/network/service/body-store';
-import { isErrnoException } from 'main/util/fs-util';
+import { isErrnoException } from 'shim/error/errno';
 import { AbsolutePath, checkResponseBody, jsonResult } from './shared';
 
 /**

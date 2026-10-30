@@ -9,6 +9,7 @@ import {
   AuthorizationType,
   type CollectionImporter,
   DisplayableError,
+  isErrnoException,
   type Folder as TrufosFolder,
   type FormDataBody,
   type ImportWarning,
@@ -49,9 +50,19 @@ function parseSeq(seq?: string): number {
   return Number.isNaN(parsed) ? Infinity : parsed;
 }
 
-/** @returns true if a file system operation failed because the file does not exist */
-function isFileNotFound(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
+/**
+ * @param content the content of a `.bru` environment file
+ * @returns the enabled variables of the environment that have a valid name
+ * @throws if the content is not valid Bruno syntax
+ */
+function parseEnvironment(content: string): Record<string, VariableObject> {
+  const variables: Record<string, VariableObject> = {};
+  for (const v of bruToEnvJsonV2(content).variables) {
+    if (v.enabled && VARIABLE_NAME_REGEX.test(v.name)) {
+      variables[v.name] = { value: v.value };
+    }
+  }
+  return variables;
 }
 
 /** The part of a `bruno.json` file that is imported. */
@@ -75,12 +86,9 @@ export class BrunoImporter implements CollectionImporter {
 
   public async importCollection(
     srcFilePath: string,
-    reportWarning: (warning: ImportWarning) => void = () => undefined
+    reportWarning: (warning: ImportWarning) => void
   ): Promise<TrufosCollection> {
-    // Accept either the collection directory or the bruno.json file
-    const stat = await this.fs.stat(srcFilePath);
-    const collectionDir = stat.isDirectory() ? srcFilePath : path.dirname(srcFilePath);
-    return await new BrunoImport(this.log, this.fs, collectionDir, reportWarning).import();
+    return await new BrunoImport(this.log, this.fs, reportWarning).import(srcFilePath);
   }
 }
 
@@ -89,18 +97,21 @@ export class BrunoImporter implements CollectionImporter {
  * get in each other's way. Instances are single-use.
  */
 class BrunoImport {
+  private collectionDir = '';
+
   constructor(
     private readonly log: PluginLogger,
     private readonly fs: PluginFileSystem,
-    private readonly collectionDir: string,
     private readonly reportWarning: (warning: ImportWarning) => void
   ) {}
 
-  public async import(): Promise<TrufosCollection> {
-    const { collectionDir } = this;
+  public async import(srcFilePath: string): Promise<TrufosCollection> {
+    // Accept either the collection directory or the bruno.json file
+    const stat = await this.fs.stat(srcFilePath);
+    this.collectionDir = stat.isDirectory() ? srcFilePath : path.dirname(srcFilePath);
 
     // Read collection metadata
-    const brunoJsonPath = path.join(collectionDir, 'bruno.json');
+    const brunoJsonPath = path.join(this.collectionDir, 'bruno.json');
     let brunoJson: BrunoJson;
     try {
       brunoJson = BrunoJson.parse(JSON.parse(await this.fs.readFile(brunoJsonPath, 'utf8')));
@@ -122,17 +133,15 @@ class BrunoImport {
       dirPath: '', // must be set after import
       children: [],
       variables: {},
-      environments: await this.importEnvironments(collectionDir),
+      environments: await this.importEnvironments(),
     };
 
-    await this.importDirectory(collection, collectionDir);
+    await this.importDirectory(collection, this.collectionDir);
     return collection;
   }
 
-  private async importEnvironments(
-    collectionDir: string
-  ): Promise<TrufosCollection['environments']> {
-    const environmentsDir = path.join(collectionDir, 'environments');
+  private async importEnvironments(): Promise<TrufosCollection['environments']> {
+    const environmentsDir = path.join(this.collectionDir, 'environments');
     const environments: TrufosCollection['environments'] = {};
 
     let files: string[];
@@ -140,7 +149,7 @@ class BrunoImport {
       files = await this.fs.readdir(environmentsDir);
     } catch (error) {
       // environments/ directory may not exist — that's fine
-      if (!isFileNotFound(error)) {
+      if (!isErrnoException(error) || error.code !== 'ENOENT') {
         this.addWarning({
           message: `Skipped the environments because their directory could not be read: ${this.toErrorMessage(error)}`,
           filePath: this.relativePath(environmentsDir),
@@ -154,13 +163,7 @@ class BrunoImport {
       const filePath = path.join(environmentsDir, file);
       const envName = path.basename(file, '.bru');
       try {
-        const parsed = bruToEnvJsonV2(await this.fs.readFile(filePath, 'utf8'));
-        const variables: Record<string, VariableObject> = {};
-        for (const v of parsed.variables) {
-          if (v.enabled && VARIABLE_NAME_REGEX.test(v.name)) {
-            variables[v.name] = { value: v.value };
-          }
-        }
+        const variables = parseEnvironment(await this.fs.readFile(filePath, 'utf8'));
         if (Object.keys(variables).length > 0) {
           environments[envName] = { variables };
         }

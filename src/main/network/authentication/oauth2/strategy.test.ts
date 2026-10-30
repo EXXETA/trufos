@@ -83,6 +83,28 @@ describe('OAuth2AuthStrategy', () => {
     expect(authorizationCodeGrant).toHaveBeenCalledOnce();
   });
 
+  it('does not need the dispatcher for tokens it has already', async () => {
+    await createOAuth2Strategy({ ...clientCredentials }).getAuthHeader(makeAuthRequestContext());
+    const getDispatcher = vi.fn(async () => new MockAgent());
+
+    await createOAuth2Strategy({ ...clientCredentials }).getAuthHeader(
+      makeAuthRequestContext({ getDispatcher })
+    );
+
+    expect(getDispatcher).not.toHaveBeenCalled();
+  });
+
+  it('does not get the dispatcher before the browser login of the auth code flow', async () => {
+    const getDispatcher = vi.fn(async () => new MockAgent());
+
+    await createOAuth2Strategy({ ...authCode }).getAuthHeader(
+      makeAuthRequestContext({ getDispatcher })
+    );
+
+    expect(openAuthorizationWindow).toHaveBeenCalledOnce();
+    expect(getDispatcher).not.toHaveBeenCalled();
+  });
+
   describe('token requests', () => {
     /** @returns a dispatcher that answers one token request for the given grant type */
     const tokenEndpoint = (grantType: string, accessToken: string, expiresIn?: number) => {

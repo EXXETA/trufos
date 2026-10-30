@@ -79,6 +79,21 @@ describe('AppPluginsTab', () => {
     }
   );
 
+  it('shows permissions that read the same only once', () => {
+    pluginState.plugins = [
+      plugin({
+        permissions: [
+          { scope: PluginPermissionScope.FS, value: PluginFileArea.PICK },
+          { scope: PluginPermissionScope.FS, value: PluginFileArea.COLLECTION },
+        ],
+      }),
+    ];
+
+    render(<AppPluginsTab />);
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+  });
+
   it('says so when a plugin needs no permissions', () => {
     pluginState.plugins = [plugin()];
 
