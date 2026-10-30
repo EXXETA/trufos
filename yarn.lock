@@ -5783,16 +5783,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:1.61.0":
-  version: 1.61.0
-  resolution: "lucide-react@npm:1.61.0"
+"lucide-react@npm:1.62.0":
+  version: 1.62.0
+  resolution: "lucide-react@npm:1.62.0"
   peerDependencies:
     "@types/react": "*"
     react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/85576d32aef43d5dccf5a1fac06b67c2ccbb70eb33b996123f49aab108111fffa6bdd517c7d406db67a14432c45924279c2ec7212a166864d3355ce68b361494
+  checksum: 10c0/58334df044a9f837ba2ddc77e7a3c34545fd7ca28d853882df94ba52de54821ed16f34f7ced373089a2972725beadb8b82ebb9b9d1dcbcd468f87d05949ee46d
   languageName: node
   linkType: hard
 
@@ -7364,7 +7364,7 @@ __metadata:
     globals: "npm:^17.13.0"
     immer: "npm:^11.2.9"
     jsdom: "npm:^30.1.3"
-    lucide-react: "npm:1.61.0"
+    lucide-react: "npm:1.62.0"
     memfs: "npm:^4.80.0"
     mime-types: "npm:^3.0.2"
     monaco-editor: "npm:^0.57.0"
