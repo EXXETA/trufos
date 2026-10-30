@@ -49,6 +49,15 @@ function describePermission(permission: PluginPermission): PermissionInfo {
   }
 }
 
+/**
+ * @returns what the permissions allow a plugin to do. Different permissions can read the same,
+ * which says nothing more to the user, so those are listed once.
+ */
+function describePermissions(permissions: PluginPermission[]): PermissionInfo[] {
+  const infos = permissions.map(describePermission);
+  return [...new Map(infos.map((info) => [info.label, info])).values()];
+}
+
 const PermissionPill = ({ label, icon: Icon, external }: PermissionInfo) => {
   return (
     <li>
@@ -63,15 +72,7 @@ const PermissionPill = ({ label, icon: Icon, external }: PermissionInfo) => {
 const PluginEntry = ({ plugin }: { plugin: PluginInfo }) => {
   const { setEnabled } = usePluginActions();
   const titleId = `plugin-${plugin.id}-title`;
-  // different permissions can read the same, which says nothing more to the user
-  const permissions = [
-    ...new Map(
-      plugin.permissions.map((permission) => {
-        const info = describePermission(permission);
-        return [info.label, info];
-      })
-    ).values(),
-  ];
+  const permissions = describePermissions(plugin.permissions);
 
   return (
     <article

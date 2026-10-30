@@ -88,7 +88,10 @@ export class BrunoImporter implements CollectionImporter {
     srcFilePath: string,
     reportWarning: (warning: ImportWarning) => void
   ): Promise<TrufosCollection> {
-    return await new BrunoImport(this.log, this.fs, reportWarning).import(srcFilePath);
+    // Accept either the collection directory or the bruno.json file
+    const stat = await this.fs.stat(srcFilePath);
+    const collectionDir = stat.isDirectory() ? srcFilePath : path.dirname(srcFilePath);
+    return await new BrunoImport(this.log, this.fs, collectionDir, reportWarning).import();
   }
 }
 
@@ -97,19 +100,14 @@ export class BrunoImporter implements CollectionImporter {
  * get in each other's way. Instances are single-use.
  */
 class BrunoImport {
-  private collectionDir = '';
-
   constructor(
     private readonly log: PluginLogger,
     private readonly fs: PluginFileSystem,
+    private readonly collectionDir: string,
     private readonly reportWarning: (warning: ImportWarning) => void
   ) {}
 
-  public async import(srcFilePath: string): Promise<TrufosCollection> {
-    // Accept either the collection directory or the bruno.json file
-    const stat = await this.fs.stat(srcFilePath);
-    this.collectionDir = stat.isDirectory() ? srcFilePath : path.dirname(srcFilePath);
-
+  public async import(): Promise<TrufosCollection> {
     // Read collection metadata
     const brunoJsonPath = path.join(this.collectionDir, 'bruno.json');
     let brunoJson: BrunoJson;

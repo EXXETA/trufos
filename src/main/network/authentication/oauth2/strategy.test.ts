@@ -9,6 +9,7 @@ import {
 import { createOAuth2Strategy } from './strategy-factory';
 import { OAuth2TokenCache } from './token-cache';
 import { MockAgent } from 'undici';
+import { DisplayableError } from 'shim/error/DisplayableError';
 import { makeAuthRequestContext } from '../__mocks__/auth-request-context';
 
 const { clientCredentialsGrant, authorizationCodeGrant, openAuthorizationWindow } = vi.hoisted(
@@ -144,6 +145,16 @@ describe('OAuth2AuthStrategy', () => {
       );
 
       expect(header).toBe('Bearer acquired');
+    });
+
+    it('keeps a displayable error of the dispatcher', async () => {
+      const error = new DisplayableError('Cannot read the file', 'Client Certificate Not Readable');
+
+      await expect(
+        createOAuth2Strategy({ ...clientCredentials }).getAuthHeader(
+          makeAuthRequestContext({ getDispatcher: () => Promise.reject(error) })
+        )
+      ).rejects.toBe(error);
     });
 
     it('refreshes tokens with the dispatcher of the collection', async () => {

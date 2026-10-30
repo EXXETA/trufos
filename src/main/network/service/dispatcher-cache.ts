@@ -39,9 +39,11 @@ export class DispatcherCache {
       return await this.cache.get(await getKey(options), () => this.build(options));
     } catch (error) {
       // the user configures these files and they can move or expire at any time
-      if (!isErrnoException(error) || error.path == null) throw error;
+      if (!isErrnoException(error) || error.syscall == null) throw error;
+      // a failed read of an open file, e.g. of a directory, does not name its path
+      const file = error.path != null ? `the file "${error.path}"` : 'a client certificate file';
       throw new DisplayableError(
-        `Cannot read the file "${error.path}". Please check the client certificate in the settings of the collection.`,
+        `Cannot read ${file}. Please check the client certificate in the settings of the collection.`,
         'Client Certificate Not Readable',
         error
       );

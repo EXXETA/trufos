@@ -2,6 +2,7 @@ import { OAuth2AuthorizationInformation, OAuth2ClientAuthenticationMethod } from
 import AuthStrategy, { type AuthRequestContext } from '../auth-strategy';
 import {
   ClientAuth,
+  ClientError,
   ClientSecretBasic,
   ClientSecretPost,
   Configuration,
@@ -13,17 +14,25 @@ import Undici, { type Dispatcher, RequestInit } from 'undici';
 import { OAuth2TokenCache } from './token-cache';
 import type { CacheKey } from 'main/util/cache';
 import { pickValues } from 'main/util/object-util';
+import { DisplayableError } from 'shim/error/DisplayableError';
 
 export default abstract class OAuth2AuthStrategy<
   T extends OAuth2AuthorizationInformation,
 > extends AuthStrategy<T> {
   public async getAuthHeader({ getDispatcher }: AuthRequestContext): Promise<string> {
     const configuration = this.getConfiguration(getDispatcher);
-    const tokens = await OAuth2TokenCache.instance.get(this.getCacheKey(), {
-      acquire: () => this.acquire(configuration),
-      refresh: (refreshToken) =>
-        refreshTokenGrant(configuration, refreshToken, this.getParameters()),
-    });
+    const tokens = await OAuth2TokenCache.instance
+      .get(this.getCacheKey(), {
+        acquire: () => this.acquire(configuration),
+        refresh: (refreshToken) =>
+          refreshTokenGrant(configuration, refreshToken, this.getParameters()),
+      })
+      .catch((error: unknown) => {
+        // openid-client wraps whatever its fetch throws
+        throw error instanceof ClientError && error.cause instanceof DisplayableError
+          ? error.cause
+          : error;
+      });
     return `Bearer ${tokens.access_token}`;
   }
 

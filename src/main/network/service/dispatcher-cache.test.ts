@@ -146,7 +146,11 @@ describe('DispatcherCache', () => {
 
   it('reports a certificate file that exists but cannot be read in a displayable error', async () => {
     vi.spyOn(fsp, 'readFile').mockRejectedValueOnce(
-      Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES', path: CERT_PATH })
+      Object.assign(new Error('EACCES: permission denied'), {
+        code: 'EACCES',
+        syscall: 'open',
+        path: CERT_PATH,
+      })
     );
 
     await expect(
@@ -154,6 +158,23 @@ describe('DispatcherCache', () => {
     ).rejects.toMatchObject({
       name: 'DisplayableError',
       description: expect.stringContaining(`"${CERT_PATH}"`),
+    });
+  });
+
+  it('reports a certificate path that is a directory in a displayable error', async () => {
+    // Node does not name the path of a failed read of an open file
+    vi.spyOn(fsp, 'readFile').mockRejectedValueOnce(
+      Object.assign(new Error('EISDIR: illegal operation on a directory, read'), {
+        code: 'EISDIR',
+        syscall: 'read',
+      })
+    );
+
+    await expect(
+      cache.get({ verifyTlsCertificates: true, clientCertificate: { certPath: CERT_PATH } })
+    ).rejects.toMatchObject({
+      name: 'DisplayableError',
+      description: expect.stringContaining('a client certificate file'),
     });
   });
 
