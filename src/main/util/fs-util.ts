@@ -37,7 +37,7 @@ export async function readFileLimited(filePath: string, encoding?: BufferEncodin
   }
 
   try {
-    return await fs.readFile(filePath, encoding);
+    return await fs.readFile(filePath, encoding ?? null);
   } finally {
     // hand the slot over to the next waiting read instead of returning and re-taking it, so that
     // a read started in the meantime cannot slip past the limit
