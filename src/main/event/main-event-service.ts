@@ -7,7 +7,7 @@ import {
 import { HttpService } from 'main/network/service/http-service';
 import type { TrufosResponse, IEventService, ImportResult, ExportStrategy } from 'shim';
 import { AppSettings } from 'shim/app-settings';
-import { MainProcessEvent } from 'shim/event-service';
+import { MainProcessEvent, type OAuth2Endpoints } from 'shim/event-service';
 import type { CollectionSnapshot } from 'shim/collection-model';
 import { CollectionUiState } from 'shim/collection-ui-state';
 import { StateService } from 'main/persistence/service/state-service';
@@ -168,6 +168,10 @@ export class MainEventService implements IEventService {
 
   async abortRequest(abortKey: string): Promise<void> {
     httpService.abortRequest(abortKey);
+  }
+
+  async discoverOAuth2Endpoints(issuerUrl: string): Promise<OAuth2Endpoints> {
+    return await httpService.discoverOAuth2Endpoints(issuerUrl);
   }
 
   async getAppVersion() {

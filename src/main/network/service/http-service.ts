@@ -41,6 +41,8 @@ import {
 } from 'shim/collection-model';
 import { DispatcherCache } from 'main/network/service/dispatcher-cache';
 import { SettingsService } from 'main/persistence/service/settings-service';
+import { discoverOAuth2Endpoints } from 'main/network/authentication/oauth2/discovery';
+import type { OAuth2Endpoints } from 'shim/event-service';
 
 const bodyStore = BodyStore.instance;
 const scriptingService = ScriptingService.instance;
@@ -123,6 +125,19 @@ export class HttpService {
   }
 
   /**
+   * Fetches the endpoints an authorization server publishes, with the TLS setting and the client
+   * certificate of the open collection.
+   * @param issuerUrl the issuer URL. It may contain variables.
+   * @throws DisplayableError if the endpoints cannot be discovered
+   */
+  public async discoverOAuth2Endpoints(issuerUrl: string): Promise<OAuth2Endpoints> {
+    const model = await collectionState.read((model) => model);
+    const url = await this.resolveVariablesInUrl(model, issuerUrl);
+    logger.info('Discovering the OAuth2 endpoints of', url);
+    return await discoverOAuth2Endpoints(url, await this.getDispatcher(model));
+  }
+
+  /**
    * Fetch a resource asynchronously. The response body is written to a temporary file. Any failure
    * is mapped to a user-friendly {@link DisplayableError}.
    * @param prepared the request to send. Its text body is not closed. It is sent with the model the
@@ -160,19 +175,7 @@ export class HttpService {
     );
 
     // resolve variables (except in body, which is resolved stream-based during send)
-    let url: string;
-    try {
-      url = await resolveVariablesInString(model, buildUrl(request.url), true);
-    } catch (error) {
-      if (error instanceof UnmatchedVariableError) {
-        throw new DisplayableError(
-          `The variable "${error.variableName}" used in the URL is not defined.`,
-          'Undefined Variable',
-          error
-        );
-      }
-      throw error;
-    }
+    const url = await this.resolveVariablesInUrl(model, buildUrl(request.url));
 
     // set authorization header if an authorization applies to the request
     let authorization: string | undefined;
@@ -315,6 +318,22 @@ export class HttpService {
   ): Promise<HttpHeaders> {
     const headers = resolveHeaders(model, request, { ...values, userAgent: this.getUserAgent() });
     return this.toUndiciHeaders(await this.resolveVariablesInHeaders(model, headers));
+  }
+
+  /** @throws DisplayableError if the URL references a variable that is not defined */
+  private async resolveVariablesInUrl(model: CollectionModel, url: string): Promise<string> {
+    try {
+      return await resolveVariablesInString(model, url, true);
+    } catch (error) {
+      if (error instanceof UnmatchedVariableError) {
+        throw new DisplayableError(
+          `The variable "${error.variableName}" used in the URL is not defined.`,
+          'Undefined Variable',
+          error
+        );
+      }
+      throw error;
+    }
   }
 
   /** Returns the dispatcher to send the requests of a collection with. */

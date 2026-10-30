@@ -70,6 +70,7 @@ export class RendererEventService implements IEventService {
   dispatch = createEventMethod('dispatch');
   sendRequest = createEventMethod('sendRequest');
   abortRequest = createEventMethod('abortRequest');
+  discoverOAuth2Endpoints = createEventMethod('discoverOAuth2Endpoints');
   getAppVersion = createEventMethod('getAppVersion');
   getActiveEnvironmentVariables = createEventMethod('getActiveEnvironmentVariables');
   getVariable = createEventMethod('getVariable');

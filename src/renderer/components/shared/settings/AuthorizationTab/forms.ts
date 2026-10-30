@@ -287,6 +287,11 @@ function getDescription(
       return level === 'collection'
         ? 'Requests that inherit their authorization are sent without one.'
         : 'No authorization will be applied to this request.';
+    case AuthorizationType.OAUTH2:
+      // the collection settings edit a draft of these, but discovery runs in the main process
+      return level === 'collection'
+        ? 'Discover uses the saved variables and client certificate.'
+        : undefined;
   }
 }
 

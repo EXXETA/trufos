@@ -1,13 +1,20 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthorizationInformationNoInherit, AuthorizationType } from 'shim/objects/auth';
+import {
+  AuthorizationInformation,
+  AuthorizationInformationNoInherit,
+  AuthorizationType,
+  createDefaultAuthorization,
+  OAuth2Method,
+} from 'shim/objects/auth';
 import { FolderInfo } from 'shim/collection-model';
 import { showError } from '@/error/errorHandler';
 import { AuthorizationEditor } from './AuthorizationEditor';
 import { applyAuthorizationChange } from './authorizationChange';
 import type { FormProps } from './ModularForm';
 
-const { state, form } = vi.hoisted(() => ({
+const { state, form, discoverOAuth2Endpoints } = vi.hoisted(() => ({
+  discoverOAuth2Endpoints: vi.fn(),
   state: {
     collection: {
       id: 'col',
@@ -24,6 +31,10 @@ vi.mock('@/state/collectionStore', () => ({
 }));
 
 vi.mock('@/error/errorHandler', () => ({ showError: vi.fn() }));
+
+vi.mock('@/services/event/renderer-event-service', () => ({
+  RendererEventService: { instance: { discoverOAuth2Endpoints } },
+}));
 
 vi.mock('./authorizationChange', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./authorizationChange')>();
@@ -69,6 +80,77 @@ describe('AuthorizationEditor', () => {
 
     expect(onAuthChange).not.toHaveBeenCalled();
     expect(showError).toHaveBeenCalledWith(expect.any(String), error);
+  });
+
+  describe('OAuth2 discovery', () => {
+    const ISSUER = 'https://auth.example.com';
+    const CLIENT_CREDENTIALS = AuthorizationInformation.parse({
+      ...createDefaultAuthorization(AuthorizationType.OAUTH2, OAuth2Method.CLIENT_CREDENTIALS),
+      issuerUrl: ISSUER,
+    });
+    const AUTH_CODE = AuthorizationInformation.parse({
+      ...createDefaultAuthorization(AuthorizationType.OAUTH2, OAuth2Method.AUTHORIZATION_CODE),
+      issuerUrl: ISSUER,
+    });
+    const ENDPOINTS = {
+      tokenUrl: `${ISSUER}/token`,
+      authorizationUrl: `${ISSUER}/authorize`,
+    };
+
+    const clickDiscover = async () => {
+      await act(async () => form.props?.fieldActions?.issuerUrl.onClick());
+    };
+
+    it('fills in both URLs for the auth code flow', async () => {
+      const onAuthChange = vi.fn();
+      discoverOAuth2Endpoints.mockResolvedValue(ENDPOINTS);
+      render(
+        <AuthorizationEditor level="collection" auth={AUTH_CODE} onAuthChange={onAuthChange} />
+      );
+
+      await clickDiscover();
+
+      expect(onAuthChange).toHaveBeenCalledExactlyOnceWith(expect.objectContaining(ENDPOINTS));
+    });
+
+    it('fills in only the token URL for client credentials', async () => {
+      const onAuthChange = vi.fn();
+      discoverOAuth2Endpoints.mockResolvedValue(ENDPOINTS);
+      render(
+        <AuthorizationEditor
+          level="collection"
+          auth={CLIENT_CREDENTIALS}
+          onAuthChange={onAuthChange}
+        />
+      );
+
+      await clickDiscover();
+
+      expect(onAuthChange).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ tokenUrl: ENDPOINTS.tokenUrl })
+      );
+      expect(onAuthChange.mock.calls[0][0]).not.toHaveProperty('authorizationUrl');
+    });
+
+    it('keeps changes made while the server answers', async () => {
+      const onAuthChange = vi.fn();
+      const answer = Promise.withResolvers<typeof ENDPOINTS>();
+      discoverOAuth2Endpoints.mockReturnValue(answer.promise);
+      const { rerender } = render(
+        <AuthorizationEditor level="collection" auth={AUTH_CODE} onAuthChange={onAuthChange} />
+      );
+
+      await clickDiscover();
+      const edited = AuthorizationInformation.parse({ ...AUTH_CODE, scope: 'edited' });
+      rerender(
+        <AuthorizationEditor level="collection" auth={edited} onAuthChange={onAuthChange} />
+      );
+      await act(async () => answer.resolve(ENDPOINTS));
+
+      expect(onAuthChange).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ ...ENDPOINTS, scope: 'edited' })
+      );
+    });
   });
 
   it('names the folder the authorization is inherited from', () => {

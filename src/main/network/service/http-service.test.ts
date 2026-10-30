@@ -1573,6 +1573,69 @@ describe('HttpService.sendRequest()', () => {
   });
 });
 
+describe('HttpService.discoverOAuth2Endpoints()', () => {
+  const issuer = 'https://auth.example.com';
+  const clientCertificate = { certPath: '/cert.pem' };
+  const collectionModel: CollectionModel = {
+    ...withVariables(new Map([['host', 'auth.example.com']])),
+  };
+  collectionModel.collection = { ...collectionModel.collection, clientCertificate };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(CollectionStateService.instance, 'read').mockImplementation(
+      async (reader) => await reader(collectionModel)
+    );
+  });
+
+  it('resolves variables and uses the dispatcher of the collection', async () => {
+    // Arrange
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get(issuer)
+      .intercept({ path: '/.well-known/openid-configuration' })
+      .reply(200, JSON.stringify({ issuer: `${issuer}/`, token_endpoint: `${issuer}/token` }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    const get = vi.fn(async () => agent);
+    const httpService = new HttpService({ get });
+
+    // Act
+    const endpoints = await httpService.discoverOAuth2Endpoints('https://{{ host }}');
+
+    // Assert
+    expect(endpoints).toEqual({ tokenUrl: `${issuer}/token` });
+    expect(get).toHaveBeenCalledWith(expect.objectContaining({ clientCertificate }));
+  });
+
+  it('keeps an error of the dispatcher', async () => {
+    // Arrange
+    const error = new DisplayableError('Cannot read the certificate', 'Client Certificate');
+    const httpService = new HttpService({
+      get: async () => {
+        throw error;
+      },
+    });
+
+    // Act & Assert
+    await expect(httpService.discoverOAuth2Endpoints(issuer)).rejects.toBe(error);
+  });
+
+  it('names a variable that is not defined', async () => {
+    // Arrange
+    const httpService = new HttpService({ get: async () => mockAgent });
+
+    // Act & Assert
+    await expect(
+      httpService.discoverOAuth2Endpoints('https://{{ unknown }}')
+    ).rejects.toMatchObject({
+      title: 'Undefined Variable',
+      description: expect.stringContaining('unknown'),
+    });
+  });
+});
+
 function setupMockHttpService(
   url: URL,
   body: object | string | null,

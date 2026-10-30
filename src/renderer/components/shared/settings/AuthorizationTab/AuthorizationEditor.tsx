@@ -11,6 +11,7 @@ import {
   buildAuthorizationForm,
 } from './forms';
 import { applyAuthorizationChange } from './authorizationChange';
+import { useOAuth2Discovery } from './useOAuth2Discovery';
 
 export interface AuthorizationEditorProps {
   /** What the authorization belongs to. Determines the types to choose from. */
@@ -69,5 +70,16 @@ export const AuthorizationEditor = ({
     onAuthChange(changed);
   };
 
-  return <ModularForm config={form} data={data} onDataChanged={onDataChanged} />;
+  const { isDiscovering, discover } = useOAuth2Discovery(auth, onDataChanged);
+
+  return (
+    <ModularForm
+      config={form}
+      data={data}
+      onDataChanged={onDataChanged}
+      fieldActions={{
+        issuerUrl: { label: 'Discover', pending: isDiscovering, onClick: () => void discover() },
+      }}
+    />
+  );
 };
