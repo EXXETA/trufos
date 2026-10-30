@@ -1,5 +1,6 @@
 import { AuthorizationInformation } from 'shim/objects';
 import { RequestMethod } from 'shim/objects/request-method';
+import type { Dispatcher } from 'undici';
 
 /**
  * Context about the outgoing request that some authentication strategies need to
@@ -17,6 +18,11 @@ export interface AuthRequestContext {
    * strategies that answer a challenge of the server (Digest).
    */
   getChallenges: () => Promise<string[]>;
+  /**
+   * Returns the dispatcher the request is sent with, so requests of a strategy to other servers
+   * (OAuth 2.0) use the TLS settings and the client certificate of the collection as well.
+   */
+  getDispatcher: () => Promise<Dispatcher>;
 }
 
 export default abstract class AuthStrategy<T extends AuthorizationInformation> {

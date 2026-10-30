@@ -4,6 +4,9 @@ import path from 'node:path';
 /** How long the watcher waits after the last change before it reports the changes. */
 export const WATCH_DEBOUNCE_MS = 300;
 
+/** How long the watcher waits before it tries again after watching failed. */
+export const WATCH_RETRY_MS = 30_000;
+
 /** The changes of the watched collection since the last report. */
 export interface FileChanges {
   /** The absolute paths of the changed files the platform named. */
@@ -34,13 +37,17 @@ export type IsIgnored = (relativePath: string) => boolean;
  *
  * Watching is a convenience: if the directory cannot be watched, e.g. because the inotify limit of
  * Linux is reached, the failure is logged and the collection is only checked when the window
- * gets focus.
+ * gets focus. Watching is tried again every {@link WATCH_RETRY_MS}. Once it works again, a change
+ * without a file name is reported, as anything may have changed in the meantime.
  */
 export class CollectionWatcher {
   private watcher?: fs.FSWatcher;
   private readonly changed = new Set<string>();
   private unnamed = false;
   private timer?: NodeJS.Timeout;
+  private retryTimer?: NodeJS.Timeout;
+  /** Whether the directory could not be watched the last time that was tried. */
+  private failing = false;
 
   /**
    * @param onFilesChanged receives the changes
@@ -58,18 +65,7 @@ export class CollectionWatcher {
    */
   public watch(dirPath: string): void {
     this.close();
-    try {
-      // not persistent, so the watcher does not keep the app from quitting
-      this.watcher = fs.watch(dirPath, { recursive: true, persistent: false }, (_, fileName) =>
-        this.record(dirPath, fileName)
-      );
-      this.watcher.on('error', (error) => {
-        logger.warn(`Stopped watching the collection at ${dirPath}:`, error);
-        this.close();
-      });
-    } catch (error) {
-      logger.warn(`Cannot watch the collection at ${dirPath}:`, error);
-    }
+    this.start(dirPath);
   }
 
   /** Stops watching. Changes that were not reported yet are dropped. */
@@ -78,8 +74,41 @@ export class CollectionWatcher {
     this.watcher = undefined;
     clearTimeout(this.timer);
     this.timer = undefined;
+    clearTimeout(this.retryTimer);
+    this.retryTimer = undefined;
+    this.failing = false;
     this.changed.clear();
     this.unnamed = false;
+  }
+
+  private start(dirPath: string) {
+    try {
+      // not persistent, so the watcher does not keep the app from quitting
+      this.watcher = fs.watch(dirPath, { recursive: true, persistent: false }, (_, fileName) =>
+        this.record(dirPath, fileName)
+      );
+      this.watcher.on('error', (error) => this.fail(dirPath, error));
+    } catch (error) {
+      this.fail(dirPath, error);
+      return;
+    }
+
+    // any file may have changed while it was not watched
+    if (this.failing) {
+      this.failing = false;
+      this.record(dirPath, null);
+    }
+  }
+
+  /** Stops watching after a failure and tries again later. Only the first failure is logged. */
+  private fail(dirPath: string, error: unknown) {
+    if (!this.failing) {
+      logger.warn(`Cannot watch the collection at ${dirPath}, trying again:`, error);
+    }
+    this.close();
+    this.failing = true;
+    this.retryTimer = setTimeout(() => this.start(dirPath), WATCH_RETRY_MS);
+    this.retryTimer.unref();
   }
 
   private record(dirPath: string, fileName: string | null) {

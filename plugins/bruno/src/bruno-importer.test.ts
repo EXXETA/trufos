@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import {
   AuthorizationType,
   type Folder,
+  type ImportWarning,
   OAuth2ClientAuthenticationMethod,
   OAuth2Method,
   type PluginFileSystem,
@@ -603,12 +604,15 @@ script:pre-request {
 }`,
     });
 
-    const importer = new BrunoImporter(log, fileSystem);
-    const result = await importer.importCollection(collectionDir);
+    const warnings: ImportWarning[] = [];
+    const result = await new BrunoImporter(log, fileSystem).importCollection(
+      collectionDir,
+      (warning) => warnings.push(warning)
+    );
 
     expect(result.children).toHaveLength(1);
     expect((result.children[0] as TrufosRequest).title).toBe('Request');
-    expect(importer.getWarnings()).toEqual([
+    expect(warnings).toEqual([
       expect.objectContaining({
         filePath: 'script.bru',
         itemName: 'Script',
@@ -653,6 +657,106 @@ vars {
     expect(result.environments['dev'].variables['apiKey'].value).toBe('dev-key-123');
     expect(result.environments['prod'].variables['baseUrl'].value).toBe('https://api.example.com');
     expect(result.environments['prod'].variables['apiKey'].value).toBe('prod-key-456');
+  });
+
+  it('keeps the other environments if one cannot be read and warns about it', async () => {
+    const collectionDir = await createBrunoCollection('Test', {
+      'environments/a-dev.bru': 'vars {\n  host: dev\n}',
+      'environments/b-broken.bru': 'this is { not valid',
+      'environments/c-prod.bru': 'vars {\n  host: prod\n}',
+    });
+
+    const warnings: ImportWarning[] = [];
+    const result = await new BrunoImporter(log, fileSystem).importCollection(
+      collectionDir,
+      (warning) => warnings.push(warning)
+    );
+
+    expect(Object.keys(result.environments)).toEqual(['a-dev', 'c-prod']);
+    expect(warnings).toEqual([
+      expect.objectContaining({
+        filePath: path.join('environments', 'b-broken.bru'),
+        itemName: 'b-broken',
+        itemType: 'environment',
+      }),
+    ]);
+  });
+
+  it('does not warn about a collection without environments', async () => {
+    const collectionDir = await createBrunoCollection('Test', {});
+
+    const warnings: ImportWarning[] = [];
+    await new BrunoImporter(log, fileSystem).importCollection(collectionDir, (warning) =>
+      warnings.push(warning)
+    );
+
+    expect(warnings).toEqual([]);
+  });
+
+  it('warns if the environments directory cannot be read', async () => {
+    const collectionDir = await createBrunoCollection('Test', { environments: 'not a directory' });
+
+    const warnings: ImportWarning[] = [];
+    await new BrunoImporter(log, fileSystem).importCollection(collectionDir, (warning) =>
+      warnings.push(warning)
+    );
+
+    expect(warnings).toEqual([expect.objectContaining({ filePath: 'environments' })]);
+  });
+
+  it('keeps the warnings of concurrent imports apart', async () => {
+    const broken = 'this is { not valid';
+    const [firstDir, secondDir] = await Promise.all([
+      createBrunoCollection('First', { 'first.bru': broken }),
+      createBrunoCollection('Second', { 'second.bru': broken }),
+    ]);
+    const importer = new BrunoImporter(log, fileSystem);
+    const first: ImportWarning[] = [];
+    const second: ImportWarning[] = [];
+
+    await Promise.all([
+      importer.importCollection(firstDir, (warning) => first.push(warning)),
+      importer.importCollection(secondDir, (warning) => second.push(warning)),
+    ]);
+
+    expect(first).toEqual([expect.objectContaining({ filePath: 'first.bru' })]);
+    expect(second).toEqual([expect.objectContaining({ filePath: 'second.bru' })]);
+  });
+
+  it('sorts requests with a non-numeric seq after the numbered ones', async () => {
+    const bru = (name: string, seq: string) => `
+meta {
+  name: ${name}
+  type: http
+  seq: ${seq}
+}
+get {
+  url: https://api.example.com/
+  body: none
+  auth: none
+}`;
+    const collectionDir = await createBrunoCollection('Test', {
+      'a.bru': bru('A', '2'),
+      'b.bru': bru('B', 'abc'),
+      'c.bru': bru('C', '1'),
+    });
+
+    const result = await new BrunoImporter(log, fileSystem).importCollection(collectionDir);
+
+    expect(result.children.map(({ title }) => title)).toEqual(['C', 'A', 'B']);
+  });
+
+  it.each([
+    ['is not an object', '[]'],
+    ['has no name', '{ "uid": "id" }'],
+    ['has a name that is not a string', '{ "name": 1 }'],
+  ])('throws a clear error if bruno.json %s', async (_, content) => {
+    const collectionDir = await createBrunoCollection('Test', {});
+    await fs.writeFile(path.join(collectionDir, 'bruno.json'), content);
+
+    await expect(
+      new BrunoImporter(log, fileSystem).importCollection(collectionDir)
+    ).rejects.toThrow(/valid Bruno collection/i);
   });
 
   it('accepts bruno.json file path as input', async () => {

@@ -8,6 +8,7 @@ import { FALLBACK_TITLE_DIR_NAME } from 'shim/string';
 import { vi, describe, it, expect } from 'vitest';
 import { PluginService } from 'main/plugin/plugin-service';
 import { InternalError } from 'main/error/internal-error';
+import type { ImportWarning } from 'shim/plugin';
 
 vi.mock('main/persistence/service/persistence-service');
 
@@ -129,17 +130,21 @@ describe('ImportService', () => {
     // Arrange
     const targetDirPath = path.join(tmpdir(), randomUUID());
     const importer = {
-      importCollection: vi.fn(async () => ({
-        id: 'plugin-collection',
-        type: 'collection' as const,
-        title: 'From Plugin',
-        dirPath: '',
-        lastModified: 0,
-        variables: {},
-        environments: {},
-        children: [],
-      })),
-      getWarnings: () => [{ message: 'Skipped something' }],
+      importCollection: vi.fn(
+        async (_: string, reportWarning?: (warning: ImportWarning) => void) => {
+          reportWarning?.({ message: 'Skipped something' });
+          return {
+            id: 'plugin-collection',
+            type: 'collection' as const,
+            title: 'From Plugin',
+            dirPath: '',
+            lastModified: 0,
+            variables: {},
+            environments: {},
+            children: [],
+          };
+        }
+      ),
     };
     const getImporter = vi.spyOn(PluginService.instance, 'getImporter');
     getImporter.mockResolvedValueOnce(importer);
@@ -153,7 +158,7 @@ describe('ImportService', () => {
 
     // Assert
     expect(getImporter).toHaveBeenCalledWith('my-plugin.importer');
-    expect(importer.importCollection).toHaveBeenCalledWith('/source.json');
+    expect(importer.importCollection).toHaveBeenCalledWith('/source.json', expect.any(Function));
     expect(result.collection.title).toBe('From Plugin');
     expect(result.collection.dirPath).toBe(targetDirPath);
     expect(result.warnings).toEqual([{ message: 'Skipped something' }]);

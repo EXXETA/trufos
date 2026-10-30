@@ -5,7 +5,8 @@
   "description": "Imports Postman v2.1 collections into Trufos.",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "postman-collection": "5.3.1"
+    "postman-collection": "5.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/postman-collection": "3.5.11"

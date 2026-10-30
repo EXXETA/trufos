@@ -29,7 +29,11 @@ export enum PluginPermissionAccess {
   WRITE = 'write',
 }
 
-/** Which files a permission of the {@link PluginPermissionScope.FS} scope gives access to. */
+/**
+ * Which files a plugin declares to work with in a permission of the {@link
+ * PluginPermissionScope.FS} scope. It states the intent only: the host does not enforce it yet, so
+ * the Plugins page tells the user that any file can be accessed.
+ */
 export enum PluginFileArea {
   /** The files of the open collection. */
   COLLECTION = 'collection',

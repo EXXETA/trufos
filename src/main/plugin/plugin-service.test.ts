@@ -247,9 +247,6 @@ describe('PluginService', () => {
             importCollection: async () => {
               throw new Error('Unexpected token');
             },
-            getWarnings: () => {
-              throw new Error('boom');
-            },
           },
         },
       }))
@@ -261,7 +258,28 @@ describe('PluginService', () => {
       title: 'Fake failing Plugin Error',
       description: 'Unexpected token',
     });
-    expect(importer?.getWarnings?.()).toEqual([]);
+  });
+
+  it('passes the warnings of an importer on', async () => {
+    const warning = { message: 'Skipped something' };
+    const service = await createService(
+      fakePlugin('warning', () => ({
+        importers: {
+          x: {
+            importCollection: async (_, reportWarning) => {
+              reportWarning?.(warning);
+              throw new Error('Unexpected token');
+            },
+          },
+        },
+      }))
+    );
+    const reportWarning = vi.fn();
+
+    const importer = await service.getImporter('warning.x');
+    await importer?.importCollection('/file', reportWarning).catch(() => undefined);
+
+    expect(reportWarning).toHaveBeenCalledExactlyOnceWith(warning);
   });
 
   it('rejects an invalid collection from an importer', async () => {

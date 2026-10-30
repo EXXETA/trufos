@@ -6,6 +6,7 @@ import {
 } from 'shim/objects';
 import { describe, expect, it } from 'vitest';
 import ClientCredentialsAuthorizationStrategy from './client-credentials';
+import { makeAuthRequestContext } from '../__mocks__/auth-request-context';
 
 // skipped in CI because it relies on third party service. Test this locally
 describe.skip('ClientCredentialsAuthorizationStrategy', () => {
@@ -24,7 +25,7 @@ describe.skip('ClientCredentialsAuthorizationStrategy', () => {
     const strategy = new ClientCredentialsAuthorizationStrategy(auth);
 
     // Act
-    const header = await strategy.getAuthHeader();
+    const header = await strategy.getAuthHeader(makeAuthRequestContext());
 
     // Assert
     expect(header).toMatch(/^Bearer .+/);

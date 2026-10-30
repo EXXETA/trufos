@@ -22,9 +22,13 @@ export interface CollectionImporter {
   /**
    * Reads a third-party collection from the given file or directory
    * @param srcFilePath the file or directory to read from
+   * @param reportWarning receives the problems of this import. Imports can run concurrently, so an
+   * importer keeps nothing about an import in its own state.
    */
-  importCollection(srcFilePath: string): Promise<Collection>;
-  getWarnings?(): ImportWarning[];
+  importCollection(
+    srcFilePath: string,
+    reportWarning?: (warning: ImportWarning) => void
+  ): Promise<Collection>;
 }
 
 export interface CollectionExporter {
@@ -60,7 +64,8 @@ export interface PluginStats {
 }
 
 /**
- * Reads and writes files for a plugin. Granted by a permission of the `fs` scope.
+ * Reads and writes files for a plugin. Granted by a permission of the `fs` scope. Access is not
+ * limited to the files of the {@link PluginFileArea} yet, so it reaches every file of the user.
  *
  * Every method mirrors the signature of its namesake in Node's `fs/promises`, with the subset of
  * options that is plain data, and binary data typed as `Uint8Array` instead of `Buffer`. Methods

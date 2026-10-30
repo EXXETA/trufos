@@ -1,39 +1,44 @@
-import {
-  OAuth2AuthorizationInformation,
-  OAuth2ClientAuthenticationMethod,
-  OAuth2Method,
-} from 'shim/objects';
-import AuthStrategy from '../auth-strategy';
+import { OAuth2AuthorizationInformation, OAuth2ClientAuthenticationMethod } from 'shim/objects';
+import AuthStrategy, { type AuthRequestContext } from '../auth-strategy';
 import {
   ClientAuth,
   ClientSecretBasic,
   ClientSecretPost,
   Configuration,
   customFetch,
-  discovery,
   refreshTokenGrant,
   type TokenEndpointResponse,
 } from 'openid-client';
-import Undici, { RequestInit } from 'undici';
-import { OAuth2TokenCache, type TokenSource } from './token-cache';
+import Undici, { type Dispatcher, RequestInit } from 'undici';
+import { OAuth2TokenCache } from './token-cache';
 import type { CacheKey } from 'main/util/cache';
 import { pickValues } from 'main/util/object-util';
 
-export default abstract class OAuth2AuthStrategy<T extends OAuth2AuthorizationInformation>
-  extends AuthStrategy<T>
-  implements TokenSource
-{
-  public async getAuthHeader(): Promise<string> {
-    const tokens = await OAuth2TokenCache.instance.get(this.getCacheKey(), this);
+export default abstract class OAuth2AuthStrategy<
+  T extends OAuth2AuthorizationInformation,
+> extends AuthStrategy<T> {
+  public async getAuthHeader({ getDispatcher }: AuthRequestContext): Promise<string> {
+    const dispatcher = await getDispatcher();
+    const tokens = await OAuth2TokenCache.instance.get(this.getCacheKey(), {
+      acquire: () => this.acquire(dispatcher),
+      refresh: (refreshToken) => this.refresh(refreshToken, dispatcher),
+    });
     return `Bearer ${tokens.access_token}`;
   }
 
-  /** Acquires new tokens from the authorization server. */
-  public abstract acquire(): Promise<TokenEndpointResponse>;
+  /**
+   * Acquires new tokens from the authorization server.
+   * @param dispatcher sends the requests to the authorization server
+   */
+  protected abstract acquire(dispatcher: Dispatcher): Promise<TokenEndpointResponse>;
 
-  /** Exchanges a refresh token for new tokens. */
-  public refresh(refreshToken: string): Promise<TokenEndpointResponse> {
-    return refreshTokenGrant(this.getConfiguration(), refreshToken, this.getParameters());
+  /**
+   * Exchanges a refresh token for new tokens.
+   * @param refreshToken the refresh token
+   * @param dispatcher sends the requests to the authorization server
+   */
+  protected refresh(refreshToken: string, dispatcher: Dispatcher): Promise<TokenEndpointResponse> {
+    return refreshTokenGrant(this.getConfiguration(dispatcher), refreshToken, this.getParameters());
   }
 
   /**
@@ -61,7 +66,8 @@ export default abstract class OAuth2AuthStrategy<T extends OAuth2AuthorizationIn
     return parameters;
   }
 
-  protected getConfiguration() {
+  /** @param dispatcher sends the requests to the authorization server */
+  protected getConfiguration(dispatcher: Dispatcher) {
     // set client authentication method
     let clientAuth: ClientAuth | undefined;
     switch (this.authInfo.clientAuthenticationMethod) {
@@ -87,38 +93,18 @@ export default abstract class OAuth2AuthStrategy<T extends OAuth2AuthorizationIn
       clientAuth
     );
 
-    config[customFetch] = this.fetch;
+    config[customFetch] = (url, init) => this.fetch(dispatcher, url, init);
 
     // done
     return config;
   }
 
-  /**
-   * Discover the OpenID Connect configuration from the server URL and set the token URL and issuer.
-   * @param serverUrl The URL of the OpenID Connect server.
-   */
-  public async discover(serverUrl: URL) {
-    const config = await discovery(serverUrl, this.authInfo.clientId);
-    const metadata = config.serverMetadata();
-    if (metadata.token_endpoint == null) {
-      throw new Error(
-        `No token endpoint found in OpenID Connect discovery document at ${serverUrl}`
-      );
-    }
-
-    if (this.authInfo.method === OAuth2Method.CLIENT_CREDENTIALS) {
-      this.authInfo.tokenUrl = metadata.token_endpoint;
-    } else {
-      this.authInfo.authorizationUrl = metadata.authorization_endpoint ?? '';
-    }
-  }
-
-  private fetch(url: string, init?: RequestInit) {
+  private fetch(dispatcher: Dispatcher, url: string, init?: RequestInit) {
     logger.secret.info('OAuth request', {
       url,
       headers: init?.headers,
       body: init?.body,
     });
-    return Undici.fetch(url, init);
+    return Undici.fetch(url, { ...init, dispatcher });
   }
 }

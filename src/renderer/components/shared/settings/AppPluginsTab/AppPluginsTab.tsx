@@ -2,7 +2,6 @@ import {
   Eye,
   FileText,
   FolderOpen,
-  FolderTree,
   Globe,
   KeyRound,
   type LucideIcon,
@@ -11,7 +10,6 @@ import {
   Terminal,
 } from 'lucide-react';
 import {
-  PluginFileArea,
   type PluginInfo,
   type PluginPermission,
   PluginPermissionAccess,
@@ -40,9 +38,8 @@ function describePermission(permission: PluginPermission): PermissionInfo {
     case PluginPermissionScope.BODIES:
       return { label: 'Read request and response bodies', icon: FileText };
     case PluginPermissionScope.FS:
-      return permission.value === PluginFileArea.COLLECTION
-        ? { label: 'Access the files of the open collection', icon: FolderTree }
-        : { label: 'Access files and folders you pick', icon: FolderOpen };
+      // the host does not limit a plugin to the file area of its permission yet
+      return { label: 'Access any file on your computer', icon: FolderOpen };
     case PluginPermissionScope.SECRETS:
       return { label: 'Store its own secrets', icon: KeyRound };
     case PluginPermissionScope.NETWORK:

@@ -161,20 +161,14 @@ export class PluginService extends EventEmitter<PluginServiceEvents> implements 
     if (resolved === undefined) return undefined;
     const { plugin, implementation: importer } = resolved;
     return {
-      importCollection: (srcFilePath) =>
+      importCollection: (srcFilePath, reportWarning) =>
         this.guard(plugin, async () => {
-          const result = Collection.safeParse(await importer.importCollection(srcFilePath));
+          const result = Collection.safeParse(
+            await importer.importCollection(srcFilePath, reportWarning)
+          );
           if (result.success) return result.data;
           throw new Error(`The imported collection is invalid: ${z.prettifyError(result.error)}`);
         }),
-      getWarnings: () => {
-        try {
-          return importer.getWarnings?.() ?? [];
-        } catch (error) {
-          plugin.log.error('Failed to return the import warnings:', error);
-          return [];
-        }
-      },
     };
   }
 

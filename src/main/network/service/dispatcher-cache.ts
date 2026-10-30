@@ -3,6 +3,7 @@ import fsp from 'node:fs/promises';
 import tls from 'node:tls';
 import type { ClientCertificate } from 'shim/objects/collection';
 import { Cache, type CacheKey } from 'main/util/cache';
+import { DisplayableError } from 'shim/error/DisplayableError';
 
 /** What the connections of a dispatcher depend on. */
 export interface DispatcherOptions {
@@ -30,7 +31,7 @@ export class DispatcherCache {
 
   /**
    * Returns the dispatcher for the given options.
-   * @throws if a certificate file cannot be read
+   * @throws DisplayableError if a certificate file cannot be read
    */
   public async get(options: DispatcherOptions): Promise<Dispatcher> {
     return await this.cache.get(await getKey(options), () => this.build(options));
@@ -45,9 +46,9 @@ export class DispatcherCache {
     }
     const { certPath, keyPath, caPath } = clientCertificate;
     const [cert, key, ca] = await Promise.all([
-      fsp.readFile(certPath),
-      keyPath != null ? fsp.readFile(keyPath) : undefined,
-      caPath != null ? fsp.readFile(caPath) : undefined,
+      readCertificateFile(certPath),
+      keyPath != null ? readCertificateFile(keyPath) : undefined,
+      caPath != null ? readCertificateFile(caPath) : undefined,
     ]);
     return this.createAgent({
       connect: {
@@ -75,7 +76,32 @@ async function getKey({
     clientCertificate?.caPath,
   ];
   const modified = await Promise.all(
-    paths.map(async (path) => (path == null ? undefined : (await fsp.stat(path)).mtimeMs))
+    paths.map(async (path) =>
+      path == null ? undefined : (await accessCertificateFile(path, () => fsp.stat(path))).mtimeMs
+    )
   );
   return [verifyTlsCertificates, ...paths, ...modified];
+}
+
+function readCertificateFile(filePath: string): Promise<Buffer> {
+  return accessCertificateFile(filePath, () => fsp.readFile(filePath));
+}
+
+/**
+ * Accesses a file of the client certificate. The user configures these files and they can move or
+ * expire at any time, so a failure tells the user which file to check.
+ * @param filePath the path of the file
+ * @param access accesses the file
+ * @throws DisplayableError if the file cannot be accessed
+ */
+async function accessCertificateFile<T>(filePath: string, access: () => Promise<T>): Promise<T> {
+  try {
+    return await access();
+  } catch (error) {
+    throw new DisplayableError(
+      `Cannot read the file "${filePath}". Please check the client certificate in the settings of the collection.`,
+      'Client Certificate Not Readable',
+      error
+    );
+  }
 }

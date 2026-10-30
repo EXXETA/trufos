@@ -6,6 +6,7 @@ import {
   IsIgnored,
   OnFilesChanged,
   WATCH_DEBOUNCE_MS,
+  WATCH_RETRY_MS,
 } from './collection-watcher';
 
 const dirPath = path.join('/collections', 'first');
@@ -135,7 +136,75 @@ describe('CollectionWatcher', () => {
     expect(onFilesChanged).not.toHaveBeenCalled();
   });
 
+  it('watches again after the watcher failed and reports that anything may have changed', () => {
+    const watch = vi.spyOn(fs, 'watch');
+    watcher.watch(dirPath);
+    const fsWatcher = watch.mock.results[0].value as fs.FSWatcher;
+
+    fsWatcher.emit('error', new Error('ENOSPC'));
+    vi.advanceTimersByTime(WATCH_RETRY_MS + WATCH_DEBOUNCE_MS);
+
+    expect(watch).toHaveBeenCalledTimes(2);
+    expect(onFilesChanged).toHaveBeenCalledExactlyOnceWith({ filePaths: [], unnamed: true });
+
+    onFilesChanged.mockClear();
+    write('order.json');
+    vi.advanceTimersByTime(WATCH_DEBOUNCE_MS);
+
+    expect(onFilesChanged).toHaveBeenCalledExactlyOnceWith({
+      filePaths: [path.join(dirPath, 'order.json')],
+      unnamed: false,
+    });
+  });
+
   it('keeps working if the directory cannot be watched', () => {
     expect(() => watcher.watch(path.join('/collections', 'missing'))).not.toThrow();
+  });
+
+  it('watches a directory that could not be watched once it exists', () => {
+    const missingDirPath = path.join('/collections', 'missing');
+    watcher.watch(missingDirPath);
+
+    vi.advanceTimersByTime(WATCH_RETRY_MS);
+    expect(onFilesChanged).not.toHaveBeenCalled();
+
+    fs.mkdirSync(missingDirPath);
+    vi.advanceTimersByTime(WATCH_RETRY_MS + WATCH_DEBOUNCE_MS);
+
+    expect(onFilesChanged).toHaveBeenCalledExactlyOnceWith({ filePaths: [], unnamed: true });
+  });
+
+  it('logs a failure once until watching works again', () => {
+    const warn = vi.spyOn(logger, 'warn');
+    watcher.watch(path.join('/collections', 'missing'));
+
+    vi.advanceTimersByTime(WATCH_RETRY_MS * 3);
+
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it('does not watch again after it was closed', () => {
+    const watch = vi.spyOn(fs, 'watch');
+    watcher.watch(dirPath);
+    const fsWatcher = watch.mock.results[0].value as fs.FSWatcher;
+
+    fsWatcher.emit('error', new Error('ENOSPC'));
+    watcher.close();
+    vi.advanceTimersByTime(WATCH_RETRY_MS);
+
+    expect(watch).toHaveBeenCalledOnce();
+  });
+
+  it('does not bring back a failed directory after watching another one', () => {
+    const watch = vi.spyOn(fs, 'watch');
+    watcher.watch(dirPath);
+    const fsWatcher = watch.mock.results[0].value as fs.FSWatcher;
+
+    fsWatcher.emit('error', new Error('ENOSPC'));
+    watcher.watch(otherDirPath);
+    vi.advanceTimersByTime(WATCH_RETRY_MS);
+
+    expect(watch).toHaveBeenCalledTimes(2);
+    expect(watch).toHaveBeenLastCalledWith(otherDirPath, expect.anything(), expect.any(Function));
   });
 });

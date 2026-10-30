@@ -26,6 +26,7 @@ import {
   AuthorizationType,
   type Collection as TrufosCollection,
   type CollectionImporter,
+  DisplayableError,
   type Folder as TrufosFolder,
   parseUrl,
   type PluginLogger,
@@ -38,6 +39,7 @@ import {
 } from 'shim/plugin';
 import { randomUUID } from 'node:crypto';
 import type { OpenAPIV2, OpenAPIV3, OpenAPIV3_1 } from 'openapi-types';
+import { z } from 'zod';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 const JSON_MIME_TYPE = 'application/json';
@@ -58,6 +60,20 @@ const HTTP_METHODS = new Map(
   Object.values(RequestMethod).map((method) => [method.toLowerCase(), method])
 );
 
+/**
+ * An OpenAPI document after the parser read it. Only what the import takes for granted is checked,
+ * the rest of the document is read defensively.
+ */
+const OpenApiDocumentFile = z.custom<OpenApiDocument>(
+  (value) =>
+    z
+      .looseObject({
+        info: z.looseObject({ title: z.string() }),
+        paths: z.record(z.string(), z.unknown()).optional(),
+      })
+      .safeParse(value).success
+);
+
 export class OpenApiImporter implements CollectionImporter {
   constructor(private readonly log: PluginLogger) {}
 
@@ -66,11 +82,18 @@ export class OpenApiImporter implements CollectionImporter {
     // host.fs, so the "fs:pick" permission in the manifest covers reads the host does not see.
     // It also follows $refs to http(s) URLs, which no "network" permission declares: a known
     // blind spot, because the parser cannot turn off HTTP without turning off file $refs too.
-    const document = (await dereference(srcFilePath, {
-      dereference: { circular: 'ignore' },
-    })) as OpenApiDocument;
+    const result = OpenApiDocumentFile.safeParse(
+      await dereference(srcFilePath, { dereference: { circular: 'ignore' } })
+    );
+    if (!result.success) {
+      throw new DisplayableError(
+        `"${srcFilePath}" is not a valid OpenAPI document. It needs a title and its paths must be an object.`,
+        'Import Error',
+        result.error
+      );
+    }
 
-    return new OpenApiImport(document, this.log).import();
+    return new OpenApiImport(result.data, this.log).import();
   }
 }
 

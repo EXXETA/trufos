@@ -11,7 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { RequestMethod } from 'shim/objects/request-method';
 import { IncomingHttpHeaders } from 'undici/types/header';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
-import { AuthorizationType } from 'shim/objects';
+import { AuthorizationType, OAuth2ClientAuthenticationMethod, OAuth2Method } from 'shim/objects';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { BodyStore } from 'main/network/service/body-store';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
@@ -1243,6 +1243,51 @@ describe('HttpService', () => {
     });
     // only the request that is sent with its body is recorded
     expect(recorder.sent).toHaveBeenCalledOnce();
+  });
+
+  it('fetchAsync() should request OAuth 2.0 tokens with the dispatcher of the collection', async () => {
+    // Arrange
+    const url = new URL('https://example.com/api/oauth2');
+    mockAgent
+      .get('https://auth.example.com')
+      .intercept({ path: '/token', method: 'POST' })
+      .reply(
+        200,
+        { access_token: 'from-dispatcher', token_type: 'bearer' },
+        { headers: { 'content-type': 'application/json' } }
+      );
+    mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'GET' }).reply(200, 'OK');
+    const httpService = new HttpService({ get: async () => mockAgent });
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'OAuth 2.0 Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.NONE },
+      auth: {
+        type: AuthorizationType.OAUTH2,
+        method: OAuth2Method.CLIENT_CREDENTIALS,
+        issuerUrl: 'https://auth.example.com',
+        tokenUrl: 'https://auth.example.com/token',
+        clientId: randomUUID(),
+        clientSecret: 'secret',
+        scope: '',
+        clientAuthenticationMethod: OAuth2ClientAuthenticationMethod.BASIC_AUTH,
+      },
+    };
+
+    // Act
+    const response = await httpService.fetchAsync(await prepare(request), recorder);
+
+    // Assert
+    expect(response.metaInfo.status).toBe(200);
+    expect(mockAgent.getCallHistory()?.lastCall()?.headers).toMatchObject({
+      authorization: ['Bearer from-dispatcher'],
+    });
   });
 
   it('fetchAsync() should fail with Digest authorization if the server does not challenge', async () => {

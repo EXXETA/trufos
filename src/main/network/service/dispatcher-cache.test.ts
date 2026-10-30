@@ -3,6 +3,7 @@ import fsp from 'node:fs/promises';
 import tls from 'node:tls';
 import { type Agent, type Dispatcher, MockAgent } from 'undici';
 import { DispatcherCache } from './dispatcher-cache';
+import { DisplayableError } from 'shim/error/DisplayableError';
 
 const CERT_PATH = '/certs/client.crt';
 const KEY_PATH = '/certs/client.key';
@@ -127,5 +128,27 @@ describe('DispatcherCache', () => {
     await fsp.writeFile('/missing', 'cert');
 
     await expect(cache.get(options)).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['certificate', { certPath: '/missing' }],
+    ['private key', { certPath: CERT_PATH, keyPath: '/missing' }],
+    ['CA certificate', { certPath: CERT_PATH, caPath: '/missing' }],
+  ])('names the %s file that does not exist in a displayable error', async (_, certificate) => {
+    const error: unknown = await cache
+      .get({ verifyTlsCertificates: true, clientCertificate: certificate })
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(DisplayableError);
+    expect(error).toMatchObject({ description: expect.stringContaining('"/missing"') });
+    expect(error).toMatchObject({ description: expect.not.stringContaining('ENOENT') });
+  });
+
+  it('reports a certificate file that exists but cannot be read in a displayable error', async () => {
+    vi.spyOn(fsp, 'readFile').mockRejectedValueOnce(new Error('EACCES: permission denied'));
+
+    await expect(
+      cache.get({ verifyTlsCertificates: true, clientCertificate: { certPath: CERT_PATH } })
+    ).rejects.toBeInstanceOf(DisplayableError);
   });
 });

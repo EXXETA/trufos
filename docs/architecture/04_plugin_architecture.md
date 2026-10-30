@@ -170,13 +170,15 @@ already covers the directory.
   | `collection:read`        | `host.collection` | reads the open collection                 |
   | `collection:write`       | `host.collection` | changes the open collection               |
   | `bodies:read`            | `host.bodies`     | reads request and response bodies         |
-  | `fs:collection`          | `host.fs`         | accesses the files of the open collection |
-  | `fs:pick`                | `host.fs`         | accesses files and folders the user picks |
+  | `fs:collection`          | `host.fs`         | accesses any file on the computer         |
+  | `fs:pick`                | `host.fs`         | accesses any file on the computer         |
   | `network:<host pattern>` | `host.fetch`      | connects to the named hosts               |
   | `exec:<binary>`          | `host.exec`       | runs the named program (git)              |
   | `secrets`                | `host.secrets`    | stores its own secrets                    |
 
   Only `host.fs` exists so far; the others are added with the first contribution that needs them.
+  `host.fs` is not limited to the area its permission names yet, so `fs:collection` and `fs:pick`
+  only state what a plugin intends to access, and the Plugins page shows both as access to any file.
   `host.fs` mirrors Node's `fs/promises` method by method (`readFile`, `writeFile`, later `readdir`,
   `stat`, …), each with the signature of its namesake, so a plugin author and a library that wants
   a Node-shaped `fs` need nothing new. Two deliberate deviations keep the API message-shaped:

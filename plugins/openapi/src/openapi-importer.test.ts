@@ -83,6 +83,19 @@ const OPEN_API_DOCUMENT = {
 };
 
 describe('OpenApiImporter', () => {
+  it.each([
+    ['has no info', { openapi: '3.0.0', paths: {} }],
+    ['has no title', { openapi: '3.0.0', info: { version: '1.0.0' }, paths: {} }],
+    ['has paths that are no object', { openapi: '3.0.0', info: { title: 'API' }, paths: [] }],
+  ])('throws a clear error if the document %s', async (_, document) => {
+    const srcFilePath = path.join(tmp, 'invalid-openapi.json');
+    await fs.writeFile(srcFilePath, JSON.stringify(document));
+
+    await expect(new OpenApiImporter(log).importCollection(srcFilePath)).rejects.toThrow(
+      /valid OpenAPI document/i
+    );
+  });
+
   it('imports an OpenAPI collection from JSON', async () => {
     const srcFilePath = path.join(tmp, 'openapi-import.json');
     await fs.writeFile(srcFilePath, JSON.stringify(OPEN_API_DOCUMENT));

@@ -185,6 +185,7 @@ export class HttpService {
           method: request.method,
           url,
           getChallenges: () => this.fetchChallenges(model, request, url, signal),
+          getDispatcher: () => this.getDispatcher(model),
         });
       } catch (e) {
         logger.error('Failed to generate authentication header:', e);

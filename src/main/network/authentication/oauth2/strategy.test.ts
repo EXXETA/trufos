@@ -8,6 +8,8 @@ import {
 } from 'shim/objects';
 import { createOAuth2Strategy } from './strategy-factory';
 import { OAuth2TokenCache } from './token-cache';
+import { MockAgent } from 'undici';
+import { makeAuthRequestContext } from '../__mocks__/auth-request-context';
 
 const { clientCredentialsGrant, authorizationCodeGrant, openAuthorizationWindow } = vi.hoisted(
   () => ({
@@ -53,25 +55,89 @@ describe('OAuth2AuthStrategy', () => {
   });
 
   it('reuses the tokens of the same configuration for later requests', async () => {
-    const first = await createOAuth2Strategy({ ...clientCredentials }).getAuthHeader();
-    const second = await createOAuth2Strategy({ ...clientCredentials }).getAuthHeader();
+    const first = await createOAuth2Strategy({ ...clientCredentials }).getAuthHeader(
+      makeAuthRequestContext()
+    );
+    const second = await createOAuth2Strategy({ ...clientCredentials }).getAuthHeader(
+      makeAuthRequestContext()
+    );
 
     expect([first, second]).toEqual(['Bearer token', 'Bearer token']);
     expect(clientCredentialsGrant).toHaveBeenCalledOnce();
   });
 
   it('acquires new tokens once the configuration changed', async () => {
-    await createOAuth2Strategy({ ...clientCredentials }).getAuthHeader();
-    await createOAuth2Strategy({ ...clientCredentials, scope: 'write' }).getAuthHeader();
+    await createOAuth2Strategy({ ...clientCredentials }).getAuthHeader(makeAuthRequestContext());
+    await createOAuth2Strategy({ ...clientCredentials, scope: 'write' }).getAuthHeader(
+      makeAuthRequestContext()
+    );
 
     expect(clientCredentialsGrant).toHaveBeenCalledTimes(2);
   });
 
   it('opens the browser only once for the auth code flow', async () => {
-    await createOAuth2Strategy({ ...authCode }).getAuthHeader();
-    await createOAuth2Strategy({ ...authCode }).getAuthHeader();
+    await createOAuth2Strategy({ ...authCode }).getAuthHeader(makeAuthRequestContext());
+    await createOAuth2Strategy({ ...authCode }).getAuthHeader(makeAuthRequestContext());
 
     expect(openAuthorizationWindow).toHaveBeenCalledOnce();
     expect(authorizationCodeGrant).toHaveBeenCalledOnce();
+  });
+
+  describe('token requests', () => {
+    /** @returns a dispatcher that answers one token request for the given grant type */
+    const tokenEndpoint = (grantType: string, accessToken: string, expiresIn?: number) => {
+      const dispatcher = new MockAgent();
+      dispatcher.disableNetConnect();
+      dispatcher
+        .get('https://auth.example.com')
+        .intercept({
+          path: '/token',
+          method: 'POST',
+          body: (body) => new URLSearchParams(body).get('grant_type') === grantType,
+        })
+        .reply(
+          200,
+          {
+            access_token: accessToken,
+            token_type: 'bearer',
+            refresh_token: 'refresh',
+            expires_in: expiresIn,
+          },
+          { headers: { 'content-type': 'application/json' } }
+        );
+      return dispatcher;
+    };
+
+    beforeEach(async () => {
+      const { clientCredentialsGrant: realGrant } =
+        await vi.importActual<typeof import('openid-client')>('openid-client');
+      clientCredentialsGrant.mockImplementation(realGrant);
+    });
+
+    it('acquires tokens with the dispatcher of the collection', async () => {
+      const dispatcher = tokenEndpoint('client_credentials', 'acquired');
+
+      const header = await createOAuth2Strategy({ ...clientCredentials }).getAuthHeader(
+        makeAuthRequestContext({ getDispatcher: async () => dispatcher })
+      );
+
+      expect(header).toBe('Bearer acquired');
+    });
+
+    it('refreshes tokens with the dispatcher of the collection', async () => {
+      // the tokens expire within the margin of the cache, so the next request refreshes them
+      const acquiring = tokenEndpoint('client_credentials', 'acquired', 1);
+      const refreshing = tokenEndpoint('refresh_token', 'refreshed');
+      const strategy = createOAuth2Strategy({ ...clientCredentials });
+
+      await strategy.getAuthHeader(
+        makeAuthRequestContext({ getDispatcher: async () => acquiring })
+      );
+      const header = await strategy.getAuthHeader(
+        makeAuthRequestContext({ getDispatcher: async () => refreshing })
+      );
+
+      expect(header).toBe('Bearer refreshed');
+    });
   });
 });

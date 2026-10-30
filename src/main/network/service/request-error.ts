@@ -65,6 +65,8 @@ function getErrorMessage(error: unknown): string {
  * @param error The error thrown by undici or the surrounding send logic.
  */
 export function mapRequestError(error: unknown): DisplayableError {
+  if (error instanceof DisplayableError) return error;
+
   const code = getErrorCode(error);
   const message = getErrorMessage(error);
 

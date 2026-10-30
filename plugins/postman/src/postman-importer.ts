@@ -8,6 +8,7 @@ import {
 import {
   AuthorizationType,
   type CollectionImporter,
+  DisplayableError,
   type Folder as TrufosFolder,
   type OAuth2AuthorizationInformation,
   OAuth2ClientAuthenticationMethod,
@@ -25,8 +26,17 @@ import {
   VARIABLE_NAME_REGEX,
   type VariableObject,
 } from 'shim/plugin';
+import { z } from 'zod';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
+
+/**
+ * A Postman collection file. Only the title is checked, as the Postman SDK reads the rest of the
+ * file and tolerates what it does not know.
+ */
+const CollectionFile = z.custom<CollectionDefinition>(
+  (value) => z.looseObject({ info: z.looseObject({ name: z.string() }) }).safeParse(value).success
+);
 
 /**
  * An importer for Postman collections. It will import the collection and all of its variables,
@@ -40,7 +50,17 @@ export class PostmanImporter implements CollectionImporter {
 
   public async importCollection(srcFilePath: string) {
     // read Postman collection
-    const json = JSON.parse(await this.fs.readFile(srcFilePath, 'utf8')) as CollectionDefinition;
+    let json: CollectionDefinition;
+    try {
+      json = CollectionFile.parse(JSON.parse(await this.fs.readFile(srcFilePath, 'utf8')));
+    } catch (error) {
+      throw new DisplayableError(
+        `Could not read a Postman collection from "${srcFilePath}". ` +
+          'Make sure the selected file is a valid Postman collection.',
+        'Import Error',
+        error
+      );
+    }
     const postmanCollection = new PostmanCollection(json);
     const variablesArray = postmanCollection.variables
       .all()
