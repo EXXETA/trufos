@@ -10,6 +10,7 @@ import { RequestMethod } from 'shim/objects/request-method';
 import { CollectionModel, CommandType, normalizeCollection } from 'shim/collection-model';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { CollectionUiState } from 'shim/collection-ui-state';
+import { DisplayableError } from 'shim/error/DisplayableError';
 import { MainProcessEvent } from 'shim/event-service';
 import { PluginService } from 'main/plugin/plugin-service';
 
@@ -103,6 +104,38 @@ describe('MainEventService', () => {
 
   it('should register event functions on the backend', async () => {
     expect((await import('electron')).ipcMain.handle).toHaveBeenCalled();
+  });
+
+  describe('IPC results', () => {
+    const invokeHandler = async (channel: string, ...args: unknown[]) => {
+      const { ipcMain } = await import('electron');
+      new MainEventService();
+      const handler = vi.mocked(ipcMain.handle).mock.calls.findLast(([c]) => c === channel)![1];
+      return await handler({} as never, ...args);
+    };
+
+    it('returns the value of a handler', async () => {
+      vi.spyOn(CollectionStateService.instance, 'dispatch').mockResolvedValueOnce(7);
+
+      await expect(invokeHandler('dispatch', {})).resolves.toEqual({ ok: true, value: 7 });
+    });
+
+    it('returns a DisplayableError in its serialized form', async () => {
+      const error = new DisplayableError('description', 'title');
+      vi.spyOn(CollectionStateService.instance, 'dispatch').mockRejectedValueOnce(error);
+
+      await expect(invokeHandler('dispatch', {})).resolves.toEqual({
+        ok: false,
+        error: error.serialize(),
+      });
+    });
+
+    it('returns any other error as an Error', async () => {
+      const error = new Error('failed');
+      vi.spyOn(CollectionStateService.instance, 'dispatch').mockRejectedValueOnce(error);
+
+      await expect(invokeHandler('dispatch', {})).resolves.toEqual({ ok: false, error });
+    });
   });
 
   describe('collection state', () => {

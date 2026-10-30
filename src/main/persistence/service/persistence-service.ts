@@ -562,23 +562,9 @@ export class PersistenceService {
     return snapshot;
   }
 
-  private async walkChildren(parentId: string, parentDirPath: string): Promise<SnapshotChild[]> {
-    const nodes = (await fs.readdir(parentDirPath, { withFileTypes: true })).filter(
-      (node) => node.isDirectory() && node.name !== DRAFT_DIR_NAME
-    );
-
-    // Promise.all() resolves by index, so the children keep their directory order regardless of
-    // which of them finishes walking first
-    const [children, order] = await Promise.all([
-      Promise.all(
-        nodes.map((node) => this.walkChild(parentId, path.join(parentDirPath, node.name)))
-      ),
-      this.loadOrderFile(parentDirPath),
-    ]);
-
-    return this.sortChildrenArray(
-      children.filter((child) => child != null),
-      order
+  private walkChildren(parentId: string, parentDirPath: string): Promise<SnapshotChild[]> {
+    return this.readChildren(parentDirPath, (childDirPath) =>
+      this.walkChild(parentId, childDirPath)
     );
   }
 
@@ -659,18 +645,32 @@ export class PersistenceService {
     return stats.mtimeMs;
   }
 
-  private async loadChildren(
+  private loadChildren(
     parentId: string,
     parentDirPath: string
   ): Promise<(Folder | TrufosRequest)[]> {
+    return this.readChildren(parentDirPath, (childDirPath) =>
+      this.load<Folder | TrufosRequest>(parentId, childDirPath)
+    );
+  }
+
+  /**
+   * Reads the children in a directory in the order of its order file.
+   * @param parentDirPath the directory of the parent
+   * @param readChild reads a child directory. Returns undefined for one that is no folder or request.
+   */
+  private async readChildren<T extends { id: string }>(
+    parentDirPath: string,
+    readChild: (childDirPath: string) => Promise<T | undefined>
+  ): Promise<T[]> {
     const nodes = (await fs.readdir(parentDirPath, { withFileTypes: true })).filter(
       (node) => node.isDirectory() && node.name !== DRAFT_DIR_NAME
     );
 
     // Promise.all() resolves by index, so the children keep their directory order regardless of
-    // which of them finishes loading first
+    // which of them finishes reading first
     const [children, order] = await Promise.all([
-      Promise.all(nodes.map((node) => this.load(parentId, path.join(parentDirPath, node.name)))),
+      Promise.all(nodes.map((node) => readChild(path.join(parentDirPath, node.name)))),
       this.loadOrderFile(parentDirPath),
     ]);
 

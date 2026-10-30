@@ -6,6 +6,8 @@ import { HistoryEntry, HistoryEntrySummary } from './history';
 import type { PluginsSnapshot, QualifiedId } from './plugin/contributions';
 import type { ExportOptions, ImportWarning } from './plugin/host';
 import type { McpServerStatus } from './mcp';
+import type { SerializedDisplayableError } from './error/DisplayableError';
+import type { LogEntry } from './logger';
 
 /**
  * Fire-and-forget IPC events pushed from the main process to the renderer.
@@ -57,6 +59,8 @@ export enum MainProcessEvent {
  * Fire-and-forget IPC events sent from the renderer to the main process.
  */
 export enum RendererEvent {
+  /** A message logged in the renderer, which main writes to the log files. */
+  Log = 'log',
   /** The renderer finished initializing and the window can be shown. */
   RendererReady = 'renderer-ready',
   /** All unsaved state is flushed; the window may close now. */
@@ -96,9 +100,18 @@ export type MainProcessEventListener<E extends MainProcessEvent> = (
 
 /** The payload of every {@link RendererEvent}, see {@link MainProcessEventPayloads}. */
 export interface RendererEventPayloads {
+  [RendererEvent.Log]: [entry: LogEntry];
   [RendererEvent.RendererReady]: [];
   [RendererEvent.ReadyToClose]: [];
 }
+
+/**
+ * What a call of an {@link IEventService} method returns over IPC. Electron reduces a rejected
+ * `ipcMain.handle()` to a prefixed message, so errors are part of the result instead. Only plain
+ * data and errors survive structured cloning, so a `DisplayableError` is sent in its serialized form.
+ */
+export type IpcResult<T> =
+  { ok: true; value: T } | { ok: false; error: SerializedDisplayableError | Error };
 
 export interface ImportResult {
   /** The directory the collection was imported into. Open it to make it the current one. */
@@ -158,7 +171,7 @@ export interface IEventService {
    * Abort an in-flight HTTP request started with the given abort key.
    * @param abortKey The key passed to sendRequest.
    */
-  abortRequest(abortKey: string): void;
+  abortRequest(abortKey: string): Promise<void>;
 
   /**
    * Fetches the endpoints an authorization server publishes through OpenID Connect discovery. The
@@ -271,12 +284,6 @@ export interface IEventService {
     strategy: ExportStrategy,
     options?: ExportOptions
   ): Promise<void>;
-
-  /**
-   * Trigger the application update process in the background.
-   * Will show a dialog to the user if an update is available.
-   */
-  updateApp(): void;
 
   /**
    * Save a request or response body to disk. Opens a native save dialog with a suggested filename

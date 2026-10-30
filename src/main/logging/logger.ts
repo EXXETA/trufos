@@ -1,5 +1,6 @@
 import { createLogger, format, transports, type Logform, type Logger } from 'winston';
 import { app, ipcMain } from 'electron';
+import { RendererEvent } from 'shim/event-service';
 import { LogEntry } from 'shim/logger';
 import { format as formatString } from 'node:util';
 import { omit } from 'main/util/object-util';
@@ -118,7 +119,7 @@ if (!app.isPackaged) {
   logger.add(new transports.Console({ level: 'debug' }));
 }
 
-ipcMain.on('log', (event, data: TransformableInfoExtended) => {
+ipcMain.on(RendererEvent.Log, (event, data: TransformableInfoExtended) => {
   data[SPLAT] = data.splat;
   omit(data, 'splat');
   logger.write(data);

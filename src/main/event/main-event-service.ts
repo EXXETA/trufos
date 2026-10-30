@@ -7,7 +7,7 @@ import {
 import { HttpService } from 'main/network/service/http-service';
 import type { TrufosResponse, IEventService, ImportResult, ExportStrategy } from 'shim';
 import { AppSettings } from 'shim/app-settings';
-import { MainProcessEvent, type OAuth2Endpoints } from 'shim/event-service';
+import { MainProcessEvent, type IpcResult, type OAuth2Endpoints } from 'shim/event-service';
 import type { CollectionSnapshot } from 'shim/collection-model';
 import { CollectionUiState } from 'shim/collection-ui-state';
 import { StateService } from 'main/persistence/service/state-service';
@@ -19,7 +19,6 @@ import { ImportService } from 'main/import/service/import-service';
 import { ExportService } from 'main/export/service/export-service';
 import { BodyStore } from 'main/network/service/body-store';
 import { getSuggestedFilename } from 'main/network/response-filename';
-import { updateElectronApp } from 'update-electron-app';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { HistoryService } from 'main/history/history-service';
 import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
@@ -37,27 +36,23 @@ const httpService = HttpService.instance;
 const importService = ImportService.instance;
 const exportService = ExportService.instance;
 
-declare type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
-
 /**
- * Wraps an async function with an error handler that catches any errors thrown by the function.
- * A {@link DisplayableError} is returned as a serialized payload (see {@link DisplayableError.serialize})
- * so its title and description survive IPC; any other error is returned as an Error object.
+ * Runs an IPC handler and turns its outcome into an {@link IpcResult}. A {@link DisplayableError}
+ * is returned serialized (see {@link DisplayableError.serialize}) so its title and description
+ * survive IPC; any other error is returned as an Error object.
  *
- * @param fn The function to wrap.
+ * @param handler The function to run.
  */
-function wrapWithErrorHandler<F extends AsyncFunction<R>, R>(fn: F) {
-  return async function (...args: Parameters<F>) {
-    try {
-      return (await fn(...args)) as R;
-    } catch (error) {
-      logger.error(error);
-      if (error instanceof DisplayableError) {
-        return error.serialize();
-      }
-      return toError(error);
-    }
-  };
+async function toIpcResult<R>(handler: () => Promise<R>): Promise<IpcResult<R>> {
+  try {
+    return { ok: true, value: await handler() };
+  } catch (error) {
+    logger.error(error);
+    return {
+      ok: false,
+      error: error instanceof DisplayableError ? error.serialize() : toError(error),
+    };
+  }
 }
 
 /**
@@ -71,9 +66,8 @@ function registerEvent<T>(instance: T, functionName: keyof T) {
   const method = instance[functionName];
   if (typeof method === 'function') {
     logger.debug(`Registering event function "${functionName}()" on backend`);
-    const boundMethod = (method as unknown as AsyncFunction<unknown>).bind(instance);
-    ipcMain.handle(functionName as string, (_event, ...args) =>
-      wrapWithErrorHandler(boundMethod)(...args)
+    ipcMain.handle(functionName, (_event, ...args) =>
+      toIpcResult<unknown>(async () => method.apply(instance, args))
     );
   }
 }
@@ -86,7 +80,8 @@ function toError(error: unknown) {
 }
 
 /**
- * Service for handling events on the main process coming from the renderer process.
+ * Service for handling events on the main process coming from the renderer process. Every method on
+ * its prototype can be called by the renderer, so helpers do not belong on this class as methods.
  */
 export class MainEventService implements IEventService {
   public static readonly instance = new MainEventService();
@@ -313,18 +308,5 @@ export class MainEventService implements IEventService {
     if (error !== '') {
       throw new Error(`Could not open log directory: ${error}`);
     }
-  }
-
-  updateApp() {
-    const prefixMessage = (message: string) => `[UPDATER]: ${message}`;
-    updateElectronApp({
-      logger: {
-        log: (message: string) => logger.info(prefixMessage(message)),
-        info: (message: string) => logger.info(prefixMessage(message)),
-        error: (message: string) => logger.error(prefixMessage(message)),
-        warn: (message: string) => logger.warn(prefixMessage(message)),
-      },
-      updateInterval: '1 hour',
-    });
   }
 }

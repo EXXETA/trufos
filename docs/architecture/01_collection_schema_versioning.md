@@ -4,42 +4,42 @@ To ensure backwards compatibility while allowing for schema changes, we use a ve
 persisted collection, folder, and request schemas. This allows us to make changes to the schema
 without breaking existing data.
 
-At the time of writing, the current version is `1.0.1` which is applied hard-coded during
-persistence. This ADR describes the steps needed to update the schema version while maintaining
-backwards compatibility.
+The current version is the one [`latest.ts`](/src/main/persistence/service/info-files/latest.ts)
+re-exports. This ADR describes the steps needed to update the schema version while maintaining
+backwards compatibility. [`AGENTS.md`](/AGENTS.md) lists when a new version is needed.
 
 ## Creation of Migration Scripts
 
-For every schema change, a migration script must be created. This script is used to update an
-info file of the previous schema version to the new schema version. The script is executed
-during the loading of a collection, folder, or request. This will allow any version gaps to be
-filled in since migration scripts are be executed in order.
+For every schema change, a migrator must be created. It updates an info file of the previous schema
+version to the new schema version. Migrators run in order when a collection, folder, or request is
+loaded (`migrateInfoFile()` in
+[`migrators.ts`](/src/main/persistence/service/info-files/migrators.ts)), so any version gap is
+filled in. An info file with a version newer than the latest one is rejected.
 
-Each created migration script must define a `from` version. It also needs a method to map
-any `InfoFile` (collection, folder, or request) from the `from` version to a higher version. At the
-time of implementation, the target schema will always be the latest.
-
-In order to provide a consistent way to update the schema version, an abstract base class
-`InfoFileMapper` has been created. It ensures that the `from` version is correctly set at compile
-time using generics. An example of a migration script is shown below (see [
-`v1-0-1.ts`](/src/main/persistence/service/info-files/v1-0-0.ts)):
+Each migrator defines the version it migrates from in `fromVersion` and maps an info file of that
+version to the next one. `AbstractInfoFileMigrator`
+([`migrator.ts`](/src/main/persistence/service/info-files/migrator.ts)) ensures at compile time that
+`fromVersion` matches its input schema. The migrator lives in the file of the version it migrates
+to, and its doc comment lists the changes, e.g. in
+[`v2-6-0.ts`](/src/main/persistence/service/info-files/v2-6-0.ts):
 
 ```ts
-import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v1-0-0';
+import { InfoFile as OldInfoFile, VERSION as OLD_VERSION } from './v2-5-0';
 
-// other imports and type definitions
+// other imports and schemas
 
 /**
- * Maps schema `v1.0.0` to `v1.0.1`.
+ * Migrates schema `v2.5.0` to `v2.6.0`.
  *
  * Changes:
- * - Adds an `id` property which will now be persisted.
+ * - Adds the authorization type `digest` (HTTP Digest authentication) with a username and a
+ *   password. Older versions cannot read it, so they reject the newer version instead.
  */
-export class InfoFileMapper extends AbstractInfoFileMapper<OldInfoFile, InfoFile> {
+export class InfoFileMigrator extends AbstractInfoFileMigrator<OldInfoFile, InfoFile> {
   public readonly fromVersion = OLD_VERSION.toString();
 
-  async migrate(old: InfoFile) {
-    return Object.assign(old, { id: randomUUID(), version: VERSION.toString() });
+  async migrate(old: OldInfoFile, _type: TrufosObjectType, _filePath: string): Promise<InfoFile> {
+    return Object.assign(old, { version: VERSION.toString() });
   }
 }
 ```
@@ -49,13 +49,12 @@ export class InfoFileMapper extends AbstractInfoFileMapper<OldInfoFile, InfoFile
 1. Copy the current latest version `v{major}-{minor}-{patch}.ts` to a file matching the new schema
    version.
 2. Make the necessary schema changes in the new file.
-3. Create a new subclass of `AbstractInfoFileMapper` in the previous version to map it to the new
-   schema version. The `fromVersion` property should be set to the previous version. For safety,
-   also remove all exports except `VERSION` and `InfoFile` in that file.
-4. Add your new migrator to the `MIGRATORS` array in `migrators.ts`.
-5. Modify the imports in `latest.ts` to point to the new schema file.
-6. Modify the `toInfoFile()` method in `latest.ts` to generate the new schema.
-7. Create a test for the new migrator
+3. Replace the `InfoFileMigrator` in the new file with one that migrates from the previous version.
+4. Add your new migrator to `MIGRATOR_ARRAY` in `migrators.ts`.
+5. Modify the imports in `latest.ts` to point to the new schema file, and adjust `toInfoFile()` if
+   the new schema needs it.
+6. Create a test for the new migrator next to it.
+7. Update the `version` in `examples/collection/`.
 
-That's it! The schema is now updated and the migration script will be executed during the loading of
-the collection, folder, or request.
+That's it! The schema is now updated and the migrator will be executed during the loading of the
+collection, folder, or request.

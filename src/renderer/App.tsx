@@ -17,7 +17,7 @@ import { useHistoryStore } from '@/state/historyStore';
 import { usePluginStore } from '@/state/pluginStore';
 import { useResponseStore } from '@/state/responseStore';
 import { RendererEventService } from '@/services/event/renderer-event-service';
-import { MainProcessEvent, RendererEvent } from 'shim/event-service';
+import { MainProcessEvent, MainProcessEventListener, RendererEvent } from 'shim/event-service';
 import { useAppSettingsStore } from '@/state/appSettingsStore';
 import {
   selectIsCollectionRunnerOpen,
@@ -55,26 +55,35 @@ export const App = () => {
   useHotkeys([{ keys: HOTKEYS.openCommandPalette, handler: openCommandPalette }]);
 
   useEffect(() => {
+    const eventService = RendererEventService.instance;
     // Entry points of the native application menu (Collection > ...).
-    RendererEventService.instance
-      .on(MainProcessEvent.ShowCollectionRunner, () =>
-        useViewStore.getState().openCollectionRunner()
-      )
-      .on(MainProcessEvent.ShowCollectionSettings, () =>
-        useViewStore.getState().openCollectionSettings()
-      )
-      .on(MainProcessEvent.ShowAppSettings, () => useViewStore.getState().openAppSettings())
-      .on(MainProcessEvent.ShowHistory, () => useViewStore.getState().setSidebarView('history'))
-      .on(MainProcessEvent.HistoryChanged, (_event, payload) =>
-        useHistoryStore.getState().receive(payload)
-      )
-      .on(MainProcessEvent.PluginsChanged, (_event, payload) =>
-        usePluginStore.getState().receive(payload)
-      )
-      // e.g. a request an MCP client sent
-      .on(MainProcessEvent.ResponseReceived, (_event, requestId, response) =>
-        useResponseStore.getState().addResponse(requestId, response)
-      );
+    const onShowCollectionRunner = () => useViewStore.getState().openCollectionRunner();
+    const onShowCollectionSettings = () => useViewStore.getState().openCollectionSettings();
+    const onShowAppSettings = () => useViewStore.getState().openAppSettings();
+    const onShowHistory = () => useViewStore.getState().setSidebarView('history');
+    const onHistoryChanged: MainProcessEventListener<MainProcessEvent.HistoryChanged> = (
+      _event,
+      payload
+    ) => useHistoryStore.getState().receive(payload);
+    const onPluginsChanged: MainProcessEventListener<MainProcessEvent.PluginsChanged> = (
+      _event,
+      payload
+    ) => usePluginStore.getState().receive(payload);
+    // e.g. a request an MCP client sent
+    const onResponseReceived: MainProcessEventListener<MainProcessEvent.ResponseReceived> = (
+      _event,
+      requestId,
+      response
+    ) => useResponseStore.getState().addResponse(requestId, response);
+
+    eventService
+      .on(MainProcessEvent.ShowCollectionRunner, onShowCollectionRunner)
+      .on(MainProcessEvent.ShowCollectionSettings, onShowCollectionSettings)
+      .on(MainProcessEvent.ShowAppSettings, onShowAppSettings)
+      .on(MainProcessEvent.ShowHistory, onShowHistory)
+      .on(MainProcessEvent.HistoryChanged, onHistoryChanged)
+      .on(MainProcessEvent.PluginsChanged, onPluginsChanged)
+      .on(MainProcessEvent.ResponseReceived, onResponseReceived);
     // later changes, e.g. when the collection changes, are pushed by the main process
     void useHistoryStore.getState().load();
     void usePluginStore.getState().load();
@@ -87,6 +96,17 @@ export const App = () => {
         (err) => showError('Failed to load app settings', err)
       )
       .then(() => RendererEventService.instance.emit(RendererEvent.RendererReady));
+
+    return () => {
+      eventService
+        .removeListener(MainProcessEvent.ShowCollectionRunner, onShowCollectionRunner)
+        .removeListener(MainProcessEvent.ShowCollectionSettings, onShowCollectionSettings)
+        .removeListener(MainProcessEvent.ShowAppSettings, onShowAppSettings)
+        .removeListener(MainProcessEvent.ShowHistory, onShowHistory)
+        .removeListener(MainProcessEvent.HistoryChanged, onHistoryChanged)
+        .removeListener(MainProcessEvent.PluginsChanged, onPluginsChanged)
+        .removeListener(MainProcessEvent.ResponseReceived, onResponseReceived);
+    };
   }, []);
 
   return (

@@ -1,3 +1,5 @@
+import { RendererEventService } from '@/services/event/renderer-event-service';
+import { RendererEvent } from 'shim/event-service';
 import { LogEntry, LogLevel } from 'shim/logger';
 
 const _console = window.console;
@@ -19,7 +21,7 @@ function log(level: LogLevel, ...data: unknown[]) {
     message: `${message ?? ''}`,
     splat,
   };
-  window.electron.ipcRenderer.send('log', entry);
+  RendererEventService.instance.emit(RendererEvent.Log, entry);
 }
 
 window.console = {

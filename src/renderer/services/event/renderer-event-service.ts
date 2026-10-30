@@ -2,6 +2,7 @@ import { MainProcessError } from '@/error/MainProcessError';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import {
   IEventService,
+  IpcResult,
   MainProcessEvent,
   MainProcessEventListener,
   RendererEvent,
@@ -16,17 +17,13 @@ import {
 function createEventMethod<T extends keyof IEventService>(methodName: T) {
   return async function (
     ...args: Parameters<IEventService[T]>
-  ): Promise<
-    ReturnType<IEventService[T]> extends Promise<infer R> ? R : ReturnType<IEventService[T]>
-  > {
-    const result = await window.electron.ipcRenderer.invoke(methodName, ...args);
-    if (DisplayableError.isSerialized(result)) {
-      throw DisplayableError.deserialize(result);
-    } else if (result instanceof Error) {
-      throw new MainProcessError(result.message);
-    } else {
-      return result;
-    }
+  ): Promise<Awaited<ReturnType<IEventService[T]>>> {
+    const result: IpcResult<Awaited<ReturnType<IEventService[T]>>> =
+      await window.electron.ipcRenderer.invoke(methodName, ...args);
+    if (result.ok) return result.value;
+    throw DisplayableError.isSerialized(result.error)
+      ? DisplayableError.deserialize(result.error)
+      : new MainProcessError(result.error.message);
   };
 }
 
@@ -87,7 +84,6 @@ export class RendererEventService implements IEventService {
   listCollections = createEventMethod('listCollections');
   importCollection = createEventMethod('importCollection');
   exportCollection = createEventMethod('exportCollection');
-  updateApp = createEventMethod('updateApp');
   downloadBody = createEventMethod('downloadBody');
   getAppSettings = createEventMethod('getAppSettings');
   saveAppSettings = createEventMethod('saveAppSettings');

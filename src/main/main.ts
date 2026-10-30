@@ -17,6 +17,7 @@ import { sendToRenderer } from 'main/event/send-to-renderer';
 import { closeAfterFlush } from 'main/close-window';
 import { PluginService } from 'main/plugin/plugin-service';
 import { McpServerService } from 'main/mcp/mcp-server-service';
+import { updateElectronApp } from 'update-electron-app';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -24,6 +25,23 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (quit) {
   app.quit();
+}
+
+/**
+ * Starts the application update process in the background. It shows a dialog to the user if an
+ * update is available.
+ */
+function checkForUpdates() {
+  const prefixMessage = (message: string) => `[UPDATER]: ${message}`;
+  updateElectronApp({
+    logger: {
+      log: (message: string) => logger.info(prefixMessage(message)),
+      info: (message: string) => logger.info(prefixMessage(message)),
+      error: (message: string) => logger.error(prefixMessage(message)),
+      warn: (message: string) => logger.warn(prefixMessage(message)),
+    },
+    updateInterval: '1 hour',
+  });
 }
 
 function showError(error?: unknown, title = 'Error') {
@@ -63,7 +81,7 @@ const createWindow = async () => {
     await collectionState.init();
     // a server that cannot start is reported in the settings, the app starts anyway
     await McpServerService.instance.init();
-    mainEventService.updateApp(); // check for updates in the background
+    checkForUpdates();
 
     // create the browser window
     const mainWindow = new BrowserWindow({
