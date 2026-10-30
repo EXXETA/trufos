@@ -2601,9 +2601,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@readme/openapi-parser@npm:9.1.0":
-  version: 9.1.0
-  resolution: "@readme/openapi-parser@npm:9.1.0"
+"@readme/openapi-parser@npm:10.0.0":
+  version: 10.0.0
+  resolution: "@readme/openapi-parser@npm:10.0.0"
   dependencies:
     "@apidevtools/json-schema-ref-parser": "npm:^15.5.1"
     "@readme/better-ajv-errors": "npm:^2.3.2"
@@ -2613,7 +2613,7 @@ __metadata:
     ajv-draft-04: "npm:^1.0.0"
   peerDependencies:
     openapi-types: ">=7"
-  checksum: 10c0/5ad00c5b33175bfeae43c223d24901cd1ea67d4c6af30bfe7d8bb7ee9cdbaad72003cc3e2d0c96e4d8adfa58f2827c2a4b3fa1dcce438878badf2e5d5ccacc5a
+  checksum: 10c0/64266a09c890588800490cfe095c5ef83ffbbf606c2c91b39779c93b82feddbd291526e9eab188a5cee41f143bec3bd61199f48368e57d9bbc41b4cf97bf3d63
   languageName: node
   linkType: hard
 
@@ -2969,7 +2969,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@trufos/plugin-openapi@workspace:plugins/openapi"
   dependencies:
-    "@readme/openapi-parser": "npm:9.1.0"
+    "@readme/openapi-parser": "npm:10.0.0"
     openapi-types: "npm:12.1.3"
   languageName: unknown
   linkType: soft
