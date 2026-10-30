@@ -25,6 +25,9 @@ import { HistoryService } from 'main/history/history-service';
 import type { HistoryEntry, HistoryEntrySummary } from 'shim/history';
 import { PluginService } from 'main/plugin/plugin-service';
 import type { ExportOptions, PluginsSnapshot, QualifiedId } from 'shim/plugin';
+import { McpServerService } from 'main/mcp/mcp-server-service';
+import { McpAccessToken } from 'main/mcp/access-token';
+import type { McpServerStatus } from 'shim/mcp';
 
 // register stream events
 import './stream-events';
@@ -123,6 +126,22 @@ export class MainEventService implements IEventService {
         MainProcessEvent.PluginsChanged,
         PluginService.instance.snapshot
       )
+    );
+    // the renderer shows what MCP clients do, and the status of the server in the settings
+    const mcpServer = McpServerService.instance;
+    mcpServer.on('status-changed', (status) =>
+      sendToRenderer(this.window?.webContents, MainProcessEvent.McpServerStatusChanged, status)
+    );
+    mcpServer.on('response-received', (requestId, response) =>
+      sendToRenderer(
+        this.window?.webContents,
+        MainProcessEvent.ResponseReceived,
+        requestId,
+        response
+      )
+    );
+    mcpServer.on('show-request', (requestId) =>
+      sendToRenderer(this.window?.webContents, MainProcessEvent.ShowRequest, requestId)
     );
     logger.debug('Registered event channels on backend');
   }
@@ -271,6 +290,18 @@ export class MainEventService implements IEventService {
 
   async setPluginEnabled(id: string, enabled: boolean): Promise<void> {
     await PluginService.instance.setEnabled(id, enabled);
+  }
+
+  async getMcpServerStatus(): Promise<McpServerStatus> {
+    return McpServerService.instance.status;
+  }
+
+  async getMcpToken(): Promise<string> {
+    return await McpAccessToken.instance.get();
+  }
+
+  async regenerateMcpToken(): Promise<string> {
+    return await McpAccessToken.instance.regenerate();
   }
 
   async openLogDirectory(): Promise<void> {

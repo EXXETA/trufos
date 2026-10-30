@@ -52,13 +52,26 @@ describe('BodyStore', () => {
   });
 
   it('should only read the file up to the given end', async () => {
-    // memfs ignores `end`, so only check that it reaches the file stream
-    const { id, filePath } = await storeBody('0123456789');
-    const createReadStream = vi.spyOn(fs, 'createReadStream');
+    const { id } = await storeBody('0123456789');
 
-    await text(store.openBody(id, { end: 3 })!);
+    await expect(text(store.openBody(id, { end: 3 })!)).resolves.toBe('0123');
+  });
 
-    expect(createReadStream).toHaveBeenCalledWith(filePath, { end: 3 });
+  it('should decrypt the body from any offset', async () => {
+    const content = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const { id } = await storeBody(content);
+
+    for (const [start, end] of [
+      [1, 4],
+      [15, 16],
+      [16, 40],
+      [33, content.length - 1],
+    ]) {
+      await expect(text(store.openBody(id, { start, end })!)).resolves.toBe(
+        content.slice(start, end + 1)
+      );
+    }
+    await expect(text(store.openBody(id, { start: 50 })!)).resolves.toBe(content.slice(50));
   });
 
   it('should decode the body with the given encoding', async () => {
@@ -74,6 +87,16 @@ describe('BodyStore', () => {
     await store.saveTo(id, target);
 
     expect(fs.readFileSync(target, 'utf8')).toBe('plain body');
+  });
+
+  it('should not replace an existing file when saving exclusively', async () => {
+    const { id } = await storeBody('new body');
+    const target = path.join(tmpdir(), 'existing.txt');
+    fs.writeFileSync(target, 'old');
+
+    await expect(store.saveTo(id, target, { exclusive: true })).rejects.toThrow();
+
+    expect(fs.readFileSync(target, 'utf8')).toBe('old');
   });
 
   it('should not open, measure or save unknown bodies', async () => {

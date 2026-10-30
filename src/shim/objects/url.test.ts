@@ -29,6 +29,16 @@ describe('TrufosUrl', () => {
       },
     ],
     [
+      'http://example.com?sig=abc==&a=b=c',
+      {
+        base: 'http://example.com',
+        query: [
+          { key: 'sig', value: 'abc==', isActive: true },
+          { key: 'a', value: 'b=c', isActive: true },
+        ],
+      },
+    ],
+    [
       'http://example.com?',
       {
         base: 'http://example.com',

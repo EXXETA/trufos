@@ -16,6 +16,7 @@ import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { sendToRenderer } from 'main/event/send-to-renderer';
 import { closeAfterFlush } from 'main/close-window';
 import { PluginService } from 'main/plugin/plugin-service';
+import { McpServerService } from 'main/mcp/mcp-server-service';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -60,6 +61,8 @@ const createWindow = async () => {
     await PluginService.instance.init();
     await stateService.init();
     await collectionState.init();
+    // a server that cannot start is reported in the settings, the app starts anyway
+    await McpServerService.instance.init();
     mainEventService.updateApp(); // check for updates in the background
 
     // create the browser window
@@ -140,6 +143,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  void McpServerService.instance.stop();
   BodyStore.instance.shutdown();
   FileSystemService.instance.deleteTemporaryFiles();
 });

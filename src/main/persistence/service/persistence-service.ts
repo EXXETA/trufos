@@ -1,4 +1,11 @@
-import { exists, isEmpty, isSameOrInside, openFile, readFileLimited } from 'main/util/fs-util';
+import {
+  exists,
+  isEmpty,
+  isSameOrInside,
+  isErrnoException,
+  openFile,
+  readFileLimited,
+} from 'main/util/fs-util';
 import { assign } from 'main/util/object-util';
 import { randomUUID } from 'node:crypto';
 import { createReadStream, ReadStream } from 'node:fs';
@@ -435,18 +442,37 @@ export class PersistenceService {
    * Loads the text body of a request from the file system.
    * @param request the request to load the text body for
    * @param encoding the encoding of the text body. Default is binary.
+   * @param range the offsets of the first and the last byte to load, e.g. to read it page by page
    * @returns the text body of the request if it exists
    */
   public async loadTextBodyOfRequest(
     request: TrufosRequest,
-    encoding?: BufferEncoding
+    encoding?: BufferEncoding,
+    range?: { start?: number; end?: number }
   ): Promise<ReadStream | undefined> {
     if (request.body.type !== RequestBodyType.TEXT) return undefined;
     logger.info('Loading text body of request', request.id);
-    const filePath = path.join(this.getRequestDirPath(request), TEXT_BODY_FILE_NAME);
-    const stream = await openFile(filePath, encoding);
+    const stream = await openFile(this.getTextBodyPath(request), encoding, range);
     if (stream == null) logger.warn('Text body file does not exist for request', request.id);
     return stream;
+  }
+
+  /**
+   * @param request the request
+   * @returns the size of the text body of the request in bytes, 0 if it has none
+   */
+  public async getTextBodySize(request: TrufosRequest): Promise<number> {
+    if (request.body.type !== RequestBodyType.TEXT) return 0;
+    try {
+      return (await fs.stat(this.getTextBodyPath(request))).size;
+    } catch (error) {
+      if (isErrnoException(error) && error.code === 'ENOENT') return 0;
+      throw error;
+    }
+  }
+
+  private getTextBodyPath(request: TrufosRequest) {
+    return path.join(this.getRequestDirPath(request), TEXT_BODY_FILE_NAME);
   }
 
   /**

@@ -15,6 +15,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { CollectionStoreProvider } from '@/state/CollectionStoreProvider';
 import { useHistoryStore } from '@/state/historyStore';
 import { usePluginStore } from '@/state/pluginStore';
+import { useResponseStore } from '@/state/responseStore';
 import { RendererEventService } from '@/services/event/renderer-event-service';
 import { MainProcessEvent, RendererEvent } from 'shim/event-service';
 import { useAppSettingsStore } from '@/state/appSettingsStore';
@@ -69,6 +70,10 @@ export const App = () => {
       )
       .on(MainProcessEvent.PluginsChanged, (_event, payload) =>
         usePluginStore.getState().receive(payload)
+      )
+      // e.g. a request an MCP client sent
+      .on(MainProcessEvent.ResponseReceived, (_event, requestId, response) =>
+        useResponseStore.getState().addResponse(requestId, response)
       );
     // later changes, e.g. when the collection changes, are pushed by the main process
     void useHistoryStore.getState().load();

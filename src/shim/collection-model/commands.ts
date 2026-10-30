@@ -93,14 +93,14 @@ export const CollectionCommand = z.discriminatedUnion('type', [
   /** Renames a folder or request. */
   z.object({ type: z.literal(CommandType.RENAME), id: TrufosId, title: z.string() }),
   /**
-   * Moves folders and requests, in the given order, to the given index of the given parent. The
-   * index refers to the children of the parent without the moved items.
+   * Moves folders and requests, in the given order, to the given index of the given parent, or to
+   * its end. The index refers to the children of the parent without the moved items.
    */
   z.object({
     type: z.literal(CommandType.MOVE),
     ids: TopLevelIds,
     parentId: TrufosId,
-    index: Index,
+    index: Index.optional(),
   }),
   /** Deletes folders (including their descendants) and requests. */
   z.object({ type: z.literal(CommandType.DELETE), ids: TopLevelIds }),

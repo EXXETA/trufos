@@ -116,9 +116,25 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
   /**
    * Returns the entry with the given ID.
    * @param id the ID of the entry
+   * @param collectionDirPath OPTIONAL: the directory of the collection the entry must belong to
    */
-  get(id: string): HistoryEntry | undefined {
-    return this.entries.find((stored) => stored.entry.id === id)?.entry;
+  get(id: string, collectionDirPath?: string): HistoryEntry | undefined {
+    return this.entries.find(
+      (stored) =>
+        stored.entry.id === id &&
+        (collectionDirPath == null || stored.collectionDirPath === collectionDirPath)
+    )?.entry;
+  }
+
+  /**
+   * @param bodyId the ID of a body
+   * @returns whether an entry holds the body as the body of its response
+   */
+  hasResponseBody(bodyId: string): boolean {
+    return this.entries.some(
+      ({ entry: { outcome } }) =>
+        outcome.type === 'response' && outcome.response.body?.id === bodyId
+    );
   }
 
   /**

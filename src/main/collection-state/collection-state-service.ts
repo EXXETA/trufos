@@ -17,6 +17,7 @@ import {
   CollectionSnapshot,
   CollectionStateEvent,
   CommandEnvelope,
+  getExistingRequest,
   normalizeCollection,
 } from 'shim/collection-model';
 import { CollectionBase } from 'shim/objects/collection';
@@ -24,7 +25,7 @@ import { TrufosId } from 'shim/objects/id';
 import { TrufosRequest } from 'shim/objects/request';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import type { RequestFiles } from 'main/persistence/service/persistence-service';
-import { getCommandEffects } from './command-effects';
+import { getChangedRequestFiles, getCommandEffects } from './command-effects';
 import { CollectionWatcher, FileChanges } from './collection-watcher';
 
 const persistenceService = PersistenceService.instance;
@@ -308,6 +309,8 @@ export class CollectionStateService
   /**
    * Plans a command from the current model and applies it, see {@link dispatch}. Both happen on
    * the queue, so the model the command was planned from is the one it is applied to.
+   * A text body or script changed this way is announced with a `request-files-changed` event, as
+   * the renderer did not make the change and has to reload it into its editors.
    * @param collectionId the collection the plan belongs to
    * @param plan the {@link CommandPlan}
    * @returns the model after the command was applied. Rejects if the plan or applying its command
@@ -318,6 +321,8 @@ export class CollectionStateService
     return this.runFor(collectionId, async () => {
       const command = plan(this.model);
       if (command != null) await this.applyEnvelope(this.envelopeOf(command));
+      const changedRequestId = command != null ? getChangedRequestFiles(command) : undefined;
+      if (changedRequestId != null) this.emit('request-files-changed', [changedRequestId]);
       return this.model;
     });
   }
@@ -342,11 +347,30 @@ export class CollectionStateService
     id: TrufosId,
     reader: (request: TrufosRequest) => Promise<T>
   ): Promise<T | undefined> {
-    this.flush().catch(noop); // already logged, and the reader does not depend on it
-    return this.read(async (model) => {
+    return this.readFiles(async (model) => {
       const request = model.requests.get(id);
       return request == null ? undefined : await reader(request);
     });
+  }
+
+  /**
+   * Like {@link readRequest}, but for a request that has to exist.
+   * @param id the ID of the request
+   * @param reader reads the files. It gets the request as it is when the reader runs.
+   * @returns the result of the reader
+   * @throws a {@link CommandError} if there is no such request
+   */
+  public readExistingRequest<T>(
+    id: TrufosId,
+    reader: (request: TrufosRequest) => Promise<T>
+  ): Promise<T> {
+    return this.readFiles(async (model) => await reader(getExistingRequest(model, id)));
+  }
+
+  /** Reads files of the collection once the dirty requests are written, see {@link readRequest}. */
+  private readFiles<T>(reader: (model: CollectionModel) => Promise<T>): Promise<T> {
+    this.flush().catch(noop); // already logged, and the reader does not depend on it
+    return this.read(reader);
   }
 
   /**
@@ -354,14 +378,12 @@ export class CollectionStateService
    * @param id the ID of the request
    * @throws if there is no such request
    */
-  public async prepareRequest(id: TrufosId): Promise<PreparedRequest> {
-    const prepared = await this.readRequest(id, async (request) => ({
+  public prepareRequest(id: TrufosId): Promise<PreparedRequest> {
+    return this.readExistingRequest(id, async (request) => ({
       request,
       model: this.model,
       ...(await persistenceService.openRequestFiles(request)),
     }));
-    if (prepared == null) throw new Error(`Request ${id} does not exist`);
-    return prepared;
   }
 
   /**

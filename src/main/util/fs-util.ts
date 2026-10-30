@@ -77,22 +77,25 @@ export async function isEmpty(dirPath: string) {
  * it afterwards does not affect the stream.
  * @param filePath the path of the file
  * @param encoding OPTIONAL: the encoding to decode the file with. If omitted, raw bytes are streamed.
+ * @param range OPTIONAL: the offsets of the first and the last byte to read, both inclusive
  * @returns the stream, or undefined if the file does not exist
  */
 export async function openFile(
   filePath: string,
-  encoding?: BufferEncoding
+  encoding?: BufferEncoding,
+  range: { start?: number; end?: number } = {}
 ): Promise<ReadStream | undefined> {
   try {
     const handle = await fs.open(filePath, 'r');
-    return handle.createReadStream({ encoding });
+    return handle.createReadStream({ encoding, ...range });
   } catch (error) {
     if (isErrnoException(error) && error.code === 'ENOENT') return undefined;
     throw error;
   }
 }
 
-function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+/** Whether an error is one of the file system, which has an error code. */
+export function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && 'code' in error;
 }
 

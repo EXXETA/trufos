@@ -1,5 +1,4 @@
 import {
-  CircleAlert,
   Eye,
   FileText,
   FolderOpen,
@@ -19,6 +18,7 @@ import {
   PluginPermissionScope,
 } from 'shim/plugin';
 import { selectPlugins, usePluginActions, usePluginStore } from '@/state/pluginStore';
+import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
@@ -102,12 +102,7 @@ const PluginEntry = ({ plugin }: { plugin: PluginInfo }) => {
               ))}
             </ul>
           )}
-          {plugin.error !== undefined && (
-            <p className="bg-danger/10 text-danger flex items-start gap-2 rounded-md px-3 py-2 text-sm">
-              <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-              {plugin.error}
-            </p>
-          )}
+          {plugin.error !== undefined && <Alert variant="danger">{plugin.error}</Alert>}
         </div>
       </div>
 

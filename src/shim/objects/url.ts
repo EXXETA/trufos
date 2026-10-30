@@ -24,8 +24,13 @@ export function parseUrl(full: string): TrufosURL {
   const query = full
     .substring(index + 1)
     .split('&')
-    .map((part) => part.split('=', 2))
-    .map(([key, value]) => ({ key, value, isActive: true }));
+    .map((part) => {
+      // only the first `=` separates, a value may contain more, e.g. base64 padding
+      const separator = part.indexOf('=');
+      return separator === -1
+        ? { key: part, value: undefined, isActive: true }
+        : { key: part.slice(0, separator), value: part.slice(separator + 1), isActive: true };
+    });
   return { base: full.substring(0, index), query };
 }
 
