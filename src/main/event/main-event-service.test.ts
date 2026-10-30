@@ -91,12 +91,14 @@ describe('MainEventService', () => {
     ({ MainEventService } = await import('./main-event-service'));
 
     // Every test builds its own MainEventService, and each one subscribes to the shared
-    // HistoryService, CollectionStateService and PluginService. Lift the cap so those accumulating subscriptions
+    // HistoryService, CollectionStateService, PluginService and McpServerService. Lift the cap so those accumulating subscriptions
     // are not mistaken for a listener leak once the suite grows past Node's default of ten.
     const { HistoryService } = await import('../history/history-service.js');
+    const { McpServerService } = await import('../mcp/mcp-server-service.js');
     HistoryService.instance.setMaxListeners(0);
     CollectionStateService.instance.setMaxListeners(0);
     PluginService.instance.setMaxListeners(0);
+    McpServerService.instance.setMaxListeners(0);
   });
 
   it('should register event functions on the backend', async () => {
