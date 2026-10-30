@@ -1,11 +1,5 @@
-import {
-  exists,
-  isEmpty,
-  isSameOrInside,
-  isErrnoException,
-  openFile,
-  readFileLimited,
-} from 'main/util/fs-util';
+import { exists, isEmpty, isSameOrInside, openFile, readFileLimited } from 'main/util/fs-util';
+import { isErrnoException } from 'shim/error/errno';
 import { assign } from 'main/util/object-util';
 import { randomUUID } from 'node:crypto';
 import { createReadStream, ReadStream } from 'node:fs';

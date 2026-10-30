@@ -138,7 +138,6 @@ export class HttpService {
       return await this.doFetchAsync(prepared, recorder, signal);
     } catch (error) {
       if (signal?.aborted) throw error;
-      if (error instanceof DisplayableError) throw error;
       throw mapRequestError(error);
     }
   }
@@ -185,6 +184,7 @@ export class HttpService {
           method: request.method,
           url,
           getChallenges: () => this.fetchChallenges(model, request, url, signal),
+          getDispatcher: () => this.getDispatcher(model),
         });
       } catch (e) {
         logger.error('Failed to generate authentication header:', e);

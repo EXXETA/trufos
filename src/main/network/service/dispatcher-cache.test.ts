@@ -3,6 +3,7 @@ import fsp from 'node:fs/promises';
 import tls from 'node:tls';
 import { type Agent, type Dispatcher, MockAgent } from 'undici';
 import { DispatcherCache } from './dispatcher-cache';
+import { DisplayableError } from 'shim/error/DisplayableError';
 
 const CERT_PATH = '/certs/client.crt';
 const KEY_PATH = '/certs/client.key';
@@ -127,5 +128,62 @@ describe('DispatcherCache', () => {
     await fsp.writeFile('/missing', 'cert');
 
     await expect(cache.get(options)).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['certificate', { certPath: '/missing' }],
+    ['private key', { certPath: CERT_PATH, keyPath: '/missing' }],
+    ['CA certificate', { certPath: CERT_PATH, caPath: '/missing' }],
+  ])('names the %s file that does not exist in a displayable error', async (_, certificate) => {
+    const error: unknown = await cache
+      .get({ verifyTlsCertificates: true, clientCertificate: certificate })
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(DisplayableError);
+    expect(error).toMatchObject({ description: expect.stringContaining('"/missing"') });
+    expect(error).toMatchObject({ description: expect.not.stringContaining('ENOENT') });
+  });
+
+  it('reports a certificate file that exists but cannot be read in a displayable error', async () => {
+    vi.spyOn(fsp, 'readFile').mockRejectedValueOnce(
+      Object.assign(new Error('EACCES: permission denied'), {
+        code: 'EACCES',
+        syscall: 'open',
+        path: CERT_PATH,
+      })
+    );
+
+    await expect(
+      cache.get({ verifyTlsCertificates: true, clientCertificate: { certPath: CERT_PATH } })
+    ).rejects.toMatchObject({
+      name: 'DisplayableError',
+      description: expect.stringContaining(`"${CERT_PATH}"`),
+    });
+  });
+
+  it('reports a certificate path that is a directory in a displayable error', async () => {
+    // Node does not name the path of a failed read of an open file
+    vi.spyOn(fsp, 'readFile').mockRejectedValueOnce(
+      Object.assign(new Error('EISDIR: illegal operation on a directory, read'), {
+        code: 'EISDIR',
+        syscall: 'read',
+      })
+    );
+
+    await expect(
+      cache.get({ verifyTlsCertificates: true, clientCertificate: { certPath: CERT_PATH } })
+    ).rejects.toMatchObject({
+      name: 'DisplayableError',
+      description: expect.stringContaining('a client certificate file'),
+    });
+  });
+
+  it('does not blame the certificate files for other failures', async () => {
+    const error = Object.assign(new Error('invalid option'), { code: 'UND_ERR_INVALID_ARG' });
+    createAgent.mockImplementationOnce(() => {
+      throw error;
+    });
+
+    await expect(cache.get({ verifyTlsCertificates: true })).rejects.toBe(error);
   });
 });

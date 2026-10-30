@@ -8,6 +8,7 @@ import {
   authorizationCodeGrant,
   buildAuthorizationUrl,
   calculatePKCECodeChallenge,
+  type Configuration,
   randomPKCECodeVerifier,
   randomState,
   type TokenEndpointResponse,
@@ -34,8 +35,7 @@ export default class AuthCodeFlowAuthorizationStrategy<
     ];
   }
 
-  public async acquire(): Promise<TokenEndpointResponse> {
-    const configuration = this.getConfiguration();
+  protected async acquire(configuration: Configuration): Promise<TokenEndpointResponse> {
     const parameters = this.getParameters();
 
     // prepare the authorization URL and state

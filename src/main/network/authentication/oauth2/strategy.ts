@@ -1,40 +1,46 @@
-import {
-  OAuth2AuthorizationInformation,
-  OAuth2ClientAuthenticationMethod,
-  OAuth2Method,
-} from 'shim/objects';
-import AuthStrategy from '../auth-strategy';
+import { OAuth2AuthorizationInformation, OAuth2ClientAuthenticationMethod } from 'shim/objects';
+import AuthStrategy, { type AuthRequestContext } from '../auth-strategy';
 import {
   ClientAuth,
+  ClientError,
   ClientSecretBasic,
   ClientSecretPost,
   Configuration,
   customFetch,
-  discovery,
   refreshTokenGrant,
   type TokenEndpointResponse,
 } from 'openid-client';
-import Undici, { RequestInit } from 'undici';
-import { OAuth2TokenCache, type TokenSource } from './token-cache';
+import Undici, { type Dispatcher, RequestInit } from 'undici';
+import { OAuth2TokenCache } from './token-cache';
 import type { CacheKey } from 'main/util/cache';
 import { pickValues } from 'main/util/object-util';
+import { DisplayableError } from 'shim/error/DisplayableError';
 
-export default abstract class OAuth2AuthStrategy<T extends OAuth2AuthorizationInformation>
-  extends AuthStrategy<T>
-  implements TokenSource
-{
-  public async getAuthHeader(): Promise<string> {
-    const tokens = await OAuth2TokenCache.instance.get(this.getCacheKey(), this);
+export default abstract class OAuth2AuthStrategy<
+  T extends OAuth2AuthorizationInformation,
+> extends AuthStrategy<T> {
+  public async getAuthHeader({ getDispatcher }: AuthRequestContext): Promise<string> {
+    const configuration = this.getConfiguration(getDispatcher);
+    const tokens = await OAuth2TokenCache.instance
+      .get(this.getCacheKey(), {
+        acquire: () => this.acquire(configuration),
+        refresh: (refreshToken) =>
+          refreshTokenGrant(configuration, refreshToken, this.getParameters()),
+      })
+      .catch((error: unknown) => {
+        // openid-client wraps whatever its fetch throws
+        throw error instanceof ClientError && error.cause instanceof DisplayableError
+          ? error.cause
+          : error;
+      });
     return `Bearer ${tokens.access_token}`;
   }
 
-  /** Acquires new tokens from the authorization server. */
-  public abstract acquire(): Promise<TokenEndpointResponse>;
-
-  /** Exchanges a refresh token for new tokens. */
-  public refresh(refreshToken: string): Promise<TokenEndpointResponse> {
-    return refreshTokenGrant(this.getConfiguration(), refreshToken, this.getParameters());
-  }
+  /**
+   * Acquires new tokens from the authorization server.
+   * @param configuration the configuration to request the tokens with
+   */
+  protected abstract acquire(configuration: Configuration): Promise<TokenEndpointResponse>;
 
   /**
    * The settings the tokens depend on, in a fixed order. Tokens are reused as long as these stay
@@ -61,7 +67,12 @@ export default abstract class OAuth2AuthStrategy<T extends OAuth2AuthorizationIn
     return parameters;
   }
 
-  protected getConfiguration() {
+  /**
+   * @param getDispatcher returns the dispatcher to send the requests to the authorization server
+   * with. It is called for each of them, as a dispatcher can be replaced and closed in the
+   * meantime, e.g. during the browser login of an auth code flow.
+   */
+  private getConfiguration(getDispatcher: AuthRequestContext['getDispatcher']) {
     // set client authentication method
     let clientAuth: ClientAuth | undefined;
     switch (this.authInfo.clientAuthenticationMethod) {
@@ -87,38 +98,18 @@ export default abstract class OAuth2AuthStrategy<T extends OAuth2AuthorizationIn
       clientAuth
     );
 
-    config[customFetch] = this.fetch;
+    config[customFetch] = async (url, init) => this.fetch(await getDispatcher(), url, init);
 
     // done
     return config;
   }
 
-  /**
-   * Discover the OpenID Connect configuration from the server URL and set the token URL and issuer.
-   * @param serverUrl The URL of the OpenID Connect server.
-   */
-  public async discover(serverUrl: URL) {
-    const config = await discovery(serverUrl, this.authInfo.clientId);
-    const metadata = config.serverMetadata();
-    if (metadata.token_endpoint == null) {
-      throw new Error(
-        `No token endpoint found in OpenID Connect discovery document at ${serverUrl}`
-      );
-    }
-
-    if (this.authInfo.method === OAuth2Method.CLIENT_CREDENTIALS) {
-      this.authInfo.tokenUrl = metadata.token_endpoint;
-    } else {
-      this.authInfo.authorizationUrl = metadata.authorization_endpoint ?? '';
-    }
-  }
-
-  private fetch(url: string, init?: RequestInit) {
+  private fetch(dispatcher: Dispatcher, url: string, init?: RequestInit) {
     logger.secret.info('OAuth request', {
       url,
       headers: init?.headers,
       body: init?.body,
     });
-    return Undici.fetch(url, init);
+    return Undici.fetch(url, { ...init, dispatcher });
   }
 }

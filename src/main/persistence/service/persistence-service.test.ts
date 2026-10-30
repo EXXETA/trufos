@@ -1091,6 +1091,24 @@ describe('PersistenceService', () => {
     expect(await readFile(path.join(dirPath, TEXT_BODY_FILE_NAME), 'utf-8')).toBe('body');
   });
 
+  it('loadCollection() should keep the changes of a request whose saved state a branch switch removed', async () => {
+    // Arrange: git removes the tracked files of the request, but not its gitignored draft
+    const request = getExampleRequest(collection.id);
+    collection.children.push(request);
+    await persistenceService.saveCollection(collection, true);
+    await persistenceService.createDraft({ ...request, draft: true, title: 'changed' });
+    const dirPath = path.join(collection.dirPath, sanitizeTitle(request.title));
+    await rm(path.join(dirPath, getInfoFileName('request')));
+
+    // Act
+    const loaded = await persistenceService.loadCollection(collection.dirPath);
+
+    // Assert
+    expect(loaded.children).toEqual([
+      expect.objectContaining({ id: request.id, title: 'changed', draft: true }),
+    ]);
+  });
+
   it('saveRequestInfo() should write a draft into the draft directory', async () => {
     // Arrange
     const request = getExampleRequest(collection.id);

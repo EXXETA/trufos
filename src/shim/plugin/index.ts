@@ -10,3 +10,4 @@ export { DisplayableError } from '../error/DisplayableError';
 // exported here, so their signatures and behaviour only change with the version of the API.
 export { truncate, uniqueName } from '../string';
 export { isObject } from '../object';
+export { isErrnoException } from '../error/errno';

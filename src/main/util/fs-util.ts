@@ -2,6 +2,7 @@ import type { ReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { app } from 'electron';
+import { isErrnoException } from 'shim/error/errno';
 
 export const USER_DATA_DIR = app.getPath('userData');
 
@@ -92,11 +93,6 @@ export async function openFile(
     if (isErrnoException(error) && error.code === 'ENOENT') return undefined;
     throw error;
   }
-}
-
-/** Whether an error is one of the file system, which has an error code. */
-export function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && 'code' in error;
 }
 
 /** Returns true if `dirPath` is `parentDirPath` itself or a directory inside it. */

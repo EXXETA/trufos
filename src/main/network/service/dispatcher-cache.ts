@@ -3,6 +3,8 @@ import fsp from 'node:fs/promises';
 import tls from 'node:tls';
 import type { ClientCertificate } from 'shim/objects/collection';
 import { Cache, type CacheKey } from 'main/util/cache';
+import { DisplayableError } from 'shim/error/DisplayableError';
+import { isErrnoException } from 'shim/error/errno';
 
 /** What the connections of a dispatcher depend on. */
 export interface DispatcherOptions {
@@ -30,10 +32,22 @@ export class DispatcherCache {
 
   /**
    * Returns the dispatcher for the given options.
-   * @throws if a certificate file cannot be read
+   * @throws DisplayableError if a certificate file cannot be read
    */
   public async get(options: DispatcherOptions): Promise<Dispatcher> {
-    return await this.cache.get(await getKey(options), () => this.build(options));
+    try {
+      return await this.cache.get(await getKey(options), () => this.build(options));
+    } catch (error) {
+      // the user configures these files and they can move or expire at any time
+      if (!isErrnoException(error) || error.syscall == null) throw error;
+      // a failed read of an open file, e.g. of a directory, does not name its path
+      const file = error.path != null ? `the file "${error.path}"` : 'a client certificate file';
+      throw new DisplayableError(
+        `Cannot read ${file}. Please check the client certificate in the settings of the collection.`,
+        'Client Certificate Not Readable',
+        error
+      );
+    }
   }
 
   private async build({

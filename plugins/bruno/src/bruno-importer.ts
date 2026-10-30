@@ -9,6 +9,7 @@ import {
   AuthorizationType,
   type CollectionImporter,
   DisplayableError,
+  isErrnoException,
   type Folder as TrufosFolder,
   type FormDataBody,
   type ImportWarning,
@@ -28,6 +29,7 @@ import {
   VARIABLE_NAME_REGEX,
   type VariableObject,
 } from 'shim/plugin';
+import { z } from 'zod';
 
 const DEFAULT_MIME_TYPE = 'text/plain';
 
@@ -42,11 +44,33 @@ const BODY_MIME_TYPES: Record<string, string> = {
 /** Directories to skip when walking the collection tree. */
 const IGNORED_DIRS = new Set(['environments', 'node_modules']);
 
-interface BrunoJson {
-  name: string;
-  uid?: string;
-  version?: string;
+/** @returns the position of an item, which is last if its `seq` is missing or not a number */
+function parseSeq(seq?: string): number {
+  const parsed = seq != null ? parseInt(seq, 10) : NaN;
+  return Number.isNaN(parsed) ? Infinity : parsed;
 }
+
+/**
+ * @param content the content of a `.bru` environment file
+ * @returns the enabled variables of the environment that have a valid name
+ * @throws if the content is not valid Bruno syntax
+ */
+function parseEnvironment(content: string): Record<string, VariableObject> {
+  const variables: Record<string, VariableObject> = {};
+  for (const v of bruToEnvJsonV2(content).variables) {
+    if (v.enabled && VARIABLE_NAME_REGEX.test(v.name)) {
+      variables[v.name] = { value: v.value };
+    }
+  }
+  return variables;
+}
+
+/** The part of a `bruno.json` file that is imported. */
+const BrunoJson = z.object({
+  name: z.string(),
+  uid: z.string().optional(),
+});
+type BrunoJson = z.infer<typeof BrunoJson>;
 
 /**
  * An importer for Bruno collections. A Bruno collection is a directory containing a
@@ -55,27 +79,40 @@ interface BrunoJson {
  * Items are ordered according to their `seq` field in the meta block.
  */
 export class BrunoImporter implements CollectionImporter {
-  private warnings: ImportWarning[] = [];
-  private collectionDir = '';
-
   constructor(
     private readonly log: PluginLogger,
     private readonly fs: PluginFileSystem
   ) {}
 
-  public async importCollection(srcFilePath: string): Promise<TrufosCollection> {
-    this.warnings = [];
-
+  public async importCollection(
+    srcFilePath: string,
+    reportWarning: (warning: ImportWarning) => void
+  ): Promise<TrufosCollection> {
     // Accept either the collection directory or the bruno.json file
     const stat = await this.fs.stat(srcFilePath);
     const collectionDir = stat.isDirectory() ? srcFilePath : path.dirname(srcFilePath);
-    this.collectionDir = collectionDir;
+    return await new BrunoImport(this.log, this.fs, collectionDir, reportWarning).import();
+  }
+}
 
+/**
+ * One import run. What belongs to the run lives here as fields, so that concurrent imports do not
+ * get in each other's way. Instances are single-use.
+ */
+class BrunoImport {
+  constructor(
+    private readonly log: PluginLogger,
+    private readonly fs: PluginFileSystem,
+    private readonly collectionDir: string,
+    private readonly reportWarning: (warning: ImportWarning) => void
+  ) {}
+
+  public async import(): Promise<TrufosCollection> {
     // Read collection metadata
-    const brunoJsonPath = path.join(collectionDir, 'bruno.json');
+    const brunoJsonPath = path.join(this.collectionDir, 'bruno.json');
     let brunoJson: BrunoJson;
     try {
-      brunoJson = JSON.parse(await this.fs.readFile(brunoJsonPath, 'utf8')) as BrunoJson;
+      brunoJson = BrunoJson.parse(JSON.parse(await this.fs.readFile(brunoJsonPath, 'utf8')));
     } catch (error) {
       throw new DisplayableError(
         `Could not read Bruno collection metadata at "${brunoJsonPath}". ` +
@@ -94,42 +131,48 @@ export class BrunoImporter implements CollectionImporter {
       dirPath: '', // must be set after import
       children: [],
       variables: {},
-      environments: await this.importEnvironments(collectionDir),
+      environments: await this.importEnvironments(),
     };
 
-    await this.importDirectory(collection, collectionDir);
+    await this.importDirectory(collection, this.collectionDir);
     return collection;
   }
 
-  public getWarnings(): ImportWarning[] {
-    return this.warnings;
-  }
-
-  private async importEnvironments(
-    collectionDir: string
-  ): Promise<TrufosCollection['environments']> {
-    const environmentsDir = path.join(collectionDir, 'environments');
+  private async importEnvironments(): Promise<TrufosCollection['environments']> {
+    const environmentsDir = path.join(this.collectionDir, 'environments');
     const environments: TrufosCollection['environments'] = {};
 
+    let files: string[];
     try {
-      const files = await this.fs.readdir(environmentsDir);
-      for (const file of files.sort()) {
-        if (!file.endsWith('.bru')) continue;
-        const content = await this.fs.readFile(path.join(environmentsDir, file), 'utf8');
-        const parsed = bruToEnvJsonV2(content);
-        const envName = path.basename(file, '.bru');
-        const variables: Record<string, VariableObject> = {};
-        for (const v of parsed.variables) {
-          if (v.enabled && VARIABLE_NAME_REGEX.test(v.name)) {
-            variables[v.name] = { value: v.value };
-          }
-        }
+      files = await this.fs.readdir(environmentsDir);
+    } catch (error) {
+      // environments/ directory may not exist — that's fine
+      if (!isErrnoException(error) || error.code !== 'ENOENT') {
+        this.addWarning({
+          message: `Skipped the environments because their directory could not be read: ${this.toErrorMessage(error)}`,
+          filePath: this.relativePath(environmentsDir),
+        });
+      }
+      return environments;
+    }
+
+    for (const file of files.sort()) {
+      if (!file.endsWith('.bru')) continue;
+      const filePath = path.join(environmentsDir, file);
+      const envName = path.basename(file, '.bru');
+      try {
+        const variables = parseEnvironment(await this.fs.readFile(filePath, 'utf8'));
         if (Object.keys(variables).length > 0) {
           environments[envName] = { variables };
         }
+      } catch (error) {
+        this.addWarning({
+          message: `Skipped the environment "${envName}" because it could not be read: ${this.toErrorMessage(error)}`,
+          filePath: this.relativePath(filePath),
+          itemName: envName,
+          itemType: 'environment',
+        });
       }
-    } catch {
-      // environments/ directory may not exist — that's fine
     }
 
     return environments;
@@ -156,8 +199,12 @@ export class BrunoImporter implements CollectionImporter {
         const content = await this.fs.readFile(fullPath, 'utf8');
         try {
           const parsed = bruToJsonV2(content);
-          const seq = parsed.meta?.seq != null ? parseInt(parsed.meta.seq, 10) : Infinity;
-          requests.push({ seq, name: entry.name, parsed, filePath: fullPath });
+          requests.push({
+            seq: parseSeq(parsed.meta?.seq),
+            name: entry.name,
+            parsed,
+            filePath: fullPath,
+          });
         } catch (error) {
           this.addWarning({
             message: `Skipped Bruno file because it is not valid Bruno syntax and could not be parsed: ${this.toErrorMessage(error)}`,
@@ -243,7 +290,7 @@ export class BrunoImporter implements CollectionImporter {
   }
 
   private addWarning(warning: ImportWarning) {
-    this.warnings.push(warning);
+    this.reportWarning(warning);
     this.log.warn(warning.message, warning.filePath);
   }
 

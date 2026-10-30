@@ -1,7 +1,12 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type PluginInfo, PluginPermissionAccess, PluginPermissionScope } from 'shim/plugin';
+import {
+  PluginFileArea,
+  type PluginInfo,
+  PluginPermissionAccess,
+  PluginPermissionScope,
+} from 'shim/plugin';
 import { AppPluginsTab } from './AppPluginsTab';
 
 const { setEnabledMock, pluginState } = vi.hoisted(() => ({
@@ -61,6 +66,32 @@ describe('AppPluginsTab', () => {
       'Connect to *.github.com',
       'Run the program git',
     ]);
+  });
+
+  it.each([PluginFileArea.PICK, PluginFileArea.COLLECTION])(
+    'says that the file permission "%s" is not limited to certain files',
+    (value) => {
+      pluginState.plugins = [plugin({ permissions: [{ scope: PluginPermissionScope.FS, value }] })];
+
+      render(<AppPluginsTab />);
+
+      expect(screen.getByRole('listitem').textContent).toBe('Access any file on your computer');
+    }
+  );
+
+  it('shows permissions that read the same only once', () => {
+    pluginState.plugins = [
+      plugin({
+        permissions: [
+          { scope: PluginPermissionScope.FS, value: PluginFileArea.PICK },
+          { scope: PluginPermissionScope.FS, value: PluginFileArea.COLLECTION },
+        ],
+      }),
+    ];
+
+    render(<AppPluginsTab />);
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
   });
 
   it('says so when a plugin needs no permissions', () => {

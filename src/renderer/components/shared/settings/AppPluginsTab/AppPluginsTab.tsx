@@ -2,7 +2,6 @@ import {
   Eye,
   FileText,
   FolderOpen,
-  FolderTree,
   Globe,
   KeyRound,
   type LucideIcon,
@@ -11,7 +10,6 @@ import {
   Terminal,
 } from 'lucide-react';
 import {
-  PluginFileArea,
   type PluginInfo,
   type PluginPermission,
   PluginPermissionAccess,
@@ -40,9 +38,8 @@ function describePermission(permission: PluginPermission): PermissionInfo {
     case PluginPermissionScope.BODIES:
       return { label: 'Read request and response bodies', icon: FileText };
     case PluginPermissionScope.FS:
-      return permission.value === PluginFileArea.COLLECTION
-        ? { label: 'Access the files of the open collection', icon: FolderTree }
-        : { label: 'Access files and folders you pick', icon: FolderOpen };
+      // the host does not limit a plugin to the file area of its permission yet
+      return { label: 'Access any file on your computer', icon: FolderOpen };
     case PluginPermissionScope.SECRETS:
       return { label: 'Store its own secrets', icon: KeyRound };
     case PluginPermissionScope.NETWORK:
@@ -52,8 +49,16 @@ function describePermission(permission: PluginPermission): PermissionInfo {
   }
 }
 
-const PermissionPill = ({ permission }: { permission: PluginPermission }) => {
-  const { label, icon: Icon, external } = describePermission(permission);
+/**
+ * @returns what the permissions allow a plugin to do. Different permissions can read the same,
+ * which says nothing more to the user, so those are listed once.
+ */
+function describePermissions(permissions: PluginPermission[]): PermissionInfo[] {
+  const infos = permissions.map(describePermission);
+  return [...new Map(infos.map((info) => [info.label, info])).values()];
+}
+
+const PermissionPill = ({ label, icon: Icon, external }: PermissionInfo) => {
   return (
     <li>
       <Badge variant={external ? 'warning' : 'neutral'}>
@@ -67,6 +72,7 @@ const PermissionPill = ({ permission }: { permission: PluginPermission }) => {
 const PluginEntry = ({ plugin }: { plugin: PluginInfo }) => {
   const { setEnabled } = usePluginActions();
   const titleId = `plugin-${plugin.id}-title`;
+  const permissions = describePermissions(plugin.permissions);
 
   return (
     <article
@@ -92,13 +98,12 @@ const PluginEntry = ({ plugin }: { plugin: PluginInfo }) => {
           {plugin.description !== '' && (
             <p className="text-text-secondary text-sm">{plugin.description}</p>
           )}
-          {plugin.permissions.length === 0 ? (
+          {permissions.length === 0 ? (
             <span className="text-text-secondary text-xs">Needs no permissions.</span>
           ) : (
             <ul aria-label="Permissions" className="flex flex-wrap gap-1.5">
-              {plugin.permissions.map((permission, index) => (
-                // the permissions of a plugin come from its manifest and never change order
-                <PermissionPill key={index} permission={permission} />
+              {permissions.map((permission) => (
+                <PermissionPill key={permission.label} {...permission} />
               ))}
             </ul>
           )}

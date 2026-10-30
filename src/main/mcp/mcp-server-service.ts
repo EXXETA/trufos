@@ -6,7 +6,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { SettingsService } from 'main/persistence/service/settings-service';
 import type { Initializable } from 'main/shared/initializable';
 import { SerialQueue } from 'main/util/serial-queue';
-import { isErrnoException } from 'main/util/fs-util';
+import { isErrnoException } from 'shim/error/errno';
 import { getMcpServerUrl, type McpPermissions, type McpServerStatus } from 'shim/mcp';
 import type { TrufosResponse } from 'shim/objects/response';
 import { McpAccessToken } from './access-token';

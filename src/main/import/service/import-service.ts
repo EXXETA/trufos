@@ -38,8 +38,10 @@ export class ImportService {
 
     // read and parse into Trufos collection
     logger.info(`Importing collection from "${srcFilePath}" using strategy "${strategy}"`);
-    const collection = await importer.importCollection(srcFilePath);
-    const warnings = importer.getWarnings?.() ?? [];
+    const warnings: ImportWarning[] = [];
+    const collection = await importer.importCollection(srcFilePath, (warning) => {
+      warnings.push(warning);
+    });
 
     // set directory
     collection.title = title || collection.title;

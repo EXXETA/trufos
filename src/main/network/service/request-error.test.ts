@@ -15,6 +15,11 @@ describe('mapRequestError', () => {
     expect(mapRequestError(undefined)).toBeInstanceOf(DisplayableError);
   });
 
+  it('keeps an error that is displayable already', () => {
+    const error = new DisplayableError('Cannot read the file', 'Client Certificate Not Readable');
+    expect(mapRequestError(error)).toBe(error);
+  });
+
   it('keeps the original error as the cause', () => {
     const original = systemError('ECONNRESET');
     expect(mapRequestError(original).cause).toBe(original);

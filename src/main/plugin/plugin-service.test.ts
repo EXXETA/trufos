@@ -73,7 +73,7 @@ describe('PluginService', () => {
     await writeFile(srcFilePath, JSON.stringify({ title: 'Imported' }));
 
     const importer = await service.getImporter('test-plugin.title');
-    const collection = await importer?.importCollection(srcFilePath);
+    const collection = await importer?.importCollection(srcFilePath, vi.fn());
     await service.getExporter('test-plugin.title');
 
     expect(collection?.title).toBe('Imported');
@@ -247,9 +247,6 @@ describe('PluginService', () => {
             importCollection: async () => {
               throw new Error('Unexpected token');
             },
-            getWarnings: () => {
-              throw new Error('boom');
-            },
           },
         },
       }))
@@ -257,11 +254,32 @@ describe('PluginService', () => {
 
     const importer = await service.getImporter('failing.x');
 
-    await expect(importer?.importCollection('/file')).rejects.toMatchObject({
+    await expect(importer?.importCollection('/file', vi.fn())).rejects.toMatchObject({
       title: 'Fake failing Plugin Error',
       description: 'Unexpected token',
     });
-    expect(importer?.getWarnings?.()).toEqual([]);
+  });
+
+  it('passes the warnings of an importer on', async () => {
+    const warning = { message: 'Skipped something' };
+    const service = await createService(
+      fakePlugin('warning', () => ({
+        importers: {
+          x: {
+            importCollection: async (_, reportWarning) => {
+              reportWarning(warning);
+              throw new Error('Unexpected token');
+            },
+          },
+        },
+      }))
+    );
+    const reportWarning = vi.fn();
+
+    const importer = await service.getImporter('warning.x');
+    await importer?.importCollection('/file', reportWarning).catch(() => undefined);
+
+    expect(reportWarning).toHaveBeenCalledExactlyOnceWith(warning);
   });
 
   it('rejects an invalid collection from an importer', async () => {
@@ -273,7 +291,7 @@ describe('PluginService', () => {
 
     const importer = await service.getImporter('invalid.x');
 
-    await expect(importer?.importCollection('/file')).rejects.toThrow('invalid');
+    await expect(importer?.importCollection('/file', vi.fn())).rejects.toThrow('invalid');
   });
 
   it('disables and deactivates a plugin and stores the choice', async () => {

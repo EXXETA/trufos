@@ -45,6 +45,20 @@ const createCollection = (auth: unknown) => ({
 });
 
 describe('PostmanImporter', () => {
+  it.each([
+    ['is not JSON', 'not json'],
+    ['is not an object', '[]'],
+    ['has no info', '{ "item": [] }'],
+    ['has no name', '{ "info": {} }'],
+  ])('throws a clear error if the file %s', async (_, content) => {
+    const srcFilePath = path.join(tmpdir(), 'invalid-postman-collection.json');
+    await fs.writeFile(srcFilePath, content);
+
+    await expect(
+      new PostmanImporter(log, fileSystem).importCollection(srcFilePath)
+    ).rejects.toThrow(/valid Postman collection/i);
+  });
+
   it('imports a collection with its variables, folders and requests', async () => {
     // Arrange
     const srcFilePath = path.join(tmpdir(), 'postman-collection.json');
