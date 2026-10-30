@@ -5,6 +5,6 @@
   "description": "Imports Bruno collections into Trufos.",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "@usebruno/lang": "0.40.0"
+    "@usebruno/lang": "0.41.0"
   }
 }
