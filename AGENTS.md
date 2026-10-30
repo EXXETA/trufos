@@ -124,6 +124,18 @@ newer version instead of failing on data it does not know.
   in `migrators.ts`, re-export it from `latest.ts`, add a test next to it, and update the
   `version` in `examples/collection/`.
 
+### Plugin API Version
+
+Everything exported from `shim/plugin` is the public plugin API, versioned by `PLUGIN_API_VERSION`
+(`src/shim/plugin/version.ts`). The `engine` of a plugin manifest is a semver range on this version.
+
+- **Bump the major version for every breaking change**, e.g. removing or renaming a member, changing
+  a signature or changing behaviour plugins rely on. A plugin built against the old API otherwise
+  still loads and can silently stop working, e.g. when a method it implements is no longer called.
+- Update the `engine` ranges of the bundled plugins (`plugins/*/plugin.json`) and the test fixture
+  (`plugins/__fixtures__/`) along with it.
+- Skip the bump only if the current API version has never shipped, and say so in the PR.
+
 ## Development Commands
 
 ```bash
