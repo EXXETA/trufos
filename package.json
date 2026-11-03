@@ -50,7 +50,7 @@
     "@typescript-eslint/parser": "^8.72.0",
     "@vitejs/plugin-react": "^6.1.2",
     "@vitest/coverage-v8": "^5.0.5",
-    "electron": "^45.0.0",
+    "electron": "^45.2.1",
     "eslint": "^10.13.0",
     "eslint-config-flat-gitignore": "2.4.0",
     "eslint-import-resolver-typescript": "^4.4.5",
