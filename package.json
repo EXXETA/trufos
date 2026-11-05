@@ -104,7 +104,7 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "template-replace-stream": "^3.0.1",
-    "undici": "^8.12.3",
+    "undici": "^8.12.4",
     "update-electron-app": "^3.3.0",
     "winston": "^3.19.0",
     "xml-formatter": "^3.7.0",
