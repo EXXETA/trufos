@@ -102,6 +102,15 @@ const renderWithSelectedRequest = () => {
   );
 };
 
+/**
+ * Waits until the provider follows the window focus and main's reload events. The store is set
+ * outside `act`, so the effect registering these listeners may run after the children rendered.
+ */
+const waitForListeners = async () => {
+  await screen.findByText('Test');
+  await waitFor(() => expect(listeners.has(MainProcessEvent.ReloadCollection)).toBe(true));
+};
+
 describe('CollectionStoreProvider', () => {
   it('renders the children once the collection state is loaded', async () => {
     renderProvider();
@@ -164,7 +173,7 @@ describe('CollectionStoreProvider', () => {
 
   it('writes everything to disk when the window loses focus, editor changes first', async () => {
     renderProvider();
-    await screen.findByText('Test');
+    await waitForListeners();
 
     await act(async () => {
       window.dispatchEvent(new Event('blur'));
@@ -178,7 +187,7 @@ describe('CollectionStoreProvider', () => {
 
   it('checks the files for changes when the window gets focus', async () => {
     renderWithSelectedRequest();
-    await screen.findByText('Test');
+    await waitForListeners();
 
     await act(async () => {
       window.dispatchEvent(new Event('focus'));
@@ -191,7 +200,7 @@ describe('CollectionStoreProvider', () => {
 
   it('reloads the collection from the Collection menu', async () => {
     renderProvider();
-    await screen.findByText('Test');
+    await waitForListeners();
 
     await act(async () => {
       listeners.get(MainProcessEvent.ReloadCollection)?.({});
@@ -202,7 +211,7 @@ describe('CollectionStoreProvider', () => {
 
   it('refreshes the editors when main reports changed request files', async () => {
     renderWithSelectedRequest();
-    await screen.findByText('Test');
+    await waitForListeners();
 
     await act(async () => {
       listeners.get(MainProcessEvent.RequestFilesChanged)?.({}, ['r1']);
@@ -213,7 +222,7 @@ describe('CollectionStoreProvider', () => {
 
   it('stops following the window focus on unmount', async () => {
     const { unmount } = renderProvider();
-    await screen.findByText('Test');
+    await waitForListeners();
 
     unmount();
     window.dispatchEvent(new Event('blur'));
@@ -225,7 +234,7 @@ describe('CollectionStoreProvider', () => {
 
   it('removes its listeners on unmount', async () => {
     const { unmount } = renderProvider();
-    await screen.findByText('Test');
+    await waitForListeners();
 
     unmount();
 
