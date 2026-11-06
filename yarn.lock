@@ -5319,10 +5319,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jose@npm:^6.2.12":
-  version: 6.2.12
-  resolution: "jose@npm:6.2.12"
-  checksum: 10c0/e8582b946fabcae228819982dda4849908c353e9cb098f02f773635aa0d2f4917f17484c7441b8d526e564013b4cf96951455c94f81d0a39ee765bad44ce293d
+"jose@npm:^6.2.15":
+  version: 6.2.15
+  resolution: "jose@npm:6.2.15"
+  checksum: 10c0/0e72e53ead0e01adc4598438f889e753622043806a7ba0c802f7cd7da17466e5a6167a63b4b4e67490944c9f88eb0dd5c81c05aca2c38a72718443632a7b37b5
   languageName: node
   linkType: hard
 
@@ -6230,13 +6230,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"openid-client@npm:^6.8.8":
-  version: 6.8.8
-  resolution: "openid-client@npm:6.8.8"
+"openid-client@npm:^6.8.9":
+  version: 6.8.9
+  resolution: "openid-client@npm:6.8.9"
   dependencies:
-    jose: "npm:^6.2.12"
+    jose: "npm:^6.2.15"
     oauth4webapi: "npm:^3.8.8"
-  checksum: 10c0/b1d60ca45623c77b8869b5a9725e25309cca20d32823861c5f72f0e9126a3ce43da2a93be964bfe771a39560f356c06adaedb2be29fe1762c4d097f91a4b620e
+  checksum: 10c0/6ec85b68a9a153acfa23b1fe2a2130ab829c1e2be43e6a270d93bb9e550a0d21eac8d3ae47ba75cac9adbbae1e4cb7a714bfc3a836649cfd4ba8392ce860be4e
   languageName: node
   linkType: hard
 
@@ -7382,7 +7382,7 @@ __metadata:
     memfs: "npm:^4.80.0"
     mime-types: "npm:^3.0.2"
     monaco-editor: "npm:^0.57.0"
-    openid-client: "npm:^6.8.8"
+    openid-client: "npm:^6.8.9"
     prettier: "npm:^3.9.10"
     prettier-plugin-tailwindcss: "npm:^0.8.1"
     react: "npm:^19.3.1"
