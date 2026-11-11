@@ -6523,9 +6523,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-resizable-panels@npm:^4.19.1":
-  version: 4.19.1
-  resolution: "react-resizable-panels@npm:4.19.1"
+"react-resizable-panels@npm:^4.20.0":
+  version: 4.20.0
+  resolution: "react-resizable-panels@npm:4.20.0"
   peerDependencies:
     "@types/react": ^18.2.6 || ^19.0.0
     react: ^18.0.0 || ^19.0.0
@@ -6533,7 +6533,7 @@ __metadata:
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/f2a2bf6a258042b14be4628f054c641ad1017b0d1bc14a4d29e90864e840795da5b4f645c1acd7c11879a7c9fed85febea3b8832a3e22e6c6ba35fa0afee2c9b
+  checksum: 10c0/40e506f8d210154d2fe1c976b3c6a777b091294640654f030fdc3415abaff8d868afc15e14d9d64c4e5d52b802925c8fa415eb79add77d551c68870cd8576034
   languageName: node
   linkType: hard
 
@@ -7234,7 +7234,7 @@ __metadata:
     prettier-plugin-tailwindcss: "npm:^0.8.1"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
-    react-resizable-panels: "npm:^4.19.1"
+    react-resizable-panels: "npm:^4.20.0"
     sonner: "npm:^2.0.8"
     tailwind-merge: "npm:^3.7.0"
     tailwindcss: "npm:^4.3.5"
