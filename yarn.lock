@@ -3386,9 +3386,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vitejs/plugin-react@npm:^6.2.1":
-  version: 6.2.1
-  resolution: "@vitejs/plugin-react@npm:6.2.1"
+"@vitejs/plugin-react@npm:^6.3.0":
+  version: 6.3.0
+  resolution: "@vitejs/plugin-react@npm:6.3.0"
   dependencies:
     "@rolldown/pluginutils": "npm:^1.0.1"
   peerDependencies:
@@ -3403,7 +3403,7 @@ __metadata:
       optional: true
     oxc-transform-react:
       optional: true
-  checksum: 10c0/b591b19ff2a9909f57cb2d6d4a401f11242cbe9bd2e1647ab7d55f7f66c9a674f1c236c3931c3a0de14e1bc473523d2d6064a48ef57679bbacc2ef06bc4f7961
+  checksum: 10c0/4a938ca2deda70f25738ae6c2397f03b22a0690205f1a519b84fb175542912d4a9db2343b5505c113bf5c7ab5975a504f8ff75a817f1c6716db0e12338289dbc
   languageName: node
   linkType: hard
 
@@ -6523,9 +6523,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-resizable-panels@npm:^4.20.0":
-  version: 4.20.0
-  resolution: "react-resizable-panels@npm:4.20.0"
+"react-resizable-panels@npm:^4.21.0":
+  version: 4.21.0
+  resolution: "react-resizable-panels@npm:4.21.0"
   peerDependencies:
     "@types/react": ^18.2.6 || ^19.0.0
     react: ^18.0.0 || ^19.0.0
@@ -6533,7 +6533,7 @@ __metadata:
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/40e506f8d210154d2fe1c976b3c6a777b091294640654f030fdc3415abaff8d868afc15e14d9d64c4e5d52b802925c8fa415eb79add77d551c68870cd8576034
+  checksum: 10c0/9426eee17902dce07fefabdfd3a83a1b3c31b5b7c2bfa5026ec63798464d6c165bba766e9fdd8be0630cf30bc5ee9f0fcd28c944cc85533d6a9c424328c841b7
   languageName: node
   linkType: hard
 
@@ -7210,7 +7210,7 @@ __metadata:
     "@types/react-dom": "npm:^19.3.0"
     "@typescript-eslint/eslint-plugin": "npm:^8.72.1"
     "@typescript-eslint/parser": "npm:^8.72.1"
-    "@vitejs/plugin-react": "npm:^6.2.1"
+    "@vitejs/plugin-react": "npm:^6.3.0"
     "@vitest/coverage-v8": "npm:^5.1.0"
     "@zip.js/zip.js": "npm:^2.24.0"
     class-variance-authority: "npm:^0.7.1"
@@ -7234,7 +7234,7 @@ __metadata:
     prettier-plugin-tailwindcss: "npm:^0.8.1"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
-    react-resizable-panels: "npm:^4.20.0"
+    react-resizable-panels: "npm:^4.21.0"
     sonner: "npm:^2.0.8"
     tailwind-merge: "npm:^3.7.0"
     tailwindcss: "npm:^4.3.5"
