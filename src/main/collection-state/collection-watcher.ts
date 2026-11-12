@@ -112,9 +112,11 @@ export class CollectionWatcher {
   }
 
   private record(dirPath: string, fileName: string | null) {
-    if (fileName == null) this.unnamed = true;
-    else if (this.isIgnored(fileName)) return;
-    else this.changed.add(path.join(dirPath, fileName));
+    // normalized, so the rule always gets the separators of the platform
+    const relativePath = fileName == null ? null : path.normalize(fileName);
+    if (relativePath == null) this.unnamed = true;
+    else if (this.isIgnored(relativePath)) return;
+    else this.changed.add(path.join(dirPath, relativePath));
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.report(), WATCH_DEBOUNCE_MS);
   }

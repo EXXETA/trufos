@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { text } from 'node:stream/consumers';
 import { isSameOrInside, openFile, readFileLimited } from './fs-util';
@@ -143,9 +144,10 @@ describe('openFile', () => {
 
 describe('isSameOrInside', () => {
   it('should match the directory itself and its descendants only', () => {
-    expect(isSameOrInside('/a/b', '/a/b')).toBe(true);
-    expect(isSameOrInside('/a/b/c/d', '/a/b')).toBe(true);
-    expect(isSameOrInside('/a/bc', '/a/b')).toBe(false);
-    expect(isSameOrInside('/a', '/a/b')).toBe(false);
+    const parent = path.join('/a', 'b');
+    expect(isSameOrInside(parent, parent)).toBe(true);
+    expect(isSameOrInside(path.join(parent, 'c', 'd'), parent)).toBe(true);
+    expect(isSameOrInside(path.join('/a', 'bc'), parent)).toBe(false);
+    expect(isSameOrInside(path.join('/a'), parent)).toBe(false);
   });
 });
