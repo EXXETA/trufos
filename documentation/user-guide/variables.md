@@ -23,12 +23,12 @@ When writing `{{` in your request, the editor will show you a list of all availa
 can navigate through the list using the arrow keys and select a variable by pressing `Enter`. The
 variable will be inserted at the current cursor position.
 
-![Variable List](../../assets/variable-list.png)
+![Variable List][variable-list]
 
 A variables are highlighted in blue. When hovering over a variable, a tooltip will show you the
 variable name, its current value, and optionally a description.
 
-![Variable Tooltip](../../assets/variable-tooltip.png)
+![Variable Tooltip][variable-tooltip]
 
 ## System Variables
 
@@ -57,3 +57,6 @@ Environment variables are set in an environment. They can be used in any request
 collection and are active as long as the environment is selected.
 
 {% endraw %}
+
+[variable-list]: {{ "/assets/variable-list.png" | relative_url }}
+[variable-tooltip]: {{ "/assets/variable-tooltip.png" | relative_url }}

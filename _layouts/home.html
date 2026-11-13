@@ -1,0 +1,50 @@
+---
+layout: default
+---
+{%- comment -%}
+  Landing page. Reads from the page's front matter:
+    tagline       text under the title
+    meta          small line under the buttons
+    screenshots   list of { dark, light, alt, width, height }; `light` is optional,
+                  without it the dark image is shown in both themes
+    features      list of { title, text }
+  The page's Markdown body is rendered below the feature grid.
+{%- endcomment -%}
+
+<section class="hero">
+  <img class="hero__logo" src="{{ '/assets/images/logo.svg' | relative_url }}" alt="" width="96" height="96" />
+  <h1 class="hero__title">{{ site.title }}</h1>
+  {% if page.tagline %}<p class="hero__tagline">{{ page.tagline }}</p>{% endif %}
+  <div class="hero__actions">
+    <a class="btn btn-primary" href="{% link download.md %}">Download</a>
+    <a class="btn" href="{% link documentation/user-guide/index.md %}">Read the docs</a>
+  </div>
+  {% if page.meta %}<p class="hero__meta">{{ page.meta }}</p>{% endif %}
+</section>
+
+{% if page.screenshots %}
+<div class="screenshots">
+  {% for shot in page.screenshots %}
+  {% if shot.light %}
+  <img class="only-light" src="{{ shot.light | relative_url }}" alt="{{ shot.alt }}" width="{{ shot.width }}" height="{{ shot.height }}" loading="lazy" decoding="async" />
+  <img class="only-dark" src="{{ shot.dark | relative_url }}" alt="{{ shot.alt }}" width="{{ shot.width }}" height="{{ shot.height }}" loading="lazy" decoding="async" />
+  {% else %}
+  <img src="{{ shot.dark | relative_url }}" alt="{{ shot.alt }}" width="{{ shot.width }}" height="{{ shot.height }}" loading="lazy" decoding="async" />
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if page.features %}
+<h2 id="features">Features</h2>
+<div class="feature-grid">
+  {% for feature in page.features %}
+  <div class="feature">
+    <p class="feature__title">{{ feature.title }}</p>
+    <p class="feature__text">{{ feature.text }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{{ content }}

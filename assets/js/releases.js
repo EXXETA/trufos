@@ -4,6 +4,8 @@ const REPOSITORY = "EXXETA/trufos";
 const platformConfig = [
   {
     key: "mac-arm64",
+    os: "mac",
+    arch: "arm",
     label: "macOS (Apple Silicon)",
     matcher: (name, version) => {
       if (version && name === `Trufos-${version}-arm64.dmg`) {
@@ -14,6 +16,8 @@ const platformConfig = [
   },
   {
     key: "mac-intel",
+    os: "mac",
+    arch: "x86",
     label: "macOS (Intel)",
     matcher: (name, version) => {
       if (version && name === `Trufos-${version}-x64.dmg`) {
@@ -24,6 +28,7 @@ const platformConfig = [
   },
   {
     key: "linux-deb",
+    os: "linux",
     label: "Linux (DEB)",
     matcher: (name, version) => {
       if (version && name === `trufos_${version}_amd64.deb`) {
@@ -34,6 +39,7 @@ const platformConfig = [
   },
   {
     key: "linux-zip",
+    os: "linux",
     label: "Linux (ZIP)",
     matcher: (name, version) => {
       if (version && name === `Trufos-linux-x64-${version}.zip`) {
@@ -44,6 +50,7 @@ const platformConfig = [
   },
   {
     key: "windows-setup",
+    os: "windows",
     label: "Windows (Setup EXE)",
     matcher: (name, version) => {
       if (version && name === `Trufos-${version}.Setup.exe`) {
@@ -53,6 +60,85 @@ const platformConfig = [
     },
   },
 ];
+
+const OS_LABELS = { mac: "macOS", windows: "Windows", linux: "Linux" };
+
+/**
+ * Detects the visitor's desktop OS and, where the browser exposes it, the CPU architecture.
+ * Phones and tablets get `os: null`, as there is no installer for them.
+ * @returns {Promise<{ os: "mac" | "windows" | "linux" | null, arch: "arm" | "x86" | null }>}
+ */
+const detectPlatform = async () => {
+  const ua = navigator.userAgent || "";
+  const uaData = navigator.userAgentData;
+  const platform = (uaData?.platform || navigator.platform || "").toLowerCase();
+
+  let os = null;
+  if (uaData?.mobile || /android|iphone|ipad|ipod/i.test(ua)) {
+    os = null;
+  } else if (platform.startsWith("mac") || /macintosh|mac os x/i.test(ua)) {
+    // iPadOS Safari reports itself as a Mac, but has a touch screen
+    os = navigator.maxTouchPoints > 1 ? null : "mac";
+  } else if (platform.startsWith("win") || /windows/i.test(ua)) {
+    os = "windows";
+  } else if (platform.includes("linux") || /linux|x11/i.test(ua)) {
+    os = "linux";
+  }
+
+  // Only Chromium exposes the architecture; Safari and Firefox always claim "Intel" on macOS.
+  let arch = null;
+  if (os === "mac" && uaData?.getHighEntropyValues) {
+    try {
+      const { architecture } = await uaData.getHighEntropyValues(["architecture"]);
+      if (architecture === "arm" || architecture === "x86") {
+        arch = architecture;
+      }
+    } catch {
+      // ignore: falls back to the default below
+    }
+  }
+
+  return { os, arch };
+};
+
+/**
+ * Picks the installers to highlight for a platform: Apple Silicon is the default on macOS
+ * when the architecture is unknown, and DEB is the default on Linux.
+ * @returns {Set<string>} keys from platformConfig
+ */
+const recommendedKeys = ({ os, arch }) => {
+  switch (os) {
+    case "windows":
+      return new Set(["windows-setup"]);
+    case "mac":
+      return new Set([arch === "x86" ? "mac-intel" : "mac-arm64"]);
+    case "linux":
+      return new Set(["linux-deb"]);
+    default:
+      return new Set();
+  }
+};
+
+const detectionHint = ({ os, arch }) => {
+  switch (os) {
+    case "mac":
+      return arch
+        ? "Highlighted the download for your Mac."
+        : "Highlighted the Apple Silicon download. On an Intel Mac, pick the Intel build instead (Apple menu > About This Mac shows your chip).";
+    case "linux":
+      return "Highlighted the DEB package for Debian and Ubuntu. On other distributions, use the ZIP archive.";
+    case "windows":
+      return "Highlighted the Windows installer.";
+    default:
+      return "";
+  }
+};
+
+const escapeHtml = (value) =>
+  String(value).replace(
+    /[&<>"']/g,
+    (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char],
+  );
 
 const setStatus = (container, message) => {
   // set content of child element with ID "status"
@@ -89,7 +175,7 @@ const findAsset = (assets, matcher, version) => {
   return assets.find((asset) => matcher(asset.name || "", version)) || null;
 };
 
-const renderCard = (config, asset) => {
+const renderCard = (config, asset, recommended) => {
   if (!asset) {
     return `
       <div class="release-item release-item--disabled">
@@ -100,32 +186,45 @@ const renderCard = (config, asset) => {
   }
 
   return `
-    <a class="release-item" href="${asset.browser_download_url}" rel="noopener">
+    <a class="release-item${recommended ? " release-item--recommended" : ""}" href="${escapeHtml(asset.browser_download_url)}" rel="noopener">
+      ${recommended ? '<span class="release-item__badge">Recommended for you</span>' : ""}
       <p class="release-item__label">${config.label}</p>
-      <p class="release-item__hint">${asset.name}</p>
+      <p class="release-item__hint">${escapeHtml(asset.name)}</p>
       <span class="release-item__state">Download</span>
     </a>
   `;
 };
 
-const renderLatestRelease = (container, release) => {
+const renderLatestRelease = (container, release, platform) => {
   const assets = Array.isArray(release.assets) ? release.assets : [];
   const version = extractVersion(release);
   const dateLabel = formatDate(release.published_at || release.created_at);
+  const recommended = recommendedKeys(platform);
 
-  const cards = platformConfig
-    .map((config) => {
-      const asset = findAsset(assets, config.matcher, version);
-      return renderCard(config, asset);
-    })
+  const entries = platformConfig.map((config) => ({
+    config,
+    asset: findAsset(assets, config.matcher, version),
+  }));
+  const isRecommended = ({ config, asset }) => Boolean(asset) && recommended.has(config.key);
+
+  // recommended installers first, then the rest of the visitor's OS, then everything else
+  const rank = (entry) => (isRecommended(entry) ? 0 : entry.config.os === platform.os ? 1 : 2);
+  const cards = entries
+    .map((entry, index) => ({ ...entry, index }))
+    .sort((a, b) => rank(a) - rank(b) || a.index - b.index)
+    .map((entry) => renderCard(entry.config, entry.asset, isRecommended(entry)))
     .join("");
+
+  const hint = entries.some(isRecommended) ? detectionHint(platform) : "";
+  const detected = platform.os ? `Detected ${OS_LABELS[platform.os]}. ${hint}` : "";
 
   container.innerHTML = `
     <div class="release-latest">
       <div class="release-latest__header">
-        <h3 class="release-latest__title">Latest release ${release.name || release.tag_name || ""}</h3>
+        <h3 class="release-latest__title">Latest release ${escapeHtml(release.name || release.tag_name || "")}</h3>
         ${dateLabel ? `<span class="release-latest__date">${dateLabel}</span>` : ""}
       </div>
+      ${detected ? `<p class="release-latest__detected">${detected}</p>` : ""}
       <div class="release-grid">${cards}</div>
     </div>
   `;
@@ -135,18 +234,21 @@ const loadReleases = async (container) => {
   setStatus(container, "Loading latest release...");
 
   try {
-    const response = await fetch(`${API_BASE}/repos/${REPOSITORY}/releases/latest`, {
-      headers: {
-        Accept: "application/vnd.github+json",
-      },
-    });
+    const [response, platform] = await Promise.all([
+      fetch(`${API_BASE}/repos/${REPOSITORY}/releases/latest`, {
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+      }),
+      detectPlatform(),
+    ]);
 
     if (!response.ok) {
       throw new Error(`GitHub API error: ${response.status}`);
     }
 
     const latest = await response.json();
-    renderLatestRelease(container, latest);
+    renderLatestRelease(container, latest, platform);
   } catch (error) {
     setStatus(container, "Could not load releases. Please try again later.");
   }

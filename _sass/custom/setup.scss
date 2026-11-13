@@ -1,0 +1,10 @@
+// Loaded after just-the-docs' variables and before the colour scheme.
+
+$body-font-family: "Lato", system-ui, -apple-system, "Segoe UI", roboto, "Helvetica Neue", arial,
+  sans-serif, "Segoe UI Emoji";
+$border-radius: 0.5rem; // --radius in the app
+
+// Baseline for every stylesheet the theme builds, including its stock
+// just-the-docs-light/-dark.css, which custom.scss would otherwise break with
+// undefined $trufos-* variables. trufos-dark overrides all of these.
+@import "../color_schemes/trufos-light";

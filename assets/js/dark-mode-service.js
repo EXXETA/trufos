@@ -5,6 +5,15 @@
 
 const STORAGE_ITEM_KEY = "theme";
 
+/**
+ * Stylesheet per theme: `jtd.setTheme(name)` loads assets/css/just-the-docs-<name>.css.
+ * "default" is built with `color_scheme: trufos-light` from _config.yml.
+ */
+const STYLESHEETS = { [LIGHT]: "default", [DARK]: "trufos-dark" };
+
+/** ID of the dark stylesheet written by the inline script in _includes/head_custom.html */
+const BOOT_STYLESHEET_ID = "trufos-theme-boot";
+
 function getDarkModeMedia() {
   if (window.matchMedia) {
     return window.matchMedia("(prefers-color-scheme: dark)");
@@ -12,10 +21,33 @@ function getDarkModeMedia() {
   return null;
 }
 
+/**
+ * Switches the theme's stylesheet. If the boot stylesheet from head_custom.html is present, it
+ * is removed only after the new stylesheet has loaded, so the page is never left unstyled.
+ * @param {Theme} theme
+ */
+function applyScheme(theme) {
+  const stylesheet = document.querySelector('[rel="stylesheet"]'); // the one jtd.setTheme changes
+  const bootStylesheet = document.getElementById(BOOT_STYLESHEET_ID);
+  const fileName = `just-the-docs-${STYLESHEETS[theme]}.css`;
+
+  if (stylesheet.getAttribute("href").endsWith(fileName)) {
+    bootStylesheet?.remove();
+    return;
+  }
+
+  if (bootStylesheet) {
+    const removeBoot = () => bootStylesheet.remove();
+    stylesheet.addEventListener("load", removeBoot, { once: true });
+    stylesheet.addEventListener("error", removeBoot, { once: true });
+  }
+  jtd.setTheme(STYLESHEETS[theme]);
+}
+
 export class DarkModeService {
   static {
-    // preload correct theme before rendering finished
-    jtd.setTheme(DarkModeService.storedTheme ?? DarkModeService.systemTheme);
+    // apply the theme as early as possible; head_custom.html covers the first paint
+    applyScheme(DarkModeService.preferredTheme);
   }
 
   /**
@@ -26,55 +58,61 @@ export class DarkModeService {
       iconElement = document.getElementById(iconElement);
     }
     jtd.addEvent(iconElement, "click", () => this.toggleTheme());
+    jtd.addEvent(iconElement, "keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        this.toggleTheme();
+      }
+    });
     this.useElement = iconElement.querySelector("use");
+    this.showTheme(DarkModeService.preferredTheme);
 
-    // set the initial theme and add a listener for system theme changes
-    this.theme = DarkModeService.storedTheme ?? DarkModeService.systemTheme;
+    // follow the system theme until the visitor picks one with the toggle
     getDarkModeMedia()?.addEventListener("change", () => {
-      this.theme = DarkModeService.systemTheme;
+      if (DarkModeService.storedTheme === null) {
+        this.showTheme(DarkModeService.systemTheme);
+      }
     });
   }
 
+  /** @returns {Theme} The theme currently shown */
   get theme() {
-    return jtd.getTheme();
+    return jtd.getTheme() === DARK ? DARK : LIGHT;
+  }
+
+  /** @returns {Theme} The visitor's explicit choice, or else the system theme */
+  static get preferredTheme() {
+    return DarkModeService.storedTheme ?? DarkModeService.systemTheme;
   }
 
   static get systemTheme() {
     return getDarkModeMedia()?.matches ? DARK : LIGHT;
   }
 
-  /** @returns {Theme | null} The stored theme */
+  /** @returns {Theme | null} The theme the visitor picked with the toggle, if any */
   static get storedTheme() {
-    return localStorage.getItem(STORAGE_ITEM_KEY);
-  }
-
-  /** @param {Theme} value The theme to set */
-  set theme(value) {
-    /** @type {string} */ let icon;
-
-    switch (value) {
-      case DARK:
-        icon = "moon";
-        break;
-      case LIGHT:
-      default:
-        value = LIGHT;
-        icon = "sun";
-        break;
-    }
-
-    jtd.setTheme(value);
-    this.useElement.setAttribute("xlink:href", `#svg-${icon}`);
-    localStorage.setItem(STORAGE_ITEM_KEY, value);
-
-    // Toggle releases dark mode stylesheet for manual theme switching
-    const releasesDarkSheet = document.getElementById("releases-dark-css");
-    if (releasesDarkSheet) {
-      releasesDarkSheet.disabled = value !== DARK;
+    try {
+      const value = localStorage.getItem(STORAGE_ITEM_KEY);
+      return value === DARK || value === LIGHT ? value : null;
+    } catch {
+      return null;
     }
   }
 
+  /** @param {Theme} theme Shows a theme without remembering it */
+  showTheme(theme) {
+    applyScheme(theme);
+    this.useElement.setAttribute("xlink:href", `#svg-${theme === DARK ? "moon" : "sun"}`);
+  }
+
+  /** Switches to the other theme and remembers the choice */
   toggleTheme() {
-    this.theme = this.theme === LIGHT ? DARK : LIGHT;
+    const theme = this.theme === LIGHT ? DARK : LIGHT;
+    this.showTheme(theme);
+    try {
+      localStorage.setItem(STORAGE_ITEM_KEY, theme);
+    } catch {
+      // storage unavailable (private mode, blocked site data): the theme still applies
+    }
   }
 }

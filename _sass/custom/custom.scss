@@ -1,3 +1,77 @@
+// Compiled once per colour scheme (see assets/css/just-the-docs-trufos-*.scss),
+// so the $trufos-* variables below always hold the values of the active scheme.
+
+// ---------------------------------------------------------------------------
+// Fonts (self-hosted, SIL OFL, see assets/fonts/lato/OFL.txt)
+// ---------------------------------------------------------------------------
+
+@each $weight in 400, 700 {
+  @each $style in normal, italic {
+    @font-face {
+      font-family: "Lato";
+      font-style: $style;
+      font-weight: $weight;
+      font-display: swap;
+      src: url("../fonts/lato/lato-latin-#{$weight}-#{$style}.woff2") format("woff2");
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tokens as custom properties, for inline styles and JS-rendered markup
+// ---------------------------------------------------------------------------
+
+:root {
+  color-scheme: $color-scheme;
+  --trufos-accent: #{$trufos-accent};
+  --trufos-accent-text: #{$trufos-accent-text};
+  --trufos-accent-soft: #{$trufos-accent-soft};
+  --trufos-on-accent: #{$trufos-on-accent};
+  --trufos-bg-primary: #{$trufos-bg-primary};
+  --trufos-bg-secondary: #{$trufos-bg-secondary};
+  --trufos-text-primary: #{$trufos-text-primary};
+  --trufos-text-secondary: #{$trufos-text-secondary};
+  --trufos-text-muted: #{$trufos-text-muted};
+  --trufos-border: #{$trufos-border};
+  --trufos-success: #{$trufos-success};
+  --trufos-error: #{$trufos-error};
+  --trufos-warning: #{$trufos-warning};
+  --trufos-shadow: #{$trufos-shadow};
+  --trufos-radius: #{$border-radius};
+  --trufos-http-get: #{$trufos-http-get};
+  --trufos-http-put: #{$trufos-http-put};
+  --trufos-http-post: #{$trufos-http-post};
+  --trufos-http-delete: #{$trufos-http-delete};
+  --trufos-http-patch: #{$trufos-http-patch};
+}
+
+// Theme-specific content, e.g. light and dark screenshots
+@if $color-scheme == dark {
+  .only-light {
+    display: none !important;
+  }
+} @else {
+  .only-dark {
+    display: none !important;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Header and sidebar
+// ---------------------------------------------------------------------------
+
+.site-title {
+  font-weight: 700;
+}
+
+.site-title__logo {
+  width: 2rem;
+  height: 2rem;
+  margin-right: 0.6rem;
+  border-radius: 0.45rem;
+  flex-shrink: 0;
+}
+
 .nav-icons {
   display: flex;
   gap: 0.5rem;
@@ -9,21 +83,219 @@
   align-items: center;
 }
 
+// ---------------------------------------------------------------------------
+// Buttons
+// ---------------------------------------------------------------------------
+
+.btn {
+  border-radius: $border-radius;
+}
+
+.btn-primary,
+.btn-primary:hover,
+.btn-primary:focus {
+  color: $trufos-on-accent;
+}
+
+// ---------------------------------------------------------------------------
+// Cards
+// ---------------------------------------------------------------------------
+
+.card {
+  border: 1px solid $trufos-border;
+  border-radius: $border-radius;
+  background: $trufos-bg-secondary;
+  padding: 1rem 1.25rem;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HTTP method badges: <span class="method method-get">GET</span>
+// ---------------------------------------------------------------------------
+
+.method {
+  --method-color: #{$trufos-text-muted};
+  display: inline-block;
+  min-width: 3.4em;
+  padding: 0.1em 0.45em;
+  border-radius: 0.3rem;
+  font-family: $mono-font-family;
+  font-size: 0.8em;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  vertical-align: 0.08em;
+  color: var(--method-color);
+  background: color-mix(in srgb, var(--method-color) 14%, transparent);
+}
+
+@each $method in get, put, post, delete, patch {
+  .method-#{$method} {
+    --method-color: var(--trufos-http-#{$method});
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Callouts: put {: .note }, {: .tip }, {: .warning } or {: .important }
+// above a paragraph or blockquote
+// ---------------------------------------------------------------------------
+
+$trufos-callouts: (
+  note: ("Note", $trufos-accent-text),
+  tip: ("Tip", $trufos-success),
+  warning: ("Warning", $trufos-warning),
+  important: ("Important", $trufos-error),
+);
+
+@each $name, $callout in $trufos-callouts {
+  $title: nth($callout, 1);
+  $color: nth($callout, 2);
+
+  p.#{$name},
+  blockquote.#{$name} {
+    margin-left: 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid color-mix(in srgb, #{$color} 35%, transparent);
+    border-left: 4px solid $color;
+    border-radius: $border-radius;
+    background: color-mix(in srgb, #{$color} 9%, transparent);
+    color: $body-text-color;
+
+    &::before {
+      content: "#{$title}";
+      display: block;
+      margin-bottom: 0.2rem;
+      color: $color;
+      font-size: 0.75em;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Home page
+// ---------------------------------------------------------------------------
+
+.hero {
+  padding: 1.5rem 0 1rem;
+  text-align: center;
+}
+
+.hero__logo {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 1.4rem;
+  box-shadow: 0 10px 30px $trufos-shadow;
+}
+
+.hero__title {
+  margin: 1rem 0 0.25rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.15;
+
+  @include mq(md) {
+    font-size: 3rem;
+  }
+}
+
+.hero__tagline {
+  max-width: 36rem;
+  margin: 0.5rem auto 1.5rem;
+  color: $trufos-text-secondary;
+  font-size: 1.125rem;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+
+  .btn {
+    margin: 0;
+    padding: 0.6rem 1.25rem;
+    font-size: 1rem;
+  }
+}
+
+.hero__meta {
+  margin-top: 0.75rem;
+  color: $trufos-text-muted;
+  font-size: 0.875rem;
+}
+
+.screenshots {
+  display: grid;
+  gap: 1rem;
+  margin: 2rem 0 2.5rem;
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 2rem;
+}
+
+.feature {
+  border: 1px solid $trufos-border;
+  border-radius: $border-radius;
+  background: $trufos-bg-secondary;
+  padding: 1rem 1.1rem;
+}
+
+.feature__title {
+  margin: 0 0 0.35rem;
+  color: $trufos-text-primary;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.feature__text {
+  margin: 0;
+  color: $trufos-text-secondary;
+  font-size: 0.925rem;
+}
+
+// ---------------------------------------------------------------------------
+// Download page (markup rendered by assets/js/releases.js)
+// ---------------------------------------------------------------------------
+
 .releases-container {
   margin: 1rem 0 2rem;
 }
 
 .releases-container > .status {
-  color: var(--color-fg-muted, #5c5c5c);
+  color: $trufos-text-muted;
   font-size: 0.95rem;
   margin: 0.25rem 0;
 }
 
 .release-latest {
-  border: 1px solid var(--color-border, #e0e0e0);
-  border-radius: 10px;
+  border: 1px solid $trufos-border;
+  border-radius: $border-radius;
   padding: 1rem 1.25rem 1.25rem;
-  background: var(--color-bg, #ffffff);
+  background: $trufos-bg-secondary;
 }
 
 .release-latest__header {
@@ -36,13 +308,18 @@
 
 .release-latest__title {
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
 }
 
-.release-latest__date {
-  color: var(--color-fg-muted, #5c5c5c);
+.release-latest__date,
+.release-latest__detected {
+  color: $trufos-text-muted;
   font-size: 0.9rem;
+}
+
+.release-latest__detected {
+  margin: -0.5rem 0 1rem;
 }
 
 .release-grid {
@@ -52,50 +329,68 @@
 }
 
 .release-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  border: 1px solid var(--color-border, #e0e0e0);
-  border-radius: 8px;
+  border: 1px solid $trufos-border;
+  border-radius: $border-radius;
   padding: 0.85rem 0.9rem;
   text-decoration: none;
-  background: var(--color-bg, #ffffff);
+  background: $trufos-bg-primary;
   transition:
     transform 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.release-item:hover {
+a.release-item:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  border-color: $trufos-accent;
+  box-shadow: 0 6px 16px $trufos-shadow;
 }
 
 .release-item__label {
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
-  color: var(--color-fg, #1a1a1a);
+  color: $trufos-text-primary;
 }
 
 .release-item__hint {
   margin: 0;
   font-size: 0.85rem;
-  color: var(--color-fg-muted, #5c5c5c);
+  color: $trufos-text-muted;
   word-break: break-all;
 }
 
 .release-item__state {
   font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-link, #1f6feb);
+  font-weight: 700;
+  color: $trufos-accent-text;
+}
+
+.release-item__badge {
+  align-self: flex-start;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: $trufos-accent;
+  color: $trufos-on-accent;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.release-item--recommended {
+  border: 2px solid $trufos-accent;
+  background: $trufos-accent-soft;
 }
 
 .release-item--disabled {
   cursor: not-allowed;
-  background: var(--color-bg-muted, #f5f5f5);
+  background: $trufos-bg-secondary;
   border-style: dashed;
 }
 
 .release-item--disabled .release-item__state {
-  color: var(--color-fg-muted, #5c5c5c);
+  color: $trufos-text-muted;
 }

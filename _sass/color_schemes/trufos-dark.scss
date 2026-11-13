@@ -1,0 +1,46 @@
+// Trufos dark scheme, derived from the app's tokens in
+// src/renderer/styles/index.css (.dark) on the main branch.
+
+$color-scheme: dark;
+
+// App tokens
+$trufos-accent: #75d9fb; // --accent-primary
+$trufos-accent-text: #75d9fb;
+$trufos-accent-soft: #193641; // --accent-tertiary
+$trufos-on-accent: #111111;
+$trufos-bg-primary: #111111; // --background-primary
+$trufos-bg-secondary: #1f1f1f; // --background-secondary
+$trufos-text-primary: #eeeeee; // --text-primary
+$trufos-text-secondary: #bbbbbb; // --text-secondary
+$trufos-text-muted: #9a9a9a;
+$trufos-border: #333333; // --border
+$trufos-success: #2bb361;
+$trufos-error: #bd5151;
+$trufos-warning: #f9aa2d;
+$trufos-shadow: rgba(0, 0, 0, 0.4);
+
+// HTTP method colours (app values)
+$trufos-http-get: #93f176;
+$trufos-http-put: #37abff;
+$trufos-http-post: #9f72fe;
+$trufos-http-delete: #ee5c99;
+$trufos-http-patch: #efa349;
+
+// just-the-docs variables
+$body-background-color: $trufos-bg-primary;
+$body-heading-color: $trufos-text-primary;
+$body-text-color: $trufos-text-primary;
+$link-color: $trufos-accent-text;
+$nav-child-link-color: $trufos-text-secondary;
+$sidebar-color: $trufos-bg-secondary;
+$base-button-color: $trufos-bg-secondary;
+$btn-primary-color: $trufos-accent;
+$code-background-color: $trufos-bg-secondary;
+$code-linenumber-color: $trufos-text-muted;
+$feedback-color: $trufos-accent-soft;
+$table-background-color: $trufos-bg-secondary;
+$search-background-color: $trufos-bg-secondary;
+$search-result-preview-color: $trufos-text-muted;
+$border-color: $trufos-border;
+
+@import "./vendor/OneDarkJekyll/syntax"; // same syntax theme as just-the-docs' dark scheme

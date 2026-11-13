@@ -1,0 +1,49 @@
+// Trufos light scheme, derived from the app's tokens in
+// src/renderer/styles/index.css (:root) on the main branch.
+//
+// The app accent (#0098ed) is only 3.2:1 against white, so text links and
+// primary buttons use a darker shade of it ($trufos-accent-text: 5.1:1 on
+// white, 4.6:1 on the #f2f3f5 sidebar and the #e5f5fd nav highlight).
+// The plain accent is used for non-text decoration (borders, focus, hero).
+
+$color-scheme: light;
+
+// App tokens
+$trufos-accent: #0098ed; // --accent-primary
+$trufos-accent-text: #0073b3;
+$trufos-accent-soft: #e5f5fd; // --accent-secondary
+$trufos-on-accent: #ffffff;
+$trufos-bg-primary: #ffffff; // --background-primary
+$trufos-bg-secondary: #f2f3f5; // --background-secondary
+$trufos-text-primary: #263e4c; // --text-primary
+$trufos-text-secondary: #3d5563; // --text-secondary
+$trufos-text-muted: #5e6670; // --svg-gray
+$trufos-border: #e2e8f0; // --border
+$trufos-success: #16a34a;
+$trufos-error: #dc2626;
+$trufos-warning: #d97706;
+$trufos-shadow: rgba(38, 62, 76, 0.1);
+
+// HTTP method colours: the app values, darkened where needed so that the
+// badge text stays readable on a light background.
+$trufos-http-get: #1f7a00; // app: #2cbb00
+$trufos-http-put: #00739a; // app: #00a2d9
+$trufos-http-post: #853aff;
+$trufos-http-delete: #c2187a; // app: #f845a6
+$trufos-http-patch: #915f00; // app: #d88f00
+
+// just-the-docs variables
+$body-background-color: $trufos-bg-primary;
+$body-heading-color: $trufos-text-primary;
+$body-text-color: $trufos-text-primary;
+$link-color: $trufos-accent-text;
+$nav-child-link-color: $trufos-text-secondary;
+$sidebar-color: $trufos-bg-secondary;
+$base-button-color: $trufos-bg-secondary;
+$btn-primary-color: $trufos-accent-text;
+$code-background-color: $trufos-bg-secondary;
+$feedback-color: $trufos-accent-soft;
+$table-background-color: $trufos-bg-primary;
+$search-background-color: $trufos-bg-primary;
+$search-result-preview-color: $trufos-text-muted;
+$border-color: $trufos-border;
