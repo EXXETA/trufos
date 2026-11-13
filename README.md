@@ -8,9 +8,15 @@
   A fast, offline-first REST client with no account required and no telemetry.
 </p>
 
-![Screenshot nothing selected](docs/images/Screenshot-nothing-selected.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-empty-state-dark.png">
+  <img alt="Trufos with an imported OpenAPI collection and no request selected" src="docs/images/screenshot-empty-state-light.png">
+</picture>
 
-![Screenshot request and response with variable](docs/images/Screenshot-request-variable.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-request-variable-dark.png">
+  <img alt="A POST request with variables in its JSON body and the response" src="docs/images/screenshot-request-variable-light.png">
+</picture>
 
 Trufos stores your collections as plain JSON files on disk, making them easy to version-control, diff, and share. It works fully offline — no registration, no cloud sync, no telemetry.
 
