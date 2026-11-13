@@ -20,6 +20,32 @@ url: "https://exxeta.github.io"
 baseurl: "/trufos"
 
 favicon_ico: "/assets/favicon.ico"
+lang: en
+
+# Used by _includes/footer_custom.html and documentation/index.md.
+discord_url: &discord_url "https://discord.gg/sb4nfdevpW"
+
+# Header links (just-the-docs). The GitHub icon in _includes/header_custom.html sits next to them.
+aux_links:
+  "Discord": *discord_url
+  "Releases": "https://github.com/EXXETA/trufos/releases"
+aux_links_new_tab: true
+
+# "Edit this page on GitHub" in the page footer. Pages copied from the app repository
+# (CONTRIBUTING.md, CODE_OF_CONDUCT.md, ported architecture docs) must be changed on `main` first.
+gh_edit_link: true
+gh_edit_link_text: "Edit this page on GitHub"
+gh_edit_repository: "https://github.com/EXXETA/trufos"
+gh_edit_branch: "gh-pages"
+gh_edit_view_mode: "edit"
+
+# SEO and Open Graph (jekyll-seo-tag, included by the theme). The default image is set in `defaults` below.
+logo: "/assets/images/icon-256.png"
+social:
+  name: Trufos
+  links:
+    - "https://github.com/EXXETA/trufos"
+    - *discord_url
 
 # Custom colour schemes in _sass/color_schemes, derived from the app's tokens.
 # The theme toggle (assets/js/dark-mode-service.js) switches to trufos-dark.
@@ -31,6 +57,11 @@ defaults:
       type: "pages"
     values:
       layout: "default"
+      image:
+        path: "/assets/images/social-preview.png"
+        width: 1200
+        height: 630
+        alt: "Trufos showing a POST request with variables in its JSON body and the response next to it"
 
 exclude:
   # from https://github.com/jekyll/jekyll/blob/master/lib/site_template/_config.yml:
@@ -56,6 +87,8 @@ exclude:
   - Rakefile
   - README.md
   - CODE_OF_CONDUCT.md
+  - AGENTS.md
+  - documentation/LICENSE.md
   - docker-compose.yml
   - Dockerfile
   # theme test code

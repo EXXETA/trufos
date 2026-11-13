@@ -1,7 +1,7 @@
 ---
 title: Building & Packaging
 nav_order: 4
-parent: Development Practices
+parent: Development
 ---
 
 # Building and Packaging

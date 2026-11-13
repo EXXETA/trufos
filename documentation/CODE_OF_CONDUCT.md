@@ -1,6 +1,7 @@
 ---
 title: Code of Conduct
-nav_order: 9
+nav_order: 8
+parent: Contributing
 ---
 
 # Contributor Covenant Code of Conduct

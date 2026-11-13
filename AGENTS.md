@@ -38,6 +38,8 @@ CI overrides this dynamically via the `configure-pages` GitHub Action.
 - All pages require Jekyll front matter with `title:` and `nav_order:`.
 - Child pages must include `parent: <Parent Title>` matching the parent's `title:` exactly (case-sensitive).
 - Section index pages use `has_children: true`.
+- Navigation is split by audience: Home and Download; User Guide (`documentation/user-guide/`); Contributing (`documentation/index.md`, parent of Contribution Guidelines, Getting Started, Project Structure, Architecture, Services, UI Components, Development and Code of Conduct); then What's new in 1.0 and About. Pages for app users go under User Guide, pages for contributors under Contributing.
+- The Discord invite is `site.discord_url` in `_config.yml`; header links are `aux_links`, the footer text is `_includes/footer_custom.html`. Every page gets an "Edit this page on GitHub" link to `gh-pages` and the Open Graph image `assets/images/social-preview.png` (both set in `_config.yml`).
 - Use `{% link path/to/file.md %}` for cross-page links — do not use raw relative paths.
 - Default layout for all pages is `"default"` (set globally in `_config.yml`); home page uses `layout: home`. Its hero, screenshots and feature grid come from the front matter of `index.md` (format documented at the top of `_layouts/home.html`).
 - Link images and assets with `{{ '/assets/…' | relative_url }}`, never `../../assets/…` (breaks under the `/trufos` baseurl). Inside `{% raw %}` blocks Liquid does not run: use a reference-style link (`![Alt][ref]`) and put `[ref]: {{ '/assets/…' | relative_url }}` after `{% endraw %}` (see `documentation/user-guide/variables.md`).
@@ -53,7 +55,16 @@ Images are committed already converted; the build does not resize anything. CI f
 3. `node _tools/optimize-screenshots.mjs` — writes 1600px-wide WebP files to `assets/images/screenshots/` (same subfolders) and prints front matter with width and height. Options: `--width`, `--quality`, or paths inside `_screenshots/` to convert only those.
 4. Commit the `.webp` files, not the originals. Always set `width` and `height` on `<img>` tags.
 
-Take screenshots of both themes; the home layout shows the matching one via the `.only-light` / `.only-dark` classes.
+The User Guide screenshots, the home page screenshots (`request-variable`, `empty-state`) and `assets/images/social-preview.png` are taken automatically by `_tools/screenshots/screenshots.spec.ts`, which drives the real app with Playwright through the e2e fixtures of the app repository (expected at `../trufos`, or set `TRUFOS_DIR`). It writes PNGs to `_screenshots/` in both themes; run step 3 afterwards:
+
+```bash
+cd ../trufos && yarn package   # the fixtures refuse bundles older than the sources
+yarn playwright test --config ../trufos-docs/_tools/screenshots/playwright.config.ts
+```
+
+In a VS Code terminal, unset `ELECTRON_RUN_AS_NODE` first (`env -u ELECTRON_RUN_AS_NODE …`), or Electron starts as plain Node and every launch fails with "Process failed to launch". To add a screenshot, add a test there. Do not show anything machine-specific: responses that echo your IP address, or paths outside `_screenshots/.work/`.
+
+Take screenshots of both themes; the home layout shows the matching one via the `.only-light` / `.only-dark` classes. On content pages use `{% include screenshot.html name="user-guide/<name>" alt="…" width=1600 height=… %}`: it picks the theme variant, and until the files exist it renders nothing in production and a "Screenshot missing" placeholder in local builds.
 
 ---
 

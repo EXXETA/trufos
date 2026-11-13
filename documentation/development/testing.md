@@ -1,7 +1,7 @@
 ---
 title: Testing
 nav_order: 2
-parent: Development Practices
+parent: Development
 ---
 
 # Testing

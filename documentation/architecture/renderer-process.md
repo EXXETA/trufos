@@ -1,7 +1,7 @@
 ---
 title: Renderer Process
 nav_order: 2
-parent: Architecture Overview
+parent: Architecture
 ---
 
 # Renderer Process

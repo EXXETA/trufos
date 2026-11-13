@@ -1,6 +1,7 @@
 ---
 title: UI Components
 nav_order: 6
+parent: Contributing
 has_children: true
 ---
 

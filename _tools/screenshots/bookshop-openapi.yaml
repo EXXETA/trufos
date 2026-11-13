@@ -1,0 +1,91 @@
+# Demo API for the documentation screenshots. Imported through the OpenAPI importer, so the
+# screenshots show a realistic collection with folders, environments and OAuth 2.0.
+openapi: 3.0.3
+info:
+  title: Bookshop API
+  version: 1.0.0
+servers:
+  - url: https://api.bookshop.example/v1
+    description: Production
+  - url: https://staging.bookshop.example/v1
+    description: Staging
+security:
+  - oauth: [books.read, books.write]
+tags:
+  - name: Books
+  - name: Authors
+  - name: Orders
+paths:
+  /books:
+    get:
+      tags: [Books]
+      summary: List books
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Books]
+      summary: Create a book
+      requestBody:
+        content:
+          application/json:
+            example: { title: 'The Pragmatic Programmer', authorId: 42, price: 39.9 }
+      responses: { '201': { description: Created } }
+  /books/{bookId}:
+    get:
+      tags: [Books]
+      summary: Get a book
+      responses: { '200': { description: OK } }
+    put:
+      tags: [Books]
+      summary: Update a book
+      requestBody:
+        content:
+          application/json:
+            example: { title: 'The Pragmatic Programmer', authorId: 42, price: 34.9 }
+      responses: { '200': { description: OK } }
+    delete:
+      tags: [Books]
+      summary: Delete a book
+      responses: { '204': { description: Deleted } }
+  /authors:
+    get:
+      tags: [Authors]
+      summary: List authors
+      responses: { '200': { description: OK } }
+  /authors/{authorId}:
+    get:
+      tags: [Authors]
+      summary: Get an author
+      responses: { '200': { description: OK } }
+  /orders:
+    get:
+      tags: [Orders]
+      summary: List orders
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Orders]
+      summary: Place an order
+      requestBody:
+        content:
+          application/json:
+            example: { items: [{ bookId: 7, quantity: 1 }] }
+      responses: { '201': { description: Created } }
+  /orders/{orderId}:
+    patch:
+      tags: [Orders]
+      summary: Update an order
+      requestBody:
+        content:
+          application/json:
+            example: { status: shipped }
+      responses: { '200': { description: OK } }
+components:
+  securitySchemes:
+    oauth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.bookshop.example/realms/shop/protocol/openid-connect/auth
+          tokenUrl: https://auth.bookshop.example/realms/shop/protocol/openid-connect/token
+          scopes:
+            books.read: Read books
+            books.write: Change books

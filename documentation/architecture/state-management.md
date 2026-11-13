@@ -1,7 +1,7 @@
 ---
 title: State Management
 nav_order: 4
-parent: Architecture Overview
+parent: Architecture
 ---
 
 # State Management

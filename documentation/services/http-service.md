@@ -1,7 +1,7 @@
 ---
 title: HTTP Service
 nav_order: 3
-parent: Core Services
+parent: Services
 ---
 
 # HTTP Service

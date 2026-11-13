@@ -1,7 +1,7 @@
 ---
 title: Logging
 nav_order: 7
-parent: Architecture Overview
+parent: Architecture
 ---
 
 # Logging

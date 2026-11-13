@@ -1,10 +1,11 @@
 ---
-title: Architecture Overview
+title: Architecture
 nav_order: 4
+parent: Contributing
 has_children: true
 ---
 
-# Architecture Overview
+# Architecture
 
 Trufos is an [Electron](https://www.electronjs.org/) application, which means it's fundamentally composed of two types of processes: a **Main process** and one or more **Renderer processes**. This architecture allows Trufos to leverage web technologies (HTML, CSS, JavaScript/TypeScript via React) for its user interface while still being able to access native operating system capabilities.
 

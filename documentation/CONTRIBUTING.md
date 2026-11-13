@@ -1,13 +1,14 @@
 ---
-title: Contributing
-nav_order: 8
+title: Contribution Guidelines
+nav_order: 1
+parent: Contributing
 ---
 
-# Contributing Guidelines
+# Contribution Guidelines
 
 Thank you for considering to contribute to our project.
 We greatly appreciate both feedback and code contributions from everyone. Be aware that by
-participating you are expected to agree to our [Code of Conduct](./CODE_OF_CONDUCT.md).
+participating you are expected to agree to our [Code of Conduct]({% link documentation/CODE_OF_CONDUCT.md %}).
 There are several ways you can contribute to our project as outlined in the sections below.
 
 ## Reporting a bug or suggesting a feature
@@ -80,7 +81,7 @@ The setup for Prettier is described in the following sections for IntelliJ and V
    marketplace.
 4. Activate options "Activate save actions on save (before saving each file, performs the configured
    actions below)" and "Reformat file":
-   ![Code Formatting IntelliJ](images/contributing/code-formatting-intellij.png) <!-- Note: Image path might need adjustment for Just the Docs -->
+   <img src="{{ '/assets/images/contributing/code-formatting-intellij.webp' | relative_url }}" alt="IntelliJ settings with the save actions 'Activate save actions on save' and 'Reformat file' enabled" width="935" height="391" />
 
 ### Visual Studio Code
 

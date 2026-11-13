@@ -1,6 +1,7 @@
 ---
 title: Project Structure
 nav_order: 3
+parent: Contributing
 ---
 
 # Project Structure

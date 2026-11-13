@@ -7,13 +7,15 @@ tagline: The REST utility, free and open source. A fast, offline-first REST clie
 meta: Windows, macOS and Linux · GPL-3.0 licensed
 screenshots:
   - dark: /assets/images/screenshots/request-variable-dark.webp
-    alt: Trufos showing a GET request with a variable in its JSON body and the formatted response next to it
+    light: /assets/images/screenshots/request-variable-light.webp
+    alt: Trufos showing a POST request with variables in its JSON body and the response next to it
     width: 1600
-    height: 1048
+    height: 1050
   - dark: /assets/images/screenshots/empty-state-dark.webp
-    alt: Trufos with a collection of requests in the sidebar and no request selected
+    light: /assets/images/screenshots/empty-state-light.webp
+    alt: Trufos with a collection of requests in folders in the sidebar and no request selected
     width: 1600
-    height: 1048
+    height: 1050
 features:
   - title: Offline, no account
     text: No registration, no login, no cloud sync and no telemetry. All data stays on your machine.
@@ -37,4 +39,4 @@ features:
 
 ## Contributing
 
-Trufos is developed in the open on GitHub at [EXXETA/trufos](https://github.com/EXXETA/trufos). To work on the code, start with [Getting Started]({% link documentation/getting-started.md %}) and the [Project Structure]({% link documentation/project-structure.md %}). The [Architecture]({% link documentation/architecture/index.md %}), [Services]({% link documentation/services/index.md %}), [UI Components]({% link documentation/ui-components/index.md %}) and [Development]({% link documentation/development/index.md %}) sections go into more detail.
+Trufos is developed in the open on GitHub at [EXXETA/trufos](https://github.com/EXXETA/trufos). To work on the code, start with the [Contributing]({% link documentation/index.md %}) section. New in this release? See [What's new in 1.0]({% link whats-new.md %}).

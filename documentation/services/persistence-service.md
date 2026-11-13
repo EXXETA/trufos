@@ -1,7 +1,7 @@
 ---
 title: Persistence Service
 nav_order: 4
-parent: Core Services
+parent: Services
 ---
 
 # Persistence Service

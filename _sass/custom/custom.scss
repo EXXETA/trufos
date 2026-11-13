@@ -247,7 +247,31 @@ $trufos-callouts: (
     display: block;
     width: 100%;
     height: auto;
+    border: 1px solid $trufos-border;
+    border-radius: $border-radius;
   }
+}
+
+// Screenshots on content pages, see _includes/screenshot.html
+.screenshot {
+  margin: 1.25rem 0 1.5rem;
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid $trufos-border;
+    border-radius: $border-radius;
+  }
+}
+
+// Only shown in local builds, for screenshots that are not taken yet
+.screenshot-missing {
+  border: 1px dashed $trufos-border;
+  border-radius: $border-radius;
+  padding: 0.75rem 1rem;
+  color: $trufos-text-muted;
+  font-size: 0.875rem;
 }
 
 .feature-grid {
@@ -392,5 +416,13 @@ a.release-item:hover {
 }
 
 .release-item--disabled .release-item__state {
+  color: $trufos-text-muted;
+}
+
+// ---------------------------------------------------------------------------
+// Footer: the theme's text-grey-dk-100 is too dark on the dark background
+// ---------------------------------------------------------------------------
+
+.site-footer-text {
   color: $trufos-text-muted;
 }

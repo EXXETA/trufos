@@ -1,7 +1,7 @@
 ---
 title: Persistence
 nav_order: 5
-parent: Architecture Overview
+parent: Architecture
 ---
 
 # Persistence

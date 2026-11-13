@@ -1,7 +1,7 @@
 ---
 title: Event Service (IPC)
 nav_order: 2
-parent: Core Services
+parent: Services
 ---
 
 # Event Service (IPC)
@@ -19,7 +19,7 @@ The Event Service in Trufos facilitates Inter-Process Communication (IPC) betwee
 *   **Responsibilities**:
     *   Delegates calls to other main process services (e.g., `PersistenceService`, `HttpService`, `EnvironmentService`).
     *   Acts as the single point of entry for most renderer-to-main communication.
-    *   Handles specialized IPC events like those for [data streaming](./ipc-communication.md#streaming-data-ipc-push-stream) (`stream-events.ts`) and log forwarding.
+    *   Handles specialized IPC events like those for [data streaming]({% link documentation/architecture/ipc-communication.md %}#streaming-data-ipc-push-stream) (`stream-events.ts`) and log forwarding.
 
 ## `RendererEventService`
 

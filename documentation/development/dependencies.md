@@ -1,7 +1,7 @@
 ---
 title: Key Dependencies
 nav_order: 3
-parent: Development Practices
+parent: Development
 ---
 
 # Key Dependencies

@@ -1,10 +1,11 @@
 ---
-title: Development Practices
-nav_order: 5
+title: Development
+nav_order: 7
+parent: Contributing
 has_children: true
 ---
 
-# Development Practices
+# Development
 
 This section outlines the key development practices, tools, and configurations used in the Trufos project. Adhering to these practices helps maintain code quality, consistency, and ease of collaboration.
 

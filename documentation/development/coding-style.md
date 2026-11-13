@@ -1,7 +1,7 @@
 ---
 title: Coding Style & Formatting
 nav_order: 1
-parent: Development Practices
+parent: Development
 ---
 
 # Coding Style & Formatting

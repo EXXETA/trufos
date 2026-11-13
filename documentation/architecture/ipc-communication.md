@@ -1,7 +1,7 @@
 ---
 title: IPC Communication
 nav_order: 3
-parent: Architecture Overview
+parent: Architecture
 ---
 
 # IPC Communication (Inter-Process Communication)

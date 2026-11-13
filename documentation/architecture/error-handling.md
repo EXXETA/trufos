@@ -1,7 +1,7 @@
 ---
 title: Error Handling
 nav_order: 6
-parent: Architecture Overview
+parent: Architecture
 ---
 
 # Error Handling

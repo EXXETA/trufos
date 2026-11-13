@@ -1,0 +1,30 @@
+{%- comment -%}
+  A screenshot in both themes, for content pages:
+
+    {% include screenshot.html name="user-guide/first-request" alt="…" width=1600 height=1048 %}
+
+  `name` is the path below assets/images/screenshots/ without the theme suffix and extension.
+  The include shows <name>-light.webp in the light theme and <name>-dark.webp in the dark one.
+  With only one of the two, that one is shown in both themes. With neither, nothing is
+  rendered on the published site, and a placeholder naming the missing file is shown in local
+  builds (any JEKYLL_ENV other than production), so pages can be written before the
+  screenshots are taken. See "Screenshots" in AGENTS.md for how to add them.
+{%- endcomment -%}
+{%- assign base = '/assets/images/screenshots/' | append: include.name -%}
+{%- assign light_path = base | append: '-light.webp' -%}
+{%- assign dark_path = base | append: '-dark.webp' -%}
+{%- assign light = site.static_files | where: 'path', light_path | first -%}
+{%- assign dark = site.static_files | where: 'path', dark_path | first -%}
+{%- if light and dark -%}
+<figure class="screenshot">
+  <img class="only-light" src="{{ light_path | relative_url }}" alt="{{ include.alt }}" width="{{ include.width }}" height="{{ include.height }}" loading="lazy" decoding="async" />
+  <img class="only-dark" src="{{ dark_path | relative_url }}" alt="{{ include.alt }}" width="{{ include.width }}" height="{{ include.height }}" loading="lazy" decoding="async" />
+</figure>
+{%- elsif light or dark -%}
+{%- if light -%}{%- assign only_path = light_path -%}{%- else -%}{%- assign only_path = dark_path -%}{%- endif -%}
+<figure class="screenshot">
+  <img src="{{ only_path | relative_url }}" alt="{{ include.alt }}" width="{{ include.width }}" height="{{ include.height }}" loading="lazy" decoding="async" />
+</figure>
+{%- elsif jekyll.environment != 'production' -%}
+<p class="screenshot-missing">Screenshot missing: <code>_screenshots/{{ include.name }}-light.png</code> and <code>-dark.png</code> ({{ include.alt }})</p>
+{%- endif -%}

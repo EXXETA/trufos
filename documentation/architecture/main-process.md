@@ -1,7 +1,7 @@
 ---
 title: Main Process
 nav_order: 1
-parent: Architecture Overview
+parent: Architecture
 ---
 
 # Main Process

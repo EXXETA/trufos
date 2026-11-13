@@ -1,10 +1,11 @@
 ---
-title: Core Services
-nav_order: 7
+title: Services
+nav_order: 5
+parent: Contributing
 has_children: true
 ---
 
-# Core Services
+# Services
 
 Trufos is built upon a set of core services that manage different aspects of its functionality. These services are primarily located in the main process (`src/main/`) but may have counterparts or wrappers in the renderer process (`src/renderer/services/`) for easier access via IPC.
 

@@ -1,7 +1,7 @@
 ---
 title: Settings Service
 nav_order: 5
-parent: Core Services
+parent: Services
 ---
 
 # Settings Service

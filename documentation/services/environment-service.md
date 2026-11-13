@@ -1,7 +1,7 @@
 ---
 title: Environment Service
 nav_order: 1
-parent: Core Services
+parent: Services
 ---
 
 # Environment Service
