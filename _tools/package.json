@@ -1,0 +1,12 @@
+{
+  "name": "trufos-docs-tools",
+  "private": true,
+  "description": "Helper scripts for the docs site; not needed to build it",
+  "type": "module",
+  "scripts": {
+    "screenshots": "node optimize-screenshots.mjs"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
+  }
+}

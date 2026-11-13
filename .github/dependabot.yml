@@ -6,3 +6,7 @@ updates:
       interval: daily
     allow:
       - dependency-type: direct
+  - package-ecosystem: npm
+    directory: /_tools
+    schedule:
+      interval: weekly

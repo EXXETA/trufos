@@ -14,5 +14,10 @@ _site/
 .bundle/
 vendor/
 
+# Helper scripts in _tools/ (see AGENTS.md)
+_tools/node_modules/
+# Raw screenshots, converted by _tools/optimize-screenshots.mjs
+_screenshots/
+
 # Other
 .idea/
