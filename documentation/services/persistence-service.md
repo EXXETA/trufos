@@ -2,70 +2,58 @@
 title: Persistence Service
 nav_order: 4
 parent: Services
+description: The PersistenceService that reads and writes the files of collections, folders and requests.
 ---
 
 # Persistence Service
 
 **Location**: `src/main/persistence/service/persistence-service.ts`
 
-The `PersistenceService` is a cornerstone of Trufos's main process, responsible for all interactions with the file system concerning the storage and retrieval of collections, folders, and requests.
+The `PersistenceService` reads and writes the files of collections, folders and requests in the layout described in [Persistence]({% link documentation/architecture/persistence.md %}). It does not own any state of the open collection: the `CollectionStateService` decides what to write and when, and calls this service from its queue. Objects passed to it are never modified, as they may be frozen.
 
-## Core Responsibilities
+## Paths
 
-*   **Data Storage Model**:
-    *   Each Collection, Folder, and Request is generally represented by a directory on the disk.
-    *   Metadata for these objects is stored in a JSON file within their respective directories (e.g., `collection.json`, `folder.json`, `request.json`).
-    *   Request bodies (text-based) are stored in separate files (e.g., `request-body.txt`).
-*   **CRUD Operations**:
-    *   Creating new collections, folders, and requests on disk.
-    *   Reading object metadata and content from files.
-    *   Updating object metadata and content.
-    *   Deleting objects and their associated directories/files.
-*   **Directory and File Naming**:
-    *   Derives directory names from sanitized object titles (lowercase, hyphenated, special characters removed via `sanitizeTitle`).
-    *   Handles potential name collisions by appending sequential numbers (e.g., `my-folder`, `my-folder-2`).
-*   **Draft Management**:
-    *   Supports a "draft" state for requests. Draft metadata is saved in files prefixed with `~` (e.g., `~request.json`, `~request-body.txt`).
-    *   `saveChanges(request)`: Promotes draft files to become the main files.
-    *   `discardChanges(request)`: Deletes draft files, reverting to the last non-draft state.
-*   **Schema Migration**:
-    *   When loading info files, checks their `version` property.
-    *   If an older version is detected, it uses `migrateInfoFile` (from `src/main/persistence/service/info-files/migrators.ts`) to upgrade the data structure to the latest schema before parsing.
-*   **Path Management**:
-    *   Maintains an internal `idToPathMap` (a `Map<string, string>`) to associate object IDs with their directory paths. This is crucial because directory names can change if an object's title changes.
-    *   `getOrCreateDirPath(object)`: Retrieves the path for an object or generates a new, unique path if it's a new object.
-*   **Default Collection**:
-    *   `createDefaultCollectionIfNotExists()`: Ensures that a default collection (defined in `src/main/persistence/service/default-collection.ts`) is created for new users in the application's user data directory.
+Directory names follow the titles, which can change, so the service keeps a map from object ID to directory (`idToPathMap`). A new folder or request gets a directory named after its sanitized title (`sanitizeTitle()` in `src/shim/string.ts`). If that name is taken, by a known object or by a directory that happens to exist on disk, a number is appended.
 
-## Key Methods
+## Reading
 
-*   **Loading Data**:
-    *   `loadCollection(dirPath, recursive?)`: Loads collection metadata. If `recursive` is true (default), it also loads all child folders and requests by traversing the directory structure.
-    *   `loadFolder(parentId, dirPath)`: Loads folder metadata and recursively its children.
-    *   `loadRequest(parentId, dirPath)`: Loads request metadata, checking for draft versions.
-    *   `loadTextBodyOfRequest(request, encoding?)`: Returns a `ReadableStream` for a request's text body (draft or main).
-*   **Saving Data**:
-    *   `saveCollectionRecursive(collection)`: Saves an entire collection tree to disk.
-    *   `saveCollection(collection)`: Saves only the collection's `collection.json`.
-    *   `saveFolder(folder)`: Saves the folder's `folder.json`.
-    *   `saveRequest(request, textBody?)`: Saves the request's `request.json` (and `~request.json` if draft) and optionally its text body file.
-*   **Modifying Structure**:
-    *   `rename(object, newTitle)`: Renames an object and its corresponding directory. Updates `idToPathMap`.
-    *   `delete(object)`: Deletes an object's directory and all its contents recursively. Updates `idToPathMap`.
-    *   `moveChild(child, oldParent, newParent)`: Moves a child's directory from one parent's directory to another.
-*   **Creating Collections**:
-    *   `createCollection(dirPath, title)`: Creates a new collection directory, `collection.json`, and a `.gitignore` file (to ignore draft files).
+| Method | Purpose |
+| --- | --- |
+| `loadCollection(dirPath, recursive?)` | Reads a collection with its children; the `CollectionStateService` normalizes it into its model |
+| `walkCollection(dirPath)` | Reads the saved state of a collection (no drafts) into a snapshot with lazy streams for the files, without registering any paths; used by the ZIP export |
+| `loadCollectionBase(dirPath)` | Reads only the ID, title and directory, e.g. for the list of recent collections |
+| `loadSavedRequest(id, parentId)` | Reads the saved state of a request, ignoring its draft |
+| `openRequestFiles(request)` | Opens the text body and reads the scripts of a request before it is sent |
+| `loadTextBodyOfRequest(request)`, `loadScript(request, type)` | Streams of the text body and a script, from the draft if there is one |
 
-## Info File Handling
+Reading an info file (`readInfoFile()`) parses the JSON, migrates it to the latest version (`migrateInfoFile()`), merges the secrets from `.secrets.bin` and validates the result with the schema of the latest version. See [Collection Schema Versioning]({% link documentation/architecture/schema-versioning.md %}).
 
-*   **`toInfoFile(object)` (`src/main/persistence/service/info-files/latest.ts`)**: Converts an in-memory Trufos object (Collection, Folder, Request) into a plain JSON object suitable for storing in an info file. It omits properties not meant for persistence (e.g., `children` arrays from collections/folders, `parentId` from requests).
-*   **`from<Type>InfoFile(...)` functions (`src/main/persistence/service/info-files/latest.ts`)**: Convert plain JSON objects read from info files back into typed Trufos objects, re-adding necessary runtime properties (like `type`, `parentId`, `children` arrays which are reconstructed during recursive loading).
-*   **Reading Info Files**: The `readInfoFile` private method handles reading the JSON, parsing it, and triggering schema migration via `migrateInfoFile` if needed.
+## Writing
 
-## File System Interaction
+| Method | Purpose |
+| --- | --- |
+| `createCollection(dirPath, title)` | Creates a collection in an empty directory, with its `.gitignore` |
+| `createDefaultCollectionIfNotExists()` | Creates the default collection in the user data directory on first start |
+| `saveCollection(collection, recursive?)`, `saveCollectionInfo(info)`, `saveFolder(folder)` | Write info files |
+| `saveRequestInfo(request)` | Writes the info file of a request, into `.draft/` if it is a draft |
+| `saveOrder(parentId, childIds)` | Writes `order.json` of a collection or folder |
+| `createDraft(request)` | Creates `.draft/` with a copy of the saved body and scripts |
+| `writeTextBody(request, text)`, `saveScript(request, type, script)` | Write the text body or a script of the draft |
+| `saveChanges(request)` | Moves the draft files over the saved ones and removes `.draft/` |
+| `discardChanges(request)` | Deletes `.draft/`; a request that was never saved is deleted completely |
+| `rename(node, title)` | Renames a folder or request and its directory, see [Rename Behavior]({% link documentation/architecture/rename-behaviour.md %}) |
+| `move(id, newParentId)` | Moves a directory into another parent |
+| `copyRequestFiles(source, copy)` | Copies the body and scripts of a request |
+| `deleteNode(id)` | Deletes a folder or request with everything below it |
 
-*   Uses Node.js `fs/promises` module for asynchronous file operations (e.g., `readFile`, `writeFile`, `mkdir`, `rm`, `rename`).
-*   Uses `node:fs.createReadStream` for streaming file content (e.g., request bodies).
-*   Utility `exists(filePath)` (from `src/main/util/fs-util.ts`) checks for file/directory existence.
+Saving an info file splits off the secrets (`extractSecrets()`) and writes them encrypted to `.secrets.bin` with the `SecretService`; if there are none, the file is removed. Text bodies, scripts, JSON and secrets are written atomically with `FileSystemService.replaceFile()`.
 
-The `PersistenceService` is central to Trufos's ability to manage user data persistently and in a way that is somewhat human-readable and version-control friendly. 
+## Changes outside the app
+
+- `isAppOwnedPath(path)` tells whether a file is only written by the app: drafts, secrets and temporary files, i.e. what the `.gitignore` of a collection excludes. The file watcher ignores these.
+- `isContentFile(path)` tells whether a file is a text body or a script. Changes to these cannot change the collection model.
+- `requestsOfContentFiles(paths)` maps changed content files to the IDs of their requests, so the renderer can refresh its editors.
+
+## Tests
+
+The tests (`persistence-service.test.ts` and others next to it) run against an in-memory file system: `node:fs` and `node:fs/promises` are mocked with [memfs](https://github.com/streamich/memfs) in `src/main/__mocks__/`. See [Testing]({% link documentation/development/testing.md %}).

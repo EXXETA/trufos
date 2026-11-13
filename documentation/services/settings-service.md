@@ -1,72 +1,69 @@
 ---
-title: Settings Service
+title: Settings and State
 nav_order: 5
 parent: Services
+description: SettingsService and StateService, which keep the user's preferences and the state of the app in the user data directory.
 ---
 
-# Settings Service
+# Settings and State
 
-**Location**: `src/main/persistence/service/settings-service.ts`
+**Location**: `src/main/persistence/service/settings-service.ts`, `state-service.ts`
 
-The `SettingsService` is a main process service responsible for managing global application settings. These settings are not specific to any single collection but rather pertain to the overall state and configuration of the Trufos application itself.
+The app keeps two JSON files in the user data directory, split by who decides their content:
 
-## Responsibilities
+- `settings.json` (`SettingsService`): the **preferences** the user chooses in the app settings.
+- `state.json` (`StateService`): the **state** of the app the user does not edit directly: which collections are open, which is current, and what each one looked like.
 
-*   **Loading and Saving Settings**:
-    *   Manages application settings stored in a JSON file: `settings.json`.
-    *   The location of this file is within the application's user data directory (e.g., `app.getPath('userData')/settings.json`).
-*   **Providing Access to Settings**:
-    *   Offers read-only access to the current settings.
-    *   Provides a mechanism to update settings and persist them.
-*   **Initialization**:
-    *   On application startup (`init()` method, called by `src/main/main.ts`), it checks if `settings.json` exists.
-    *   If the file exists, it reads and loads the settings.
-    *   If the file does not exist, it creates a default `settings.json` file with initial values.
+Both services hold a `JsonFile` privately and offer the operations on its content. Both are initialised in `main.ts` before the collection is loaded.
 
-## Settings Data Structure
+## `JsonFile`
 
-The settings are defined by the `SettingsObject` type:
+**Location**: `src/main/persistence/json-file.ts`
 
-```typescript
-export type SettingsObject = {
-  /** The index of the currently opened collection inside the collections array */
-  currentCollectionIndex: number;
+A JSON file of the app that is kept in memory:
 
-  /** A list of all the collection directories that have been opened */
-  collections: string[];
-};
+- **Versioned**: the file has a `version`. Migrators registered by version upgrade older files step by step when they are read.
+- **Validated**: the content is parsed with a Zod schema whenever it is read or changed, so the schema's defaults and transforms apply to every change. The schema has to accept `{}`, which is the content of a new file.
+- **Immutable**: the content in memory is deeply frozen. `update(recipe)` changes it with an Immer recipe; `set(value)` replaces it.
+- **Safe to write**: reads and writes run one at a time on a `SerialQueue`, and the file is replaced atomically.
+
+`PluginService` uses the same class for `plugins.json`.
+
+## `SettingsService`
+
+The settings are `AppSettings` from `src/shim/app-settings.ts`:
+
+```ts
+const AppSettings = z.object({
+  theme: ThemePreference.default('system'),           // 'light' | 'dark' | 'system'
+  verifyTlsCertificates: z.boolean().default(true),
+  mcpServer: McpServerSettings.prefault({}),          // enabled, port, permissions
+});
 ```
 
-When persisted to `settings.json`, a `version` field (currently `1.0.0` based on `SemVer`) is added to the `SettingsInfoFile` type to allow for future schema migrations if needed, although no migration logic for settings is currently implemented.
+- `settings` returns the current settings; `setSettings(settings)` replaces and stores them and emits `changed`. The `McpServerService` listens to `changed` to start, stop or restart the server.
+- The renderer reads them with `getAppSettings()` and writes them with `saveAppSettings()`, which parses them with `AppSettings` first. In the renderer they live in `useAppSettingsStore`.
+- Settings files before version 2.0.0 also held the open collections. Their migrator keeps only the preferences; the list of open collections was deliberately dropped instead of moved to `state.json`.
 
-```typescript
-type SettingsInfoFile = SettingsObject & { version: typeof VERSION.string };
-```
+To add a setting, add the field with a default to `AppSettings`. Files without it get the default, so no migrator is needed.
 
-## Key Properties and Methods
+## `StateService`
 
-*   **`DEFAULT_COLLECTION_DIR` (static readonly)**:
-    *   Defines the path to the default collection directory, typically `USER_DATA_DIR/default-collection`.
-*   **`SETTINGS_FILE` (static readonly)**:
-    *   Defines the full path to the `settings.json` file.
-*   **`instance` (static readonly)**:
-    *   Provides a singleton instance of the `SettingsService`.
-*   **`init(): Promise<void>`**:
-    *   Asynchronous initialization method. Reads existing settings or writes default ones. Implements the `Initializable` interface.
-*   **`settings` (getter): `Readonly<SettingsObject>`**:
-    *   Returns a read-only version of the current settings. This prevents accidental modification of the in-memory settings without going through the designated update mechanism.
-*   **`setSettings(settings: Readonly<SettingsObject>): Promise<void>`**:
-    *   Updates the in-memory settings with a deep clone of the provided `settings` object.
-    *   Persists the new settings (including the schema version) to `settings.json`.
-*   **`modifiableSettings` (getter): `SettingsObject`**:
-    *   Returns a deep clone of the current settings. This allows other services or parts of the application to safely modify a copy of the settings before deciding to persist them using `setSettings`.
+The content of `state.json`:
 
-## Interaction with Other Services
+- `collections`: the open collections, each with its `dirPath`, the key of the environment selected last (`null` for none) and the UI state the renderer stored (`CollectionUiState`: selected request, open folders, sort mode, script tab).
+- `currentCollection`: the directory of the current collection.
 
-*   **`EnvironmentService`**:
-    *   Reads `settings.collections` and `settings.currentCollectionIndex` from `SettingsService` to determine which collection to load on startup or when listing available collections.
-    *   Updates `SettingsService` (via `setSettings`) when the user changes the active collection or closes a collection, modifying the `collections` array and `currentCollectionIndex`.
-*   **`PersistenceService`**:
-    *   Uses `SettingsService.DEFAULT_COLLECTION_DIR` to know where to create the default collection if it's missing.
+The schema enforces two rules after every change: the default collection is always open, and the current collection is one of the open ones (otherwise the default collection becomes current).
 
-The `SettingsService` ensures that user preferences regarding which collections are open and which one is active are remembered across application sessions. 
+| Member | Purpose |
+| --- | --- |
+| `DEFAULT_COLLECTION_DIR` | `<userData>/default-collection` |
+| `openCollections`, `currentCollection` | The open collections and the current one |
+| `open(dirPath)` | Opens a collection, if it is not open yet, and makes it current |
+| `close(dirPath)` | Closes a collection and forgets its state |
+| `selectedEnvironment(dirPath, environments)` | The environment to select when a collection is loaded: the stored one if it still exists, none if none was selected, the first otherwise |
+| `selectEnvironment(dirPath, key)` | Stores the selected environment |
+| `uiState(dirPath)`, `saveUiState(dirPath, uiState)` | The stored UI state of a collection |
+
+Nothing is stored for a collection that is not open. The `CollectionStateService` calls these methods when collections are opened, created or closed and when a command changes the selected environment; the renderer stores the UI state through `saveCollectionUiState()`.

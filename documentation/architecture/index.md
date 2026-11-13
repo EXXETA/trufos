@@ -3,20 +3,26 @@ title: Architecture
 nav_order: 4
 parent: Contributing
 has_children: true
+description: How Trufos is built, from the Electron processes to collection state, persistence, plugins and the MCP server.
 ---
 
 # Architecture
 
-Trufos is an [Electron](https://www.electronjs.org/) application, which means it's fundamentally composed of two types of processes: a **Main process** and one or more **Renderer processes**. This architecture allows Trufos to leverage web technologies (HTML, CSS, JavaScript/TypeScript via React) for its user interface while still being able to access native operating system capabilities.
+Trufos is an [Electron](https://www.electronjs.org/) app. The **main process** runs Node.js: it owns the open collection, reads and writes the files, sends HTTP requests and runs scripts. The **renderer process** runs the React UI and reaches everything else through IPC. Code both need lives in `src/shim`.
 
-This section delves into the key architectural aspects of Trufos:
+The pages in this section:
 
-1.  **[Main Process]({% link documentation/architecture/main-process.md %})**: The backbone of the application, managing windows, application lifecycle, and native interactions.
-2.  **[Renderer Process]({% link documentation/architecture/renderer-process.md %})**: Responsible for rendering the user interface within browser windows.
-3.  **[IPC Communication]({% link documentation/architecture/ipc-communication.md %})**: How the Main and Renderer processes communicate with each other.
-4.  **[State Management]({% link documentation/architecture/state-management.md %})**: How application state is managed, primarily in the Renderer process.
-5.  **[Persistence]({% link documentation/architecture/persistence.md %})**: How data like collections, requests, and settings are stored and retrieved.
-6.  **[Error Handling]({% link documentation/architecture/error-handling.md %})**: Strategies for managing and displaying errors.
-7.  **[Logging]({% link documentation/architecture/logging.md %})**: How application events and errors are logged for debugging.
+1. [Main Process]({% link documentation/architecture/main-process.md %}): startup, services and the application lifecycle.
+2. [Renderer Process]({% link documentation/architecture/renderer-process.md %}): the React app, its views and the Monaco editors.
+3. [IPC Communication]({% link documentation/architecture/ipc-communication.md %}): the typed contract between the processes, events and streams.
+4. [State Management]({% link documentation/architecture/state-management.md %}): the Zustand stores of the renderer.
+5. [Main-Owned Collection State]({% link documentation/architecture/collection-state.md %}): how main owns the open collection and the renderer follows it.
+6. [Persistence]({% link documentation/architecture/persistence.md %}): the files of a collection and of the app.
+7. [Collection Schema Versioning]({% link documentation/architecture/schema-versioning.md %}): versions and migrations of info files.
+8. [Rename Behavior]({% link documentation/architecture/rename-behaviour.md %}): what renaming does on disk.
+9. [Error Handling]({% link documentation/architecture/error-handling.md %}): how errors cross the IPC boundary and reach the user.
+10. [Logging]({% link documentation/architecture/logging.md %}): log files and how renderer logs reach them.
+11. [Plugin Architecture]({% link documentation/architecture/plugins.md %}): the plugin API, manifests and permissions.
+12. [MCP Server]({% link documentation/architecture/mcp-server.md %}): the server that lets AI agents use the open collection.
 
-Understanding these components is essential for developing and maintaining Trufos effectively. 
+Pages 5, 7, 8, 11 and 12 are copied from `docs/architecture/` on `main`. Each names its source file at the top; change that file first and copy it here afterwards.

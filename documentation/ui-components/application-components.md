@@ -2,99 +2,77 @@
 title: Application Components
 nav_order: 2
 parent: UI Components
+description: The components that make up the Trufos window, from the request editor and sidebar to the settings and the command palette.
 ---
 
 # Application Components
 
-Beyond the [Core UI Elements]({% link documentation/ui-components/core-elements.md %}), Trufos has several higher-level components tailored to its specific functionality as a REST client. These components often combine core elements and implement application-specific logic.
+These components are built from the [Core UI Elements]({% link documentation/ui-components/core-elements.md %}) and the stores. Paths are relative to `src/renderer/`.
 
-## Main Window Components (`src/renderer/components/mainWindow/`)
+## Request window (`components/mainWindow/`)
 
-These components make up the primary interaction area of the application when a request is selected.
+`view/RequestWindow.tsx` shows the selected request (`MainTopBar` above `MainBody`), the selected history entry (`HistoryEntryView`) or, if nothing is selected, the `EmptyWildWest` illustration.
 
-*   **`MainTopBar.tsx`**:
-    *   **Purpose**: The bar at the top of the request window containing essential request controls.
-    *   **Composition**: Uses `HttpMethodSelect`, `UrlInput`, `SaveButton`, and `SendButton`.
-    *   **Logic**: Handles URL changes, HTTP method selection, initiating requests (via `HttpService` and `RendererEventService`), and saving requests (persisting drafts). Integrates with `useErrorHandler` for displaying errors from these operations. Listens for `Ctrl/Cmd + S` to save draft requests.
+- **`MainTopBar.tsx`**: the method, the URL and the actions of the request.
+  - `mainTopBar/HttpMethodSelect.tsx`: a `Select` of the HTTP methods, coloured by `httpMethodColor()` (`lib/http-method-color.ts`).
+  - `mainTopBar/UrlInput.tsx`: a single-line Monaco editor (`lib/monaco/SingleLineEditor.tsx`) with variable highlighting. It parses the URL into base and query parameters and shows the resolved URL.
+  - Discard and save buttons, enabled while the request is a draft.
+  - `mainTopBar/SendButton.tsx`: sends the request and turns into a cancel button while it is in flight (`useSendRequest()`).
+- **`MainBody.tsx`**: request input and response output in two panes.
+- **`bodyTabs/InputTabs/InputTabs.tsx`**: the tabs of the request, also reachable with `Ctrl`/`Cmd` + `1` to `5`:
+  - **Body** (`tabs/BodyTab.tsx`): the body type (none, text, file, form data) and, for text, the language. Text is edited in Monaco (`BodyTabTextInput.tsx`), files are picked with a `FilePicker` (`BodyTabFileInput.tsx`), form data in `FormDataTab.tsx`.
+  - **Query** (`tabs/ParamsTab.tsx`): query parameters, kept in sync with the URL.
+  - **Headers** (`tabs/HeaderTab/`): the shared `HeaderEditor`, showing inherited and automatic headers next to the request's own.
+  - **Auth** (`tabs/AuthorizationTab/`): the shared `AuthorizationEditor`.
+  - **Scripts** (`tabs/ScriptTab.tsx`): the pre-request and post-response scripts in Monaco, with types for the `trufos` API.
+- **`bodyTabs/OutputTabs.tsx`**: the latest response of the request (`ResponseTabs`), with **Response Body** and **Headers** tabs and the `ResponseStatus`.
+  - `OutputTabs/BodyTab.tsx`: streams the body from main (`useBodyData()`), shows it formatted if possible, cuts off large bodies until the user asks for everything, and offers to download it. `TextRenderer` shows text in a read-only Monaco editor, `ImagePrettyRenderer` shows images.
+  - `responseStatus/ResponseStatus.tsx`: status code, duration and size, with a tooltip that splits the size into headers and body.
 
-*   **`UrlInput.tsx`**:
-    *   **Purpose**: A specialized `Input` component for the request URL.
-    *   **Features**: Styled for URL input, includes error state styling.
+## Sidebar (`components/sidebar/`)
 
-*   **`HttpMethodSelect.tsx`**:
-    *   **Purpose**: A `Select` component tailored for choosing HTTP methods (`GET`, `POST`, etc. from `RequestMethod` enum).
-    *   **Features**: Dynamically styles the selected method text based on its type (e.g., GET is green, POST is blue) using `httpMethodColor` from `StyleHelper.ts`. Custom trigger styling.
+`view/Menubar.tsx` lays out the sidebar: header, the request tree or the history, and the footer.
 
-*   **`SendButton.tsx`**:
-    *   **Purpose**: A `Button` component to trigger sending the HTTP request.
-    *   **Features**: Includes an "ArrowForwardIcon".
+- **`SidebarHeaderBar.tsx`**: the `CollectionDropdown`, the switch between requests and history, and the toolbar of the current view (`RequestsToolbar` for sorting and adding requests and folders, `HistoryToolbar` for the count and clearing).
+- **`CollectionDropdown.tsx`**: switches between the recent collections, and opens `view/CollectionCreate.tsx` and `view/CollectionImport.tsx`.
+- **`SidebarRequestList/SidebarRequestList.tsx`**: the tree of folders and requests.
+  - `Nav/NavFolder.tsx` and `Nav/NavRequest.tsx` render a folder (collapsible, recursive) and a request; `Nav/RequestView.tsx` shows a request's method and title.
+  - `Nav/Dropdown/FolderDropdown.tsx` and `RequestDropdown.tsx`: the "…" menus with add, rename, duplicate, settings and delete. `ContextMenu/RequestContextMenu.tsx` is the right-click menu.
+  - `Nav/NavCreateItem.tsx`: the inline row for naming a new request or folder. Renaming uses `shared/InlineRename.tsx`.
+  - Drag and drop with [dnd-kit](https://dndkit.com/) reorders items and moves them into folders. `treeUtilities.ts` flattens the tree and works out the drop target.
+  - Multi-select with `Ctrl`/`Cmd`-click and `Shift`-click (`types.ts`); `BulkActionBar.tsx` and `BulkDeleteDialog.tsx` act on the selection.
+- **`FooterBar.tsx`**: app settings, the GitHub link and the app version.
 
-*   **`SaveButton.tsx`**:
-    *   **Purpose**: A `Button` component to save the current request (if it's a draft).
-    *   **Features**: Uses a "BookmarkIcon". Disabled if the request is not a draft.
+## History (`components/history/`)
 
-*   **`MainBody.tsx`**:
-    *   **Purpose**: The main content area below the `MainTopBar`, dividing the space for request input and response output.
-    *   **Layout**: Arranges `InputTabs` and `OutputTabs` in a flexible row (or column on smaller screens, though primarily desktop-focused).
+- **`HistoryList.tsx`**: the requests sent in this session, newest first, in the sidebar.
+- **`HistoryEntryView.tsx`**: a history entry read-only, laid out like the request editor: the request as it was sent (`HistoryRequestTabs.tsx`) next to its response.
+- **`OutcomeBadge.tsx`** shows the status, the error or that the request was cancelled; **`ScriptLogs.tsx`** shows the console output of the scripts.
 
-*   **`InputTabs.tsx` (`src/renderer/components/mainWindow/bodyTabs/InputTabs/`)**:
-    *   **Purpose**: Provides a tabbed interface for configuring different parts of an HTTP request.
-    *   **Tabs**:
-        *   **`BodyTab.tsx`**: Manages request body input. Uses a Monaco editor for text-based bodies and a file input for file bodies. Allows selection of body type (Text, File) and language (JSON, XML, Plain for text bodies) using `SimpleSelect.tsx`.
-        *   **`HeaderTab.tsx`**: Manages request headers. Provides a table-like interface to add, edit, delete, and toggle (activate/deactivate) headers.
-        *   **`ParamsTab.tsx`**: Manages URL query parameters. Similar table-like interface for query parameters. Synchronizes with the URL in `MainTopBar.tsx`.
-    *   **Features**: Uses `Tabs`, `Table`, `Input`, `Button`, `AddIcon`, `DeleteIcon`, `CheckedIcon` components. Active header count is displayed in the "Headers" tab trigger.
+## Settings (`components/shared/settings/`)
 
-*   **`SimpleSelect.tsx` (`src/renderer/components/mainWindow/bodyTabs/InputTabs/`)**:
-    *   **Purpose**: A generic, simplified `Select` component used within `InputTabs` (e.g., for body type, language selection).
+The settings modals are `TabbedDialog`s (`shared/TabbedDialog.tsx`). The collection and folder modals edit a working copy and dispatch it as one command on save.
 
-*   **`OutputTabs.tsx` (`src/renderer/components/mainWindow/bodyTabs/`)**:
-    *   **Purpose**: Displays the HTTP response.
-    *   **Tabs**:
-        *   **"Response Body"**: Displays the response body using a read-only Monaco editor. The language for syntax highlighting is determined from the `Content-Type` header. Fetches body content via `IpcPushStream`.
-        *   **"Headers"**: Displays response headers in a table.
-    *   **Features**: Includes `ResponseStatus` in its tab list area.
+| Modal | Tabs |
+| --- | --- |
+| `CollectionSettingsModal.tsx` | General (name, close collection), Variables, Environments, Authorization, Headers, mTLS, Export |
+| `FolderSettingsModal.tsx` | Authorization, Headers |
+| `AppSettingsModal.tsx` | General (theme, TLS verification, logs), Plugins, MCP Server |
 
-*   **`ResponseStatus.tsx` (`src/renderer/components/mainWindow/responseStatus/`)**:
-    *   **Purpose**: Displays key information about the HTTP response: status code (with color coding), time taken, and total size.
-    *   **Features**: Uses `getHttpStatusText`, `getHttpStatusColorClass`, `getDurationTextInSec`, `getSizeText` from `ResponseStatusFormatter.ts` for formatting. Includes a tooltip to show header and body size breakdown.
+Editors used in several places:
 
-## Sidebar Components (`src/renderer/components/sidebar/`)
+- **`AuthorizationTab/AuthorizationEditor.tsx`**: edits the authorization of a request, folder or collection, including inheritance. The fields of each type are described in `forms.ts` and rendered by `ModularForm.tsx`; `useOAuth2Discovery.ts` fills in the OAuth 2.0 endpoints from the issuer.
+- **`shared/headers/HeaderEditor.tsx`**: edits the headers of a request, folder or collection and lists the inherited and automatic ones (`DerivedHeaderRows.tsx`).
+- **`VariableTab/VariableEditor.tsx`**, **`EnvironmentTab/EnvironmentEditor.tsx`**: variables, secret variables and environments.
+- **`TlsTab/CertificateEditor.tsx`**: the client certificate of a collection.
+- **`ExportTab/ExportEditor.tsx`**: ZIP export, optionally with secrets or a password.
 
-These components constitute the application's main navigation and collection management sidebar.
+## Command palette (`components/commandPalette/`)
 
-*   **`SidebarHeaderBar.tsx`**:
-    *   **Purpose**: The header section of the sidebar.
-    *   **Features**: Contains the `CollectionDropdown` for switching/creating/opening collections, and buttons for creating new folders and requests at the root of the current collection. Uses `NamingModal` for these creation actions.
+`CommandPalette.tsx` opens with `Ctrl`/`Cmd` + `K`. It searches the requests of the collection, grouped by folder, and offers actions such as sending, saving or creating a request, switching the environment and opening the settings. It is built on the `Command` primitive (cmdk). The shortcuts it shows come from `hooks/hotKeys/hotkeys.ts`, the single list of all keyboard shortcuts.
 
-*   **`CollectionDropdown.tsx`**:
-    *   **Purpose**: A dropdown menu for managing collections.
-    *   **Features**: Lists available collections (fetched via `RendererEventService`), allows opening existing collections (via file dialog), and creating new collections (via directory selection dialog). Updates `CollectionStore` upon selection.
+## Other views
 
-*   **`SidebarRequestList/`**:
-    *   **`SidebarRequestList.tsx`**: The main container that renders the tree of folders and requests from the `CollectionStore`.
-    *   **`NavFolder.tsx`**: Renders a collapsible folder item. Uses the core `Collapsible` component and `SidebarMenuSubButton`. Recursively calls `renderChildren` for its contents. Includes a `FolderDropdown`.
-    *   **`NavRequest.tsx`**: Renders a request item. Uses `SidebarMenuSubButton` and `RequestView`.
-    *   **`RequestView.tsx`**: Displays the actual content for a request item in the list (HTTP method, title). Includes a `RequestDropdown`.
-    *   **`Dropdown/FolderDropdown.tsx` & `RequestDropdown.tsx`**: Context menus for folders and requests respectively. Provide actions like Add Request/Folder (for folders), Rename, and Delete. Uses `NamingModal`.
-    *   **`Dropdown/modals/NamingModal.tsx`**: A dialog component used for naming new folders/requests or renaming existing ones.
-
-*   **`FooterBar.tsx`**:
-    *   **Purpose**: The footer section of the sidebar.
-    *   **Features**: Displays the application version (fetched via `RendererEventService`), a link to the GitHub repository, and a trigger for the `SettingsModal`.
-
-## Shared Components (`src/renderer/components/shared/`)
-
-*   **`Divider.tsx`**: A simple horizontal or vertical divider line.
-*   **`settings/SettingsModal.tsx`**:
-    *   **Purpose**: A dialog for configuring application settings. Currently, it primarily handles collection-level variables. See [Variables documentation]({% link documentation/user-guide/variables.md %}) for more details on variable types and usage.
-    *   **Tabs**: Uses `Tabs` to organize settings sections.
-    *   **`VariableTab/VariableEditor.tsx`**: A reusable component for editing key-value pairs (variables), including description. Handles validation for variable names.
-    *   **Logic**: Loads variables from `VariableStore`, allows editing, and saves them back via `RendererEventService`.
-
-## Other Notable UI Elements
-
-*   **`EmptyWildWest.tsx` (`src/renderer/assets/`)**: An SVG component displayed in the `RequestWindow` when no request is selected, prompting the user to create or select one.
-*   **Icons (`src/renderer/components/icons/`)**: A set of custom SVG icons wrapped as React components (e.g., `AddIcon`, `DeleteIcon`, `BookmarkIcon`).
-
-These application-specific components, built upon the core UI elements, define the unique user experience of Trufos. 
+- **`view/CollectionRunner.tsx`**: replaces the main layout and sends the checked requests of the collection one after another, with an environment of choice, and shows their results.
+- **`view/CollectionImport.tsx`**: opens a Trufos collection or imports one through the importers of the enabled plugins, which come from the plugin store.
+- **`view/CollectionCreate.tsx`**: creates a collection in a new directory.

@@ -3,53 +3,40 @@ title: UI Components
 nav_order: 6
 parent: Contributing
 has_children: true
+description: How the React UI of Trufos is organised, from shadcn/ui primitives to the application components.
 ---
 
 # UI Components
 
-Trufos's user interface is built with React and TypeScript, styled using Tailwind CSS. It leverages a combination of core UI elements provided by [ShadCN UI](https://ui.shadcn.com/) and custom application-specific components.
+The UI of Trufos is written in React 19 and TypeScript and styled with Tailwind CSS v4. Its building blocks are [shadcn/ui](https://ui.shadcn.com/) components on [Radix UI](https://www.radix-ui.com/) primitives, which are copied into the repository and adapted to the app's design.
 
-## ShadCN UI
+## Where components live
 
-ShadCN UI is not a component library in the traditional sense, but rather a collection of re-usable components that you can copy and paste into your apps and customize to your needs. Trufos uses several of these components as a base.
+| Directory | Contents |
+| --- | --- |
+| `src/renderer/components/ui/` | Primitives: shadcn/ui components and a few of our own. See [Core UI Elements]({% link documentation/ui-components/core-elements.md %}). |
+| `src/renderer/components/mainWindow/` | The request editor and the response view |
+| `src/renderer/components/sidebar/` | The sidebar: collection dropdown, request tree, toolbars |
+| `src/renderer/components/history/` | The request history |
+| `src/renderer/components/commandPalette/` | The command palette |
+| `src/renderer/components/shared/` | Settings modals and editors used in several places |
+| `src/renderer/components/icons/` | Custom SVG icons |
+| `src/renderer/view/` | Top-level views and dialogs |
 
-*   **Configuration**: `components.json` defines the setup for ShadCN UI, including style, Tailwind configuration path, and aliases.
-    ```json
-    {
-      "$schema": "https://ui.shadcn.com/schema.json",
-      "style": "default",
-      "rsc": false,
-      "tsx": true,
-      "tailwind": {
-        "config": "tailwind.config.js",
-        "css": "src/renderer/styles/tailwind.css",
-        "baseColor": "gray",
-        "cssVariables": true,
-        "prefix": ""
-      },
-      "aliases": {
-        "components": "@/components", // Points to src/renderer/components
-        "utils": "@/lib/utils"      // Points to src/renderer/lib/utils.ts
-      }
-    }
-    ```
-*   **Location**: The base ShadCN UI components are typically located in `src/renderer/components/ui/`.
+The application components are described in [Application Components]({% link documentation/ui-components/application-components.md %}).
 
-## Component Structure
+## Conventions
 
-*   **Core UI Elements (`src/renderer/components/ui/`)**:
-    These are often derived from or are direct implementations of ShadCN UI components. They provide the basic building blocks for the interface.
-    See [Core UI Elements]({% link documentation/ui-components/core-elements.md %}) for details.
+- **Reuse before you build.** Look for a component in `components/ui/` first, then for a Radix UI primitive to wrap in the shadcn/ui style. Write a component from scratch only if neither fits; Radix brings focus handling, keyboard navigation and accessibility.
+- **Function components and hooks** only, with named exports.
+- **Tailwind classes** instead of inline styles or CSS files. Combine conditional classes with `cn()` from `src/renderer/lib/utils.ts`.
+- **Design tokens**: colours, radius and fonts are CSS custom properties in `src/renderer/styles/index.css`, available as Tailwind classes such as `bg-accent-primary`, `text-text-secondary` or `text-danger`. Each has a light and a dark value. The design source is a Penpot file; see `AGENTS.md` in the app repository for connecting to it.
+- **Icons**: use [lucide-react](https://lucide.dev/) or, for icons from the design, the components in `components/icons/` (`AddIcon`, `BookmarkIcon`, …), which wrap an SVG path in a common `Icon` with consistent sizing.
+- **State** that several components share belongs in a store, see [State Management]({% link documentation/architecture/state-management.md %}).
+- **Tests** sit next to the component (`*.test.tsx`) and select elements by role and label, as a user would.
 
-*   **Application-Specific Components**:
-    These are custom components built for Trufos's specific needs, often composing core UI elements or implementing unique functionality. They are found in directories like:
-    *   `src/renderer/components/mainWindow/`
-    *   `src/renderer/components/sidebar/`
-    *   `src/renderer/components/shared/`
-    See [Application Components]({% link documentation/ui-components/application-components.md %}) for details.
+## shadcn/ui configuration
 
-*   **Icons (`src/renderer/components/icons/`)**:
-    *   `Icon.tsx`: A base SVG icon wrapper component.
-    *   `index.tsx`: Exports various SVG icons wrapped as React components using the `svgToIcon` higher-order component. This allows for consistent sizing and styling of icons.
+`components.json` configures shadcn/ui. Tailwind CSS v4 has no config file, so `tailwind.config` is empty and the CSS entry point is `src/renderer/styles/index.css`. The aliases are `@/components` and `@/lib/utils`, where `@/` is `src/renderer/`.
 
-This section provides an overview of these component categories. 
+When you add a component with the shadcn CLI, adapt it to the tokens of `index.css` like the existing ones.

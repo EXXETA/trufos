@@ -2,79 +2,49 @@
 title: State Management
 nav_order: 4
 parent: Architecture
+description: The Zustand stores of the renderer and how the collection store follows the collection owned by the main process.
 ---
 
 # State Management
 
-Trufos primarily manages its application state within the **Renderer process** using [Zustand](https://github.com/pmndrs/zustand), a small, fast, and scalable state-management solution. Zustand is chosen for its simplicity, hook-based API, and compatibility with React.
+The renderer keeps its state in [Zustand](https://zustand.docs.pmnd.rs/) stores with the Immer middleware, in `src/renderer/state/`. The open collection itself is **not** owned by the renderer: the main process owns it, and the collection store holds a read-only replica plus purely visual state. [Main-Owned Collection State]({% link documentation/architecture/collection-state.md %}) explains the protocol between the two; this page covers the renderer side.
 
-## Core Stores
+## Stores
 
-The application state is divided into several stores, each responsible for a specific domain:
+| Store | File | Holds |
+| --- | --- | --- |
+| Collection store | `collectionStore.ts` | The replica of the open collection, plus selection, open folders, sort mode and the current script tab |
+| `useResponseStore` | `responseStore.ts` | The latest response of each request, by request ID |
+| `useHistoryStore` | `historyStore.ts` | The request history of the current collection and the selected entry |
+| `useAppSettingsStore` | `appSettingsStore.ts` | The app settings (theme, TLS verification, MCP server) |
+| `usePluginStore` | `pluginStore.ts` | The plugins and the contributions of the enabled ones |
+| `useViewStore` | `viewStore.ts` | Which modals and views are open and what the sidebar shows |
 
-1.  **`CollectionStore` (`src/renderer/state/collectionStore.ts`)**:
-    *   **Purpose**: Manages the state related to the currently loaded collection, including its structure (folders, requests), the currently selected request, and the Monaco editor instance for the request body.
-    *   **Key State Properties**:
-        *   `collection`: Basic information about the current collection (ID, title, children).
-        *   `requests`: A `Map` of all requests in the collection, keyed by their ID.
-        *   `folders`: A `Map` of all folders in the collection, keyed by their ID.
-        *   `selectedRequestId`: The ID of the request currently being viewed/edited.
-        *   `requestEditor`: The Monaco editor instance for the request body.
-        *   `openFolders`: A `Set` of folder IDs that are currently expanded in the sidebar's request list.
-    *   **Key Actions**:
-        *   `initialize(collection)`: Loads a new collection into the store, populating `requests` and `folders` maps.
-        *   `changeCollection(collection)`: Switches to a new collection, ensuring unsaved changes in the current request are persisted.
-        *   `addNewRequest(title?, parentId?)`: Creates a new request, saves it via `RendererEventService`, and updates the store.
-        *   `updateRequest(updatedRequest, overwrite?)`: Updates the currently selected request. Can either merge partial updates (marking as draft) or fully overwrite.
-        *   `setRequestBody(body)`: Updates the body of the current request.
-        *   `setRequestEditor(editor?)`: Sets the Monaco editor instance and loads the current request's body into it. Handles draft status on content change.
-        *   `setSelectedRequest(id?)`: Changes the selected request, saving the previous one if necessary and loading the new one's body.
-        *   `deleteRequest(id)`: Deletes a request from the store and via `RendererEventService`.
-        *   `renameRequest(id, title)`: Renames a request.
-        *   Header and Query Parameter management actions (`addHeader`, `updateHeader`, `deleteHeader`, `clearHeaders`, etc.).
-        *   `setDraftFlag()`: Marks the current request as having unsaved changes.
-        *   Folder management actions (`addNewFolder`, `deleteFolder`, `renameFolder`, `setFolderOpen`, `setFolderClose`).
-    *   **IPC Integration**: Listens for the `'before-close'` IPC event from the main process to save any unsaved changes in the `requestEditor` before the application quits.
+### Collection store
 
-2.  **`ResponseStore` (`src/renderer/state/responseStore.ts`)**:
-    *   **Purpose**: Manages the HTTP responses received for requests.
-    *   **Key State Properties**:
-        *   `responseInfoMap`: A `Record` (object) mapping request IDs to their corresponding `TrufosResponse` objects.
-        *   `editor`: The Monaco editor instance for displaying the response body.
-    *   **Key Actions**:
-        *   `addResponse(requestId, response)`: Adds a new response to the map.
-        *   `removeResponse(requestId)`: Removes a response.
-        *   `setResponseEditor(editor?)`: Sets the Monaco editor instance for the response view.
+Unlike the other stores, the collection store is not a global singleton. `CollectionStoreProvider` (`CollectionStoreProvider.tsx`) fetches the snapshot of the open collection from main and creates the store with `createCollectionStore()`, then provides it through React context. Components read it with `useCollectionStore(selector)` and get its actions with `useCollectionActions()`.
 
-3.  **`VariableStore` (`src/renderer/state/variableStore.ts`)**:
-    *   **Purpose**: Manages collection-level variables, primarily for use in the Settings modal. See [Variables documentation]({% link documentation/user-guide/variables.md %}) for more details on variable types and usage.
-    *   **Key State Properties**:
-        *   `variables`: A `VariableMap` (object) representing the collection's variables.
-    *   **Key Actions**:
-        *   `initialize(variables)`: Sets the initial variables when a collection is loaded.
-        *   `setVariables(variables)`: Updates the variables and persists them via `RendererEventService`.
+The store has two parts:
 
-## Zustand Configuration
+- **The model**: the collection with its variables and environments, the selected environment, the folders and requests by ID, the saved state of requests that have a draft, and the order of children (`childIds`). It mirrors the `CollectionModel` of a `CollectionState` (`collection-state.ts`) and is never changed directly.
+- **UI state**: the selected request, open folders, multi-selection, sort mode and script tab.
 
-*   **`immer` Middleware**: All stores use the `immer` middleware from Zustand (`zustand/middleware/immer`). This allows for direct, "mutable" updates to state within action definitions, which Immer then translates into immutable updates.
-*   **`enableMapSet()`**: Called in `src/renderer/index.tsx` from `immer` to enable direct mutation support for `Map` and `Set` objects within Immer-powered reducers/actions.
+Every action that changes the collection, e.g. `updateRequest()`, `renameItem()` or `moveItems()`, turns into a `CollectionCommand`. `CollectionState` applies it to its model right away (optimistically), sends it to main with `dispatch()`, and reconciles once main broadcasts the resulting patches. Each change of the model is copied into the store. The actions are listed with their doc comments in `interface/CollectionStateActions.ts`.
 
-## State Selection and Actions
+The text bodies and scripts are not part of the model. They live in the Monaco models of the request (`lib/monaco/models.ts`), see [Renderer Process]({% link documentation/architecture/renderer-process.md %}#monaco-editors).
 
-*   **Selectors**: Each store typically exports selector functions (e.g., `selectRequest` in `collectionStore.ts`) to retrieve specific pieces of state.
-*   **`useActions()` Hook**: A utility hook (`src/renderer/state/helper/util.ts`) is used to conveniently access all action functions from a store, often with shallow equality checking for performance:
-    ```typescript
-    // Example usage
-    const { addNewRequest, updateRequest } = useCollectionActions();
-    ```
+The selected request, open folders, sort mode and script tab are restored when a collection is opened again. The store sends them to main 500 ms after the last change (`helper/collection-ui-state.ts`), and main keeps them with the open collection in `state.json`.
 
-## Data Flow
+The provider also keeps the collection in sync with its files: when the window loses focus it sends the editor changes and asks main to write everything, and when it gets focus back it asks main to reload the collection if the files changed. Before the window closes, it flushes the editor changes and the UI state.
 
-1.  **Initialization**: On app start, `RendererEventService.loadCollection()` fetches the last opened collection. The `CollectionStore` is initialized with this data. `VariableStore` is initialized with the collection's variables.
-2.  **User Interaction**: User actions in the UI (e.g., typing in URL, changing HTTP method, sending request) call actions in the relevant Zustand store.
-3.  **State Update**: Store actions update the state immutably (thanks to Immer).
-4.  **IPC for Persistence/Operations**: If an action requires main process interaction (e.g., saving a request, sending an HTTP request), it calls methods on `RendererEventService`.
-5.  **UI Re-render**: React components subscribed to store changes (via hooks like `useCollectionStore(...)`) re-render with the new state.
-6.  **Response Handling**: When an HTTP response is received (via `RendererEventService`), the `ResponseStore.addResponse` action is called to update the response state.
+### Other stores
 
-This architecture keeps the UI reactive to state changes and centralizes business logic within the Zustand stores and associated services. 
+The other stores are created with `create()` and used as hooks. The history, plugin and app settings stores load their state from main once and take over what main pushes later (`history-changed`, `plugins-changed`). Changes to the app settings are saved through `saveAppSettings()` right away.
+
+## Conventions
+
+- **Actions**: `useActions()` (`helper/util.ts`) selects all functions of a store with shallow equality, so components that only need actions do not re-render on state changes, e.g. `const { addResponse } = useResponseActions()`.
+- **Selectors**: stores export selectors such as `selectResponse` or `selectSidebarView`. Selectors must return stable references; derive new objects with `useMemo` or a dedicated hook such as `useCollectionTree()`.
+- **Immer**: actions mutate a draft. `enableMapSet()` in `index.tsx` allows `Map` and `Set` in state.
+- **Errors**: async actions show their errors as a toast themselves and resolve to `false` instead of rejecting.
+- State that more than one component needs belongs in a store, not in component state.

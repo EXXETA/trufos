@@ -61,8 +61,6 @@ const platformConfig = [
   },
 ];
 
-const OS_LABELS = { mac: "macOS", windows: "Windows", linux: "Linux" };
-
 /**
  * Detects the visitor's desktop OS and, where the browser exposes it, the CPU architecture.
  * Phones and tablets get `os: null`, as there is no installer for them.
@@ -119,16 +117,15 @@ const recommendedKeys = ({ os, arch }) => {
   }
 };
 
+// Only what the "Recommended for you" badge cannot say on its own.
 const detectionHint = ({ os, arch }) => {
   switch (os) {
     case "mac":
       return arch
-        ? "Highlighted the download for your Mac."
-        : "Highlighted the Apple Silicon download. On an Intel Mac, pick the Intel build instead (Apple menu > About This Mac shows your chip).";
+        ? ""
+        : "On an Intel Mac, pick the Intel build instead (Apple menu > About This Mac shows your chip).";
     case "linux":
-      return "Highlighted the DEB package for Debian and Ubuntu. On other distributions, use the ZIP archive.";
-    case "windows":
-      return "Highlighted the Windows installer.";
+      return "On distributions without DEB packages, use the ZIP archive.";
     default:
       return "";
   }
@@ -216,7 +213,6 @@ const renderLatestRelease = (container, release, platform) => {
     .join("");
 
   const hint = entries.some(isRecommended) ? detectionHint(platform) : "";
-  const detected = platform.os ? `Detected ${OS_LABELS[platform.os]}. ${hint}` : "";
 
   container.innerHTML = `
     <div class="release-latest">
@@ -224,7 +220,7 @@ const renderLatestRelease = (container, release, platform) => {
         <h3 class="release-latest__title">Latest release ${escapeHtml(release.name || release.tag_name || "")}</h3>
         ${dateLabel ? `<span class="release-latest__date">${dateLabel}</span>` : ""}
       </div>
-      ${detected ? `<p class="release-latest__detected">${detected}</p>` : ""}
+      ${hint ? `<p class="release-latest__detected">${escapeHtml(hint)}</p>` : ""}
       <div class="release-grid">${cards}</div>
     </div>
   `;

@@ -2,76 +2,69 @@
 title: Building & Packaging
 nav_order: 4
 parent: Development
+description: How Electron Forge and Vite build, package and publish Trufos.
 ---
 
 # Building and Packaging
 
-Trufos uses [Electron Forge](https://www.electronforge.io/) as its primary tool for building, packaging, and distributing the application. The configuration for Electron Forge is located in `forge.config.ts`.
+Trufos is built, packaged and published with [Electron Forge](https://www.electronforge.io/), configured in `forge.config.ts`. Vite bundles the code.
 
-## Configuration (`forge.config.ts`)
+## Commands
 
-This file defines how Electron Forge handles the build and packaging process.
+| Command | What it does |
+| --- | --- |
+| `yarn start` | `electron-forge start`: development build with the Vite dev server and hot reload |
+| `yarn package` | `electron-forge package`: production bundles in `.vite/` and the runnable app in `out/`, no installer. The end-to-end suite needs it. |
+| `yarn make` | `electron-forge make`: packages, then builds the installers into `out/make/` |
+| `yarn publish` | `electron-forge release`: packages, makes the installers and uploads them to a GitHub release |
 
-Key sections:
+## Vite builds
 
-1.  **`packagerConfig`**: Options passed to `electron-packager`.
-    *   `asar: true`: Packages the application source code into an [ASAR archive](https://www.electronjs.org/docs/latest/tutorial/asar-archives) for potentially faster load times and to hide source code.
-    *   `icon: './images/icon'`: Specifies the path to the application icon (without extension, Electron Forge handles platform-specific formats like `.icns` or `.ico`).
-    *   `osxSign` & `osxNotarize`: macOS specific signing and notarization settings. These are conditionally configured based on environment variables (`APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`), enabling code signing and notarization if credentials are provided.
+The `VitePlugin` in `forge.config.ts` runs three builds:
 
-2.  **`rebuildConfig`**: Configuration for rebuilding native Node modules (empty in this case, but important if native dependencies are used).
+| Entry | Config | Output |
+| --- | --- | --- |
+| `src/main/main.ts` (main) | `src/main/vite.config.mts` | `.vite/build/main.cjs` |
+| `src/main/preload.ts` (preload) | `src/main/vite.config.mts` | `.vite/build/preload.cjs` |
+| `index.html` (renderer `main_window`) | `src/renderer/vite.config.mts` | `.vite/renderer/main_window/` |
 
-3.  **`makers`**: Defines the types of distributables to create.
-    *   `MakerSquirrel`: Creates a Windows installer (`Setup.exe`) using Squirrel.Windows.
-    *   `MakerZIP`: Creates a `.zip` archive, configured here for Linux (`['linux']`).
-    *   `MakerDMG`: Creates a `.dmg` disk image for macOS.
+Main is built with source maps (inline in development) and without minification. The bundled plugins are dynamic imports, so each becomes a chunk of its own that is only loaded when the plugin is first used. The MCP server and its SDK are a separate chunk as well.
 
-4.  **`plugins`**:
-    *   **`AutoUnpackNativesPlugin`**: Automatically unpacks native Node modules from the ASAR archive, which is often necessary for them to function correctly.
-    *   **`VitePlugin`**: Integrates Vite for building the main and renderer process code.
-        *   **`build` array**: Configures Vite builds for non-renderer code.
-            *   Main process entry: `src/main/main.ts` with config `src/main/vite.config.ts`.
-            *   Preload script entry: `src/main/preload.ts` with config `src/main/vite.config.ts`.
-        *   **`renderer` array**: Configures Vite builds for renderer process code.
-            *   Named `main_window` with entry point implicitly handled by Vite via `index.html` and config `src/renderer/vite.config.ts`.
-    *   **`FusesPlugin`**: Allows toggling certain Electron security features at package time. This configuration enhances security by:
-        *   Disabling `RunAsNode`.
-        *   Enabling cookie encryption.
-        *   Disabling Node.js options environment variables and CLI inspect arguments.
-        *   Enabling ASAR integrity validation and ensuring the app only loads from ASAR.
+## Hooks
 
-5.  **`publishers`**: Configures how and where to publish releases.
-    *   `@electron-forge/publisher-github`: Configured to publish releases to GitHub under the `EXXETA/trufos` repository, marked as prereleases.
+- **`generateAssets`** generates `src/renderer/assets/trufos-scripting-api.d.ts` from the `GlobalScriptingApi` interface in `src/shim/scripting.ts`. Monaco uses it to offer completion for the `trufos` API in scripts. It also takes a fingerprint of the sources.
+- **`postPackage`** stores that fingerprint with the bundles, so the end-to-end suite can refuse bundles that are older than the sources (`tools/source-fingerprint.ts`).
 
-## Build Process Commands
+## Packaging
 
-Defined in `package.json`:
+`packagerConfig`:
 
-*   **`yarn package`**:
-    *   Runs `electron-forge package`.
-    *   Builds the application and packages it into a platform-specific runnable format (e.g., an `.app` bundle on macOS, an `exe` with associated files on Windows) in the `out/` directory. This is an unpackaged version, not an installer.
+- `asar: true`: the app is packaged into an [ASAR archive](https://www.electronjs.org/docs/latest/tutorial/asar-archives).
+- Icons per platform from `images/macos/`, `images/windows/` and `images/linux/`. On Linux the executable is named `trufos`.
+- **macOS signing**: with `APPLE_API_KEY`, `APPLE_API_KEY_ID` and `APPLE_API_ISSUER` set, the app is signed and notarized. Without them it is signed ad hoc, which is enough to run it locally.
 
-*   **`yarn run make`**:
-    *   Runs `electron-forge make`.
-    *   First, it performs the packaging step (like `yarn package`).
-    *   Then, it uses the specified `makers` (MakerSquirrel, MakerZIP, MakerDMG) to create distributable installers/archives (e.g., `Setup.exe`, `.dmg`, `.zip`) in the `out/make/` directory.
+The **fuses** (`FusesPlugin`) switch off Electron features the app does not need, at package time:
 
-*   **`yarn publish`**:
-    *   Runs `electron-forge publish`.
-    *   Builds, makes, and then publishes the application according to the `publishers` configuration (in this case, to GitHub Releases).
+- `RunAsNode` off: the app cannot be started as plain Node.js.
+- `EnableNodeOptionsEnvironmentVariable` and `EnableNodeCliInspectArguments` off: no `NODE_OPTIONS`, no inspector.
+- `EnableCookieEncryption` on.
+- `EnableEmbeddedAsarIntegrityValidation` and `OnlyLoadAppFromAsar` on: only the verified archive is loaded.
 
-## How Vite is Used
+Because of these fuses, the end-to-end suite cannot test the packaged app; it runs against the bundles.
 
-The `VitePlugin` in `forge.config.ts` orchestrates the use of Vite:
+## Installers
 
-1.  **Main Process & Preload Script**:
-    *   Vite is configured in library mode for these entries (`src/main/main.ts`, `src/main/preload.ts`).
-    *   The output is placed in `.vite/build/` (e.g., `.vite/build/main.js`, `.vite/build/preload.js`).
-    *   Electron Forge then uses these built files when packaging the application.
+| Maker | Platform | Output |
+| --- | --- | --- |
+| `MakerSquirrel` | Windows | `Setup.exe` (Squirrel.Windows), plus the `.nupkg` and `RELEASES` files the updater needs |
+| `MakerDMG` | macOS | `.dmg` |
+| `MakerDeb` | Linux | `.deb`, in the categories Utility and Development |
+| `MakerZIP` | Linux | `.zip` |
 
-2.  **Renderer Process**:
-    *   Vite builds the React application (`src/renderer/`).
-    *   The output (HTML, JS, CSS assets) is placed in `.vite/renderer/main_window_vite_renderer/`.
-    *   Electron Forge includes these assets in the packaged application, and the main window loads the `index.html` from this location.
+## Releases
 
-During development (`yarn start`), `electron-forge start` uses Vite's development server for HMR (Hot Module Replacement) for the renderer process and rebuilds main/preload scripts as needed. 
+A push to the `release` branch runs `.github/workflows/release.yml`. On Linux and Windows runners, it runs the tests and `yarn publish`, which uploads the installers with `@electron-forge/publisher-github` to a GitHub release of `EXXETA/trufos`, marked as a prerelease. The workflow has no macOS runner; the `.dmg` files of a release are built separately.
+
+On Windows, installed apps update themselves from these releases through `update-electron-app`, which checks every hour. macOS and Linux do not update themselves: `update-electron-app` does not support Linux, and on macOS it needs a `.zip` of the app, which `forge.config.ts` only builds for Linux.
+
+On every push and pull request to `main`, `.github/workflows/ci.yml` checks formatting and types, runs the tests, runs the end-to-end suite on Linux, and packages the app if `yarn.lock` changed.

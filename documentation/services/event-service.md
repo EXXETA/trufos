@@ -2,68 +2,62 @@
 title: Event Service (IPC)
 nav_order: 2
 parent: Services
+description: MainEventService and RendererEventService, the two ends of the typed IPC contract.
 ---
 
 # Event Service (IPC)
 
-The Event Service in Trufos facilitates Inter-Process Communication (IPC) between the main process and the renderer process. It's implemented as two distinct but related services: `MainEventService` for the backend and `RendererEventService` for the frontend.
+The event service is the IPC contract between the processes. It is one interface, `IEventService` in `src/shim/event-service.ts`, implemented twice: `MainEventService` handles the calls in main, and `RendererEventService` makes them from the renderer. How messages travel is described in [IPC Communication]({% link documentation/architecture/ipc-communication.md %}).
 
 ## `MainEventService`
 
-*   **Location**: `src/main/event/main-event-service.ts`
-*   **Purpose**: To expose main process functionalities to the renderer process securely and handle requests originating from the UI.
-*   **Mechanism**:
-    *   It implements the `IEventService` interface (defined in `src/shim/event-service.ts`).
-    *   During its construction, it iterates over its own methods and dynamically registers IPC handlers for each using `ipcMain.handle(channelName, handler)`. The `channelName` is typically the method name itself.
-    *   Each handler is wrapped with `wrapWithErrorHandler`, which catches errors from the underlying service calls, logs them, and returns them as standard `Error` objects over IPC.
-*   **Responsibilities**:
-    *   Delegates calls to other main process services (e.g., `PersistenceService`, `HttpService`, `EnvironmentService`).
-    *   Acts as the single point of entry for most renderer-to-main communication.
-    *   Handles specialized IPC events like those for [data streaming]({% link documentation/architecture/ipc-communication.md %}#streaming-data-ipc-push-stream) (`stream-events.ts`) and log forwarding.
+**Location**: `src/main/event/main-event-service.ts`
+
+- Its constructor registers an `ipcMain.handle()` handler for every method on its prototype, with the method name as the channel. Every method there is callable from the renderer; helpers belong outside the class.
+- Each handler runs in `toIpcResult()`, which returns `{ ok: true, value }` or logs the error and returns `{ ok: false, error }`, see [Error Handling]({% link documentation/architecture/error-handling.md %}).
+- The methods are thin: they delegate to the services, e.g. `dispatch()` to the `CollectionStateService`, `sendRequest()` to the `HttpService`, `importCollection()` to the `ImportService`.
+- It pushes events to the renderer. It listens to the services and forwards their changes through `sendToRenderer()`: patches of the collection state, changed request files, the history, the plugins, and the status and actions of the MCP server.
+- `window` is the main `BrowserWindow`, set in `main.ts`. It receives the events and is the parent of the file dialogs.
+- Importing it also registers the stream handlers (`stream-events.ts`).
 
 ## `RendererEventService`
 
-*   **Location**: `src/renderer/services/event/renderer-event-service.ts`
-*   **Purpose**: To provide a clean, Promise-based API for renderer-side code to interact with the main process functionalities exposed by `MainEventService`.
-*   **Mechanism**:
-    *   It also conceptually implements the `IEventService` interface.
-    *   For each method in `IEventService`, it uses a `createEventMethod` helper. This helper function:
-        *   Calls `window.electron.ipcRenderer.invoke(channelName, ...args)`, where `channelName` matches the method name.
-        *   Awaits the Promise returned by `invoke`.
-        *   If the result from the main process is an `Error` object, it throws a new `MainProcessError` (from `src/renderer/error/MainProcessError.ts`) to distinguish it from renderer-side errors.
-        *   Otherwise, it returns the successful result.
-    *   It also provides methods for listening to (`on`) and emitting (`emit`) general IPC events that are not part of the request/response pattern (e.g., `before-close`, `ready-to-close` for application shutdown).
-*   **Responsibilities**:
-    *   Abstracts away the raw `ipcRenderer` calls.
-    *   Provides type safety for IPC calls based on `IEventService`.
-    *   Handles error wrapping for responses from the main process.
+**Location**: `src/renderer/services/event/renderer-event-service.ts`
 
-## `IEventService` Interface
+- A singleton (`RendererEventService.instance`) whose methods are created with `createEventMethod(name)`. Each calls `window.electron.ipcRenderer.invoke(name, ...args)` and returns the value or throws the error of the `IpcResult`.
+- `on(event, listener)` and `removeListener(event, listener)` subscribe to a `MainProcessEvent`; `emit(event, ...payload)` sends a `RendererEvent`. All three are typed by the payload maps, and return the service, so calls can be chained.
 
-*   **Location**: `src/shim/event-service.ts`
-*   **Purpose**: Defines the contract for methods that are exposed via IPC. This shared interface ensures that both `MainEventService` and `RendererEventService` are synchronized in terms of method signatures and channel names.
-*   **Key Methods Defined**:
-    *   `loadCollection`, `listCollections`
-    *   `sendRequest`
-    *   `saveRequest`, `saveChanges`, `discardChanges`
-    *   `deleteObject`
-    *   `getAppVersion`
-    *   `getActiveEnvironmentVariables`, `getVariable`, `setCollectionVariables`
-    *   `selectEnvironment`
-    *   `saveFolder`
-    *   `openCollection`, `createCollection`, `closeCollection`
-    *   `showOpenDialog`
+```ts
+const eventService = RendererEventService.instance;
 
-## Overall Flow
+const version = await eventService.getAppVersion();
 
-1.  Renderer component/service needs to perform a main process task (e.g., save a file).
-2.  It calls a method on `RendererEventService.instance` (e.g., `RendererEventService.instance.saveRequest(requestData)`).
-3.  `RendererEventService` uses `window.electron.ipcRenderer.invoke('saveRequest', requestData)` to send the request to the main process.
-4.  `MainEventService` (which has a handler registered for `'saveRequest'`) receives the call.
-5.  The handler in `MainEventService` calls the actual implementation (e.g., `PersistenceService.instance.saveRequest(requestData)`).
-6.  The result (or an error) from `PersistenceService` is returned by the `MainEventService` handler.
-7.  `RendererEventService` receives the result. If it's an error, it throws `MainProcessError`; otherwise, it returns the data.
-8.  The original caller in the renderer process receives the data or catches the error.
+eventService
+  .on(MainProcessEvent.HistoryChanged, onHistoryChanged)
+  .on(MainProcessEvent.PluginsChanged, onPluginsChanged);
+```
 
-This structured approach to IPC ensures maintainability, type safety, and proper error handling between the main and renderer processes.
-For more details on the underlying IPC mechanisms, see [IPC Communication]({% link documentation/architecture/ipc-communication.md %}). 
+## The calls
+
+`IEventService` documents every method. By area:
+
+| Area | Methods |
+| --- | --- |
+| Collection state | `getCollectionState`, `dispatch`, `saveCollectionUiState`, `flushCollection`, `reloadCollection`, `reloadCollectionIfChanged` |
+| Collections | `listCollections`, `openCollection`, `createCollection`, `closeCollection`, `importCollection`, `exportCollection` |
+| Requests | `sendRequest`, `abortRequest`, `discoverOAuth2Endpoints`, `downloadBody` |
+| Variables | `getActiveEnvironmentVariables`, `getVariable`, `resolveVariablesInString` |
+| History | `getHistory`, `getHistoryEntry`, `clearHistory` |
+| Settings and app | `getAppSettings`, `saveAppSettings`, `getAppVersion`, `openLogDirectory`, `showOpenDialog`, `showSaveDialog` |
+| Plugins | `getPlugins`, `setPluginEnabled` |
+| MCP server | `getMcpServerStatus`, `getMcpToken`, `regenerateMcpToken` |
+
+Most edits of a collection do not have a method of their own: they are commands sent with `dispatch()`, see [Main-Owned Collection State]({% link documentation/architecture/collection-state.md %}).
+
+## Adding a call
+
+1. Add the method with a doc comment to `IEventService`.
+2. Implement it in `MainEventService`, delegating to a service.
+3. Add `methodName = createEventMethod('methodName')` to `RendererEventService`.
+
+Both classes implement the interface, so the compiler reports a missing method. Parameters are typed with their real types and not validated again, as both sides are type-checked together. Validate with Zod only where the schema adds defaults, transforms or structural rules.

@@ -1,101 +1,52 @@
 ---
 title: Logging
-nav_order: 7
+nav_order: 10
 parent: Architecture
+description: How the main and renderer processes log, where the log files are and how secrets are kept out of them.
 ---
 
 # Logging
 
-Trufos utilizes a structured logging approach to help developers debug issues and understand application flow. Logging is implemented differently in the main and renderer processes but aims for a unified output where possible.
+The main process logs with [Winston](https://github.com/winstonjs/winston). The renderer logs with `console`, and every entry is forwarded to main, so both processes end up in the same log file.
 
-## Main Process Logging
+## Main process
 
-*   **Library**: [Winston](https://github.com/winstonjs/winston) is used for logging in the main process.
-*   **Configuration**: `src/main/logging/logger.ts`
-    *   A global `logger` instance is created and attached to the `global` object.
-    *   **Log Level**: Defaults to `warn`. In non-packaged (development) mode, an additional console transport is added with level `info`. This can be adjusted (e.g., `logger.level = 'debug'`).
-    *   **Transports**:
-        *   `File Transport`: Logs are written to `trufos.log` in the application's log directory (accessible via `app.getPath('logs')`). Log files are rotated (max 10 files, 10MB each).
-        *   `Console Transport`: Added only if `!app.isPackaged` (i.e., in development/testing).
-    *   **Format**:
-        *   `SplatFormat`: A custom Winston format (`SplatFormat` class) is used to properly handle string interpolation and error object formatting (e.g., printing error stacks). It processes the `Symbol.for('splat')` array provided by Winston when multiple arguments are passed to a log function.
-        *   `timestamp`: Adds a timestamp to each log entry.
-        *   `printf`: A custom print function formats the log message as:
-            `YYYY-MM-DDTHH:mm:ss.SSSZ [PROCESS_NAME] [LEVEL]: message`
-            (e.g., `2023-10-27T10:20:30.123Z [MAIN] [INFO]: Application started`)
-    *   **Default Metadata**: `{ process: 'main' }` is added to all logs originating from the main process logger.
+`src/main/logging/logger.ts` is the first import of `main.ts`. It creates a global `logger`, so main-process code logs without importing anything:
 
-*   **Usage**:
-    ```typescript
-    // global.logger is available throughout the main process
-    logger.info('Informational message');
-    logger.warn('A warning occurred', { details: 'some details' });
-    logger.error('An error happened:', new Error('Something went wrong'));
-    logger.debug('Debugging information', variableValue);
-    ```
-
-## Renderer Process Logging
-
-*   **Mechanism**: `src/renderer/logging/console.ts`
-    *   The global `window.console` object in the renderer process is augmented.
-    *   Methods like `console.log`, `console.info`, `console.warn`, `console.error`, `console.debug` are overridden.
-    *   The overridden methods perform two actions:
-        1.  Call the original `console` method (e.g., `_console.info(...)`) to ensure messages still appear in the renderer's DevTools console.
-        2.  Construct a `LogEntry` object (defined in `src/shim/logger.ts`) and send it to the main process via IPC using the channel `'log'`.
-            ```typescript
-            // Simplified from src/renderer/logging/console.ts
-            function log(level: LogLevel, ...data: unknown[]) {
-              _console[level](...data); // Original console output
-
-              const [message, ...splat] = data;
-              const entry: LogEntry = {
-                process: 'renderer',
-                level,
-                message: `${message ?? ''}`,
-                splat,
-              };
-              window.electron.ipcRenderer.send('log', entry); // Send to main process
-            }
-            ```
-
-## IPC Log Forwarding
-
-*   **Channel**: `'log'`
-*   **Main Process Handler**: In `src/main/logging/logger.ts`:
-    ```typescript
-    ipcMain.on('log', (event, data: TransformableInfo & LogEntry) => {
-      data[SPLAT] = data.splat; // Restore splat for Winston formatting
-      delete data.splat;
-      logger.write(data); // Write the LogEntry from renderer to Winston
-    });
-    ```
-    This handler receives `LogEntry` objects from any renderer process and writes them to the main process's Winston logger. This ensures that renderer logs are also captured in the central log file and, during development, appear in the main process console output if its level is appropriate.
-
-## Log Structure (`LogEntry`)
-
-Defined in `src/shim/logger.ts`:
-```typescript
-export type LogLevel = 'info' | 'debug' | 'warn' | 'error';
-
-export interface LogEntry {
-  level: LogLevel;
-  message: string;
-  process: 'renderer' | 'main'; // Identifies the source process
-  splat: unknown[]; // Additional arguments passed to the log function
-}
+```ts
+logger.info('Loading collection from', dirPath);
+logger.warn('Not storing the state of collection', dirPath);
+logger.error('Failed to write the pending changes before closing:', error);
+logger.debug('Registered event channels on backend');
 ```
-This standardized structure helps in consistent formatting and filtering of logs.
 
-## Accessing Logs
+- **Level**: the file gets `warn` and above.
+- **File**: `trufos.log` in the log directory (`app.getPath('logs')`), rotated at 10 MiB, keeping up to 10 files.
+- **Console**: in an unpackaged build (`yarn start`), a console transport logs everything from `debug` up to the terminal.
+- **Format**: `2026-11-13T10:20:30.123Z [MAIN] [INFO]: message`. Arguments after the message are formatted like `console.log` does (`util.format`), and an `Error` is printed with its stack.
 
-*   **Development**:
-    *   Main process logs: Appear in the terminal where `yarn start` was run.
-    *   Renderer process logs: Appear in the renderer's DevTools console AND are forwarded to the main process terminal/log file.
-*   **Production**:
-    *   All logs (main and renderer) are written to `trufos.log` located in:
-        *   macOS: `~/Library/Logs/Trufos/trufos.log`
-        *   Windows: `%USERPROFILE%\AppData\Roaming\Trufos\logs\trufos.log`
-        *   Linux: `~/.config/Trufos/logs/trufos.log`
-        (The exact path can be confirmed by `app.getPath('logs')`).
+### Secrets
 
-This logging setup provides comprehensive diagnostic information for developers across both main and renderer processes. 
+Requests, responses and variables can contain secrets, so they are never logged as a whole. The request history records them instead, and it is kept in memory only. To log something that may contain a secret while debugging, use `logger.secret`:
+
+```ts
+logger.secret.debug('Resolved authorization header', header);
+```
+
+These entries go to the console in development, but never to the log file.
+
+## Renderer process
+
+`src/renderer/logging/console.ts` replaces `window.console`. Each of `log`, `info`, `debug`, `warn` and `error` still writes to the DevTools console, and also sends a `LogEntry` (`src/shim/logger.ts`) to main through the `log` event. `console.log` is logged as `info`.
+
+Main writes these entries to the same Winston logger, marked as `[RENDERER]`. So a renderer error appears in DevTools, in the terminal during development and in `trufos.log`.
+
+## Where the logs are
+
+| Platform | Log directory |
+| --- | --- |
+| Windows | `%APPDATA%\Trufos\logs` |
+| macOS | `~/Library/Logs/Trufos` |
+| Linux | `~/.config/Trufos/logs` |
+
+Users open it with **Help › Open Logs Folder** (`openLogDirectory()`), see [First Steps]({% link documentation/user-guide/first-steps.md %}#where-to-find-the-logs). During development the main-process log is also in the terminal that runs `yarn start`; open the renderer's DevTools from the **View** menu.

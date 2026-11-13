@@ -1,88 +1,79 @@
 ---
 title: Persistence
-nav_order: 5
+nav_order: 6
 parent: Architecture
+description: How Trufos stores collections, drafts, secrets and its own settings on disk.
 ---
 
 # Persistence
 
-Trufos persists data to the file system to ensure user work is saved across sessions and to facilitate version control. The persistence layer is primarily managed by services in the main process.
+Trufos keeps collections as plain files in a directory of the user's choice, so they can be versioned with Git. The app's own data lives in Electron's user data directory. All files are read and written by the main process.
 
-## Core Persistence Services
+## The files of a collection
 
-1.  **`PersistenceService` (`src/main/persistence/service/persistence-service.ts`)**:
-    *   **Role**: The central service for all file system operations related to collections, folders, and requests.
-    *   **Storage Strategy**:
-        *   Each Trufos object (Collection, Folder, Request) generally corresponds to a directory on the file system.
-        *   Metadata for each object is stored in a JSON file within its directory (e.g., `collection.json`, `folder.json`, `request.json`).
-        *   Text-based request bodies are stored in separate files (e.g., `request-body.txt`).
-    *   **Key Operations**:
-        *   **Loading**:
-            *   `loadCollection(dirPath, recursive?)`: Loads a collection from a given directory. Can load recursively (all children) or just the collection's metadata.
-            *   `loadFolder(parentId, dirPath)`: Loads a folder.
-            *   `loadRequest(parentId, dirPath)`: Loads a request.
-            *   `loadTextBodyOfRequest(request, encoding?)`: Streams the text body of a request.
-        *   **Saving**:
-            *   `saveCollection(collection)`: Saves collection metadata.
-            *   `saveFolder(folder)`: Saves folder metadata.
-            *   `saveRequest(request, textBody?)`: Saves request metadata and optionally its text body. Handles draft versions by prefixing filenames with `~`.
-            *   `saveCollectionRecursive(collection)`: Saves an entire collection and all its children.
-        *   **Draft Management**:
-            *   `saveChanges(request)`: Promotes a draft request's files (metadata and body) to become the primary files, deleting the draft versions.
-            *   `discardChanges(request)`: Deletes draft files, reverting to the last saved non-draft state.
-        *   **File/Directory Management**:
-            *   `createDefaultCollectionIfNotExists()`: Ensures a default collection exists for new users.
-            *   `createCollection(dirPath, title)`: Creates a new, empty collection structure.
-            *   `rename(object, newTitle)`: Renames an object and its corresponding directory.
-            *   `delete(object)`: Deletes an object and its directory, including all children recursively.
-            *   `moveChild(child, oldParent, newParent)`: Moves an object's directory between parent directories.
-    *   **Path Mapping**: Maintains an internal `idToPathMap` to track the file system path for each object ID, which is crucial for locating objects when their titles (and thus directory names) change.
-    *   **Directory Naming**: Directory names are derived from sanitized object titles (lowercase, hyphenated, special characters removed). Handles name collisions by appending numbers (e.g., `my-request`, `my-request-2`).
-    *   **`.gitignore`**: Creates a `.gitignore` file in collection directories to exclude draft files (`~request.json`) from version control.
+Every collection, folder and request is a directory with a JSON **info file**. Child directories are named after the sanitized title of the folder or request.
 
-2.  **`SettingsService` (`src/main/persistence/service/settings-service.ts`)**:
-    *   **Role**: Manages application-wide settings that are not specific to a single collection.
-    *   **Storage**: Settings are stored in a single JSON file: `USER_DATA_DIR/settings.json`.
-        *   The `USER_DATA_DIR` path is platform-dependent (e.g., `~/Library/Application Support/Trufos` on macOS, `C:\Users\USERNAME\AppData\Roaming\Trufos` on Windows).
-    *   **Key Settings**:
-        *   `currentCollectionIndex`: Index into the `collections` array.
-        *   `collections`: An array of directory paths to all known collections.
-    *   **Operations**:
-        *   `init()`: Loads settings from the file or creates default settings if the file doesn't exist.
-        *   `settings` (getter): Provides read-only access to current settings.
-        *   `setSettings(settings)`: Updates settings and writes them to the file.
-        *   `modifiableSettings` (getter): Returns a deep clone of settings for modification.
-    *   **Default Collection Path**: `USER_DATA_DIR/default-collection`.
+```
+my-collection/
+├── collection.json          # title, variables, environments, headers, client certificate, …
+├── order.json               # order of the children (IDs)
+├── .gitignore               # written by Trufos, see below
+├── .secrets.bin             # secrets of the collection, encrypted (not versioned)
+├── users/                   # a folder
+│   ├── folder.json
+│   ├── order.json
+│   └── get-user/            # a request
+│       ├── request.json     # method, URL, headers, body type, authorization, …
+│       ├── request-body.txt # text body, if any
+│       ├── pre-request-script.js
+│       ├── post-response-script.js
+│       └── .draft/          # unsaved changes (not versioned)
+│           ├── request.json
+│           └── request-body.txt
+└── create-user/
+    └── request.json
+```
 
-## Info File Format and Migration
+`examples/collection/` in the app repository is an example in the current format.
 
-*   **Info Files**: JSON files (`collection.json`, `folder.json`, `request.json`) store the metadata for Trufos objects.
-*   **Versioning**: Each info file contains a `version` field (e.g., `"version": "1.1.0"`), based on `SemVer` (`src/main/util/semver.ts`).
-*   **Latest Schema**: Defined in `src/main/persistence/service/info-files/latest.ts`, which re-exports from the latest versioned file (e.g., `v1-1-0.ts`).
-*   **Migration (`src/main/persistence/service/info-files/migrators.ts`)**:
-    *   When an info file is loaded, its version is checked against the application's latest supported schema version (`LATEST_VERSION`).
-    *   If the file's version is older, `migrateInfoFile` is called.
-    *   This function iteratively applies migrators (defined in files like `v1-0-1.ts`, `v1-1-0.ts`) to upgrade the info file schema step-by-step until it matches the latest version.
-    *   Each migrator (`AbstractInfoFileMigrator`) defines a `fromVersion` and a `migrate` function.
-    *   Example changes in migrations:
-        *   `v1.0.0` -> `v1.0.1`: Added `id` property (random UUID).
-        *   `v1.0.1` -> `v1.1.0`: Added `environments` property to collections.
+- **Info files** (`collection.json`, `folder.json`, `request.json`) carry a `version`. Older versions are migrated when they are read, and a file newer than the app understands is refused, see [Collection Schema Versioning]({% link documentation/architecture/schema-versioning.md %}).
+- **Order**: `order.json` lists the IDs of the children of a collection or folder in the order they are shown.
+- **Bodies and scripts** are separate files: `request-body.txt`, `pre-request-script.js` and `post-response-script.js`. They are not part of the info file, so the collection model does not hold them, and they are always streamed, never read completely into memory to be sent. A file body is not copied; `request.json` stores the path of the file.
+- **Drafts**: editing a request turns it into a draft. Its changes are written to `.draft/` inside the request directory, which holds a complete copy (info file, body, scripts). Saving moves the draft files over the saved ones; discarding deletes `.draft/`. A request that was never saved only has a draft.
+- **Secrets**: the values of secret variables (of the collection and its environments) and every authorization are removed from the info file and stored in `.secrets.bin` next to it, encrypted with Electron's `safeStorage` (`SecretService`). The key is kept by the operating system, so secrets cannot be read on another machine. When the info file is read, the secrets are merged back and validated with its schema.
+- **`.gitignore`**: Trufos makes sure the `.gitignore` of a collection contains `.draft`, `.secrets.bin` and `.*.tmp`. It only adds missing lines and keeps the user's own.
 
-## Request Body Storage
+## Writing files
 
-*   **Text Bodies**:
-    *   Stored in `request-body.txt` within the request's directory.
-    *   Draft text bodies are stored in `~request-body.txt`.
-    *   The `RequestBodyType.TEXT` in `request.json` indicates a text body. `mimeType` is also stored.
-*   **File Bodies**:
-    *   The `RequestBodyType.FILE` in `request.json` indicates a file body.
-    *   `filePath` stores the absolute path to the user-selected file. `mimeType` may also be stored.
-    *   Trufos does **not** copy the file into its own storage; it references the original file path.
+- Text bodies, scripts, JSON files and secrets are written **atomically** with `FileSystemService.replaceFile()`: the content goes to a temporary dotfile next to the target (`.<name>.<uuid>.tmp`), which then replaces it. Readers never see a half-written file.
+- All other temporary files, e.g. response bodies, go through `FileSystemService.temporaryFile()` in the system's temporary directory and are deleted when the app quits.
+- All writes of the open collection run on one queue in the `CollectionStateService`. The info file of an edited request is written 2 seconds after its last edit, or earlier before it is sent, saved or the app closes. See [Main-Owned Collection State]({% link documentation/architecture/collection-state.md %}).
+- Main watches the directory of the open collection and reloads it when its files change outside the app, e.g. after `git pull`.
 
-## Data Integrity and Collaboration
+The `PersistenceService` that implements this is described in [Persistence Service]({% link documentation/services/persistence-service.md %}). What renaming does on disk is in [Rename Behavior]({% link documentation/architecture/rename-behaviour.md %}).
 
-*   Storing data in separate files and directories, with metadata in JSON, makes collections relatively version-control friendly (e.g., with Git).
-*   The `.gitignore` helps avoid committing transient draft files.
-*   The ID-based path mapping helps maintain references even if titles/directory names change, though moving files outside of Trufos could break these links.
+## Data of the app
 
-This persistence strategy aims for a balance between human-readable/editable files, version control compatibility, and application performance. 
+The app's own files are in the user data directory (`app.getPath('userData')`):
+
+| Platform | Directory |
+| --- | --- |
+| Windows | `%APPDATA%\Trufos` |
+| macOS | `~/Library/Application Support/Trufos` |
+| Linux | `~/.config/Trufos` |
+
+| File | Written by | Content |
+| --- | --- | --- |
+| `settings.json` | `SettingsService` | The user's preferences: theme, TLS verification, MCP server |
+| `state.json` | `StateService` | The open collections with their selected environment and UI state, and the current collection |
+| `plugins.json` | `PluginService` | Which plugins are enabled |
+| `mcp-token.bin` | `McpAccessToken` | The access token of the MCP server, encrypted |
+| `default-collection/` | `PersistenceService` | The collection that is always open; created on first start |
+| `logs/` (Windows, Linux) | logger | Log files; on macOS they are in `~/Library/Logs/Trufos`, see [Logging]({% link documentation/architecture/logging.md %}) |
+
+The JSON files are handled by `JsonFile` (`src/main/persistence/json-file.ts`): each has a version and migrators, its content is validated with a Zod schema whenever it is read or changed, kept immutable in memory, and written atomically one change at a time. See [Settings and State]({% link documentation/services/settings-service.md %}).
+
+## What is not persisted
+
+- **The request history** and **response bodies** exist for the session only. Bodies are kept in temporary files encrypted with a key that only exists in memory (`BodyStore`), so a file left behind by a crash can never be read.
+- **Panel sizes** are kept by react-resizable-panels in the renderer's `localStorage`.

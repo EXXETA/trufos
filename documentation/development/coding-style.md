@@ -2,73 +2,79 @@
 title: Coding Style & Formatting
 nav_order: 1
 parent: Development
+description: Formatting with Prettier, linting with ESLint, and the code conventions of Trufos.
 ---
 
 # Coding Style & Formatting
 
-To maintain consistency and readability across the codebase, Trufos employs automated tools for code formatting and linting.
+Formatting and linting are automated. CI checks the formatting; run `yarn lint` yourself before you open a pull request. The conventions beyond that are listed in `AGENTS.md` in the app repository; this page sums up the most important ones.
 
-## Code Formatting: Prettier
+## Prettier
 
-[Prettier](https://prettier.io/) is an opinionated code formatter used to ensure a consistent code style.
+[Prettier](https://prettier.io/) formats all TypeScript and JavaScript files. `.prettierrc`:
 
-*   **Configuration**: `.prettierrc`
-    ```json
-    {
-      "trailingComma": "es5",
-      "tabWidth": 2,
-      "semi": true,
-      "singleQuote": true,
-      "printWidth": 100
-    }
-    ```
-*   **Usage**:
-    *   **Check Formatting**:
-        ```bash
-        yarn prettier-check
-        ```
-        This command checks all TypeScript (`.ts`, `.tsx`) files for formatting issues without modifying them.
-    *   **Apply Formatting**:
-        ```bash
-        yarn prettier
-        ```
-        This command automatically reformats all TypeScript files according to the defined style.
-*   **IDE Integration**: It is highly recommended to integrate Prettier into your IDE to format code automatically on save.
-    *   **VS Code**: Install the [Prettier - Code formatter](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) extension. The project includes `.vscode/settings.json` which should enable format-on-save with Prettier for TypeScript files.
-    *   **IntelliJ (WebStorm, etc.)**:
-        1.  Install the "Prettier" plugin from the JetBrains Marketplace.
-        2.  Configure it to run on save: Go to `Settings/Preferences` > `Languages & Frameworks` > `JavaScript` > `Prettier`. Enable "Run on save". Ensure "Run for files" includes `*.ts` and `*.tsx`.
-        (Alternatively, the `CONTRIBUTING.md` suggests using "Save Actions X" plugin for IntelliJ.)
+```json
+{
+  "trailingComma": "es5",
+  "tabWidth": 2,
+  "semi": true,
+  "singleQuote": true,
+  "printWidth": 100,
+  "plugins": ["prettier-plugin-tailwindcss"]
+}
+```
 
-## Linting: ESLint
+`prettier-plugin-tailwindcss` also sorts Tailwind classes.
 
-[ESLint](https://eslint.org/) is used for static analysis to find problematic patterns or code that doesn't adhere to certain style guidelines.
+```bash
+yarn prettier-check   # check, as CI does
+yarn prettier         # fix
+```
 
-*   **Configuration**:
-    *   `eslint.config.mjs` (Flat Config - preferred)
-    *   `.eslintrc.json` (Legacy - might be partially used or in transition. The `eslint.config.mjs` indicates a move to flat config.)
+Set up your editor to format on save:
 
-    The configuration extends several recommended rule sets:
-    *   `eslint:recommended`
-    *   `plugin:@typescript-eslint/recommended`
-    *   `plugin:import/recommended` (for import statement linting)
-    *   `plugin:import/electron`
-    *   `plugin:import/typescript`
+- **VS Code**: install [Prettier - Code formatter](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode). The repository's `.vscode/settings.json` makes it the formatter and turns on format on save.
+- **IntelliJ IDEA and WebStorm**: see [Contribution Guidelines]({% link documentation/CONTRIBUTING.md %}#intellij).
 
-    Key settings include:
-    *   Parser: `@typescript-eslint/parser`
-    *   Import resolver for TypeScript paths.
-    *   Rule `import/no-unresolved` set to `error`.
+## ESLint
 
-*   **Usage**:
-    ```bash
-    yarn lint
-    ```
-    This command runs ESLint on all `.ts` and `.tsx` files and reports any errors or warnings.
+[ESLint](https://eslint.org/) uses the flat config in `eslint.config.mjs`:
 
-## General Guidelines
+```bash
+yarn lint
+```
 
-*   Follow the established coding style present in the project.
-*   Write clear and concise code.
-*   Add comments to explain complex logic or non-obvious decisions.
-*   Ensure your contributions pass both Prettier checks and ESLint checks before submitting a pull request. 
+- `@eslint/js` recommended rules, `typescript-eslint` recommended rules and `eslint-plugin-import-x` with the TypeScript resolver. Unresolved imports are errors.
+- Unused variables are errors; prefix a parameter or variable with `_` if it only exists to satisfy a signature.
+- Globals per environment: browser for `src/renderer`, Node for `src/main`, `src/shim`, `e2e` and the build tooling.
+- **Plugins** (`plugins/**`) may only import the public plugin API (`shim/plugin`), and may not use Node modules or globals that reach outside the process (`node:fs`, `node:child_process`, `fetch`, …). They go through their host instead, see [Plugin Architecture]({% link documentation/architecture/plugins.md %}#design-rules). Tests are exempt.
+- Files ignored by `.gitignore` are not linted.
+
+## Conventions
+
+- **Strict TypeScript**: never introduce `any`, and avoid casts such as `as unknown as X` that bypass the type checker.
+- **Explicit return types** on exported functions, hooks and public methods, e.g. `buildMenu(): Menu`. Inference is fine for private helpers and inline callbacks.
+- **Named exports** for components and utilities. Function components with hooks only.
+- **Zod at runtime boundaries**: validate data read from disk, received from the network or from plugins, instead of asserting types. IPC between the processes is not such a boundary.
+- **No `JSON.stringify` for comparisons**, cache keys or change detection: key order and lossy values make it unreliable. Compare fields or use a deep-equality helper.
+- **Never read request or response bodies completely into memory**: stream them. Only content that has to be in memory anyway, e.g. a script or the text of an editor, may be read completely.
+- **Temporary files go through `FileSystemService`**; write files atomically with `replaceFile()`.
+- **Logging in main** with the global Winston `logger`, never with secrets, see [Logging]({% link documentation/architecture/logging.md %}).
+- **UI**: reuse `components/ui/` and Radix UI before writing a new primitive, style with Tailwind classes and `cn()`. See [UI Components]({% link documentation/ui-components/index.md %}).
+- **Comments** explain why, not what. Exported functions, types and services have doc comments.
+
+## Versions of persisted data and APIs
+
+- Bump the **info file version** whenever an older Trufos could not read what is written anymore, e.g. a new field or a new authorization type. See [Collection Schema Versioning]({% link documentation/architecture/schema-versioning.md %}).
+- Bump the major **plugin API version** (`PLUGIN_API_VERSION` in `src/shim/plugin/version.ts`) for every breaking change to `shim/plugin`, and update the `engine` ranges of the bundled plugins with it.
+
+## Commits and branches
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) in English, imperative mood, first line under 72 characters, no trailing period:
+
+```
+feat: add JSON body editor
+fix: keep the selected environment after a reload
+```
+
+Types are `feat`, `fix`, `refactor`, `docs`, `chore` and `test`. Branches are named `<type>/<issue-id>-<short-description>` with the types `feature`, `fix` and `tmp`, e.g. `feature/42-json-body-editor`. Open pull requests against `main` and link the issue with `Closes #<issue-id>`.

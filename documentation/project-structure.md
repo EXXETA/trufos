@@ -2,92 +2,117 @@
 title: Project Structure
 nav_order: 3
 parent: Contributing
+description: How the Trufos repository is laid out, from the main and renderer processes to plugins and the end-to-end suite.
 ---
 
 # Project Structure
 
-Understanding the project's directory and file layout is crucial for effective development. Trufos follows a structure common to Electron applications built with Vite and TypeScript.
+Trufos is an Electron app built with Electron Forge and Vite, written in TypeScript. The repository is a Yarn workspace: the app lives in `src/`, and the bundled plugins in `plugins/` are workspaces of their own.
 
 ```
 .
-├── .electron-forge/    # Electron Forge intermediate build files
-├── .github/            # GitHub specific files (workflows, issue templates)
-├── .idea/              # IntelliJ IDEA project settings (ignored by Git)
-├── .vscode/            # VS Code specific settings
-├── docs/               # Developer documentation (this site)
-├── images/             # Application icons and other static image assets
-├── node_modules/       # Project dependencies
-├── out/                # Build output from Electron Forge
-│   ├── make/           # Packaged application (installers, executables)
-│   └── ...
-├── src/                # Source code
-│   ├── main/           # Electron Main Process
-│   │   ├── __mocks__/  # Mocks for main process testing
-│   │   ├── environment/ # Environment and variable management
-│   │   ├── error/      # Main process specific error types
-│   │   ├── event/      # IPC event handling (MainEventService, stream-events)
-│   │   ├── filesystem/ # Filesystem utilities
-│   │   ├── import/     # Data import logic (e.g., Postman collections)
-│   │   ├── logging/    # Winston logger setup for main process
-│   │   ├── network/    # HTTP client service
-│   │   ├── persistence/# Data persistence services (collections, settings)
-│   │   ├── shared/     # Code shared within the main process
-│   │   ├── util/       # Utility functions for the main process
-│   │   ├── main.ts     # Main process entry point
-│   │   ├── menu.ts     # Application menu setup (not currently used in UI)
-│   │   ├── preload.ts  # Electron preload script
-│   │   └── vite.config.ts # Vite configuration for the main process
-│   ├── renderer/       # Electron Renderer Process (UI - React, TypeScript, Vite)
-│   │   ├── __mocks__/  # Mocks for renderer process testing
-│   │   ├── assets/     # Static assets like SVGs used in the UI
-│   │   ├── components/ # React UI components
-│   │   │   ├── icons/
-│   │   │   ├── mainWindow/
-│   │   │   ├── shared/
-│   │   │   ├── sidebar/
-│   │   │   └── ui/     # ShadCN UI components
-│   │   ├── error/      # Renderer process specific error types
-│   │   ├── lib/        # Utility libraries for the renderer (Monaco, IPC stream)
-│   │   ├── logging/    # Console wrapper for logging from renderer
-│   │   ├── services/   # Renderer-specific services (event, HTTP wrapper)
-│   │   ├── state/      # Zustand state management stores
-│   │   ├── styles/     # CSS and Tailwind styles
-│   │   ├── util/       # Utility functions for the renderer process
-│   │   ├── view/       # Top-level view components (Menubar, RequestWindow)
-│   │   ├── App.tsx     # Root React component
-│   │   ├── index.tsx   # Renderer process entry point
-│   │   ├── preload.d.ts# Type definitions for preload script exposed on window
-│   │   └── vite.config.ts # Vite configuration for the renderer process
-│   └── shim/           # Shared data structures and types (TypeScript)
-│       ├── event-service.ts # Interface for event services
-│       ├── fs.ts       # Filesystem related types
-│       ├── headers.ts  # HTTP header types
-│       ├── logger.ts   # Logger related types
-│       └── objects/    # Core data model objects (Collection, Request, Folder, etc.)
-├── .eslintrc.json      # ESLint configuration (legacy, see eslint.config.mjs)
-├── .gitignore          # Specifies intentionally untracked files
-├── .nvmrc              # Specifies the Node.js version for the project
-├── .prettierrc         # Prettier configuration
-├── CODE_OF_CONDUCT.md  # Contributor Covenant Code of Conduct
-├── components.json     # ShadCN UI configuration
-├── CONTRIBUTING.md     # Guidelines for contributing
-├── eslint.config.mjs   # ESLint configuration (flat config)
-├── forge.config.ts     # Electron Forge configuration
-├── forge.env.d.ts      # Type declarations for Electron Forge Vite plugin
-├── index.html          # HTML entry point for the renderer process
-├── LICENSE             # Project license (GPL-3.0-or-later)
-├── package.json        # Project metadata, dependencies, and scripts
-├── postcss.config.js   # PostCSS configuration (for Tailwind CSS)
-├── README.md           # Project overview and user-facing information
-└── tailwind.config.js  # Tailwind CSS configuration
+├── .github/                # CI workflows, issue templates, agent instructions and prompts
+├── .vscode/                # VS Code settings (Prettier on save, MCP servers)
+├── docs/
+│   ├── architecture/       # architecture decision records, copied to this site
+│   └── images/             # images used by README.md and CONTRIBUTING.md
+├── e2e/                    # Playwright end-to-end suite that drives the packaged bundles
+│   ├── fixtures/           # app launcher, echo server, test data
+│   ├── helpers/            # shared locators and interactions
+│   └── specs/              # the tests
+├── examples/collection/    # an example collection in the current on-disk format
+├── images/                 # app icons per platform (linux/, macos/, windows/)
+├── plugins/                # bundled plugins, one Yarn workspace each
+│   ├── __fixtures__/       # test plugin with every contribution type
+│   ├── bruno/              # Bruno importer
+│   ├── openapi/            # OpenAPI importer
+│   └── postman/            # Postman importer
+├── src/
+│   ├── main/               # main process (Node.js)
+│   ├── renderer/           # renderer process (React)
+│   └── shim/               # code and types shared by both processes and by plugins
+├── tools/                  # build helpers: Monaco Vite plugin, source fingerprint for e2e
+├── AGENTS.md               # conventions for contributors and AI agents
+├── components.json         # shadcn/ui configuration
+├── eslint.config.mjs       # ESLint flat config
+├── forge.config.ts         # Electron Forge: packaging, makers, fuses, publishing
+├── index.html              # HTML entry point of the renderer
+├── package.json            # scripts, dependencies, workspaces
+├── tsconfig.base.json      # compiler options shared by all TypeScript projects
+├── tsconfig.json           # TypeScript project for the build tooling
+└── vitest.config.mts       # Vitest projects: main, renderer, shim, plugins
 ```
 
-## Key Directories
+Generated directories are not listed: `node_modules/`, `.vite/` (bundles of `yarn start` and `yarn package`), `out/` (packaged app and installers) and `e2e/test-results/`.
 
-*   **`src/main`**: Contains all code that runs in Electron's main process. This includes application lifecycle management, native OS interactions, background tasks, and services that manage data, network requests, and inter-process communication.
-*   **`src/renderer`**: Contains all code for the user interface, running in Electron's renderer process. This is a React application built with Vite and TypeScript, responsible for displaying information and interacting with the user.
-*   **`src/shim`**: Holds TypeScript interfaces, types, and enums that are shared between the main and renderer processes. This ensures type safety across IPC boundaries. These are typically data transfer objects (DTOs) or shared constants.
-*   **`out/`**: This directory is generated by Electron Forge during the build process. It contains packaged versions of the application for different platforms.
-*   **Root Configuration Files**: Files like `package.json`, `forge.config.ts`, `vite.config.ts` (in `src/main` and `src/renderer`), `tailwind.config.js`, and ESLint/Prettier configurations define how the project is built, structured, and maintained.
+## Main process: `src/main`
 
-A deeper dive into the architectural components within these directories can be found in the [Architecture]({% link documentation/architecture/index.md %}) section. 
+```
+src/main/
+├── __mocks__/          # Vitest mocks: electron, node:fs (memfs), node:process
+├── collection-state/   # CollectionStateService, file watcher, persistence effects of commands
+├── environment/        # variable resolution and system variables
+├── error/              # InternalError
+├── event/              # MainEventService (IPC handlers), stream-events, sendToRenderer
+├── export/             # ExportService and the built-in ZIP exporter
+├── filesystem/         # FileSystemService: temporary files, atomic writes
+├── history/            # HistoryService: request history of the session
+├── import/             # ImportService, routes imports to plugin importers
+├── logging/            # Winston logger, receives renderer logs
+├── mcp/                # MCP server: HTTP transport, access token, tools
+├── network/
+│   ├── authentication/ # Basic, Bearer, Digest, OAuth 1.0, OAuth 2.0
+│   └── service/        # HttpService, BodyStore, dispatcher cache, error mapping
+├── persistence/        # PersistenceService, info files and migrations, secrets, settings, state
+├── plugin/             # PluginService, plugin host, list of bundled plugins
+├── scripting/          # ScriptingService: pre-request and post-response scripts
+├── shared/             # Initializable interface
+├── util/               # semver, serial queue, fs helpers, size and time helpers
+├── close-window.ts     # flushes pending changes before the window closes
+├── main.ts             # entry point: starts the services and creates the window
+├── menu.ts             # native application menu
+├── preload.ts          # exposes IPC to the renderer through contextBridge
+└── vite.config.mts     # Vite and Vitest configuration of main and preload
+```
+
+## Renderer process: `src/renderer`
+
+```
+src/renderer/
+├── __mocks__/          # Vitest mocks, e.g. Monaco models
+├── assets/             # SVG components, generated scripting API types for Monaco
+├── components/
+│   ├── commandPalette/ # command palette (cmdk)
+│   ├── history/        # request history list and entry view
+│   ├── icons/          # custom SVG icons
+│   ├── mainWindow/     # request editor and response view
+│   ├── shared/         # settings modals, header editor, inline rename, dialogs
+│   ├── sidebar/        # collection dropdown, request tree, toolbars
+│   └── ui/             # shadcn/ui components
+├── contexts/           # ThemeContext
+├── error/              # MainProcessError, showError()
+├── hooks/              # hotkeys, send and save actions, body streaming
+├── lib/                # Monaco setup and editor models, IPC stream, utils
+├── logging/            # console wrapper that forwards logs to main
+├── services/           # RendererEventService (IPC), HttpService
+├── state/              # Zustand stores and the replica of the collection state
+├── styles/             # Tailwind CSS v4 entry point and design tokens (index.css)
+├── util/               # formatting and object helpers
+├── view/               # top-level views: sidebar, request window, runner, import, create
+├── App.tsx             # root component: layout, modals, event listeners
+├── index.tsx           # entry point
+└── vite.config.mts     # Vite and Vitest configuration of the renderer
+```
+
+## Shared code: `src/shim`
+
+`src/shim` holds what both processes need: the data model (`objects/`), the normalized collection model with its commands (`collection-model/`), the IPC contract (`event-service.ts`), app settings, history and MCP types, errors, and the public plugin API (`plugin/`). Plugins may only import from `shim/plugin`.
+
+## Configuration files
+
+- **TypeScript**: every directory with its own runtime has its own `tsconfig.json` (`src/shim`, `src/main`, `src/renderer`, `plugins`, `e2e`), and the root one covers the build tooling. `yarn typecheck` checks all of them.
+- **Styling**: Tailwind CSS v4 is configured in CSS (`src/renderer/styles/index.css`) and runs as a Vite plugin. There is no `tailwind.config.js` or `postcss.config.js`.
+- **Formatting and linting**: `.prettierrc` and `eslint.config.mjs`, see [Coding Style]({% link documentation/development/coding-style.md %}).
+- **Build**: `forge.config.ts` and the `vite.config.mts` of each process, see [Building and Packaging]({% link documentation/development/building-packaging.md %}).
+
+The [Architecture]({% link documentation/architecture/index.md %}) section explains how these parts work together.

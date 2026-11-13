@@ -2,92 +2,103 @@
 title: Testing
 nav_order: 2
 parent: Development
+description: Unit and component tests with Vitest, end-to-end tests with Playwright, and type checking.
 ---
 
 # Testing
 
-Trufos uses [Vitest](https://vitest.dev/) as its test runner for both unit and integration tests. Tests are co-located with the source code in `__tests__` directories or with a `.test.ts` (or `.test.tsx`) suffix.
+Trufos has three kinds of checks:
 
-## Configuration
+| Command | What it checks |
+| --- | --- |
+| `yarn test` | Unit and component tests with [Vitest](https://vitest.dev/) |
+| `yarn typecheck` | Types of every TypeScript project. Vitest does not type-check, so type errors only show up here. |
+| `yarn e2e` | End-to-end tests with [Playwright](https://playwright.dev/) against the real app |
 
-Vitest configurations are specific to the main and renderer processes due to their different environments:
+Run `yarn test`, `yarn typecheck` and `yarn lint` after every change. CI runs the tests, the type check, `yarn prettier-check` and the end-to-end suite on every pull request; it does not run `yarn lint`.
 
-1.  **Main Process Tests**:
-    *   **Config File**: `src/main/vite.config.ts`
-    *   **Environment**: `node` (as the main process runs in a Node.js environment).
-    *   **Setup File**: `src/main/__mocks__/index.ts`
-        *   This setup file is crucial. It mocks global `logger` and Electron modules (`electron`, `node:fs`, `tmp`) to allow tests to run outside a full Electron environment.
-        *   It uses `memfs` for an in-memory file system for tests involving file operations.
-        *   Includes a `beforeEach` hook to reset the in-memory file system and create temporary/home directories.
-    *   **Aliases**: Configured for `main` and `shim` directories.
+## Unit and component tests
 
-2.  **Renderer Process Tests**:
-    *   **Config File**: `src/renderer/vite.config.ts`
-    *   **Environment**: `jsdom` (to simulate a browser environment for React components).
-    *   **Plugins**: Includes `@vitejs/plugin-react` for JSX and React support.
-    *   **Aliases**:
-        *   Configured for `@/` (pointing to `src/renderer/`) and `shim`.
-        *   Crucially, it aliases `monaco-editor` to its ESM API entry point (`monaco-editor/esm/vs/editor/editor.api`) to prevent issues with Monaco's worker imports in a test environment.
-    *   **Mocks**: Renderer-specific mocks can be found in `src/renderer/__mocks__/`, such as `monaco-util.ts` for mocking Monaco editor models.
+Tests sit next to the code they test, as `*.test.ts` or `*.test.tsx`, or in a `__tests__/` directory.
 
-## Running Tests
+`vitest.config.mts` defines one Vitest project per runtime, each with its own configuration:
 
-To execute all tests for both main and renderer processes:
+| Project | Configuration | Environment | Setup |
+| --- | --- | --- | --- |
+| `main` | `src/main/vite.config.mts` | `node` | `src/main/__mocks__/index.ts` |
+| `renderer` | `src/renderer/vite.config.mts` | `jsdom` | `src/renderer/test-setup.ts` |
+| `shim` | defaults | `node` | none |
+| `plugins` | `plugins/vitest.config.mts` | `node` | none |
 
 ```bash
-yarn test
+yarn test                         # all projects
+yarn test --project renderer      # one project
+yarn test src/main/persistence    # files matching a path
+yarn test --coverage              # with a coverage report (V8)
 ```
 
-This command runs `vitest run`, which will discover and execute all test files matching the configured patterns.
+### Main process
 
-## Writing Tests
+The setup file mocks what does not exist outside Electron:
 
-*   **File Naming**: Test files should typically end with `.test.ts` or `.test.tsx`.
-*   **Assertion Library**: Vitest uses Chai-compatible assertions via `expect`.
-*   **Mocking**:
-    *   Utilize Vitest's mocking capabilities (`vi.mock`, `vi.spyOn`, etc.).
-    *   For Electron-specific features or Node.js modules in the main process, leverage the mocks provided in `src/main/__mocks__/`.
-    *   For renderer components relying on Monaco or other browser/Electron features, create mocks as needed (see `src/renderer/__mocks__/monaco-util.ts`).
-*   **Focus**:
-    *   **Main Process**: Tests often focus on service logic, data manipulation, file system interactions (using `memfs`), and IPC handler logic (though full IPC might be harder to unit test without integration tests).
-    *   **Renderer Process**: Tests often focus on React component rendering and behavior (using `@testing-library/react`), state store logic, and utility functions.
+- `electron` (`app`, `ipcMain`, `safeStorage`, …) from `src/main/__mocks__/electron/`;
+- `node:fs` and `node:fs/promises` with [memfs](https://github.com/streamich/memfs), an in-memory file system that is reset before every test, with the temporary and home directories created;
+- `node:process`;
+- the global `logger`, which writes to the console.
 
-## Coverage
+It also adds the matchers `toBeOfSchema(schema)` and `toBeOfSchemaAsync(schema)`, which check a value against a Zod schema.
 
-To generate a test coverage report (configured in `package.json` likely via Vitest's coverage options, using `@vitest/coverage-v8`):
-While not explicitly defined as a separate script in the provided `package.json`, Vitest can be configured to output coverage. Typically, you might run:
-```bash
-yarn test --coverage
-```
-(Check Vitest documentation or project's specific setup if this command needs adjustment).
+```ts
+import path from 'node:path';
+import { vol } from 'memfs';
+import { describe, expect, it } from 'vitest';
+import { PersistenceService } from 'main/persistence/service/persistence-service';
+import { StateService } from 'main/persistence/service/state-service';
 
-Coverage reports help identify untested parts of the codebase.
-
-## Example Test Structure (Conceptual)
-
-```typescript
-// Example: src/main/some-service.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SomeService } from './some-service';
-import { fs } from 'memfs'; // If using in-memory fs
-
-// Mock dependencies
-vi.mock('path/to/dependency', () => ({
-  // ... mock implementation
-}));
-
-describe('SomeService', () => {
-  beforeEach(() => {
-    fs.reset(); // Reset memfs before each test
-    // ... other setup
-  });
-
-  it('should do something correctly', async () => {
-    const service = new SomeService();
-    const result = await service.someMethod();
-    expect(result).toEqual('expectedValue');
+describe('PersistenceService', () => {
+  it('creates the default collection', async () => {
+    await PersistenceService.instance.createDefaultCollectionIfNotExists();
+    expect(vol.existsSync(path.join(StateService.DEFAULT_COLLECTION_DIR, 'collection.json'))).toBe(true);
   });
 });
 ```
 
-Refer to existing tests within the codebase for practical examples and patterns used in Trufos. 
+### Renderer
+
+Components are tested with [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) and `@testing-library/user-event`. Select elements by role and accessible name, as a user would find them. `test-setup.ts` adds browser APIs that jsdom lacks and Radix UI or react-resizable-panels need, and cleans up after each test. `monaco-editor` is aliased to its ESM API so it loads under jsdom; `src/renderer/__mocks__/` has helpers for Monaco models and a fake main process for the collection store.
+
+Mock the IPC layer (`RendererEventService`) rather than `window.electron`, and test stores through their actions.
+
+### Plugins
+
+Plugin tests use the real file system and only the public plugin API, so they need none of the main-process mocks. `bundled-plugins.test.ts` activates every bundled plugin with the host its manifest allows, so a missing permission fails CI.
+
+## End-to-end tests
+
+The `e2e/` suite drives the real Electron app (main process, preload, renderer and IPC) through the production bundles in `.vite/build/`:
+
+```bash
+yarn package   # builds the bundles the suite launches
+yarn e2e       # runs the suite
+yarn e2e:ui    # runs it in Playwright's UI mode
+```
+
+- Run `yarn package` before the suite, and again after every change to the sources. `yarn package` records a fingerprint of the sources (`tools/source-fingerprint.ts`), and the suite refuses bundles that are older. It also refuses the development bundles that `yarn start` leaves behind.
+- Every test launches a fresh app with a temporary `--user-data-dir`, so nothing touches your own settings or collections.
+- Requests go to a local echo server (`e2e/fixtures/echo-server.ts`). Tests must not depend on external services.
+- Shared locators and interactions are in `e2e/helpers/`; tests are in `e2e/specs/`.
+- A failed test leaves a trace, a screenshot and the main-process log in `e2e/test-results/`.
+- Tests run one at a time, as each app takes the window focus.
+
+The packaged app (asar, Electron fuses) is not covered: the release fuses disable the inspector Playwright attaches through. In CI, which has no keyring, the app falls back to unencrypted `safeStorage`; this fallback only exists in unpackaged builds with `CI` set.
+
+{: .note }
+In a VS Code terminal, `ELECTRON_RUN_AS_NODE` may be set, which starts Electron as plain Node and makes every launch fail. Unset it first: `env -u ELECTRON_RUN_AS_NODE yarn e2e`.
+
+## Type checking
+
+```bash
+yarn typecheck
+```
+
+runs `tsc` for `src/shim`, `src/main`, `src/renderer`, `plugins`, `e2e` and the build tooling at the root, each with its own `tsconfig.json`. `src/shim` is the strictest: it has no DOM types, so nothing renderer-specific can leak into code that main compiles too.

@@ -2,76 +2,58 @@
 title: Main Process
 nav_order: 1
 parent: Architecture
+description: How the main process starts, which services it runs and how it handles closing the window.
 ---
 
 # Main Process
 
-The Main process in an Electron application is the entry point and the core of the application. It runs a full Node.js environment and is responsible for managing the application's lifecycle, displaying native UI elements (like menus, dialogs), and creating and managing renderer processes (web pages).
+The main process is the Node.js side of Electron. In Trufos it owns the open collection, reads and writes all files, sends HTTP requests, runs scripts and plugins, and serves the optional MCP server. The renderer reaches all of this through [IPC]({% link documentation/architecture/ipc-communication.md %}).
 
-## Entry Point
+## Startup
 
-The entry point for Trufos's main process is `src/main/main.ts`. This file:
-1.  Initializes global logging using Winston (`src/main/logging/logger.ts`).
-2.  Handles Electron Forge's squirrel startup events for Windows installations.
-3.  Initializes core services in the correct order:
-    *   `SettingsService` (`src/main/persistence/service/settings-service.ts`): Manages application-wide settings.
-    *   `EnvironmentService` (`src/main/environment/service/environment-service.ts`): Manages the current collection, environments, and variables.
-4.  Defines the `createWindow` function, which:
-    *   Creates the main `BrowserWindow`.
-    *   Configures web preferences, including the `preload` script (`src/main/preload.ts`).
-    *   Sets up a window open handler to open external links in the default browser.
-    *   Handles the window `close` event gracefully, allowing the renderer process to perform cleanup before quitting (see [IPC Communication]({% link documentation/architecture/ipc-communication.md %})).
-    *   Loads the renderer's HTML file (`index.html`), either from the Vite dev server (in development) or from the packaged application.
-5.  Manages Electron app lifecycle events (`ready`, `window-all-closed`, `activate`).
+The entry point is `src/main/main.ts`:
 
-## Core Services
+1. Importing `./logging/logger` first sets up the global Winston `logger`, see [Logging]({% link documentation/architecture/logging.md %}).
+2. On Windows, Squirrel install and uninstall events quit the app right away (`electron-squirrel-startup`).
+3. Uncaught exceptions and unhandled rejections show an error dialog and quit.
+4. Once Electron is ready, `createWindow()` checks that `safeStorage` encryption is available (secrets cannot be stored otherwise) and initialises the services in this order:
+   1. `SettingsService`: the user's preferences in `settings.json`.
+   2. `PluginService`: reads the manifests of the bundled plugins.
+   3. `StateService`: the open collections and their UI state in `state.json`.
+   4. `CollectionStateService`: loads the current collection.
+   5. `McpServerService`: starts the MCP server if it is enabled. A server that cannot start is reported in the settings; the app starts anyway.
+5. `update-electron-app` checks for updates every hour. It only updates on Windows, see [Building and Packaging]({% link documentation/development/building-packaging.md %}#releases).
+6. The `BrowserWindow` is created hidden, with `src/main/preload.ts` as its preload script, and the native menu is built (`MenuBuilder`, `src/main/menu.ts`). The window is shown once the renderer sends `renderer-ready`, after it applied the saved theme, so it never flashes the wrong colours.
+7. Links the renderer opens go to the default browser.
+8. The renderer is loaded from the Vite dev server in development, or from the bundled `index.html`.
 
-The main process hosts several key services crucial for Trufos's functionality:
+## Services
 
-*   **`EnvironmentService` (`src/main/environment/service/environment-service.ts`)**:
-    *   Manages the currently active collection and its associated environments and variables (system, collection, environment-specific).
-    *   Provides methods to get and set variables, change collections, and list available collections.
-    *   Uses `template-replace-stream` to substitute variables in request bodies.
-    *   See [Environment Service]({% link documentation/services/environment-service.md %}) for more details.
+The main-process services are singletons with a static `instance`. Those that read files at startup implement `Initializable` (`init()`).
 
-*   **`PersistenceService` (`src/main/persistence/service/persistence-service.ts`)**:
-    *   Handles all file system operations for storing and retrieving collections, folders, and requests.
-    *   Manages the on-disk structure of collections (JSON info files, text body files).
-    *   Implements logic for creating, saving, loading, renaming, and deleting Trufos objects.
-    *   Handles schema migration for info files (`src/main/persistence/service/info-files/`).
-    *   See [Persistence Service]({% link documentation/services/persistence-service.md %}) for more details.
+| Service | Location | Responsibility |
+| --- | --- | --- |
+| `CollectionStateService` | `collection-state/` | Owns the open collection as a model, applies commands, persists and broadcasts changes, watches the files. See [Main-Owned Collection State]({% link documentation/architecture/collection-state.md %}). |
+| `PersistenceService` | `persistence/service/` | Reads and writes collections, folders, requests, bodies and scripts. See [Persistence Service]({% link documentation/services/persistence-service.md %}). |
+| `SecretService` | `persistence/service/` | Encrypts secrets with Electron's `safeStorage`. |
+| `SettingsService`, `StateService` | `persistence/service/` | `settings.json` and `state.json`. See [Settings and State]({% link documentation/services/settings-service.md %}). |
+| Variable resolver | `environment/service/` | Resolves variables and authorization from a model. See [Variable Resolver]({% link documentation/services/variable-resolver.md %}). |
+| `HttpService` | `network/service/` | Sends requests with undici, runs scripts around them, records them in the history. See [HTTP Service]({% link documentation/services/http-service.md %}). |
+| `BodyStore` | `network/service/` | Keeps request and response bodies of the session in encrypted temporary files. |
+| `ScriptingService` | `scripting/` | Runs pre-request and post-response scripts in a `node:vm` context with the `trufos` API and a 5-second timeout. |
+| `HistoryService` | `history/` | The request history of the session, per collection. It is kept in memory and never written to disk. |
+| `ImportService`, `ExportService` | `import/`, `export/` | Import through plugin importers; export as ZIP or through plugin exporters. |
+| `PluginService` | `plugin/` | Discovers plugins, builds their contribution index and activates them on first use. See [Plugin Architecture]({% link documentation/architecture/plugins.md %}). |
+| `McpServerService` | `mcp/` | The MCP server on `127.0.0.1`. See [MCP Server]({% link documentation/architecture/mcp-server.md %}). |
+| `FileSystemService` | `filesystem/` | Temporary files and atomic writes (`replaceFile()`). |
+| `MainEventService` | `event/` | Registers an IPC handler for every method of `IEventService` and pushes events to the renderer. See [Event Service]({% link documentation/services/event-service.md %}). |
 
-*   **`SettingsService` (`src/main/persistence/service/settings-service.ts`)**:
-    *   Manages global application settings stored in `settings.json` (e.g., list of opened collections, current collection index).
-    *   See [Settings Service]({% link documentation/services/settings-service.md %}) for more details.
+## Closing the window
 
-*   **`HttpService` (`src/main/network/service/http-service.ts`)**:
-    *   Responsible for making actual HTTP requests using `undici`.
-    *   Handles request body streaming, header processing, and response body saving to temporary files.
-    *   Calculates response metadata like duration and size.
-    *   See [HTTP Service]({% link documentation/services/http-service.md %}) for more details.
+Closing the window does not quit at once. Main cancels the first `close` event and sends `before-close` to the renderer, which sends its pending editor changes and UI state and answers `ready-to-close`. Main then writes every pending change of the collection (`closeAfterFlush()` in `close-window.ts`) and quits. If the renderer does not answer within 30 seconds, main writes what it has and quits anyway.
 
-*   **`MainEventService` (`src/main/event/main-event-service.ts`)**:
-    *   Sets up IPC (Inter-Process Communication) handlers for requests coming from the renderer process.
-    *   Acts as a bridge between the renderer and other main process services.
-    *   See [IPC Communication]({% link documentation/architecture/ipc-communication.md %}) and [Event Service]({% link documentation/services/event-service.md %}) for more details.
+On `will-quit`, the MCP server stops, the `BodyStore` closes its files and `FileSystemService` deletes the temporary files of the session.
 
-*   **`ImportService` (`src/main/import/service/import-service.ts`)**:
-    *   Handles importing collections from other formats (e.g., Postman via `PostmanImporter`).
+## Build
 
-*   **`FileSystemService` (`src/main/filesystem/filesystem-service.ts`)**:
-    *   Provides utility functions for common file system operations, such as creating temporary files.
-
-*   **Logging (`src/main/logging/logger.ts`)**:
-    *   Configures a global Winston logger for the main process.
-    *   Logs to files and, in development, to the console.
-    *   Receives log entries from the renderer process via IPC.
-    *   See [Logging]({% link documentation/architecture/logging.md %}) for more details.
-
-## Preload Script
-
-The `src/main/preload.ts` script is crucial for secure IPC. It runs in a special context with access to both the Node.js environment of the main process and the `window` object of the renderer process. It selectively exposes an API (via `contextBridge`) that the renderer process can use to communicate with the main process.
-
-## Build Configuration
-
-The main process code is built using Vite, as configured in `src/main/vite.config.ts`. This configuration primarily sets up aliases for easier imports and configures Vitest for testing. 
+Main and preload are bundled by Vite, configured in `src/main/vite.config.mts`. Bundled plugins are dynamic imports, so Vite puts each into its own chunk that is only loaded when the plugin is first used. See [Building and Packaging]({% link documentation/development/building-packaging.md %}).

@@ -2,81 +2,83 @@
 title: Key Dependencies
 nav_order: 3
 parent: Development
+description: The libraries Trufos is built on and what each is used for.
 ---
 
 # Key Dependencies
 
-Trufos relies on a number of key libraries and frameworks. Understanding these dependencies is helpful for development. This is not an exhaustive list but covers the most significant ones.
+This page lists the most important dependencies and what Trufos uses them for. `package.json` of the app and of each plugin in `plugins/` has the complete list.
 
-## Core Framework & Build Tools
+## Framework and build
 
-*   **`electron`**: The core framework for building cross-platform desktop applications using web technologies.
-    *   _Role_: Provides the main and renderer process architecture, native APIs, and packaging capabilities.
-*   **`@electron-forge/cli` & related plugins**: The build pipeline and toolchain for Electron applications.
-    *   _Role_: Handles packaging, making distributables (DMG, Squirrel, ZIP), and integrating build tools like Vite.
-    *   Plugins used: `plugin-vite`, `plugin-auto-unpack-natives`, `plugin-fuses`.
-*   **`vite`**: A modern frontend build tool.
-    *   _Role_: Bundles JavaScript/TypeScript for both main and renderer processes, provides a fast development server with HMR.
-*   **`typescript`**: Typed superset of JavaScript.
-    *   _Role_: Enhances code quality, maintainability, and developer experience.
-*   **`react` & `react-dom`**: A JavaScript library for building user interfaces.
-    *   _Role_: Powers the entire UI of the renderer process.
+| Package | Used for |
+| --- | --- |
+| `electron` | The desktop runtime: main and renderer processes, native APIs, `safeStorage` |
+| `@electron-forge/*` | Building, packaging and publishing: the Vite and fuses plugins, makers for Squirrel (Windows), DMG (macOS), deb and ZIP (Linux), the GitHub publisher |
+| `vite`, `@vitejs/plugin-react` | Bundling main, preload and renderer, dev server with hot reload |
+| `typescript` | The language of the whole code base |
+| `react`, `react-dom` | The UI (React 19) |
+| `update-electron-app` | Checks GitHub Releases for updates and installs them (Windows only, see [Building and Packaging]({% link documentation/development/building-packaging.md %}#releases)) |
+| `electron-squirrel-startup` | Handles the Squirrel install events on Windows |
 
-## UI & Styling
+## UI and styling
 
-*   **`@monaco-editor/react` & `monaco-editor`**: The code editor component that powers Visual Studio Code.
-    *   _Role_: Used for displaying and editing request/response bodies, with custom language features for template variables.
-*   **`@radix-ui/*`**: A collection of unstyled, accessible UI primitives.
-    *   _Role_: Foundation for many of the `shadcn/ui` components.
-*   **`tailwindcss`**: A utility-first CSS framework.
-    *   _Role_: Primary styling mechanism for the application. Configured in `tailwind.config.js`.
-*   **`shadcn/ui` (implicitly, via `components.json` and `src/renderer/components/ui/`)**: A collection of re-usable UI components built using Radix UI and Tailwind CSS.
-    *   _Role_: Provides a base set of styled and accessible components (Button, Input, Dialog, etc.).
-*   **`lucide-react` & `react-icons`**: Icon libraries.
-    *   _Role_: Provide icons used throughout the application.
-*   **`class-variance-authority` (cva) & `clsx` & `tailwind-merge`**: Utilities for constructing dynamic and conditional class names, especially for Tailwind CSS.
-    *   _Role_: Used heavily in `shadcn/ui` components and custom components for flexible styling.
+| Package | Used for |
+| --- | --- |
+| `tailwindcss`, `@tailwindcss/vite` | Styling with Tailwind CSS v4, configured in CSS |
+| `@radix-ui/react-*` | Accessible primitives under the shadcn/ui components |
+| `class-variance-authority`, `clsx`, `tailwind-merge` | Variants and conditional class names (`cn()`) |
+| `lucide-react` | Icons |
+| `monaco-editor`, `@monaco-editor/react` | Editors for bodies, scripts, URLs and responses |
+| `cmdk` | The command palette |
+| `@dnd-kit/core`, `@dnd-kit/sortable` | Drag and drop in the request tree |
+| `react-resizable-panels` | Resizable sidebar and request panes |
+| `sonner` | Toast notifications |
+| `xml-formatter` | Formatting XML in the editors |
 
-## State Management
+## State and validation
 
-*   **`zustand`**: A small, fast, and scalable state-management solution for React.
-    *   _Role_: Manages global application state in the renderer process (e.g., collections, responses, variables).
-*   **`immer`**: A library for working with immutable state in a more convenient way.
-    *   _Role_: Used as middleware with Zustand to allow "mutable" state updates in actions.
+| Package | Used for |
+| --- | --- |
+| `zustand` | Stores in the renderer |
+| `immer` | Immutable updates in stores, the collection model and its patches (`produceWithPatches`, `applyPatches`) |
+| `zod` | Schemas for info files, settings, commands, plugin manifests and MCP tools; validation at runtime boundaries |
 
-## Networking & Data Handling (Main Process)
+## Main process
 
-*   **`undici`**: A fast, spec-compliant HTTP/1.1 client for Node.js.
-    *   _Role_: Used by `HttpService` in the main process to make actual HTTP requests.
-*   **`postman-collection`**: A Node.js module to work with Postman Collection Format v1.0/v2.0/v2.1.
-    *   _Role_: Used by `PostmanImporter` to parse and import Postman collections.
-*   **`template-replace-stream`**: A Node.js stream transform for replacing template strings.
-    *   _Role_: Used by `EnvironmentService` to substitute variables (e.g., `{{variable}}`) in request bodies.
-*   **`tmp`**: A temporary file and directory creator for Node.js.
-    *   _Role_: Used by `FileSystemService` and `HttpService` for managing temporary files, e.g., for response bodies.
-*   **`mime-types`**: Utility to look up MIME types by extension and vice versa.
-    *   _Role_: Likely used for determining content types of files.
+| Package | Used for |
+| --- | --- |
+| `undici` | Sending HTTP requests |
+| `openid-client` | OAuth 2.0 flows and OpenID Connect discovery |
+| `template-replace-stream` | Replacing variables in streamed request bodies |
+| `mime-types` | File extensions for downloaded response bodies |
+| `@zip.js/zip.js` | ZIP export, optionally encrypted with AES-256 |
+| `@modelcontextprotocol/server`, `@modelcontextprotocol/node` | The MCP server, see [MCP Server]({% link documentation/architecture/mcp-server.md %}) |
+| `winston` | Logging |
 
-## Logging (Main Process)
+## Plugins
 
-*   **`winston`**: A multi-transport async logging library for Node.js.
-    *   _Role_: Handles structured logging in the main process, including file and console output.
+Heavy importer dependencies live in the plugin workspaces, not in the app, so they are only loaded when a plugin is used:
 
-## Testing
+| Plugin | Package |
+| --- | --- |
+| `plugins/postman` | `postman-collection` |
+| `plugins/bruno` | `@usebruno/lang` |
+| `plugins/openapi` | `@readme/openapi-parser` |
 
-*   **`vitest`**: A Vite-native test runner.
-    *   _Role_: Used for unit and integration tests in both main and renderer processes.
-*   **`jsdom`**: A JavaScript implementation of many web standards, for use with Node.js.
-    *   _Role_: Provides a simulated browser environment for renderer process tests.
-*   **`@testing-library/react`**: Utilities for testing React components.
-    *   _Role_: Used for writing tests for UI components in the renderer process.
-*   **`memfs`**: An in-memory file system.
-    *   _Role_: Used in main process tests to mock file system operations.
+## Testing and tooling
 
-## Development Utilities
+| Package | Used for |
+| --- | --- |
+| `vitest`, `@vitest/coverage-v8` | Unit and component tests, coverage |
+| `jsdom` | Browser environment for renderer tests |
+| `@testing-library/react`, `@testing-library/user-event`, `@testing-library/dom` | Component tests |
+| `memfs` | In-memory file system for main-process tests |
+| `@playwright/test` | End-to-end tests against the Electron app |
+| `eslint`, `@typescript-eslint/*`, `eslint-plugin-import-x` | Linting |
+| `prettier`, `prettier-plugin-tailwindcss` | Formatting, including the order of Tailwind classes |
 
-*   **`eslint` & plugins**: Code linter.
-*   **`prettier`**: Code formatter.
-*   **`electron-devtools-installer`**: Helper to install Chrome DevTools extensions in Electron.
+## Adding a dependency
 
-This list provides a good overview of the technological landscape of Trufos. For a complete list, refer to the `dependencies` and `devDependencies` sections in `package.json`. 
+- Add it to the workspace that uses it: a plugin's own `package.json` if only that plugin needs it.
+- Commit the updated `yarn.lock`. CI installs with `yarn install --immutable` and fails if the lockfile is out of date.

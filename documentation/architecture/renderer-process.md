@@ -2,77 +2,70 @@
 title: Renderer Process
 nav_order: 2
 parent: Architecture
+description: The React app of Trufos, its views, the Monaco editors and how it talks to the main process.
 ---
 
 # Renderer Process
 
-The Renderer process in Trufos is responsible for displaying the user interface. Each `BrowserWindow` instance in Electron runs its own renderer process. Trufos primarily uses one main window. The renderer process does not have direct access to Node.js APIs or native OS functionalities for security reasons; it communicates with the Main process via [IPC (Inter-Process Communication)]({% link documentation/architecture/ipc-communication.md %}) to perform such tasks.
+The renderer runs the user interface: a React 19 app in the main window. It has no Node.js access; everything that touches files, the network or other processes goes through [IPC]({% link documentation/architecture/ipc-communication.md %}) to the main process.
 
-## Entry Point & UI Framework
+## Entry point
 
-*   **Entry Point**: `src/renderer/index.tsx`
-    *   Initializes `immer` for MapSet support.
-    *   Sets up global renderer-side logging (`src/renderer/logging/console.ts`) which forwards logs to the main process.
-    *   Dynamically imports Monaco editor configuration (`src/renderer/lib/monaco/config.js`) to improve startup time.
-    *   Initializes the `CollectionStore` by fetching the initial collection data from the main process via `RendererEventService`.
-    *   Renders the root React component (`App.tsx`) into the `index.html`'s `#root` div.
-*   **UI Framework**: [React](https://react.dev/) with TypeScript.
-*   **Styling**: [Tailwind CSS](https://tailwindcss.com/) (`tailwind.config.js`, `src/renderer/styles/tailwind.css`) and global CSS (`src/renderer/styles/global.css`).
-*   **UI Components**: Primarily uses [ShadCN UI](https://ui.shadcn.com/) components (configured in `components.json` and located in `src/renderer/components/ui/`), supplemented by custom components.
+`src/renderer/index.tsx`:
 
-## Root Component and Views
+1. Imports `@/logging/console`, which forwards every `console` call to the main process log, see [Logging]({% link documentation/architecture/logging.md %}).
+2. Enables Immer's `Map` and `Set` support (`enableMapSet()`), which the stores rely on.
+3. Renders `App` into `#root` of `index.html`.
 
-*   **`App.tsx` (`src/renderer/App.tsx`)**: The root React component.
-    *   Sets up global providers like `TooltipProvider` and `SidebarProvider`.
-    *   Defines the main layout using `Menubar` and `RequestWindow`.
+## The `App` component
 
-*   **Views (`src/renderer/view/`)**:
-    *   `Menubar.tsx`: The main sidebar containing collection management, request list, and footer bar.
-    *   `RequestWindow.tsx`: The main content area, displaying either an empty state or the request/response interface (`MainTopBar`, `MainBody`).
-    *   `UILibrary.tsx`: A development/debug view for showcasing UI components (likely not part of the production UI flow).
+`src/renderer/App.tsx` sets up the providers and the layout:
 
-## Key Components and Functionality
+- `CollectionStoreProvider` fetches the snapshot of the open collection from main and creates the collection store from it, see [State Management]({% link documentation/architecture/state-management.md %}). Nothing below it renders before the snapshot arrived.
+- `ThemeProvider` (`contexts/ThemeContext.tsx`) applies the light, dark or system theme from the app settings.
+- `TooltipProvider` and `SidebarProvider` from the UI kit.
+- A horizontal `ResizablePanelGroup` (react-resizable-panels) with the sidebar (`view/Menubar.tsx`) and the request window (`view/RequestWindow.tsx`). The panel sizes are kept in `localStorage`. The collection runner (`view/CollectionRunner.tsx`) replaces this layout while it is open.
+- The modals: collection settings, folder settings, app settings and the command palette. Whether they are open is kept in the view store.
+- The `Toaster` (sonner) that shows notifications and errors.
 
-*   **Main Window Structure (`src/renderer/components/mainWindow/`)**:
-    *   `MainTopBar.tsx`: Contains the HTTP method selector, URL input, send button, and save button.
-    *   `MainBody.tsx`: Organizes the input and output tabs for request and response details.
-    *   `InputTabs/` & `OutputTabs/`: Manage the tabbed interface for request parameters (body, query params, headers) and response details (body, headers, status).
-    *   `ResponseStatus.tsx`: Displays HTTP status, duration, and size of the response.
+`App` also listens to the events main pushes for the native menu (open settings, open the runner, show the history), the request history, the plugin list and responses of requests sent by an MCP client. Once the app settings are loaded, it sends `renderer-ready`, and main shows the window.
 
-*   **Sidebar (`src/renderer/components/sidebar/`)**:
-    *   `SidebarHeaderBar.tsx`: Collection dropdown, "New Folder", "New Request" buttons.
-    *   `SidebarRequestList/`: Renders the tree view of folders and requests within the current collection. Uses recursive components like `NavFolder.tsx` and `NavRequest.tsx`.
-    *   `FooterBar.tsx`: Displays app version, GitHub link, and settings modal trigger.
+## Views
 
-*   **Monaco Editor Integration (`src/renderer/lib/monaco/`)**:
-    *   Configuration (`config.js`): Sets up Monaco workers and initializes the loader.
-    *   Language Support (`language.ts`): Registers custom language features for template variables (semantic highlighting, completion items, hover providers).
-    *   Providers:
-        *   `TemplateVariableSemanticTokensProvider.ts`: Highlights `{{variable}}` syntax.
-        *   `TemplateVariableCompletionItemsProvider.ts`: Suggests available variables.
-        *   `TemplateVariableHoverProvider.ts`: Shows variable values on hover.
-    *   The editor instances are used in `BodyTab.tsx` (for request body) and `OutputTabs.tsx` (for response body). Options are defined in `src/renderer/components/shared/settings/monaco-settings.ts`.
+| View | Purpose |
+| --- | --- |
+| `Menubar.tsx` | The sidebar: collection dropdown, request tree or history, footer |
+| `RequestWindow.tsx` | The request editor and response, the history entry view, or an empty state |
+| `CollectionRunner.tsx` | Runs the requests of a collection or folder one after another |
+| `CollectionCreate.tsx` | Dialog to create a collection in a new directory |
+| `CollectionImport.tsx` | Dialog to open a Trufos collection or import one through a plugin importer |
 
-*   **State Management (`src/renderer/state/`)**:
-    *   Uses [Zustand](https://zustand-demo.pmnd.rs/) for global state.
-    *   `collectionStore.ts`: Manages the current collection's structure, selected request, open folders, and request editor instance.
-    *   `responseStore.ts`: Stores responses for requests.
-    *   `variableStore.ts`: Manages collection-level variables for the settings modal.
-    *   See [State Management]({% link documentation/architecture/state-management.md %}) for more details.
+The components are described in [UI Components]({% link documentation/ui-components/index.md %}).
 
-*   **Services (`src/renderer/services/`)**:
-    *   `RendererEventService.ts`: A wrapper around `window.electron.ipcRenderer` to communicate with the main process. See [IPC Communication]({% link documentation/architecture/ipc-communication.md %}).
-    *   `HttpService.ts`: A thin wrapper around `RendererEventService.sendRequest` to handle HTTP requests, primarily for error display.
-    *   `StyleHelper.ts`: Provides utility functions for styling, e.g., HTTP method colors.
+## Monaco editors
 
-*   **Error Handling (`src/renderer/error/`)**:
-    *   `DisplayableError.ts`: Custom error class for errors that can be shown to the user (e.g., in toasts).
-    *   `MainProcessError.ts`: Represents errors originating from the main process.
-    *   `useErrorHandler.ts` (in `src/renderer/components/ui/use-toast.ts`): A hook that wraps functions to automatically display toasts on errors.
+Text bodies, scripts and responses are edited and shown in [Monaco](https://microsoft.github.io/monaco-editor/), set up in `src/renderer/lib/monaco/`:
 
-## Build Configuration
+- `models.ts` keeps one editor model per request for its text body and each script. These models are the only owner of that text: edits are sent to main as debounced (1 s) commands, and operations that need the text (sending, saving, switching request or collection, closing) flush them first. See [Main-Owned Collection State]({% link documentation/architecture/collection-state.md %}#drafts).
+- `editor-content.ts` loads a request's text into its models through an IPC stream and refreshes them when the files change on disk, without overwriting what the user typed.
+- `language.ts` and the providers add `{% raw %}{{variable}}{% endraw %}` support: semantic highlighting, completion of the available variables and their values on hover.
+- `theme.ts` defines the editor themes; `config.ts` sets up the editor workers, which `tools/vite-plugin-monaco.mts` bundles.
+- `SingleLineEditor.tsx` is a one-line Monaco editor, e.g. for the URL, so variables are highlighted there too.
 
-The renderer process code is built using Vite, as configured in `src/renderer/vite.config.ts`. This configuration includes:
-*   React plugin (`@vitejs/plugin-react`).
-*   Aliases for easier imports (e.g., `@/` for `src/renderer/`).
-*   Vitest configuration for testing, including an alias for Monaco editor to ensure tests can run in a JSDOM environment. 
+Scripts get type information for the `trufos` API from `assets/trufos-scripting-api.d.ts`. That file is generated from `src/shim/scripting.ts` by the `generateAssets` hook in `forge.config.ts`; do not edit it.
+
+## Services and hooks
+
+- `services/event/renderer-event-service.ts`: the typed IPC client, see [Event Service]({% link documentation/services/event-service.md %}).
+- `services/http/http-service.ts`: sends a request by ID and lets it be cancelled through an `AbortSignal`, see [HTTP Service]({% link documentation/services/http-service.md %}).
+- `hooks/request/useRequestActions.ts`: `useSendRequest()` and `useSaveRequest()`, shared by the buttons, the hotkeys and the command palette.
+- `hooks/hotKeys/`: every keyboard shortcut is defined once in `hotkeys.ts` and registered with `useHotkeys()`.
+- `lib/ipc-stream.ts`: `IpcPushStream` reads bodies and scripts from main in chunks.
+
+## Styling
+
+The renderer uses Tailwind CSS v4 through its Vite plugin. The design tokens (colours, radius, fonts) and the theme variants are CSS custom properties in `src/renderer/styles/index.css`; there is no `tailwind.config.js`. UI primitives come from shadcn/ui on Radix UI, in `src/renderer/components/ui/`.
+
+## Build
+
+`src/renderer/vite.config.mts` configures React, Tailwind, the Monaco plugin and the aliases `@/` (`src/renderer`) and `shim`.

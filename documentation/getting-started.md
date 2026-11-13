@@ -2,95 +2,74 @@
 title: Getting Started
 nav_order: 2
 parent: Contributing
+description: Set up a development environment for Trufos, run the app and its checks, and build installers.
 ---
 
 # Getting Started
 
-This guide will walk you through setting up your development environment, building, and running the Trufos application.
+This page shows you how to set up Trufos for development, run it, run the checks a pull request has to pass, and build installers.
 
 ## Prerequisites
 
-- **Node.js**: Use version `v24` as specified in the `.nvmrc` file. It's recommended to use a Node version manager like [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions.
+- **Node.js 24**, as set in `.nvmrc`. With a version manager such as [nvm](https://github.com/nvm-sh/nvm):
+
   ```bash
-  nvm use 24
+  nvm use
   ```
-- **Yarn**: Yarn is already included as a dependency in the project, you don't need to install it
+
+- **Yarn**: the repository ships Yarn 4 in `.yarn/releases/`, so you do not install it yourself. If you have never used Yarn on your machine, run `corepack enable` once. Do not use npm to install dependencies.
+- **Git**.
 
 ## Installation
 
-1.  **Clone the Repository**:
+```bash
+git clone https://github.com/EXXETA/trufos.git
+cd trufos
+yarn install
+```
 
-    ```bash
-    git clone https://github.com/EXXETA/trufos.git
-    cd trufos
-    ```
+`yarn install` also installs the dependencies of the bundled plugins in `plugins/`, which are Yarn workspaces.
 
-2.  **Install Dependencies**:
-    Using Yarn, install all project dependencies:
-    ```bash
-    yarn install
-    ```
-
-## Running in Development Mode
-
-To start the application in development mode with hot reloading and access to developer tools:
+## Running in development mode
 
 ```bash
 yarn start
 ```
 
-This command utilizes `electron-forge start` and will open the application window. Changes in the `src/main` or `src/renderer` directories will typically trigger a reload.
+This runs `electron-forge start`: the renderer is served by the Vite dev server with hot module replacement, and changes to `src/main` rebuild the main process. In development, the main process logs to the terminal at level `debug`.
 
-## Building the Application
+Development uses the same user data directory as an installed Trufos, so it opens your real collections and settings. See [Logging]({% link documentation/architecture/logging.md %}) and [Persistence]({% link documentation/architecture/persistence.md %}) for where files are kept.
 
-To build a distributable version of the application for your current platform:
+## Checks
 
-1.  **Ensure Dependencies are Installed**:
-    If you haven't already, run:
+Run these after every change. CI runs all of them on every pull request except `yarn lint`, so run that yourself.
 
-    ```bash
-    yarn install
-    ```
+| Command               | What it does                                                        |
+| --------------------- | ------------------------------------------------------------------- |
+| `yarn test`           | Unit and component tests with Vitest (main, renderer, shim, plugins) |
+| `yarn typecheck`      | Type-checks every TypeScript project. Vitest does not type-check.   |
+| `yarn lint`           | ESLint                                                              |
+| `yarn prettier-check` | Checks formatting; `yarn prettier` fixes it                         |
+| `yarn e2e`            | Playwright end-to-end tests against the packaged bundles            |
 
-2.  **Run the Build Command**:
+The end-to-end suite needs `yarn package` first, see [Testing]({% link documentation/development/testing.md %}).
 
-    ```bash
-    yarn run make
-    ```
-
-    This command uses `electron-forge make` to package the application.
-
-3.  **Locate the Build Output**:
-    The built application will be located in the `out/make` directory. The specific file format depends on your operating system:
-    - **Windows**: A `Setup.exe` file (Squirrel installer).
-    - **macOS**: A `.dmg` file.
-    - **Linux**: A `.deb` and a `.zip` file.
-
-## Testing
-
-To run the test suite (using Vitest):
+## Building installers
 
 ```bash
-yarn test
+yarn make
 ```
 
-This will execute tests for both the main and renderer processes.
+This runs `electron-forge make` and writes the installers for your operating system to `out/make/`:
 
-## Code Formatting and Linting
+- **Windows**: `Setup.exe` (Squirrel installer)
+- **macOS**: `.dmg`
+- **Linux**: `.deb` and `.zip`
 
-The project uses Prettier for code formatting and ESLint for linting.
+Without Apple credentials, the macOS build is signed ad hoc and not notarized. See [Building and Packaging]({% link documentation/development/building-packaging.md %}) for details.
 
-- **Check Formatting**:
-  ```bash
-  yarn prettier-check
-  ```
-- **Apply Formatting**:
-  ```bash
-  yarn prettier
-  ```
-- **Run Linter**:
-  ```bash
-  yarn lint
-  ```
+## Next steps
 
-Refer to the [Coding Style]({% link documentation/development/coding-style.md %}) guide for more details on setting up your IDE for automatic formatting.
+- Read [Project Structure]({% link documentation/project-structure.md %}) to find your way around the code.
+- Set up your editor as described in [Coding Style]({% link documentation/development/coding-style.md %}).
+- Read `AGENTS.md` in the repository. Despite its name, it is the most complete list of the project's conventions, for people and AI agents alike.

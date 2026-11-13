@@ -3,18 +3,19 @@ title: Services
 nav_order: 5
 parent: Contributing
 has_children: true
+description: The main-process services of Trufos and their renderer counterparts.
 ---
 
 # Services
 
-Trufos is built upon a set of core services that manage different aspects of its functionality. These services are primarily located in the main process (`src/main/`) but may have counterparts or wrappers in the renderer process (`src/renderer/services/`) for easier access via IPC.
+Most of Trufos' logic lives in singleton services in the main process (`src/main/`), each with a static `instance`. The renderer reaches them through IPC; where it needs more than the IPC call, it has a thin counterpart in `src/renderer/services/`. [Main Process]({% link documentation/architecture/main-process.md %}) lists all services.
 
-This section provides detailed information on these key services:
+The pages in this section:
 
-1.  **[Environment Service]({% link documentation/services/environment-service.md %})**: Manages collections, environments, and variables.
-2.  **[Event Service]({% link documentation/services/event-service.md %})**: Handles Inter-Process Communication (IPC) between the main and renderer processes.
-3.  **[HTTP Service]({% link documentation/services/http-service.md %})**: Responsible for making HTTP requests.
-4.  **[Persistence Service]({% link documentation/services/persistence-service.md %})**: Manages storing and retrieving data from the file system.
-5.  **[Settings Service]({% link documentation/services/settings-service.md %})**: Handles application-level settings.
+1. [Variable Resolver]({% link documentation/services/variable-resolver.md %}): resolves variables, inherited authorization and headers from a collection model.
+2. [Event Service]({% link documentation/services/event-service.md %}): the two ends of the IPC contract.
+3. [HTTP Service]({% link documentation/services/http-service.md %}): prepares, sends and records requests and stores their response bodies.
+4. [Persistence Service]({% link documentation/services/persistence-service.md %}): reads and writes the files of collections.
+5. [Settings and State]({% link documentation/services/settings-service.md %}): the user's preferences and the state of the app.
 
-Understanding the roles and interactions of these services is fundamental to understanding how Trufos operates. 
+The `CollectionStateService`, which owns the open collection, is described in [Main-Owned Collection State]({% link documentation/architecture/collection-state.md %}), the `PluginService` in [Plugin Architecture]({% link documentation/architecture/plugins.md %}) and the `McpServerService` in [MCP Server]({% link documentation/architecture/mcp-server.md %}).

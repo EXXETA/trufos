@@ -23,7 +23,9 @@ Run `Setup.exe`. Trufos installs for the current user and starts right away; no 
 
 ### macOS
 
-Open the `.dmg` file and drag Trufos into the Applications folder. Updates work the same way as on Windows.
+Open the `.dmg` file and drag Trufos into the Applications folder. There are builds for Apple silicon (`arm64`) and Intel (`x64`) Macs.
+
+Trufos does not update itself on macOS. To update, download the new release and drag it into the Applications folder again.
 
 ### Linux
 
