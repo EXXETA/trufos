@@ -40,7 +40,7 @@
     "@tailwindcss/vite": "^4.3.5",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.8",
+    "@testing-library/user-event": "^14.6.9",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/mime-types": "^3.0.1",
     "@types/node": "^24.19.2",
