@@ -16,14 +16,22 @@ Trufos stores your collections as plain JSON files on disk, making them easy to 
 
 **Features:**
 
-- Cross-platform — Windows, macOS, and Linux via Electron
-- Offline-only — all data stays on your machine
-- Version control-friendly — collections stored as JSON
-- Import Postman collections
-- Environment & variable management
-- Authentication — Basic, JWT, OAuth 2.0 (client credentials)
-- Pre/post request scripting
-- Handles large payloads without blocking the UI
+- **Cross-platform** — Windows, macOS, and Linux via Electron
+- **Offline-only** — all data stays on your machine, no account and no telemetry
+- **Version control-friendly** — collections are plain JSON files; changes made outside the app (e.g. a `git pull`) are reloaded automatically
+- **Requests** — URL and header syntax highlighting, header suggestions, text, file and form-data bodies, cancelling running requests, and detailed error information when a request fails
+- **Responses** — handles large payloads without blocking the UI, previews images, and lets you download the body as a file
+- **Collections** — folders, drag-and-drop ordering, sorting, copying, multi-select with bulk actions, and unsaved drafts you can discard
+- **Environments & variables** — collection and environment variables in URLs and headers, plus built-in system variables
+- **Authentication** — Basic, Bearer, Digest, OAuth 1.0 and OAuth 2.0 (client credentials, authorization code, authorization code with PKCE, endpoint discovery from the issuer URL); folders and requests can inherit authorization and headers from their parent
+- **Client certificates** and optional acceptance of self-signed certificates
+- **Scripting** — pre-request and post-response scripts with access to variables
+- **Collection runner** — send a selection of the requests of a collection in one go
+- **History** — browse previously sent requests with their responses and script logs
+- **Import & export** — import Postman, Bruno, and OpenAPI 3 / Swagger 2 collections; export collections as ZIP
+- **Plugins** — importers ship as bundled plugins that are managed on the plugins page
+- **MCP server** — let AI agents read, edit, and send the requests of your collection (optional, off by default)
+- **Command palette, hotkeys, and themes** — light and dark mode; the app remembers its window and state across restarts
 
 ## Installation
 
@@ -64,6 +72,7 @@ The output lands in `out/make` — a `Setup.exe` on Windows, `.dmg` on macOS, an
 | `yarn test`           | Execute Vitest test suite                         |
 | `yarn e2e`            | Run Playwright E2E tests (after `yarn package`)   |
 | `yarn lint`           | Run ESLint over TypeScript & React sources        |
+| `yarn typecheck`      | Type-check all TypeScript projects                |
 | `yarn prettier`       | Format code (TS/TSX) with Prettier                |
 | `yarn prettier-check` | Check formatting without writing changes          |
 
@@ -71,11 +80,23 @@ The output lands in `out/make` — a `Setup.exe` on Windows, `.dmg` on macOS, an
 
 ### Importing Collections
 
-Open the collection import view, select a Postman collection file or directory, and confirm. Trufos converts and saves it under a folder named after the collection title.
+Open the collection import view, pick the format (Postman v2.1, Bruno, or OpenAPI 3 / Swagger 2), select the file or directory, and confirm. Trufos converts and saves it under a folder named after the collection title. Each importer is a bundled plugin and can be managed on the plugins page.
+
+### Exporting Collections
+
+Collections can be exported as a ZIP archive, e.g. to share them with someone who does not use version control.
 
 ### Environments & Variables
 
-Define named environments (e.g. `dev`, `staging`, `prod`) each with their own variables. Switching environments scopes variable resolution across all requests. Environments are stored as JSON alongside your collections.
+Define named environments (e.g. `dev`, `staging`, `prod`) each with their own variables. Switching environments scopes variable resolution across all requests. Environments are stored as JSON alongside your collections. Scripts can read and update variables, too.
+
+### Collection Runner
+
+Open **Collection → Run Collection**, pick the requests to send, and see the result of each request at a glance.
+
+### MCP Server
+
+Trufos can run a local [MCP](https://modelcontextprotocol.io) server so AI agents can find, read, edit, and send the requests of the open collection with your environments, variables, and authorization. Everything an agent does shows up live in the app: sent requests appear in the history, edits appear as drafts. The server is disabled by default, only listens on `127.0.0.1`, and requires an access token whose permissions you control in the settings. See [the architecture document](docs/architecture/05_mcp_server.md) for details.
 
 ## FAQ
 
@@ -83,11 +104,17 @@ Define named environments (e.g. `dev`, `staging`, `prod`) each with their own va
 
 - macOS: `~/Library/Application Support/Trufos/default-collection`
 - Windows: `%AppData%\Trufos\default-collection`
+- Linux: `~/.config/Trufos/default-collection`
+
+Other collections live wherever you created or opened them.
 
 **Where are the logs?**
 
 - macOS: `~/Library/Logs/Trufos`
 - Windows: `%AppData%\Trufos\logs`
+- Linux: `~/.config/Trufos/logs`
+
+You can also open it via **Help → Open Logs Folder**.
 
 ## Contributing
 

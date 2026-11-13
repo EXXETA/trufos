@@ -31,10 +31,12 @@ If you would like to contribute code to this repository, you can do so by follow
 When creating commits, please keep the following in mind:
 
 - A commit message should not only summarize what has been changed, but should also explain why
-- A commit message should be written in english and in present tense
-- A commit message should begin with the following format: `#<issue id> - <commit message>`
-  - where `<issue id>` references the issue associated with the bug/enhancement that you intend to
-    make
+- A commit message should be written in english, in present tense and in imperative mood
+- A commit message follows [Conventional Commits](https://www.conventionalcommits.org/):
+  `<type>: <short description>`
+  - where `<type>` is one of `feat`, `fix`, `refactor`, `docs`, `chore`, or `test`
+  - the first line is shorter than 72 characters and has no trailing period
+  - an optional body after a blank line explains why the change was made
 
 When creating branches, please keep the following in mind:
 
@@ -89,7 +91,7 @@ After following these instructions, the code should always be formatted automati
 file.
 
 However, you can check all Typescript files for code style issues with this command:
-`npm run prettier-check`
+`yarn prettier-check`
 
 If you want Prettier to fix code style issues, you can use the following command:
-`npm run prettier`
+`yarn prettier`
