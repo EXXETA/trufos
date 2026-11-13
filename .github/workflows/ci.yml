@@ -11,10 +11,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Check image sizes
+        # Raw screenshots are 0.5-1 MB; converted ones are well below the limit.
+        # Convert them with _tools/optimize-screenshots.mjs (see AGENTS.md).
+        run: |
+          limit_kb=250
+          status=0
+          while IFS= read -r -d '' file; do
+            size_kb=$(( $(stat -c %s "$file") / 1024 ))
+            echo "::error file=$file::$file is $size_kb KB (limit: $limit_kb KB). Convert it with _tools/optimize-screenshots.mjs, see AGENTS.md."
+            status=1
+          done < <(find assets documentation -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' -o -iname '*.webp' -o -iname '*.avif' \) -size +${limit_kb}k -print0)
+          exit $status
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.4"
+          ruby-version: "4.0"
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
           cache-version: 0 # Increment this number if you need to re-download cached gems
       - name: Build with Jekyll
