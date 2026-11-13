@@ -1,0 +1,2 @@
+# Check out text files with LF on every OS, matching Prettier's endOfLine default.
+* text=auto eol=lf
