@@ -68,10 +68,23 @@ async function prepare(trufos: any, theme: Theme, size = CONTENT_SIZE) {
   await expect(dialog).toBeHidden();
 }
 
-/** Saves a screenshot of the window as `_screenshots/<name>-<theme>.png`. */
-async function shoot(window: any, name: string, theme: Theme, size = CONTENT_SIZE) {
-  // away from the sidebar and from buttons, so no hover state ends up in the picture
-  await window.mouse.move(size.width - 4, size.height - 4);
+/**
+ * Saves a screenshot of the window as `_screenshots/<name>-<theme>.png`. Pass `hover` to show the
+ * hover of an element in the picture; otherwise the mouse is moved out of the way.
+ */
+async function shoot(
+  window: any,
+  name: string,
+  theme: Theme,
+  size = CONTENT_SIZE,
+  hover?: () => Promise<void>
+) {
+  if (hover) {
+    await hover();
+  } else {
+    // away from the sidebar and from buttons, so no hover state ends up in the picture
+    await window.mouse.move(size.width - 4, size.height - 4);
+  }
   await window.waitForTimeout(500);
   const file = path.join(OUTPUT_DIR, `${name}-${theme}.png`);
   await mkdir(path.dirname(file), { recursive: true });
@@ -123,6 +136,13 @@ async function sendVariableRequest(window: any) {
   await expect(responseStatus(window)).toContainText('201');
 }
 
+/** Hovers `{{variable1}}` in the request body, so the hover shows its current value. */
+async function hoverVariable(window: any) {
+  const body = window.locator('.monaco-editor').nth(1);
+  await body.locator('.view-line').getByText('variable1').first().hover();
+  await expect(window.locator('.monaco-hover').filter({ hasText: 'Current value' })).toBeVisible();
+}
+
 /** Expands a folder in the sidebar. */
 async function openFolder(window: any, name: string, firstRequest: string) {
   await window.getByText(name, { exact: true }).click();
@@ -169,7 +189,7 @@ for (const theme of THEMES) {
     const { window } = trufos;
     await prepare(trufos, theme);
     await sendVariableRequest(window);
-    await shoot(window, 'request-variable', theme);
+    await shoot(window, 'request-variable', theme, CONTENT_SIZE, () => hoverVariable(window));
     if (theme === 'dark') await writeSocialPreview(path.join(OUTPUT_DIR, 'request-variable-dark.png'));
   });
 
