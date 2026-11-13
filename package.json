@@ -93,7 +93,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "electron-squirrel-startup": "^1.0.1",
-    "immer": "^11.2.9",
+    "immer": "^11.2.10",
     "lucide-react": "1.70.0",
     "mime-types": "^3.0.2",
     "monaco-editor": "^0.57.0",
