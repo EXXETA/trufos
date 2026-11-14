@@ -21,7 +21,7 @@ const require = createRequire(import.meta.url);
 const TRUFOS_DIR = path.resolve(process.env.TRUFOS_DIR ?? path.join(HERE, '..', '..', '..', 'trufos'));
 const app = (file: string) => require(path.join(TRUFOS_DIR, 'e2e', file));
 const { test: base, expect } = app('fixtures/trufos-app');
-const { openAppSettings, stubDirectoryPicker } = app('helpers/main-process');
+const { clickMenuItem, openAppSettings, stubDirectoryPicker } = app('helpers/main-process');
 const { selectRequest, sendRequest, responseStatus, responseTab, setUrl, sidebarItem } = app('helpers/ui');
 
 const DOCS_DIR = path.resolve(HERE, '..', '..');
@@ -143,6 +143,76 @@ async function hoverVariable(window: any) {
   await expect(window.locator('.monaco-hover').filter({ hasText: 'Current value' })).toBeVisible();
 }
 
+/** Opens a tab of the collection settings and returns the dialog. */
+async function openCollectionSettings(window: any, tab: string) {
+  await window.getByRole('button', { name: 'Collection settings' }).click();
+  const dialog = window.getByRole('dialog');
+  await dialog.getByText(tab, { exact: true }).first().click();
+  return dialog;
+}
+
+/** Adds a variable as the last row of the variable table in the dialog. */
+async function addVariable(
+  dialog: any,
+  { key, value, description, secret }: { key: string; value: string; description?: string; secret?: boolean }
+) {
+  await dialog.getByRole('button', { name: 'Add Variable' }).click();
+  await dialog.getByPlaceholder('Enter variable key').last().fill(key);
+  await dialog.getByPlaceholder('Enter variable value').last().fill(value);
+  if (description != null) await dialog.getByPlaceholder('Enter variable description').last().fill(description);
+  if (secret) await dialog.getByRole('checkbox', { name: 'Secret' }).last().click();
+}
+
+/** Makes an environment of the Bookshop collection the active one. */
+async function selectEnvironment(window: any, name: string) {
+  const dialog = await openCollectionSettings(window, 'Environments');
+  await dialog.getByText(name, { exact: true }).first().click();
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
+}
+
+/**
+ * Replaces the content of the Monaco editor in the given container. The text is pasted, as typed
+ * text is indented like the line before it.
+ */
+async function setEditorText(trufos: any, container: any, text: string) {
+  const { window } = trufos;
+  await trufos.app.evaluate(({ clipboard }: any, text: string) => clipboard.writeText(text), text);
+  await container.locator('.monaco-editor').first().click();
+  await window.keyboard.press('ControlOrMeta+A');
+  await window.keyboard.press('ControlOrMeta+V');
+}
+
+// short lines: the script editor is narrow in the screenshots
+const PRE_REQUEST_SCRIPT = `// count how often the request is sent
+const count = Number(
+  trufos.getCollectionVariable('count') ?? 0
+) + 1;
+trufos.setCollectionVariable(
+  'count', String(count)
+);
+console.log('Sending request', count);
+
+// undefined while no environment is selected
+const baseUrl =
+  trufos.getEnvironmentVariable('baseUrl');
+if (baseUrl == null) {
+  console.warn('No environment selected');
+}
+`;
+
+/** Scrolls the scrollable container of an element back to its top. */
+async function scrollToTop(locator: any) {
+  await locator.evaluate((element: HTMLElement) => {
+    for (let node: HTMLElement | null = element; node != null; node = node.parentElement) {
+      if (node.scrollHeight > node.clientHeight + 1 && getComputedStyle(node).overflowY !== 'visible') {
+        node.scrollTop = 0;
+        return;
+      }
+    }
+  });
+}
+
 /** Expands a folder in the sidebar. */
 async function openFolder(window: any, name: string, firstRequest: string) {
   await window.getByText(name, { exact: true }).click();
@@ -256,6 +326,146 @@ for (const theme of THEMES) {
     await dialog.getByRole('button', { name: /Select directory for new collection/ }).click();
     await dialog.getByPlaceholder('Name of the new collection').fill('Bookshop');
     await shoot(window, 'user-guide/import-dialog', theme);
+  });
+
+  test(`variables-autocomplete ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await importBookshop(trufos);
+    await openFolder(window, 'Books', 'List books');
+    await selectRequest(window, 'Get a book');
+    const url = window.locator('.monaco-editor').first();
+    await url.locator('.view-line').click();
+    await window.keyboard.press('End');
+    await window.keyboard.type('?author={{');
+    await expect(window.locator('.suggest-widget')).toBeVisible();
+    await expect(window.locator('.suggest-widget')).toContainText('baseUrl');
+    await shoot(window, 'user-guide/variables-autocomplete', theme, CONTENT_SIZE, async () => {});
+  });
+
+  test(`variables-hover ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await importBookshop(trufos);
+    await selectEnvironment(window, 'Staging');
+    await openFolder(window, 'Books', 'List books');
+    await selectRequest(window, 'List books');
+    await shoot(window, 'user-guide/variables-hover', theme, CONTENT_SIZE, async () => {
+      const url = window.locator('.monaco-editor').first();
+      await url.locator('.view-line').getByText('baseUrl').first().hover();
+      await expect(window.locator('.monaco-hover').filter({ hasText: 'Current value' })).toBeVisible();
+    });
+  });
+
+  test(`variables-collection-tab ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await importBookshop(trufos);
+    const dialog = await openCollectionSettings(window, 'Variables');
+    await addVariable(dialog, { key: 'apiKey', value: 'sk-live-2f9c1d7e', description: 'Key of the bookshop API', secret: true });
+    await dialog.getByText('Variables', { exact: true }).first().click();
+    await scrollToTop(dialog.getByRole('button', { name: 'Add Variable' }));
+    await shoot(window, 'user-guide/variables-collection-tab', theme);
+  });
+
+  test(`variables-environments-tab ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await importBookshop(trufos);
+    const dialog = await openCollectionSettings(window, 'Environments');
+    await dialog.getByText('Staging', { exact: true }).first().click();
+    await addVariable(dialog, { key: 'userId', value: '7', description: 'Test user on staging' });
+    await dialog.getByRole('heading', { name: 'Environments' }).click();
+    await shoot(window, 'user-guide/variables-environments-tab', theme);
+  });
+
+  test(`requests-headers-tab ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await importBookshop(trufos);
+    await openFolder(window, 'Books', 'List books');
+    await selectRequest(window, 'Create a book');
+    await window.getByRole('tab', { name: /^Headers/ }).first().click();
+    await window.getByRole('button', { name: 'Add Header' }).click();
+    await window.getByPlaceholder('Enter header key').last().fill('Accept');
+    await window.getByPlaceholder('Enter header value').last().fill('application/json');
+    // closes the suggestions of the input
+    await window.keyboard.press('Escape');
+    await window.locator('body').click({ position: { x: CONTENT_SIZE.width - 4, y: CONTENT_SIZE.height - 4 } });
+    await shoot(window, 'user-guide/requests-headers-tab', theme);
+  });
+
+  test(`scripting-tab ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await importBookshop(trufos);
+    await openFolder(window, 'Books', 'List books');
+    await selectRequest(window, 'List books');
+    await window.getByRole('tab', { name: 'Scripts', exact: true }).click();
+    const panel = window.getByRole('tabpanel', { name: 'Scripts' });
+    await setEditorText(trufos, panel, PRE_REQUEST_SCRIPT);
+    await shoot(window, 'user-guide/scripting-tab', theme);
+  });
+
+  test(`scripting-history-console ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await selectRequest(window, 'Example Request');
+    // answers with a fixed JSON document, unlike the default echo service, which adds the IP address
+    await setUrl(window, 'https://jsonplaceholder.typicode.com/todos/1');
+    await window.getByRole('tab', { name: 'Scripts', exact: true }).click();
+    const panel = window.getByRole('tabpanel', { name: 'Scripts' });
+    await setEditorText(trufos, panel, PRE_REQUEST_SCRIPT);
+    await panel.getByRole('combobox').click();
+    await window.getByRole('option', { name: 'Post-Response', exact: true }).click();
+    await setEditorText(
+      trufos,
+      panel,
+      "console.info('Response received, count is', trufos.getCollectionVariable('count'));\n"
+    );
+    for (let i = 0; i < 2; i++) {
+      await sendRequest(window);
+      await expect(responseStatus(window)).toContainText('200');
+    }
+    await window.getByRole('button', { name: 'Request history' }).click();
+    const entry = window.getByRole('list', { name: 'Request history' }).getByRole('button');
+    await expect(entry).toHaveCount(2);
+    await entry.first().click();
+    const details = window.getByRole('region', { name: 'History entry' });
+    await details.getByRole('tab', { name: /^Console/ }).click();
+    await expect(details.getByRole('list', { name: 'Console' })).toContainText('Sending request');
+    await shoot(window, 'user-guide/scripting-history-console', theme);
+  });
+
+  test(`collection-runner ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await clickMenuItem(trufos.app, 'Run Collection');
+    const run = window.getByRole('button', { name: /^Run \d+ request/ });
+    await run.click();
+    await expect(window.getByText('Passed')).toHaveCount(2, { timeout: 30_000 });
+    await shoot(window, 'user-guide/collection-runner', theme);
+  });
+
+  test(`command-palette ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await importBookshop(trufos);
+    await openFolder(window, 'Books', 'List books');
+    await window.keyboard.press('ControlOrMeta+K');
+    await window.getByPlaceholder('Search...').fill('book');
+    await shoot(window, 'user-guide/command-palette', theme);
+  });
+
+  test(`settings-mcp ${theme}`, async ({ trufos }: any) => {
+    const { window } = trufos;
+    await prepare(trufos, theme);
+    await openAppSettings(trufos.app);
+    const dialog = window.getByRole('dialog');
+    await dialog.getByText('MCP Server', { exact: true }).first().click();
+    await dialog.getByRole('checkbox', { name: 'Enable MCP server' }).click();
+    await expect(dialog.getByText('Running', { exact: true })).toBeVisible();
+    await shoot(window, 'user-guide/settings-mcp', theme);
   });
 
   test(`export-tab ${theme}`, async ({ trufos }: any) => {

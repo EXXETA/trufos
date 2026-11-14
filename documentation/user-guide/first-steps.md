@@ -47,7 +47,7 @@ On the first start, Trufos opens the **Default Collection**. It has an example r
 
 1. Click **Example Request** in the sidebar. It is a `GET` request to `https://echo.free.beeceptor.com`, an echo service that answers with what it received.
 2. Click **Send**, or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on macOS).
-3. The response appears on the right: the status code, the time and the size at the top, the body and the headers below.
+3. The response appears on the right: the status code, the time and the size at the top, the body and the headers below. See [Requests and Responses]({% link documentation/user-guide/requests.md %}) for everything you can set and see.
 
 To create your own request, click the **Add new request** icon above the request list or press <kbd>Ctrl</kbd>+<kbd>N</kbd> (<kbd>Cmd</kbd>+<kbd>N</kbd>), type a name and press <kbd>Enter</kbd>. Choose the HTTP method, enter the URL and send it.
 
@@ -82,6 +82,8 @@ The current log is `trufos.log`. Trufos does not write log entries that contain 
 ## Next steps
 
 - [Collections and Requests]({% link documentation/user-guide/collections.md %}): organise requests in collections and folders.
+- [Requests and Responses]({% link documentation/user-guide/requests.md %}): headers, bodies and everything about the response.
 - [Variables]({% link documentation/user-guide/variables.md %}): reuse values across requests and switch between environments.
+- [Scripting]({% link documentation/user-guide/scripting.md %}): set variables with JavaScript before and after a request.
 - [Authorization]({% link documentation/user-guide/authorization.md %}): authenticate requests, from Basic Auth to OAuth 2.0 and client certificates.
 - [Import and Export]({% link documentation/user-guide/import-export.md %}): bring in collections from Postman, Bruno or OpenAPI.

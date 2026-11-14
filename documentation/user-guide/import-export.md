@@ -1,7 +1,7 @@
 ---
 title: Import and Export
 parent: User Guide
-nav_order: 5
+nav_order: 8
 description: Import collections from Postman, Bruno and OpenAPI documents, and export a Trufos collection as a ZIP archive.
 ---
 
@@ -44,7 +44,7 @@ In Postman, export the collection as **Collection v2.1** and pick the `.json` fi
 | OAuth 2.0                    | OAuth 2.0 with the client credentials, authorization code or PKCE grant      |
 | Other authorization types    | Not imported; the request has no authorization                              |
 
-Postman environments are exported as separate files and are not imported. Create the [environments]({% link documentation/user-guide/variables.md %}#environment-variables) in Trufos instead.
+Postman environments are exported as separate files and are not imported. Create the [environments]({% link documentation/user-guide/variables.md %}#environments) in Trufos instead.
 
 ### Bruno
 

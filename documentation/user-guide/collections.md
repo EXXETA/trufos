@@ -42,7 +42,7 @@ Each row has a **⋮** menu that appears when you hover over it:
 | Request | Rename Request, Copy Request, Delete Request                                  |
 | Folder  | Add Request, Add Folder, Rename Folder, Copy Folder, Folder Settings, Delete Folder |
 
-**Copy** creates a copy of the request or folder. In **Folder Settings** you set an [authorization]({% link documentation/user-guide/authorization.md %}) and headers that the requests in the folder can inherit.
+**Copy** creates a copy of the request or folder. In **Folder Settings** you set an [authorization]({% link documentation/user-guide/authorization.md %}) and [headers]({% link documentation/user-guide/requests.md %}#headers) that the requests in the folder can inherit.
 
 ## Rename
 
