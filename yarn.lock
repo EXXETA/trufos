@@ -5044,10 +5044,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"immer@npm:^11.2.9":
-  version: 11.2.9
-  resolution: "immer@npm:11.2.9"
-  checksum: 10c0/fe64b10033aba3f89f778f0a28835c31f9ce28283f0b9a85245de3885442aea20ea8cf6bda7bca57f8159ff2c566ada6d9da9285461e120fe1587d335d648551
+"immer@npm:^11.2.10":
+  version: 11.2.10
+  resolution: "immer@npm:11.2.10"
+  checksum: 10c0/6f06679642fba3a4d71a0ead000e0583fd423a8e6256616f67fd5e7f82f448f704135b9cfb84cb75787a48b362643089909d99ec08b19b6c79fecbc5bc1294c2
   languageName: node
   linkType: hard
 
@@ -7223,7 +7223,7 @@ __metadata:
     eslint-import-resolver-typescript: "npm:^4.4.5"
     eslint-plugin-import-x: "npm:4.18.1"
     globals: "npm:^17.14.0"
-    immer: "npm:^11.2.9"
+    immer: "npm:^11.2.10"
     jsdom: "npm:^31.0.0"
     lucide-react: "npm:1.70.0"
     memfs: "npm:^4.80.0"
