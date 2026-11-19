@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,14 +11,15 @@ import { useCollectionActions, useCollectionStore } from '@/state/collectionStor
 import { TrufosRequest } from 'shim/objects/request';
 import { cn } from '@/lib/utils';
 import { MoreIcon } from '@/components/icons';
+import { toast } from '@/components/ui/sonner';
 
 export interface RequestDropdownProps {
   request: TrufosRequest;
   onRename: () => void;
 }
 
-export const RequestDropdown = ({ request, onRename }: RequestDropdownProps) => {
-  const { copyItem, deleteItem } = useCollectionActions();
+export const RequestDropdown = ({ request, onRename }: RequestDropdownProps): ReactElement => {
+  const { copyItem, copyRequestAsCurl, deleteItem } = useCollectionActions();
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
 
   return (
@@ -41,6 +43,14 @@ export const RequestDropdown = ({ request, onRename }: RequestDropdownProps) => 
 
           <DropdownMenuItem onClick={handleMouseEvent(() => copyItem(request.id))}>
             Copy Request
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            onClick={handleMouseEvent(async () => {
+              if (await copyRequestAsCurl(request.id)) toast.success('cURL command copied');
+            })}
+          >
+            Copy as cURL
           </DropdownMenuItem>
 
           <DropdownMenuItem

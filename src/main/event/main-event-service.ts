@@ -17,6 +17,7 @@ import { SettingsService } from '../persistence/service/settings-service';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { ImportService } from 'main/import/service/import-service';
 import { ExportService } from 'main/export/service/export-service';
+import { getRequestAsCurl } from 'main/export/curl/curl-command';
 import { BodyStore } from 'main/network/service/body-store';
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { DisplayableError } from 'shim/error/DisplayableError';
@@ -159,6 +160,10 @@ export class MainEventService implements IEventService {
 
   async sendRequest(requestId: string, abortKey?: string): Promise<TrufosResponse | null> {
     return await httpService.sendRequest(requestId, abortKey);
+  }
+
+  async getRequestAsCurl(requestId: string): Promise<string> {
+    return await getRequestAsCurl(requestId);
   }
 
   async abortRequest(abortKey: string): Promise<void> {

@@ -168,6 +168,14 @@ export interface IEventService {
   sendRequest(requestId: string, abortKey?: string): Promise<TrufosResponse | null>;
 
   /**
+   * Build a cURL command that sends a request of the open collection like Trufos does. Variables
+   * are not resolved, so the command does not contain the values of secret variables.
+   * @param requestId The ID of the request.
+   * @returns The command, with one argument per line.
+   */
+  getRequestAsCurl(requestId: string): Promise<string>;
+
+  /**
    * Abort an in-flight HTTP request started with the given abort key.
    * @param abortKey The key passed to sendRequest.
    */

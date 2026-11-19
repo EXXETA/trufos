@@ -66,6 +66,7 @@ export class RendererEventService implements IEventService {
   getCollectionState = createEventMethod('getCollectionState');
   dispatch = createEventMethod('dispatch');
   sendRequest = createEventMethod('sendRequest');
+  getRequestAsCurl = createEventMethod('getRequestAsCurl');
   abortRequest = createEventMethod('abortRequest');
   discoverOAuth2Endpoints = createEventMethod('discoverOAuth2Endpoints');
   getAppVersion = createEventMethod('getAppVersion');

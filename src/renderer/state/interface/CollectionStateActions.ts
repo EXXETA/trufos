@@ -134,6 +134,13 @@ export interface CollectionStateActions {
   copyItem(id: TrufosId): Promise<boolean>;
 
   /**
+   * Copy a cURL command that sends a request to the clipboard. Unsaved editor changes are sent to
+   * main first, as the command is built from the current state.
+   * @param id the request id
+   */
+  copyRequestAsCurl(id: TrufosId): Promise<boolean>;
+
+  /**
    * Discard the draft of the currently selected request. A request that was never saved is
    * deleted.
    */
