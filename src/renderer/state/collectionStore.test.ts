@@ -349,8 +349,14 @@ describe('creating and changing items', () => {
     it('writes the command of the request to the clipboard', async () => {
       expect(await ctx.store.getState().copyRequestAsCurl('r1')).toBe(true);
 
-      expect(eventService.getRequestAsCurl).toHaveBeenCalledWith('r1');
+      expect(eventService.getRequestAsCurl).toHaveBeenCalledWith('r1', undefined);
       expect(writeText).toHaveBeenCalledWith("curl -X GET 'http://localhost'");
+    });
+
+    it('passes on whether the secrets are included', async () => {
+      await ctx.store.getState().copyRequestAsCurl('r1', { includeSecrets: true });
+
+      expect(eventService.getRequestAsCurl).toHaveBeenCalledWith('r1', { includeSecrets: true });
     });
 
     it('flushes the editor changes of the request first', async () => {

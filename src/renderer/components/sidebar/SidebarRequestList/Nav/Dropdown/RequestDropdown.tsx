@@ -12,6 +12,7 @@ import { TrufosRequest } from 'shim/objects/request';
 import { cn } from '@/lib/utils';
 import { MoreIcon } from '@/components/icons';
 import { toast } from '@/components/ui/sonner';
+import type { CurlOptions } from 'shim/event-service';
 
 export interface RequestDropdownProps {
   request: TrufosRequest;
@@ -21,6 +22,10 @@ export interface RequestDropdownProps {
 export const RequestDropdown = ({ request, onRename }: RequestDropdownProps): ReactElement => {
   const { copyItem, copyRequestAsCurl, deleteItem } = useCollectionActions();
   const selectedRequestId = useCollectionStore((state) => state.selectedRequestId);
+
+  const copyAsCurl = async (options: CurlOptions, message: string) => {
+    if (await copyRequestAsCurl(request.id, options)) toast.success(message);
+  };
 
   return (
     <div>
@@ -45,12 +50,16 @@ export const RequestDropdown = ({ request, onRename }: RequestDropdownProps): Re
             Copy Request
           </DropdownMenuItem>
 
-          <DropdownMenuItem
-            onClick={handleMouseEvent(async () => {
-              if (await copyRequestAsCurl(request.id)) toast.success('cURL command copied');
-            })}
-          >
+          <DropdownMenuItem onClick={handleMouseEvent(() => copyAsCurl({}, 'cURL command copied'))}>
             Copy as cURL
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            onClick={handleMouseEvent(() =>
+              copyAsCurl({ includeSecrets: true }, 'cURL command with secrets copied')
+            )}
+          >
+            Copy as cURL with Secrets
           </DropdownMenuItem>
 
           <DropdownMenuItem

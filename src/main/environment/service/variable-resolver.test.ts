@@ -186,17 +186,44 @@ describe('variable-resolver', () => {
 
     it('should throw an UnmatchedVariableError naming the variable when enabled', async () => {
       await expect(
-        resolveVariablesInString(model, 'a/{{ missing }}/b', true)
+        resolveVariablesInString(model, 'a/{{ missing }}/b', { throwOnUndefinedVariable: true })
       ).rejects.toBeInstanceOf(UnmatchedVariableError);
       await expect(
-        resolveVariablesInString(model, 'a/{{ missing }}/b', true)
+        resolveVariablesInString(model, 'a/{{ missing }}/b', { throwOnUndefinedVariable: true })
       ).rejects.toHaveProperty('variableName', 'missing');
     });
 
     it('should not throw when enabled and all variables are defined', async () => {
-      await expect(resolveVariablesInString(model, `{{ ${variableKey} }}`, true)).resolves.toBe(
-        variableValue
+      await expect(
+        resolveVariablesInString(model, `{{ ${variableKey} }}`, { throwOnUndefinedVariable: true })
+      ).resolves.toBe(variableValue);
+    });
+  });
+
+  describe('resolveVariablesInString() with keepSecrets', () => {
+    it('resolves the variables but keeps secret and undefined ones as templates', async () => {
+      environment().variables.token = { value: 'hidden', secret: true };
+
+      await expect(
+        resolveVariablesInString(
+          model,
+          `{{ ${variableKey} }}/{{ token }}/{{missing}}/{{ $timestampUnix }}`,
+          { keepSecrets: true }
+        )
+      ).resolves.toMatch(
+        new RegExp(`^${variableValue}/\\{\\{token\\}\\}/\\{\\{missing\\}\\}/\\d+$`)
       );
+    });
+
+    it('does not report a kept secret as undefined', async () => {
+      environment().variables.token = { value: 'hidden', secret: true };
+
+      await expect(
+        resolveVariablesInString(model, '{{ token }}', {
+          keepSecrets: true,
+          throwOnUndefinedVariable: true,
+        })
+      ).resolves.toBe('{{token}}');
     });
   });
 });

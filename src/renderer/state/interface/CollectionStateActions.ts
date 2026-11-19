@@ -3,6 +3,7 @@ import { TrufosHeader } from 'shim/objects/headers';
 import { TrufosQueryParam } from 'shim/objects/query-param';
 import { FormDataBody, RequestBody } from 'shim/objects/request';
 import { TrufosId } from 'shim/objects/id';
+import type { CurlOptions } from 'shim/event-service';
 import { TrufosResponse } from 'shim/objects/response';
 import { ScriptType } from 'shim/scripting';
 import { SortMode } from 'shim/sort-mode';
@@ -137,8 +138,9 @@ export interface CollectionStateActions {
    * Copy a cURL command that sends a request to the clipboard. Unsaved editor changes are sent to
    * main first, as the command is built from the current state.
    * @param id the request id
+   * @param options whether the secrets are included, see {@link CurlOptions}
    */
-  copyRequestAsCurl(id: TrufosId): Promise<boolean>;
+  copyRequestAsCurl(id: TrufosId, options?: CurlOptions): Promise<boolean>;
 
   /**
    * Discard the draft of the currently selected request. A request that was never saved is

@@ -7,7 +7,12 @@ import {
 import { HttpService } from 'main/network/service/http-service';
 import type { TrufosResponse, IEventService, ImportResult, ExportStrategy } from 'shim';
 import { AppSettings } from 'shim/app-settings';
-import { MainProcessEvent, type IpcResult, type OAuth2Endpoints } from 'shim/event-service';
+import {
+  MainProcessEvent,
+  type CurlOptions,
+  type IpcResult,
+  type OAuth2Endpoints,
+} from 'shim/event-service';
 import type { CollectionSnapshot } from 'shim/collection-model';
 import { CollectionUiState } from 'shim/collection-ui-state';
 import { StateService } from 'main/persistence/service/state-service';
@@ -162,8 +167,8 @@ export class MainEventService implements IEventService {
     return await httpService.sendRequest(requestId, abortKey);
   }
 
-  async getRequestAsCurl(requestId: string): Promise<string> {
-    return await getRequestAsCurl(requestId);
+  async getRequestAsCurl(requestId: string, options?: CurlOptions): Promise<string> {
+    return await getRequestAsCurl(requestId, options);
   }
 
   async abortRequest(abortKey: string): Promise<void> {
@@ -189,7 +194,7 @@ export class MainEventService implements IEventService {
 
   async resolveVariablesInString(string: string) {
     return await collectionState
-      .read((model) => resolveVariablesInString(model, string, true))
+      .read((model) => resolveVariablesInString(model, string, { throwOnUndefinedVariable: true }))
       .catch(() => null);
   }
 

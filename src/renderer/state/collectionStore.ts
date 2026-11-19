@@ -424,9 +424,9 @@ export const createCollectionStore = (
 
       copyItem: reported('Could not copy the item', (id) => copyItems([id])),
 
-      copyRequestAsCurl: reported('Could not copy the request as cURL', async (id) => {
+      copyRequestAsCurl: reported('Could not copy the request as cURL', async (id, options) => {
         await flushModelEdits(id);
-        await navigator.clipboard.writeText(await eventService.getRequestAsCurl(id));
+        await navigator.clipboard.writeText(await eventService.getRequestAsCurl(id, options));
       }),
 
       discardChanges: reported('Could not discard the changes', async () => {

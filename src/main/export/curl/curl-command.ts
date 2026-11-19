@@ -1,6 +1,12 @@
 import { Readable } from 'node:stream';
 import { buffer } from 'node:stream/consumers';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
+import {
+  resolveVariablesInAuth,
+  resolveVariablesInHeaders,
+  resolveVariablesInString,
+  type ResolveVariablesOptions,
+} from 'main/environment/service/variable-resolver';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import {
   AutomaticHeaderKey,
@@ -10,6 +16,7 @@ import {
   resolveAuthorization,
 } from 'shim/collection-model';
 import { DisplayableError } from 'shim/error/DisplayableError';
+import type { CurlOptions } from 'shim/event-service';
 import { AuthorizationInformationNoInherit, AuthorizationType } from 'shim/objects/auth';
 import { TrufosId } from 'shim/objects/id';
 import { FormDataBody, RequestBody, RequestBodyType, TrufosRequest } from 'shim/objects/request';
@@ -42,13 +49,18 @@ function formQuote(value: string): string {
 }
 
 /** Returns the arguments of the fields of a form-data body. Inactive fields are left out. */
-function getFormArguments({ fields }: FormDataBody): string[] {
+async function getFormArguments(
+  model: CollectionModel,
+  { fields }: FormDataBody,
+  options: ResolveVariablesOptions
+): Promise<string[]> {
   const args: string[] = [];
   for (const { key, isActive, value } of fields) {
     if (!isActive) continue;
     if (value.type === RequestBodyType.TEXT) {
       // unlike -F, --form-string does not read a file if the value starts with @ or <
-      args.push(`--form-string ${shellQuote(`${key}=${value.text ?? ''}`)}`);
+      const text = await resolveVariablesInString(model, value.text ?? '', options);
+      args.push(`--form-string ${shellQuote(`${key}=${text}`)}`);
     } else if (value.filePath != null) {
       let field = `${key}=@${formQuote(value.filePath)}`;
       if (value.fileName != null) field += `;filename=${formQuote(value.fileName)}`;
@@ -60,18 +72,23 @@ function getFormArguments({ fields }: FormDataBody): string[] {
 }
 
 /** Returns the arguments of a body. A text body without text is not sent. */
-function getBodyArguments(body: RequestBody, textBody?: string): string[] {
+async function getBodyArguments(
+  model: CollectionModel,
+  body: RequestBody,
+  options: ResolveVariablesOptions,
+  textBody?: string
+): Promise<string[]> {
   switch (body.type) {
     case RequestBodyType.NONE:
       return [];
     case RequestBodyType.TEXT:
       return textBody == null || textBody.length === 0
         ? []
-        : [`--data-raw ${shellQuote(textBody)}`];
+        : [`--data-raw ${shellQuote(await resolveVariablesInString(model, textBody, options))}`];
     case RequestBodyType.FILE:
       return body.filePath == null ? [] : [`--data-binary ${shellQuote(`@${body.filePath}`)}`];
     case RequestBodyType.FORM_DATA:
-      return getFormArguments(body);
+      return await getFormArguments(model, body, options);
   }
 }
 
@@ -100,33 +117,37 @@ function getAuthorization(auth: AuthorizationInformationNoInherit): {
 
 /**
  * Builds a cURL command that sends the request like Trufos does: with its own, inherited and
- * automatic headers, its authorization and its body. Variables are not resolved, so the command
- * does not contain the values of secret variables. A HEAD request is built without body, as curl
- * cannot send one with it.
+ * automatic headers, its authorization and its body. The variables are resolved with the same
+ * functions Trufos sends with: in the URL, the own and inherited headers, the text body, the text
+ * fields of form data and the authorization. Unlike when sending, an undefined variable is no error
+ * but stays a template. A HEAD request is built without body, as curl cannot send one with it.
  * @param model the model the request is taken from
  * @param request the request
+ * @param options how the variables are resolved, see {@link ResolveVariablesOptions}
  * @param textBody the content of the text body, if the request has one
  * @returns the command, with one argument per line
  */
-export function buildCurlCommand(
+export async function buildCurlCommand(
   model: CollectionModel,
   request: TrufosRequest,
+  options: ResolveVariablesOptions,
   textBody?: string
-): string {
+): Promise<string> {
   const isHead = request.method === RequestMethod.HEAD;
-  const bodyArgs = isHead ? [] : getBodyArguments(request.body, textBody);
+  const bodyArgs = isHead ? [] : await getBodyArguments(model, request.body, options, textBody);
   const auth = resolveAuthorization(model, request);
-  const authorization = auth == null ? undefined : getAuthorization(auth);
+  const authorization =
+    auth == null ? undefined : getAuthorization(await resolveVariablesInAuth(model, auth, options));
   const { automatic, inherited } = getDerivedHeaders(model, request, {
     hasBody: bodyArgs.length > 0,
     authorization: authorization?.header,
   });
 
-  const args = [
-    `curl ${isHead ? '--head' : `-X ${request.method}`} ${shellQuote(buildUrl(request.url))}`,
-  ];
+  const url = await resolveVariablesInString(model, buildUrl(request.url), options);
+  const args = [`curl ${isHead ? '--head' : `-X ${request.method}`} ${shellQuote(url)}`];
+  const sentHeaders = getSentHeaders(automatic, inherited, request.headers);
   // headers without value are set by the HTTP client, curl sets them itself
-  for (const { key, value } of getSentHeaders(automatic, inherited, request.headers)) {
+  for (const { key, value } of await resolveVariablesInHeaders(model, sentHeaders, options)) {
     if (value != null) args.push(`-H ${shellQuote(`${key}: ${value}`)}`);
   }
   for (const { key, isDisabled, isOverridden } of automatic) {
@@ -162,11 +183,17 @@ async function readTextBody(stream: Readable): Promise<string> {
 
 /**
  * Builds a cURL command for a request of the open collection, see {@link buildCurlCommand}. Its
- * draft is used if it has one.
+ * draft is used if it has one. The variables are resolved with the selected environment, by default
+ * except the secret ones, which stay templates so the command does not reveal them. Pre-request
+ * scripts are not run, so the variables they set are not taken into account.
  * @param requestId the ID of the request
+ * @param options see {@link CurlOptions}
  * @throws if there is no such request, or its text body is too large
  */
-export async function getRequestAsCurl(requestId: TrufosId): Promise<string> {
+export async function getRequestAsCurl(
+  requestId: TrufosId,
+  { includeSecrets = false }: CurlOptions = {}
+): Promise<string> {
   const collectionState = CollectionStateService.instance;
   return await collectionState.readExistingRequest(requestId, async (request) => {
     // read on the queue, so the model matches the files
@@ -176,6 +203,6 @@ export async function getRequestAsCurl(requestId: TrufosId): Promise<string> {
       end: MAX_CURL_TEXT_BODY_SIZE,
     });
     const textBody = stream == null ? undefined : await readTextBody(stream);
-    return buildCurlCommand(model, request, textBody);
+    return await buildCurlCommand(model, request, { keepSecrets: !includeSecrets }, textBody);
   });
 }

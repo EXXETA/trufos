@@ -6,6 +6,7 @@ import fsp from 'node:fs/promises';
 import { Readable } from 'stream';
 import {
   getAuthorizationHeader,
+  resolveVariablesInHeaders,
   resolveVariablesInStream,
   resolveVariablesInString,
 } from 'main/environment/service/variable-resolver';
@@ -317,13 +318,13 @@ export class HttpService {
     values: Omit<AutomaticHeaderValues, 'userAgent'>
   ): Promise<HttpHeaders> {
     const headers = resolveHeaders(model, request, { ...values, userAgent: this.getUserAgent() });
-    return this.toUndiciHeaders(await this.resolveVariablesInHeaders(model, headers));
+    return this.toUndiciHeaders(await resolveVariablesInHeaders(model, headers));
   }
 
   /** @throws DisplayableError if the URL references a variable that is not defined */
   private async resolveVariablesInUrl(model: CollectionModel, url: string): Promise<string> {
     try {
-      return await resolveVariablesInString(model, url, true);
+      return await resolveVariablesInString(model, url, { throwOnUndefinedVariable: true });
     } catch (error) {
       if (error instanceof UnmatchedVariableError) {
         throw new DisplayableError(
@@ -416,20 +417,6 @@ export class HttpService {
       headers[lowerCaseKey].push(value);
     }
     return headers;
-  }
-
-  /** Resolves the variables in the inherited and own headers. Automatic ones are final. */
-  private async resolveVariablesInHeaders(
-    model: CollectionModel,
-    headers: SentHeader[]
-  ): Promise<SentHeader[]> {
-    return await Promise.all(
-      headers.map(async (header) =>
-        header.isAutomatic || header.value == null
-          ? header
-          : { ...header, value: await resolveVariablesInString(model, header.value) }
-      )
-    );
   }
 
   /** Returns the User-Agent header that requests send unless they disable or override it. */

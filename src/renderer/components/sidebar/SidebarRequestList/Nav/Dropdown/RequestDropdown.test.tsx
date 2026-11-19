@@ -4,8 +4,9 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { makeRequest } from 'shim/__mocks__/collection-fixtures';
 import { toast } from '@/components/ui/sonner';
 import { RequestDropdown } from './RequestDropdown';
+import type { CurlOptions } from 'shim/event-service';
 
-const copyRequestAsCurlMock = vi.fn<(id: string) => Promise<boolean>>();
+const copyRequestAsCurlMock = vi.fn<(id: string, options?: CurlOptions) => Promise<boolean>>();
 
 vi.mock('@/state/collectionStore', () => ({
   useCollectionActions: () => ({
@@ -27,28 +28,39 @@ describe('RequestDropdown', () => {
     vi.clearAllMocks();
   });
 
-  async function clickCopyAsCurl() {
+  async function clickMenuItem(name: string) {
     const user = userEvent.setup();
     render(<RequestDropdown request={request} onRename={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: 'More' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Copy as cURL' }));
+    await user.click(await screen.findByRole('menuitem', { name }));
   }
 
   it('copies the request as cURL and confirms it', async () => {
     copyRequestAsCurlMock.mockResolvedValue(true);
 
-    await clickCopyAsCurl();
+    await clickMenuItem('Copy as cURL');
 
-    expect(copyRequestAsCurlMock).toHaveBeenCalledWith('r1');
+    expect(copyRequestAsCurlMock).toHaveBeenCalledWith('r1', {});
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('cURL command copied'));
+  });
+
+  it('copies the request as cURL with secrets and says so', async () => {
+    copyRequestAsCurlMock.mockResolvedValue(true);
+
+    await clickMenuItem('Copy as cURL with Secrets');
+
+    expect(copyRequestAsCurlMock).toHaveBeenCalledWith('r1', { includeSecrets: true });
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('cURL command with secrets copied')
+    );
   });
 
   it('does not confirm if copying failed', async () => {
     copyRequestAsCurlMock.mockResolvedValue(false);
 
-    await clickCopyAsCurl();
+    await clickMenuItem('Copy as cURL');
 
-    expect(copyRequestAsCurlMock).toHaveBeenCalledWith('r1');
+    expect(copyRequestAsCurlMock).toHaveBeenCalledWith('r1', {});
     expect(toast.success).not.toHaveBeenCalled();
   });
 });
