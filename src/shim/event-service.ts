@@ -113,6 +113,12 @@ export interface RendererEventPayloads {
 export type IpcResult<T> =
   { ok: true; value: T } | { ok: false; error: SerializedDisplayableError | Error };
 
+/** How {@link IEventService.getRequestAsCurl} builds a cURL command. */
+export interface CurlOptions {
+  /** If true, secret variables are resolved too instead of staying `{{name}}`. */
+  includeSecrets?: boolean;
+}
+
 export interface ImportResult {
   /** The directory the collection was imported into. Open it to make it the current one. */
   dirPath: string;
@@ -166,6 +172,15 @@ export interface IEventService {
    * @returns The response, or `null` if the request was aborted before one arrived.
    */
   sendRequest(requestId: string, abortKey?: string): Promise<TrufosResponse | null>;
+
+  /**
+   * Build a cURL command that sends a request of the open collection like Trufos does. Variables
+   * are resolved, by default except secret ones, so the command does not reveal them.
+   * @param requestId The ID of the request.
+   * @param options See {@link CurlOptions}.
+   * @returns The command, with one argument per line.
+   */
+  getRequestAsCurl(requestId: string, options?: CurlOptions): Promise<string>;
 
   /**
    * Abort an in-flight HTTP request started with the given abort key.

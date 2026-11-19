@@ -7,7 +7,12 @@ import {
 import { HttpService } from 'main/network/service/http-service';
 import type { TrufosResponse, IEventService, ImportResult, ExportStrategy } from 'shim';
 import { AppSettings } from 'shim/app-settings';
-import { MainProcessEvent, type IpcResult, type OAuth2Endpoints } from 'shim/event-service';
+import {
+  MainProcessEvent,
+  type CurlOptions,
+  type IpcResult,
+  type OAuth2Endpoints,
+} from 'shim/event-service';
 import type { CollectionSnapshot } from 'shim/collection-model';
 import { CollectionUiState } from 'shim/collection-ui-state';
 import { StateService } from 'main/persistence/service/state-service';
@@ -17,6 +22,7 @@ import { SettingsService } from '../persistence/service/settings-service';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { ImportService } from 'main/import/service/import-service';
 import { ExportService } from 'main/export/service/export-service';
+import { getRequestAsCurl } from 'main/export/curl/curl-command';
 import { BodyStore } from 'main/network/service/body-store';
 import { getSuggestedFilename } from 'main/network/response-filename';
 import { DisplayableError } from 'shim/error/DisplayableError';
@@ -161,6 +167,10 @@ export class MainEventService implements IEventService {
     return await httpService.sendRequest(requestId, abortKey);
   }
 
+  async getRequestAsCurl(requestId: string, options?: CurlOptions): Promise<string> {
+    return await getRequestAsCurl(requestId, options);
+  }
+
   async abortRequest(abortKey: string): Promise<void> {
     httpService.abortRequest(abortKey);
   }
@@ -184,7 +194,7 @@ export class MainEventService implements IEventService {
 
   async resolveVariablesInString(string: string) {
     return await collectionState
-      .read((model) => resolveVariablesInString(model, string, true))
+      .read((model) => resolveVariablesInString(model, string, { throwOnUndefinedVariable: true }))
       .catch(() => null);
   }
 
