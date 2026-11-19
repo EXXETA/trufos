@@ -72,15 +72,19 @@
   flex-shrink: 0;
 }
 
-.nav-icons {
-  display: flex;
-  gap: 0.5rem;
+// GitHub link and theme toggle in the aux nav (_includes/components/aux_nav.html)
+.nav-icon {
+  color: $link-color;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  font: inherit;
 }
 
-.nav-icon-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.nav-icon__svg {
+  // same size as the theme's search icon
+  width: #{$sp-4 * 1.2};
+  height: #{$sp-4 * 1.2};
 }
 
 // ---------------------------------------------------------------------------

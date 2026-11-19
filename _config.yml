@@ -25,7 +25,7 @@ lang: en
 # Used by _includes/footer_custom.html and documentation/index.md.
 discord_url: &discord_url "https://discord.gg/sb4nfdevpW"
 
-# Header links (just-the-docs). The GitHub icon in _includes/header_custom.html sits next to them.
+# Header links (just-the-docs). The GitHub link and theme toggle are appended in _includes/components/aux_nav.html.
 aux_links:
   "Discord": *discord_url
   "Releases": "https://github.com/EXXETA/trufos/releases"

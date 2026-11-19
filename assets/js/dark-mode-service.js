@@ -51,20 +51,14 @@ export class DarkModeService {
   }
 
   /**
-   * @param iconElement {SVGElement | string} The icon element
+   * @param button {HTMLButtonElement | string} The toggle button, containing the icon's <use>
    */
-  constructor(iconElement) {
-    if (typeof iconElement === "string") {
-      iconElement = document.getElementById(iconElement);
+  constructor(button) {
+    if (typeof button === "string") {
+      button = document.getElementById(button);
     }
-    jtd.addEvent(iconElement, "click", () => this.toggleTheme());
-    jtd.addEvent(iconElement, "keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        this.toggleTheme();
-      }
-    });
-    this.useElement = iconElement.querySelector("use");
+    jtd.addEvent(button, "click", () => this.toggleTheme());
+    this.useElement = button.querySelector("use");
     this.showTheme(DarkModeService.preferredTheme);
 
     // follow the system theme until the visitor picks one with the toggle

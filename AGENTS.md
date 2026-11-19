@@ -105,6 +105,7 @@ assets/               # static assets (favicon, fonts, images, JS)
 - `jekyll-sass-converter ~> 3.1.0` is pinned to fix a sass compatibility issue with `just-the-docs` (upstream issue #1607). Do not update carelessly.
 - `sass.quiet_deps: true` and `sass.silence_deprecations: ['import']` in `_config.yml` suppress known theme deprecation warnings (#1541, #1607). Do not remove them.
 - `just-the-docs` is pinned to `0.10.1` in the `Gemfile`. The custom colour schemes depend on its internals (e.g. 0.12.0 removed the `OneDarkJekyll` syntax theme that `trufos-dark.scss` imports). Rebuild and check both themes before bumping it.
+- `_includes/components/aux_nav.html` overrides the theme's aux nav to append the GitHub link and the theme toggle. Diff it against the new theme version when bumping `just-the-docs`.
 - `Gemfile.lock` must list the `x86_64-linux-gnu` platform (CI runs on Linux). If a local `bundle update` drops it: `bundle lock --add-platform x86_64-linux-gnu`.
 - Ruby 4.0 is used in CI. No `.ruby-version` file exists; use 4.0 locally.
 

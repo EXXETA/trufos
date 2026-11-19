@@ -1,0 +1,30 @@
+{%- comment -%}
+  Override of just-the-docs 0.10.1 components/aux_nav.html: the GitHub link and the theme toggle
+  are items of the auxiliary nav, so they get the same padding and hover as the aux_links.
+  Compare with the theme's version before bumping just-the-docs.
+{%- endcomment -%}
+<nav aria-label="Auxiliary" class="aux-nav">
+  <ul class="aux-nav-list">
+    {% for link in site.aux_links %}
+      <li class="aux-nav-list-item">
+        <a href="{{ link.last }}" class="site-button"
+          {% if site.aux_links_new_tab %}
+          target="_blank" rel="noopener noreferrer"
+          {% endif %}
+        >
+          {{ link.first }}
+        </a>
+      </li>
+    {% endfor %}
+    <li class="aux-nav-list-item">
+      <a href="https://github.com/EXXETA/trufos" class="site-button nav-icon" aria-label="GitHub" title="GitHub">
+        <svg class="nav-icon__svg" aria-hidden="true"><use xlink:href="#svg-github"></use></svg>
+      </a>
+    </li>
+    <li class="aux-nav-list-item">
+      <button type="button" id="toggle-theme" class="site-button nav-icon" aria-label="Toggle dark mode" title="Toggle dark mode">
+        <svg class="nav-icon__svg" aria-hidden="true"><use xlink:href="#svg-sun"></use></svg>
+      </button>
+    </li>
+  </ul>
+</nav>
