@@ -1,5 +1,4 @@
 const API_BASE = "https://api.github.com";
-const REPOSITORY = "EXXETA/trufos";
 
 const platformConfig = [
   {
@@ -227,11 +226,13 @@ const renderLatestRelease = (container, release, platform) => {
 };
 
 const loadReleases = async (container) => {
+  // "owner/name", from site.repository_url (see download.md)
+  const repository = container.dataset.repository;
   setStatus(container, "Loading latest release...");
 
   try {
     const [response, platform] = await Promise.all([
-      fetch(`${API_BASE}/repos/${REPOSITORY}/releases/latest`, {
+      fetch(`${API_BASE}/repos/${repository}/releases/latest`, {
         headers: {
           Accept: "application/vnd.github+json",
         },

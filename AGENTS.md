@@ -39,7 +39,7 @@ CI overrides this dynamically via the `configure-pages` GitHub Action.
 - Child pages must include `parent: <Parent Title>` matching the parent's `title:` exactly (case-sensitive).
 - Section index pages use `has_children: true`.
 - Navigation is split by audience: Home and Download; User Guide (`documentation/user-guide/`); Contributing (`documentation/index.md`, parent of Contribution Guidelines, Getting Started, Project Structure, Architecture, Services, UI Components, Development and Code of Conduct); then What's new in 1.0 and About. Pages for app users go under User Guide, pages for contributors under Contributing.
-- The Discord invite is `site.discord_url` in `_config.yml`; header links are `aux_links`, the footer text is `_includes/footer_custom.html`. Every page gets an "Edit this page on GitHub" link to `gh-pages` and the Open Graph image `assets/images/social-preview.png` (both set in `_config.yml`).
+- The Discord invite is `site.discord_url` and the GitHub repository (app and docs) `site.repository_url` in `_config.yml`; header links are `aux_links`, the footer text is `_includes/footer_custom.html`. Every page gets an "Edit this page on GitHub" link to `gh-pages` and the Open Graph image `assets/images/social-preview.png` (both set in `_config.yml`).
 - Use `{% link path/to/file.md %}` for cross-page links — do not use raw relative paths.
 - Default layout for all pages is `"default"` (set globally in `_config.yml`); home page uses `layout: home`. Its hero, screenshots and feature grid come from the front matter of `index.md` (format documented at the top of `_layouts/home.html`).
 - Link images and assets with `{{ '/assets/…' | relative_url }}`, never `../../assets/…` (breaks under the `/trufos` baseurl). Inside `{% raw %}` blocks Liquid does not run: use a reference-style link (`![Alt][ref]`) and put `[ref]: {{ '/assets/…' | relative_url }}` after `{% endraw %}` (see `documentation/user-guide/variables.md`).
@@ -105,7 +105,7 @@ assets/               # static assets (favicon, fonts, images, JS)
 - `jekyll-sass-converter ~> 3.1.0` is pinned to fix a sass compatibility issue with `just-the-docs` (upstream issue #1607). Do not update carelessly.
 - `sass.quiet_deps: true` and `sass.silence_deprecations: ['import']` in `_config.yml` suppress known theme deprecation warnings (#1541, #1607). Do not remove them.
 - `just-the-docs` is pinned to `0.10.1` in the `Gemfile`. The custom colour schemes depend on its internals (e.g. 0.12.0 removed the `OneDarkJekyll` syntax theme that `trufos-dark.scss` imports). Rebuild and check both themes before bumping it.
-- `_includes/components/aux_nav.html` overrides the theme's aux nav to append the GitHub link and the theme toggle. Diff it against the new theme version when bumping `just-the-docs`.
+- `_includes/components/aux_nav.html` overrides the theme's aux nav to append Releases, the GitHub link and the theme toggle. Diff it against the new theme version when bumping `just-the-docs`.
 - `Gemfile.lock` must list the `x86_64-linux-gnu` platform (CI runs on Linux). If a local `bundle update` drops it: `bundle lock --add-platform x86_64-linux-gnu`.
 - Ruby 4.0 is used in CI. No `.ruby-version` file exists; use 4.0 locally.
 

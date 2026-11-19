@@ -23,7 +23,7 @@ This page shows you how to set up Trufos for development, run it, run the checks
 ## Installation
 
 ```bash
-git clone https://github.com/EXXETA/trufos.git
+git clone {{ site.repository_url }}.git
 cd trufos
 yarn install
 ```

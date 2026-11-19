@@ -27,7 +27,7 @@ If the folder you picked is empty, Trufos writes the collection into it. Otherwi
 
 If some items could not be imported, Trufos shows a message that lists them. Everything else is imported.
 
-Postman, Bruno and OpenAPI support come as built-in [plugins](https://github.com/EXXETA/trufos/tree/main/plugins). Plugins can add further import formats; each one appears as its own tab.
+Postman, Bruno and OpenAPI support come as built-in [plugins]({{ site.repository_url }}/tree/main/plugins). Plugins can add further import formats; each one appears as its own tab.
 
 ### Postman
 

@@ -7,7 +7,7 @@ description: The features and changes that came to Trufos between 0.8.0 and the 
 # What's new in 1.0
 {: .no_toc }
 
-Trufos 1.0.0 is the first stable release. This page summarises what changed since 0.8.0. For the full list of changes, see the [releases on GitHub](https://github.com/EXXETA/trufos/releases).
+Trufos 1.0.0 is the first stable release. This page summarises what changed since 0.8.0. For the full list of changes, see the [releases on GitHub]({{ site.repository_url }}/releases).
 
 1. TOC
 {:toc}

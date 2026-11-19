@@ -20,4 +20,4 @@ This section explains how to use Trufos. To get the app, see [Download]({% link 
 - [Settings, Plugins and MCP Server]({% link documentation/user-guide/settings.md %}): theme, TLS, plugins, and letting AI agents work with your collection.
 - [Keyboard Shortcuts]({% link documentation/user-guide/keyboard-shortcuts.md %}): all shortcuts and the command palette.
 
-Questions and ideas are welcome on [Discord]({{ site.discord_url }}) and in the [issue tracker](https://github.com/EXXETA/trufos/issues).
+Questions and ideas are welcome on [Discord]({{ site.discord_url }}) and in the [issue tracker]({{ site.repository_url }}/issues).

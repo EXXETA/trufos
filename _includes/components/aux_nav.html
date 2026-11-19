@@ -1,6 +1,7 @@
 {%- comment -%}
-  Override of just-the-docs 0.10.1 components/aux_nav.html: the GitHub link and the theme toggle
-  are items of the auxiliary nav, so they get the same padding and hover as the aux_links.
+  Override of just-the-docs 0.10.1 components/aux_nav.html: Releases, the GitHub link and the
+  theme toggle are items of the auxiliary nav, so they get the same padding and hover as the
+  aux_links. Releases is here rather than in aux_links so it can be built from site.repository_url.
   Compare with the theme's version before bumping just-the-docs.
 {%- endcomment -%}
 <nav aria-label="Auxiliary" class="aux-nav">
@@ -17,7 +18,20 @@
       </li>
     {% endfor %}
     <li class="aux-nav-list-item">
-      <a href="https://github.com/EXXETA/trufos" class="site-button nav-icon" aria-label="GitHub" title="GitHub">
+      <a href="{{ site.repository_url }}/releases" class="site-button"
+        {% if site.aux_links_new_tab %}
+        target="_blank" rel="noopener noreferrer"
+        {% endif %}
+      >
+        Releases
+      </a>
+    </li>
+    <li class="aux-nav-list-item">
+      <a href="{{ site.repository_url }}" class="site-button nav-icon" aria-label="GitHub" title="GitHub"
+        {% if site.aux_links_new_tab %}
+        target="_blank" rel="noopener noreferrer"
+        {% endif %}
+      >
         <svg class="nav-icon__svg" aria-hidden="true"><use xlink:href="#svg-github"></use></svg>
       </a>
     </li>

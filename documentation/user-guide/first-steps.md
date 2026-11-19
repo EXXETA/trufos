@@ -15,7 +15,7 @@ This page shows you how to install Trufos, send a first request and find where y
 
 ## Install Trufos
 
-Download the installer for your system from the [Download]({% link download.md %}) page or from the [GitHub releases](https://github.com/EXXETA/trufos/releases). Trufos does not need an account and works fully offline.
+Download the installer for your system from the [Download]({% link download.md %}) page or from the [GitHub releases]({{ site.repository_url }}/releases). Trufos does not need an account and works fully offline.
 
 ### Windows
 
@@ -77,7 +77,7 @@ If something goes wrong, the log files help to find out why. Open them with **He
 | macOS   | `~/Library/Logs/Trufos`  |
 | Linux   | `~/.config/Trufos/logs`  |
 
-The current log is `trufos.log`. Trufos does not write log entries that contain secrets, but look through the log before you share it. Attach it when you [report an issue](https://github.com/EXXETA/trufos/issues) (**Help** › **Report an Issue**).
+The current log is `trufos.log`. Trufos does not write log entries that contain secrets, but look through the log before you share it. Attach it when you [report an issue]({{ site.repository_url }}/issues) (**Help** › **Report an Issue**).
 
 ## Next steps
 

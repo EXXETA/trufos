@@ -39,4 +39,4 @@ features:
 
 ## Contributing
 
-Trufos is developed in the open on GitHub at [EXXETA/trufos](https://github.com/EXXETA/trufos). To work on the code, start with the [Contributing]({% link documentation/index.md %}) section. New in this release? See [What's new in 1.0]({% link whats-new.md %}).
+Trufos is developed in the open on GitHub at [EXXETA/trufos]({{ site.repository_url }}). To work on the code, start with the [Contributing]({% link documentation/index.md %}) section. New in this release? See [What's new in 1.0]({% link whats-new.md %}).

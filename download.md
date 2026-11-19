@@ -5,7 +5,7 @@ nav_order: 2
 
 # Download
 
-<div class="releases-container" id="releases-container">
+<div class="releases-container" id="releases-container" data-repository="{{ site.repository_url | remove_first: 'https://github.com/' }}">
     <p class="status">Loading latest release...</p>
 </div>
 
