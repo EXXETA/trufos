@@ -370,6 +370,8 @@ export class HttpService {
         // undici sets the multipart content type including its boundary
         const form = new FormData();
         for (const field of body.fields) {
+          // the user switched the field off in the Form Data tab
+          if (!field.isActive) continue;
           switch (field.value.type) {
             case RequestBodyType.TEXT: {
               form.append(field.key, await resolveVariablesInString(model, field.value.text ?? ''));
