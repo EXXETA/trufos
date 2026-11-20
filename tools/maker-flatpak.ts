@@ -2,7 +2,7 @@ import { MakerBase, type MakerOptions } from '@electron-forge/maker-base';
 import type { ForgeArch, ForgePlatform } from '@electron-forge/shared-types';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { readdir, writeFile } from 'node:fs/promises';
+import { readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 /** Name of the user remote that the runtime, SDK and base app are installed from. */
@@ -91,6 +91,7 @@ export class MakerFlatpak extends MakerBase<MakerFlatpakConfig> {
     const workDir = path.resolve(makeDir, 'flatpak', 'linux', targetArch);
     const manifestPath = path.join(workDir, `${this.config.id}.json`);
     const repoDir = path.join(workDir, 'repo');
+    const buildDir = path.join(workDir, 'build');
     const bundlePath = path.join(workDir, `${appName}-${version}-${arch}.flatpak`);
 
     await this.ensureDirectory(workDir);
@@ -113,7 +114,7 @@ export class MakerFlatpak extends MakerBase<MakerFlatpakConfig> {
       `--arch=${arch}`,
       `--state-dir=${path.join(makeDir, 'flatpak', '.flatpak-builder')}`,
       `--repo=${repoDir}`,
-      path.join(workDir, 'build'),
+      buildDir,
       manifestPath,
     ]);
     await run('flatpak', [
@@ -124,6 +125,13 @@ export class MakerFlatpak extends MakerBase<MakerFlatpakConfig> {
       bundlePath,
       this.config.id,
     ]);
+
+    // Only the bundle is an artifact. The build directory also links to directories of the host,
+    // e.g. `var/run` to `/run`, which tools that scan the output, like `upload-artifact`, cannot
+    // read. Both are kept when the build fails, to debug it.
+    await Promise.all(
+      [buildDir, repoDir].map((intermediate) => rm(intermediate, { recursive: true, force: true }))
+    );
     return [bundlePath];
   }
 
