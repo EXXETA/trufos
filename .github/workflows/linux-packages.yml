@@ -1,0 +1,92 @@
+name: Linux Packages
+
+# The single definition of the Linux build: the release pipeline calls this workflow to publish, so
+# that pull requests test exactly what is released. It has no `permissions` of its own because a
+# called workflow can only reduce those of its caller, which would keep the release from publishing.
+on:
+  # only when the packaging changes, as the Flatpak build downloads its runtime and SDK and takes
+  # several minutes
+  pull_request:
+    branches:
+      - main
+      - develop
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - forge.config.ts
+      - tools/maker-flatpak.ts
+      - flatpak/**
+      - images/linux/**
+      - .github/workflows/release.yml
+      - .github/workflows/linux-packages.yml
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      publish:
+        description: Publish the packages to the GitHub release instead of uploading them as artifacts
+        type: boolean
+        default: false
+
+jobs:
+  make:
+    if: ${{ !github.event.pull_request.draft }}
+    name: Make (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      # Flatpak cannot cross-build, so every architecture is built on a native runner. There is no
+      # `latest` label for arm64, so both are pinned to the same Ubuntu release.
+      matrix:
+        include:
+          - os: ubuntu-26.04
+            arch: x64
+          - os: ubuntu-26.04-arm
+            arch: arm64
+    steps:
+      # nothing below needs git credentials, publishing gets the token through `GITHUB_TOKEN`, so
+      # keep it out of `.git/config`, where install scripts of dependencies could read it
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          check-latest: true
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # pull requests run the tests in the CI pipeline already
+      - name: Run tests
+        if: ${{ inputs.publish }}
+        run: yarn test
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot dpkg flatpak flatpak-builder
+
+      - name: Make packages
+        if: ${{ !inputs.publish }}
+        run: yarn run make
+
+      - name: Upload packages
+        if: ${{ !inputs.publish }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-packages-${{ matrix.arch }}
+          path: |
+            out/make/**/*.flatpak
+            out/make/**/*.deb
+            out/make/**/*.zip
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Build and publish packages
+        if: ${{ inputs.publish }}
+        run: yarn run publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

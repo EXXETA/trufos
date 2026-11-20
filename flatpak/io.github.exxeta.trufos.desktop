@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Trufos
+Comment=A cross-platform desktop REST client
+GenericName=REST Client
+Exec=trufos %U
+Icon=io.github.exxeta.trufos
+Type=Application
+Terminal=false
+StartupNotify=true
+StartupWMClass=Trufos
+Categories=Development;Utility;
+Keywords=REST;HTTP;API;Client;

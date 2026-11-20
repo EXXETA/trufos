@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Trufos - A cross-platform REST client",
   "main": ".vite/build/main.cjs",
+  "homepage": "https://trufos.dev/",
   "repository": "github:EXXETA/trufos",
   "workspaces": [
     "plugins/*"
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",
+    "@electron-forge/maker-base": "^8.0.1",
     "@electron-forge/maker-deb": "^8.0.1",
     "@electron-forge/maker-dmg": "^8.0.1",
     "@electron-forge/maker-squirrel": "^8.0.1",
