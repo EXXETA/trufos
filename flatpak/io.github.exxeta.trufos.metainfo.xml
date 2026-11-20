@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.exxeta.trufos</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Trufos</name>
+  <summary>A cross-platform desktop REST client</summary>
+  <developer id="io.github.exxeta">
+    <name>The Trufos Authors</name>
+  </developer>
+  <description>
+    <p>
+      Trufos is a REST client to compose, send and organize HTTP requests. Collections are stored
+      as plain files, so they can be versioned with git and shared with your team.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.exxeta.trufos.desktop</launchable>
+  <url type="homepage">https://trufos.dev/</url>
+  <url type="bugtracker">https://github.com/EXXETA/trufos/issues</url>
+  <url type="vcs-browser">https://github.com/EXXETA/trufos</url>
+  <categories>
+    <category>Development</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+</component>

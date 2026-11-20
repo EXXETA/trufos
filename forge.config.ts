@@ -11,6 +11,7 @@ import { resolve } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { name as packageName } from './package.json';
 import { computeSourceFingerprint, writeSourceFingerprint } from './tools/source-fingerprint';
+import { MakerFlatpak } from './tools/maker-flatpak';
 
 let osxNotarize: ForgePackagerOptions['osxNotarize'];
 let osxSign: ForgePackagerOptions['osxSign'];
@@ -84,6 +85,7 @@ const config: ForgeConfig = {
   },
   packagerConfig: {
     asar: true,
+    // must match `Exec=` in flatpak/io.github.exxeta.trufos.desktop
     executableName: process.platform === 'linux' ? packageName : undefined,
     icon:
       process.platform === 'darwin'
@@ -107,6 +109,23 @@ const config: ForgeConfig = {
         productDescription: 'Trufos is a cross-platform desktop REST client built with Electron.',
         section: 'utils',
       },
+    }),
+    new MakerFlatpak({
+      id: 'io.github.exxeta.trufos',
+      runtimeVersion: '26.08',
+      finishArgs: [
+        '--share=ipc',
+        '--share=network',
+        '--socket=wayland',
+        '--socket=fallback-x11',
+        '--device=dri',
+        // collections are opened from arbitrary directories and persisted by their path, which
+        // must stay the real path instead of a document portal path
+        '--filesystem=home',
+        // safeStorage uses the Secret portal in a Flatpak, which needs no further permission
+      ],
+      dataDir: './flatpak',
+      iconDir: './images/linux/icons',
     }),
   ],
   plugins: [

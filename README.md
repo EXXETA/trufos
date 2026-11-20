@@ -45,7 +45,9 @@ Grab the latest release from the [GitHub Releases](https://github.com/EXXETA/tru
 
 - **Windows:** `Setup.exe` installer
 - **macOS:** `.dmg` image
-- **Linux:** `.deb` installer or `.zip` archive
+- **Linux (x64 and arm64):** `.deb` installer, `.flatpak` bundle or `.zip` archive
+
+To install the Flatpak bundle, run `flatpak install --user Trufos-<version>-<arch>.flatpak`. It pulls the required runtime from [Flathub](https://flathub.org/setup).
 
 ## Requirements
 
@@ -67,7 +69,9 @@ yarn install
 yarn run make
 ```
 
-The output lands in `out/make` — a `Setup.exe` on Windows, `.dmg` on macOS, and `.deb`/`.zip` on Linux.
+The output lands in `out/make` — a `Setup.exe` on Windows, `.dmg` on macOS, and `.deb`/`.flatpak`/`.zip` on Linux.
+
+On Linux, building the `.deb` needs `fakeroot` and `dpkg`, and building the Flatpak needs `flatpak` and `flatpak-builder`. The Flatpak build adds the Flathub remote to your user installation and installs the runtime and SDK from it.
 
 ### Development Commands
 
