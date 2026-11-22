@@ -225,6 +225,19 @@ export interface IEventService {
   closeCollection(dirPath?: string): Promise<void>;
 
   /**
+   * Whether the user trusts the collection at the given directory path. The scripts of a collection
+   * the user does not trust do not run, and its requests only send files inside of it.
+   * @param dirPath The directory path of the collection.
+   */
+  isCollectionTrusted(dirPath: string): Promise<boolean>;
+
+  /**
+   * Trusts the collection at the given directory path from now on, see `isCollectionTrusted`.
+   * @param dirPath The directory path of the collection.
+   */
+  trustCollection(dirPath: string): Promise<void>;
+
+  /**
    * Writes all pending changes of the open collection to disk, so its files match the state of
    * the app, e.g. before the files may be changed outside the app.
    */

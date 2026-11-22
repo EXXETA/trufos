@@ -93,6 +93,11 @@ export interface PreparedRequest extends RequestFiles {
    * {@link CollectionStateService.applyTo}.
    */
   model: CollectionModel;
+  /**
+   * Whether the user trusts the collection, see {@link StateService.isTrusted}. The scripts of a
+   * collection the user does not trust do not run, and its requests only send files inside of it.
+   */
+  trusted: boolean;
 }
 
 /** Thrown if a change was meant for a collection that is no longer the open one. */
@@ -240,12 +245,14 @@ export class CollectionStateService
   }
 
   /**
-   * Creates a new collection and makes it the current one.
+   * Creates a new collection, trusts it and makes it the current one.
    * @param dirPath the directory of the new collection. Must be empty or not exist.
    * @param title the title of the new collection
    */
   public async createCollection(dirPath: string, title: string): Promise<void> {
     const collection = await persistenceService.createCollection(dirPath, title);
+    // the user created it, so its content comes from them
+    await stateService.trust(collection.dirPath);
     await this.load(collection.dirPath);
   }
 
@@ -382,6 +389,7 @@ export class CollectionStateService
     return this.readExistingRequest(id, async (request) => ({
       request,
       model: this.model,
+      trusted: stateService.isTrusted(this.model.collection.dirPath),
       ...(await persistenceService.openRequestFiles(request)),
     }));
   }

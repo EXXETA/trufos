@@ -9,7 +9,9 @@ import {
   resolveVariablesInStream,
   resolveVariablesInString,
 } from 'main/environment/service/variable-resolver';
-import { RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { getBodyFilePaths, RequestBodyType, TrufosRequest } from 'shim/objects/request';
+import { isInsideDirectory } from 'main/util/fs-util';
+import { collectSecrets } from 'main/collection-state/secrets';
 import { buildUrl } from 'shim/objects/url';
 import { UnmatchedVariableError } from 'template-replace-stream';
 import { StoredBody, TrufosResponse } from 'shim/objects/response';
@@ -21,7 +23,7 @@ import { ScriptingService } from 'main/scripting/scripting-service';
 import { ScriptType } from 'shim/scripting';
 import { DisplayableError } from 'shim/error/DisplayableError';
 import { mapRequestError } from 'main/network/service/request-error';
-import type { RequestRecorder, ScriptLogger } from 'main/network/service/request-recorder';
+import type { RequestRecorder } from 'main/network/service/request-recorder';
 import { copyRequestBody } from 'main/network/service/request-body-copy';
 import {
   CollectionChangedError,
@@ -47,6 +49,11 @@ import type { OAuth2Endpoints } from 'shim/event-service';
 const bodyStore = BodyStore.instance;
 const scriptingService = ScriptingService.instance;
 const collectionState = CollectionStateService.instance;
+
+/** Logged instead of running a script of a collection the user does not trust. */
+export const UNTRUSTED_SCRIPT_MESSAGE =
+  'The script was not run, as you do not trust this collection yet. Scripts can access all files ' +
+  'on this computer, so they only run once you trust the collection.';
 
 /** A request body as it is sent */
 interface OutgoingBody {
@@ -158,21 +165,18 @@ export class HttpService {
   }
 
   private async doFetchAsync(
-    { request, textBody, scripts, model: preparedModel }: PreparedRequest,
+    { request, textBody, scripts: preparedScripts, model: preparedModel, trusted }: PreparedRequest,
     recorder: RequestRecorder,
     signal?: AbortSignal
   ) {
     // Requests and responses are not logged as a whole as they may contain secrets. They are
     // recorded in the request history instead.
     logger.info(`Sending ${request.method} request ${request.id}`);
+    const scripts = trusted ? preparedScripts : skipUntrustedScripts(preparedScripts, recorder);
+    recorder.secrets(collectSecrets(preparedModel));
 
     // everything is resolved after the script, so the variables it sets are used
-    const model = await this.runScript(
-      scripts,
-      ScriptType.PRE_REQUEST,
-      recorder.scriptLog,
-      preparedModel
-    );
+    const model = await this.runScript(scripts, ScriptType.PRE_REQUEST, recorder, preparedModel);
 
     // resolve variables (except in body, which is resolved stream-based during send)
     const url = await this.resolveVariablesInUrl(model, buildUrl(request.url));
@@ -200,6 +204,7 @@ export class HttpService {
       }
     }
 
+    if (!trusted) await assertFilesInsideCollection(request, model.collection.dirPath);
     const { body, size } = await this.readBody(model, request, textBody);
     let sentHeaders: HttpHeaders;
     try {
@@ -244,7 +249,7 @@ export class HttpService {
 
     // runs once the response body is stored, so the script can read it. The response is received
     // already, so it is kept even if the script cannot run anymore
-    await this.runScript(scripts, ScriptType.POST_RESPONSE, recorder.scriptLog, model).catch(
+    await this.runScript(scripts, ScriptType.POST_RESPONSE, recorder, model).catch(
       (error: unknown) => {
         if (!(error instanceof CollectionChangedError)) throw error;
         const message =
@@ -438,17 +443,58 @@ export class HttpService {
   }
 
   /**
-   * Executes a script of a prepared request, if it has one.
+   * Executes a script of a prepared request, if it has one, and records the secrets it leaves
+   * behind, e.g. a token it fetched.
    * @returns the model after the script, see {@link ScriptingService.executeScript}
    */
   private async runScript(
     scripts: PreparedRequest['scripts'],
     type: ScriptType,
-    log: ScriptLogger,
+    recorder: RequestRecorder,
     model: CollectionModel
   ): Promise<CollectionModel> {
     const script = scripts[type];
     if (script == null) return model;
-    return await scriptingService.executeScript(script, type, log, model);
+    const after = await scriptingService.executeScript(script, type, recorder.scriptLog, model);
+    recorder.secrets(collectSecrets(after));
+    return after;
+  }
+}
+
+/**
+ * Skips the scripts of a collection the user does not trust, see {@link PreparedRequest.trusted}.
+ * Each skipped script is logged, so the user can tell why it did not run.
+ * @param scripts the scripts of the request
+ * @param recorder records the skipped scripts
+ * @returns no scripts
+ */
+function skipUntrustedScripts(
+  scripts: PreparedRequest['scripts'],
+  recorder: RequestRecorder
+): PreparedRequest['scripts'] {
+  for (const type of Object.values(ScriptType)) {
+    if (scripts[type] == null) continue;
+    logger.info(`Not running the ${type} script, as the collection is not trusted`);
+    recorder.scriptLog({ script: type, level: 'warn', args: [UNTRUSTED_SCRIPT_MESSAGE] });
+  }
+  return {};
+}
+
+/**
+ * Checks that a request of a collection the user does not trust only sends files inside the
+ * collection, see {@link PreparedRequest.trusted}.
+ * @param request the request
+ * @param dirPath the directory of the collection
+ * @throws DisplayableError if the request sends a file outside of the collection
+ */
+async function assertFilesInsideCollection(request: TrufosRequest, dirPath: string): Promise<void> {
+  for (const filePath of getBodyFilePaths(request.body)) {
+    if (await isInsideDirectory(filePath, dirPath)) continue;
+    throw new DisplayableError(
+      `The request sends the file ${filePath}, which is outside of the collection. Requests of ` +
+        'a collection you do not trust only send files inside of it. Trust the collection to ' +
+        'send the file.',
+      'Collection Not Trusted'
+    );
   }
 }

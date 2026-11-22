@@ -1,7 +1,13 @@
 import type { CallToolResult } from '@modelcontextprotocol/server';
 import path from 'node:path';
+import { text } from 'node:stream/consumers';
 import { z } from 'zod';
+import { CollectionStateService } from 'main/collection-state/collection-state-service';
 import { HistoryService } from 'main/history/history-service';
+import { PersistenceService } from 'main/persistence/service/persistence-service';
+import type { ScriptType } from 'shim/scripting';
+import { collectSecrets } from 'main/collection-state/secrets';
+import { maskSecretsInText } from '../redaction';
 import { BodyStore } from 'main/network/service/body-store';
 import { LatestResponseBodies } from 'main/network/service/latest-response-bodies';
 import type { TrufosResponse } from 'shim/objects/response';
@@ -28,6 +34,26 @@ export const AbsolutePath = z
  */
 export function jsonResult(value: unknown): CallToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] };
+}
+
+/**
+ * Reads a script of a request of the open collection.
+ * @param requestId the ID of the request
+ * @param scriptType the type of the script
+ * @returns the script, empty if the request has none, as it is stored and with the secrets of the
+ * collection masked, see {@link maskSecretsInText}
+ */
+export async function readScript(
+  requestId: string,
+  scriptType: ScriptType
+): Promise<{ text: string; masked: string }> {
+  const collectionState = CollectionStateService.instance;
+  return await collectionState.readExistingRequest(requestId, async (request) => {
+    const secrets = collectSecrets(collectionState.model);
+    const stream = await PersistenceService.instance.loadScript(request, scriptType);
+    const script = stream == null ? '' : await text(stream);
+    return { text: script, masked: maskSecretsInText(script, secrets) };
+  });
 }
 
 /**

@@ -96,6 +96,10 @@ Collections can be exported as a ZIP archive, e.g. to share them with someone wh
 
 Define named environments (e.g. `dev`, `staging`, `prod`) each with their own variables. Switching environments scopes variable resolution across all requests. Environments are stored as JSON alongside your collections. Scripts can read and update variables, too.
 
+### Trusted Collections
+
+Scripts run with access to all files on your computer, and file bodies can point at any file. So a collection you did not create in Trufos, e.g. one cloned from a repository or imported, opens in **restricted mode**: its scripts do not run and its requests only send files inside the collection directory. Click **Trust collection** in the banner at the top of the window once you trust its source; Trufos remembers it. Collections you create in Trufos are trusted right away.
+
 ### Collection Runner
 
 Open **Collection → Run Collection**, pick the requests to send, and see the result of each request at a glance.

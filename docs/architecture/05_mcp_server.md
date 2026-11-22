@@ -29,7 +29,8 @@ Non-goals:
   [Rejected alternatives](#rejected-alternatives).
 - Confirmation dialogs per action. The token and its permissions are the consent.
 - Running user scripts through MCP. Scripts can be edited, and they run when the request is sent,
-  as they do when the user sends it.
+  as they do when the user sends it, if the user trusts the collection (see
+  [Untrusted content](#untrusted-content)).
 - A stdio bridge, multiple tokens, or Trufos as an MCP client.
 
 ## Protocol and dependencies
@@ -96,29 +97,74 @@ appear in `tools/list`. When the permissions change, the server notifies open su
 
 ### Secrets
 
-Results do not contain the values of `secret` variables or stored credentials where they appear as
-values of their own:
+All masking lives in `redaction.ts`. The secrets are the values of `secret` variables in the
+collection and all environments, and the credentials of all authorizations. Results do not contain
+them:
 
 - The values of secret variables are replaced with `***`.
 - The credential fields of authorizations (`password`, `token`, `clientSecret`, `consumerSecret`,
   `tokenSecret`, `codeVerifier`) are replaced with `***`.
+- In stored requests (`get_request`, and the URLs of `get_collection` and `search`), the values of
+  the `Authorization`, `Proxy-Authorization` and `Cookie` headers are replaced with `***`, unless
+  they only reference variables, e.g. `Bearer {{token}}`. So are other header values, path
+  segments, query values and form data texts that equal a secret. `search` matches the masked URL,
+  so it cannot probe for a secret.
 - In the requests of the history, which were sent with all variables resolved, the values of the
-  `Authorization`, `Proxy-Authorization` and `Cookie` headers are replaced with `***`. So are other
-  header values, path segments, query values and script arguments that equal a secret, also
-  URL-encoded.
-- Only response bodies can be read, not the bodies of sent requests.
+  credential headers are replaced with `***`. So are other header values, path segments and query
+  values that equal a secret, also URL-encoded. The history masks the secrets the request was sent
+  with as well, which the `HistoryService` records per entry, so a secret that was rotated or
+  removed since stays masked.
+- Scripts (`get_request_script`) and their output in the history are free text: every occurrence
+  of a secret is masked there, also inside logged arrays and objects.
+- Only response bodies can be read, not the bodies of sent requests. Text bodies of requests are
+  returned as they are.
 
-A secret is only masked where it is a whole value. Masking every occurrence inside longer text would
-change data that merely contains it, e.g. `/admin/users` for a secret `admin`, and the agent could
-not tell. So a secret inside a longer value (`Token <secret>`), a value derived from it (a
-signature) and text that scripts log around it are returned as they are; a script argument that is a
-secret is masked. Response bodies and headers are never
-changed.
+In values of their own, a secret is only masked where it is the whole value. Masking every
+occurrence inside a longer value would change data that merely contains it, e.g. `/admin/users`
+for a secret `admin`, and the agent could not tell. So a secret inside a longer value
+(`Token <secret>`) or a value derived from it (a signature) is returned as it is. Response bodies
+and headers are never changed.
+
+Agents send back what they read, so masked values are restored on edits (`restoreMaskedChanges`,
+next to `redactRequest`): `update_request` keeps the stored value of a header, query parameter or
+form data text whose value is `***`, matched by key, of a path segment by its position, and of a
+credential by its field if the stored authorization has the same type. A masked value without a
+stored one is rejected, and so is a script with `***` whose stored version contained masked
+secrets, as those cannot be restored by position.
 
 This keeps secrets out of the agent's context by default. **It is not a security boundary.** With
 `execute` and `edit`, an agent can create a request that sends `{{apiKey}}` to a server that echoes it
 back, or a script that does the same. Whoever holds a token with these permissions can learn the
 secrets of the collection. The settings say so next to the permissions.
+
+### Untrusted content
+
+Issue: [#1142](https://github.com/EXXETA/trufos/issues/1142)
+
+An agent does not have to be malicious to misuse its permissions: instructions injected into text
+it reads, e.g. an API response, are enough. And a collection cloned from a repository may come from
+anyone. So:
+
+- **Scripts**: pre-request and post-response scripts run in `node:vm`, which is no sandbox; a
+  script can reach the main process with all its access. They only run if the user trusts the
+  collection (`StateService.isTrusted`, taken into `PreparedRequest.trusted` when a request is
+  sent). A collection the user did not create in the app starts in restricted mode: its scripts
+  are skipped with a warning in the history.
+- **Files**: in restricted mode, requests only send file bodies and form data files inside the
+  directory of the collection, after following symbolic links (`isInsideDirectory`). A cloned
+  request could otherwise send e.g. an SSH key.
+- **Trust**: a banner at the top of the window lets the user trust the open collection. Trusted
+  collections are stored in `state.json`, not in the collection, so a collection cannot trust
+  itself. The default collection, collections created in the app and those open before this
+  change are trusted.
+- **Edit means running code**: in a trusted collection, an agent with `edit` can change a script
+  that runs once the request is sent. The settings say so next to the permission. For the same
+  reason, `update_request` accepts file bodies anywhere: a script could read the file just as
+  well, so restricting them would add no protection.
+
+A real sandbox for scripts, e.g. QuickJS or a `utilityProcess` without file system access, would
+make the trust prompt unnecessary for scripts and may follow separately. File bodies set by agents
+would then have to be restricted to the collection, too.
 
 ## Tools
 
@@ -179,7 +225,9 @@ which the user can review and discard.
 
 `update_request` accepts the URL, method, headers, disabled headers, authorization and the body
 type with its MIME type. Large request bodies are not passed inline: a body of type `file` with the
-absolute path of a file the agent wrote is streamed from that file when the request is sent.
+absolute path of a file the agent wrote is streamed from that file when the request is sent. In a
+collection the user does not trust, the file has to be inside the collection, see
+[Untrusted content](#untrusted-content).
 
 ### `writeFiles`
 

@@ -24,7 +24,45 @@ describe('StateService', () => {
     expect(await readStateFile()).toEqual({
       collections: [{ dirPath: DEFAULT_COLLECTION_DIR }],
       currentCollection: DEFAULT_COLLECTION_DIR,
+      trustedCollections: [DEFAULT_COLLECTION_DIR],
       version: VERSION.string,
+    });
+  });
+
+  describe('trust', () => {
+    it('does not trust a collection that was only opened', async () => {
+      await stateService.open(dirA);
+
+      expect(stateService.isTrusted(dirA)).toBe(false);
+      expect(stateService.isTrusted(DEFAULT_COLLECTION_DIR)).toBe(true);
+    });
+
+    it('trusts a collection, also after it was closed', async () => {
+      await stateService.open(dirA);
+      await stateService.trust(dirA);
+      await stateService.trust(dirA);
+      await stateService.close(dirA);
+
+      expect(stateService.isTrusted(dirA)).toBe(true);
+      expect(await readStateFile()).toMatchObject({
+        trustedCollections: [DEFAULT_COLLECTION_DIR, dirA],
+      });
+    });
+
+    it('trusts the collections that were open before collections could be trusted', async () => {
+      await writeFile(
+        StateService.STATE_FILE,
+        JSON.stringify({
+          collections: [{ dirPath: dirA }],
+          currentCollection: dirA,
+          version: '1.0.0',
+        })
+      );
+
+      await stateService.init();
+
+      expect(stateService.isTrusted(dirA)).toBe(true);
+      expect(stateService.isTrusted('/other')).toBe(false);
     });
   });
 

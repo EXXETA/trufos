@@ -7,9 +7,15 @@ import type { TrufosId } from 'shim/objects/id';
 /** What the sidebar lists: the requests of the collection or its request history. */
 export type SidebarView = 'requests' | 'history';
 
+/**
+ * What fills the window: the sidebar with the request window, or the collection runner, which
+ * replaces both.
+ */
+export type WindowView = 'requests' | 'runner';
+
 interface ViewState {
-  /** Whether the collection runner modal is open */
-  isCollectionRunnerOpen: boolean;
+  /** What fills the window */
+  windowView: WindowView;
   /** Whether the collection settings modal is open */
   isCollectionSettingsOpen: boolean;
   /** The folder whose settings modal is open, if any */
@@ -50,7 +56,7 @@ interface ViewActions {
 
 export const useViewStore = create<ViewState & ViewActions>()(
   immer((set) => ({
-    isCollectionRunnerOpen: false,
+    windowView: 'requests',
     isCollectionSettingsOpen: false,
     isCommandPaletteOpen: false,
     isAppSettingsOpen: false,
@@ -59,13 +65,13 @@ export const useViewStore = create<ViewState & ViewActions>()(
 
     openCollectionRunner() {
       set((state) => {
-        state.isCollectionRunnerOpen = true;
+        state.windowView = 'runner';
       });
     },
 
     closeCollectionRunner() {
       set((state) => {
-        state.isCollectionRunnerOpen = false;
+        state.windowView = 'requests';
       });
     },
 
@@ -132,7 +138,7 @@ export const useViewStore = create<ViewState & ViewActions>()(
   }))
 );
 
-export const selectIsCollectionRunnerOpen = (state: ViewState) => state.isCollectionRunnerOpen;
+export const selectWindowView = (state: ViewState): WindowView => state.windowView;
 export const selectIsCollectionSettingsOpen = (state: ViewState) => state.isCollectionSettingsOpen;
 export const selectFolderSettingsId = (state: ViewState) => state.folderSettingsId;
 export const selectIsCommandPaletteOpen = (state: ViewState) => state.isCommandPaletteOpen;

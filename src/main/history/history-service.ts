@@ -31,12 +31,22 @@ interface InFlight {
   timestamp: number;
   sent?: { request: Omit<SentRequest, 'body'>; body?: BodyCopy };
   scriptLogs: ScriptLog[];
+  secrets: Set<string>;
 }
 
 /** An entry together with the collection whose request it records. */
-interface StoredEntry {
+interface StoredEntry extends RecordedEntry {
   collectionDirPath: string;
+}
+
+/** An entry together with the secrets its request was sent with. */
+export interface RecordedEntry {
   entry: HistoryEntry;
+  /**
+   * The secrets the request was sent with, see {@link RequestRecorder.secrets}. They may have been
+   * changed or removed since, but the entry still contains them.
+   */
+  secrets: ReadonlySet<string>;
 }
 
 /**
@@ -77,6 +87,7 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
       collectionDirPath,
       timestamp: Date.now(),
       scriptLogs: [],
+      secrets: new Set(),
     };
     const recorder: RequestRecorder = {
       sent(sentRequest, body) {
@@ -84,6 +95,9 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
       },
       scriptLog(log) {
         inFlight.scriptLogs.push({ ...log, args: log.args.map(toCloneable) });
+      },
+      secrets(secrets) {
+        for (const secret of secrets) inFlight.secrets.add(secret);
       },
     };
 
@@ -107,9 +121,17 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
    * @param collectionDirPath the directory of the collection
    */
   list(collectionDirPath: string): HistoryEntrySummary[] {
+    return this.listRecorded(collectionDirPath).map(({ entry }) => summarizeHistoryEntry(entry));
+  }
+
+  /**
+   * Lists the entries of a collection with the secrets their requests were sent with, newest
+   * first.
+   * @param collectionDirPath the directory of the collection
+   */
+  listRecorded(collectionDirPath: string): RecordedEntry[] {
     return this.entries
       .filter((stored) => stored.collectionDirPath === collectionDirPath)
-      .map((stored) => summarizeHistoryEntry(stored.entry))
       .reverse();
   }
 
@@ -119,11 +141,20 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
    * @param collectionDirPath OPTIONAL: the directory of the collection the entry must belong to
    */
   get(id: string, collectionDirPath?: string): HistoryEntry | undefined {
+    return this.getRecorded(id, collectionDirPath)?.entry;
+  }
+
+  /**
+   * Returns the entry with the given ID together with the secrets its request was sent with.
+   * @param id the ID of the entry
+   * @param collectionDirPath OPTIONAL: the directory of the collection the entry must belong to
+   */
+  getRecorded(id: string, collectionDirPath?: string): RecordedEntry | undefined {
     return this.entries.find(
       (stored) =>
         stored.entry.id === id &&
         (collectionDirPath == null || stored.collectionDirPath === collectionDirPath)
-    )?.entry;
+    );
   }
 
   /**
@@ -152,7 +183,7 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
 
   /** Stores the entry of a finished request once the copy of its body is complete. */
   private async store(
-    { request, collectionDirPath, timestamp, sent, scriptLogs }: InFlight,
+    { request, collectionDirPath, timestamp, sent, scriptLogs, secrets }: InFlight,
     outcome: HistoryOutcome
   ) {
     // the request is finished, so whatever of the body was not sent yet will never be sent
@@ -160,7 +191,7 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
     body?.cancel();
     await body?.done;
 
-    this.add(collectionDirPath, {
+    this.add(collectionDirPath, secrets, {
       id: randomUUID(),
       requestId: request.id,
       requestTitle: request.title,
@@ -176,9 +207,9 @@ export class HistoryService extends EventEmitter<HistoryServiceEvents> {
     });
   }
 
-  private add(collectionDirPath: string, entry: HistoryEntry) {
+  private add(collectionDirPath: string, secrets: ReadonlySet<string>, entry: HistoryEntry) {
     forEachBody(entry, (id) => bodyStore.retain(id));
-    this.entries.push({ collectionDirPath, entry });
+    this.entries.push({ collectionDirPath, entry, secrets });
     while (this.entries.length > MAX_HISTORY_ENTRIES) {
       forEachBody(this.entries.shift()!.entry, (id) => bodyStore.release(id));
     }

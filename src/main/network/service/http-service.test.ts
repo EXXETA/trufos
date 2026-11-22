@@ -1,4 +1,4 @@
-import { HttpService } from './http-service';
+import { HttpService, UNTRUSTED_SCRIPT_MESSAGE } from './http-service';
 import { resolveVariablesInString } from 'main/environment/service/variable-resolver';
 import { Dispatcher, MockAgent, FormData } from 'undici';
 import fs from 'node:fs';
@@ -41,7 +41,7 @@ vi.mock('main/environment/service/variable-resolver', async (importOriginal) => 
 });
 
 const mockAgent = new MockAgent({ connections: 1 });
-const recorder = { sent: vi.fn(), scriptLog: vi.fn() } satisfies RequestRecorder;
+const recorder = { sent: vi.fn(), scriptLog: vi.fn(), secrets: vi.fn() } satisfies RequestRecorder;
 const model = normalizeCollection({
   id: randomUUID(),
   type: 'collection',
@@ -65,11 +65,13 @@ function withVariables(variables: Map<string, string>): CollectionModel {
 /** Prepares a request the way `CollectionStateService.prepareRequest()` does. */
 async function prepare(
   request: TrufosRequest,
-  preparedModel: CollectionModel = model
+  preparedModel: CollectionModel = model,
+  trusted = true
 ): Promise<PreparedRequest> {
   return {
     request,
     model: preparedModel,
+    trusted,
     ...(await PersistenceService.instance.openRequestFiles(request)),
   };
 }
@@ -1401,6 +1403,7 @@ describe('HttpService.sendRequest()', () => {
     vi.spyOn(CollectionStateService.instance, 'prepareRequest').mockResolvedValue({
       request,
       model,
+      trusted: true,
       scripts: {},
     });
   });
@@ -1410,6 +1413,7 @@ describe('HttpService.sendRequest()', () => {
     const prepared = {
       request,
       model,
+      trusted: true,
       textBody: Readable.from('body'),
       scripts: {},
     };
@@ -1506,6 +1510,7 @@ describe('HttpService.sendRequest()', () => {
       new Promise<void>((resolve) => (releasePrepare = resolve)).then(() => ({
         request,
         model,
+        trusted: true,
         textBody,
         scripts: {},
       }))
@@ -1547,6 +1552,7 @@ describe('HttpService.sendRequest()', () => {
       vi.mocked(CollectionStateService.instance.prepareRequest).mockResolvedValueOnce({
         request,
         model,
+        trusted: true,
         textBody,
         scripts: {},
       });
@@ -1570,6 +1576,158 @@ describe('HttpService.sendRequest()', () => {
 
     // Act & Assert
     await expect(httpService.sendRequest(request.id, 'runner-request-3')).rejects.toBe(failure);
+  });
+});
+
+describe('HttpService with a collection the user does not trust', () => {
+  const url = new URL('https://example.com/api/untrusted');
+
+  beforeAll(() => {
+    mockAgent.disableNetConnect();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockResolvedValue(undefined);
+    // @ts-expect-error loadScript mock returns null but type expects ReadStream | null
+    vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
+  });
+
+  function makeRequest(body: TrufosRequest['body']): TrufosRequest {
+    return {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Untrusted Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.POST,
+      headers: [],
+      body,
+    };
+  }
+
+  it('should send the request without running its scripts', async () => {
+    // Arrange
+    mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
+    const httpService = new HttpService({ get: async () => mockAgent });
+    vi.mocked(PersistenceService.instance.loadScript)
+      .mockResolvedValueOnce(Readable.from('console.log("pre");') as fs.ReadStream)
+      .mockResolvedValueOnce(Readable.from('console.log("post");') as fs.ReadStream);
+    const executeSpy = vi.spyOn(ScriptingService.instance, 'executeScript');
+
+    // Act
+    const response = await httpService.fetchAsync(
+      await prepare(makeRequest({ type: RequestBodyType.NONE }), model, false),
+      recorder
+    );
+
+    // Assert
+    expect(response.metaInfo.status).toBe(200);
+    expect(executeSpy).not.toHaveBeenCalled();
+    for (const script of [ScriptType.PRE_REQUEST, ScriptType.POST_RESPONSE]) {
+      expect(recorder.scriptLog).toHaveBeenCalledWith({
+        script,
+        level: 'warn',
+        args: [UNTRUSTED_SCRIPT_MESSAGE],
+      });
+    }
+  });
+
+  it('should not send a file outside of the collection', async () => {
+    // Arrange
+    const httpService = new HttpService({ get: async () => mockAgent });
+    await fsp.mkdir(USER_DATA_DIR, { recursive: true });
+    const filePath = path.join(USER_DATA_DIR, `${randomUUID()}.txt`);
+    await fsp.writeFile(filePath, 'private key');
+    const open = vi.spyOn(fsp, 'open');
+
+    // Act & Assert
+    for (const body of [
+      { type: RequestBodyType.FILE, filePath },
+      {
+        type: RequestBodyType.FORM_DATA,
+        fields: [{ key: 'file', isActive: true, value: { type: RequestBodyType.FILE, filePath } }],
+      },
+    ] satisfies TrufosRequest['body'][]) {
+      await expect(
+        httpService.fetchAsync(await prepare(makeRequest(body), model, false), recorder)
+      ).rejects.toThrow('outside of the collection');
+    }
+    expect(open).not.toHaveBeenCalled();
+    expect(recorder.sent).not.toHaveBeenCalled();
+  });
+
+  it('should send a file inside the collection', async () => {
+    // Arrange
+    mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'POST' }).reply(200, 'OK');
+    const httpService = new HttpService({ get: async () => mockAgent });
+    const filePath = path.join(model.collection.dirPath, 'files', `${randomUUID()}.txt`);
+    await fsp.mkdir(path.dirname(filePath), { recursive: true });
+    await fsp.writeFile(filePath, 'content');
+
+    // Act
+    const response = await httpService.fetchAsync(
+      await prepare(makeRequest({ type: RequestBodyType.FILE, filePath }), model, false),
+      recorder
+    );
+
+    // Assert
+    expect(response.metaInfo.status).toBe(200);
+    const bodyCopy: BodyCopy | undefined = recorder.sent.mock.calls[0]?.[1];
+    await bodyCopy?.done;
+    expect(await readText(responseBodyService.openBody(bodyCopy!.id)!)).toEqual('content');
+  });
+});
+
+describe('HttpService recording secrets', () => {
+  it('should record the secrets the request is sent with, also those a script set', async () => {
+    // Arrange
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    vi.spyOn(PersistenceService.instance, 'loadTextBodyOfRequest').mockResolvedValue(undefined);
+    // @ts-expect-error loadScript mock returns null but type expects ReadStream | null
+    vi.spyOn(PersistenceService.instance, 'loadScript').mockResolvedValue(null);
+    const url = new URL('https://example.com/api/secrets');
+    mockAgent.get(url.origin).intercept({ path: url.pathname, method: 'GET' }).reply(200, 'OK');
+    const httpService = new HttpService({ get: async () => mockAgent });
+    const withSecret: CollectionModel = {
+      ...model,
+      collection: {
+        ...model.collection,
+        variables: { old: { value: 'old-secret', secret: true } },
+      },
+    };
+    const afterScript: CollectionModel = {
+      ...withSecret,
+      collection: {
+        ...model.collection,
+        variables: { new: { value: 'new-secret', secret: true } },
+      },
+    };
+    vi.mocked(PersistenceService.instance.loadScript).mockResolvedValueOnce(
+      Readable.from('rotate()') as fs.ReadStream
+    );
+    vi.spyOn(ScriptingService.instance, 'executeScript').mockResolvedValue(afterScript);
+    const request: TrufosRequest = {
+      id: randomUUID(),
+      parentId: randomUUID(),
+      type: 'request',
+      lastModified: 0,
+      title: 'Secret Request',
+      url: parseUrl(url.toString()),
+      method: RequestMethod.GET,
+      headers: [],
+      body: { type: RequestBodyType.NONE },
+    };
+
+    // Act
+    await httpService.fetchAsync(await prepare(request, withSecret), recorder);
+
+    // Assert
+    const recorded = recorder.secrets.mock.calls.flatMap(([secrets]) => [...secrets]);
+    expect(recorded).toEqual(expect.arrayContaining(['old-secret', 'new-secret']));
   });
 });
 

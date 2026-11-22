@@ -23,25 +23,33 @@ import { toast } from '@/components/ui/sonner';
 
 const eventService = RendererEventService.instance;
 
-/** What each permission allows, in words. Executing and editing can reveal secrets. */
+/**
+ * What each permission allows, in words, including the consequences that are not obvious: sending
+ * runs scripts, and editing scripts means running code once a request is sent.
+ */
 const PERMISSIONS: { permission: McpPermission; label: string; description: string }[] = [
   {
     permission: McpPermission.READ,
     label: 'Read',
     description:
-      'Find and read requests, environments, the history and responses, and show a request.',
+      'Find and read requests, environments, the history and responses, and show a request. ' +
+      'Secrets are masked.',
   },
   {
     permission: McpPermission.EXECUTE,
     label: 'Execute',
-    description: 'Send requests with the variables and authorization of the collection.',
+    description:
+      'Send requests with the variables and authorization of the collection, to any server. ' +
+      'Sending runs the scripts of the request.',
   },
   {
     permission: McpPermission.EDIT,
     label: 'Edit',
     description:
       'Create, change, move and delete requests and folders, their bodies and scripts, and ' +
-      'select the environment. Changes to requests are drafts until they are saved.',
+      'select the environment. Changes to requests are drafts until they are saved. Scripts can ' +
+      'access all files on this computer, so a client that edits them can run code here once a ' +
+      'request is sent.',
   },
   {
     permission: McpPermission.WRITE_FILES,
@@ -253,7 +261,9 @@ export const AppMcpTab = () => {
         <Alert role="note">
           Secret variables and credentials are masked in what clients read. A client with the
           Execute and Edit permissions can still reveal them, e.g. by sending them to a server of
-          its choice. Only give these permissions to clients you trust.
+          its choice, and can run code on this computer through scripts. Text the client reads, e.g.
+          a response, can contain instructions that trick it into doing so. Only give these
+          permissions to clients you trust, and only together for tasks that need them.
         </Alert>
       </div>
     </div>

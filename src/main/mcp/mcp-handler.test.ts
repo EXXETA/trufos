@@ -18,10 +18,11 @@ import {
   CommandType,
   normalizeCollection,
 } from 'shim/collection-model';
-import { type HistoryEntry, summarizeHistoryEntry } from 'shim/history';
+import type { HistoryEntry } from 'shim/history';
 import type { McpPermissions } from 'shim/mcp';
 import { AuthorizationType } from 'shim/objects/auth';
-import { RequestBodyType } from 'shim/objects/request';
+import { RequestBodyType, type TrufosRequest } from 'shim/objects/request';
+import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { RequestMethod } from 'shim/objects/request-method';
 import { ScriptType } from 'shim/scripting';
 import type { TrufosResponse } from 'shim/objects/response';
@@ -98,6 +99,14 @@ function createModel(): CollectionModel {
       }
     )
   );
+}
+
+/** Returns the model of {@link createModel} with the given changes to the request `list`. */
+function withListRequest(changes: Partial<TrufosRequest>): CollectionModel {
+  const model = createModel();
+  const requests = new Map(model.requests);
+  requests.set('list', { ...requests.get('list')!, ...changes });
+  return { ...model, requests };
 }
 
 /** Stores a body in the body store, so tools can read it. */
@@ -258,6 +267,30 @@ describe('createTrufosMcpHandler', () => {
       expect(JSON.stringify(request)).not.toContain('super-secret-token');
     });
 
+    it('should mask credential headers and secrets of a request, also in the tree and search', async () => {
+      model = withListRequest({
+        url: {
+          base: '{{baseUrl}}/users',
+          query: [{ key: 'key', value: 'secret-api-key', isActive: true }],
+        },
+        headers: [
+          { key: 'Authorization', value: 'Basic dXNlcjpwYXNz', isActive: true },
+          { key: 'X-Api-Key', value: 'secret-api-key', isActive: true },
+          { key: 'X-Token', value: 'Bearer {{token}}', isActive: true },
+        ],
+      });
+
+      const request = await callTool<RequestDescription>('get_request', { requestId: 'list' });
+      const collection = await callTool('get_collection');
+      const found = await callTool<unknown[]>('search', { query: 'secret-api-key' });
+
+      expect(request.headers.map(({ value }) => value)).toEqual([MASK, MASK, 'Bearer {{token}}']);
+      expect(request.url).toBe(`{{baseUrl}}/users?key=${MASK}`);
+      expect(request.query).toEqual([{ key: 'key', value: MASK, isActive: true }]);
+      expect(JSON.stringify([request, collection])).not.toMatch(/secret-api-key|dXNlcjpwYXNz/);
+      expect(found).toEqual([]);
+    });
+
     it('should fail for a request the open collection does not have', async () => {
       await expect(callTool('get_request', { requestId: 'missing' })).rejects.toThrow(
         'Request missing does not exist'
@@ -297,7 +330,8 @@ describe('createTrufosMcpHandler', () => {
   });
 
   describe('history', () => {
-    function recordEntry(): HistoryEntry {
+    /** Records an entry whose request was sent with the given secrets. */
+    function recordEntry(secrets: ReadonlySet<string> = new Set()): HistoryEntry {
       const entry: HistoryEntry = {
         id: 'entry',
         requestId: 'list',
@@ -320,8 +354,8 @@ describe('createTrufosMcpHandler', () => {
           },
         ],
       };
-      vi.spyOn(HistoryService.instance, 'list').mockReturnValue([summarizeHistoryEntry(entry)]);
-      vi.spyOn(HistoryService.instance, 'get').mockReturnValue(entry);
+      vi.spyOn(HistoryService.instance, 'listRecorded').mockReturnValue([{ entry, secrets }]);
+      vi.spyOn(HistoryService.instance, 'getRecorded').mockReturnValue({ entry, secrets });
       return entry;
     }
 
@@ -338,12 +372,28 @@ describe('createTrufosMcpHandler', () => {
       expect(JSON.stringify([entry.request, entry.url, summaries])).not.toMatch(
         /super-secret-token|secret-api-key/
       );
-      // a logged secret is masked, free text that only contains it is not, see redaction.ts
-      expect(entry.scriptLogs[0].args).toEqual([MASK, 'key secret-api-key', 1]);
+      // script output is free text, so every occurrence of a secret is masked, see redaction.ts
+      expect(entry.scriptLogs[0].args).toEqual([MASK, `key ${MASK}`, 1]);
+    });
+
+    it('should mask the secrets the request was sent with, even if they were changed since', async () => {
+      const entry = recordEntry(new Set(['rotated-secret']));
+      entry.url = 'https://api.example.com/users?key=rotated-secret';
+      entry.request!.headers = { 'x-rotated': 'rotated-secret' };
+      entry.scriptLogs = [
+        { script: ScriptType.PRE_REQUEST, level: 'info', args: ['rotated-secret'] },
+      ];
+
+      const result = await callTool<HistoryEntryResult>('get_history_entry', { entryId: 'entry' });
+      const [summary] = await callTool<{ url: string }[]>('get_history');
+
+      expect(result.request.headers).toEqual({ 'x-rotated': MASK });
+      expect(result.scriptLogs[0].args).toEqual([MASK]);
+      expect(summary.url).toBe(`https://api.example.com/users?key=${MASK}`);
     });
 
     it('should not return entries of other collections', async () => {
-      const get = vi.spyOn(HistoryService.instance, 'get').mockReturnValue(undefined);
+      const get = vi.spyOn(HistoryService.instance, 'getRecorded').mockReturnValue(undefined);
 
       await expect(callTool('get_history_entry', { entryId: 'entry' })).rejects.toThrow();
       expect(get).toHaveBeenCalledWith('entry', '/col');
@@ -491,14 +541,111 @@ describe('createTrufosMcpHandler', () => {
       ]);
     });
 
-    it('should not store a masked credential', async () => {
+    it('should keep the stored value of a masked credential', async () => {
+      await callTool('update_request', {
+        requestId: 'list',
+        auth: { type: AuthorizationType.BEARER, token: MASK },
+      });
+      await expect(
+        callTool('update_request', {
+          requestId: 'health',
+          auth: { type: AuthorizationType.BEARER, token: MASK },
+        })
+      ).rejects.toThrow('masked value');
+
+      expect(commands).toEqual([
+        {
+          type: CommandType.EDIT_REQUEST,
+          id: 'list',
+          changes: expect.objectContaining({
+            auth: { type: AuthorizationType.BEARER, token: 'super-secret-token' },
+          }),
+        },
+      ]);
+    });
+
+    it('should keep the stored values of masked headers and query values', async () => {
+      model = withListRequest({
+        url: {
+          base: '{{baseUrl}}/users',
+          query: [{ key: 'key', value: 'secret-api-key', isActive: true }],
+        },
+        headers: [{ key: 'Authorization', value: 'Basic dXNlcjpwYXNz', isActive: true }],
+      });
+
+      await callTool('update_request', {
+        requestId: 'list',
+        url: `{{baseUrl}}/users?key=${MASK}&page=2`,
+        headers: [
+          { key: 'authorization', value: MASK, isActive: true },
+          { key: 'Accept', value: 'application/json', isActive: true },
+        ],
+      });
+
+      expect(commands).toEqual([
+        {
+          type: CommandType.EDIT_REQUEST,
+          id: 'list',
+          changes: expect.objectContaining({
+            url: {
+              base: '{{baseUrl}}/users',
+              query: [
+                { key: 'key', value: 'secret-api-key', isActive: true },
+                { key: 'page', value: '2', isActive: true },
+              ],
+            },
+            headers: [
+              { key: 'authorization', value: 'Basic dXNlcjpwYXNz', isActive: true },
+              { key: 'Accept', value: 'application/json', isActive: true },
+            ],
+          }),
+        },
+      ]);
+    });
+
+    it('should not store a masked header that has no stored value', async () => {
       await expect(
         callTool('update_request', {
           requestId: 'list',
-          auth: { type: AuthorizationType.BEARER, token: MASK },
+          headers: [{ key: 'Authorization', value: MASK, isActive: true }],
+        })
+      ).rejects.toThrow('masked value');
+      expect(commands).toEqual([]);
+    });
+
+    it('should not store a script whose secrets were masked', async () => {
+      vi.spyOn(collectionState, 'readExistingRequest').mockImplementation(
+        async (_id, reader) => await reader(model.requests.get('list')!)
+      );
+      const loadScript = vi
+        .spyOn(PersistenceService.instance, 'loadScript')
+        .mockImplementation(async () => Readable.from(['use("secret-api-key")']) as fs.ReadStream);
+
+      await expect(
+        callTool('get_request_script', { requestId: 'list', scriptType: ScriptType.PRE_REQUEST })
+      ).resolves.toMatchObject({ script: `use("${MASK}")` });
+      await expect(
+        callTool('edit_request_script', {
+          requestId: 'list',
+          scriptType: ScriptType.PRE_REQUEST,
+          text: `use("${MASK}")`,
         })
       ).rejects.toThrow('masked');
-      expect(commands).toEqual([]);
+
+      loadScript.mockImplementation(async () => Readable.from(['use(1)']) as fs.ReadStream);
+      await callTool('edit_request_script', {
+        requestId: 'list',
+        scriptType: ScriptType.PRE_REQUEST,
+        text: `log("${MASK}")`,
+      });
+      expect(commands).toEqual([
+        {
+          type: CommandType.SET_SCRIPT,
+          id: 'list',
+          scriptType: ScriptType.PRE_REQUEST,
+          text: `log("${MASK}")`,
+        },
+      ]);
     });
 
     it('should only edit text bodies', async () => {

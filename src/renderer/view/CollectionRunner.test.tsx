@@ -95,7 +95,7 @@ function setupCollection(children: TreeItem[]) {
 }
 
 function renderRunner(props: Partial<Parameters<typeof CollectionRunner>[0]> = {}) {
-  return render(<CollectionRunner open onClose={vi.fn()} {...props} />);
+  return render(<CollectionRunner onClose={vi.fn()} {...props} />);
 }
 
 /** Creates a promise that can be resolved/rejected from the outside. */
@@ -124,13 +124,7 @@ beforeEach(() => {
 });
 
 describe('CollectionRunner rendering', () => {
-  it('renders nothing when closed', () => {
-    renderRunner({ open: false });
-
-    expect(screen.queryByText('Collection Runner')).toBeNull();
-  });
-
-  it('shows the collection title and all requests when open', () => {
+  it('shows the collection title and all requests', () => {
     renderRunner();
 
     expect(screen.getByText('Collection Runner')).toBeDefined();
@@ -219,7 +213,7 @@ describe('CollectionRunner selection', () => {
     const { rerender } = renderRunner();
 
     setupCollection([...mockChildren, makeRequest('req-5', 'New Request', RequestMethod.PUT)]);
-    rerender(<CollectionRunner open onClose={vi.fn()} />);
+    rerender(<CollectionRunner onClose={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: /run 5 requests/i })).toBeDefined();
   });
@@ -228,7 +222,7 @@ describe('CollectionRunner selection', () => {
     const { rerender } = renderRunner();
 
     setupCollection([makeRequest('req-1', 'Login', RequestMethod.POST)]);
-    rerender(<CollectionRunner open onClose={vi.fn()} />);
+    rerender(<CollectionRunner onClose={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: /run 1 request$/i })).toBeDefined();
   });
@@ -531,14 +525,14 @@ describe('CollectionRunner closing', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('aborts a run in progress when the modal is closed', async () => {
+  it('aborts a run in progress when the runner is closed', async () => {
     const user = userEvent.setup();
     const first = deferred<TrufosResponse>();
     sendRequestMock.mockReturnValueOnce(first.promise);
-    const { rerender } = renderRunner();
+    const { unmount } = renderRunner();
 
     await user.click(screen.getByRole('button', { name: /run 4 requests/i }));
-    rerender(<CollectionRunner open={false} onClose={vi.fn()} />);
+    unmount();
 
     first.resolve(makeResponse(200));
     await waitFor(() => expect(sendRequestMock).toHaveBeenCalledTimes(1));
