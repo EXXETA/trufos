@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { useDefaultLayout } from 'react-resizable-panels';
+import { CollectionTrustBanner } from '@/components/mainWindow/CollectionTrustBanner';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { selectWindowView, useViewActions, useViewStore } from '@/state/viewStore';
 import { CollectionRunner } from '@/view/CollectionRunner';
@@ -30,8 +31,8 @@ function RequestLayout(): ReactElement {
   );
 }
 
-/** The content of the window: the view selected in the view store, see `WindowView`. */
-export function MainView(): ReactElement {
+/** The view selected in the view store, see `WindowView`. */
+function WindowContent(): ReactElement {
   const windowView = useViewStore(selectWindowView);
   const { closeCollectionRunner } = useViewActions();
   switch (windowView) {
@@ -41,4 +42,19 @@ export function MainView(): ReactElement {
       // full width, as its own request checklist makes the sidebar redundant
       return <CollectionRunner onClose={closeCollectionRunner} />;
   }
+}
+
+/**
+ * The content of the window. The trust banner is shown above whatever view is open, as trust is a
+ * property of the collection.
+ */
+export function MainView(): ReactElement {
+  return (
+    <div className="flex h-full w-full flex-col">
+      <CollectionTrustBanner />
+      <div className="min-h-0 flex-1">
+        <WindowContent />
+      </div>
+    </div>
+  );
 }

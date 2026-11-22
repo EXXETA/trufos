@@ -15,4 +15,12 @@ export interface RequestRecorder {
 
   /** Records a console call or error of a user script of the request. */
   scriptLog: ScriptLogger;
+
+  /**
+   * Records secrets the request is sent with, e.g. the values of secret variables. Called again
+   * whenever a script may have changed them. Whoever shows the record later masks them, even if
+   * they were changed or removed since.
+   * @param secrets the secrets
+   */
+  secrets(secrets: Iterable<string>): void;
 }

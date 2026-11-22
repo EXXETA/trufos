@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { text } from 'node:stream/consumers';
-import { isSameOrInside, openFile, readFileLimited } from './fs-util';
+import { isInsideDirectory, isSameOrInside, openFile, readFileLimited } from './fs-util';
 
 /** The concurrent read limit that `readFileLimited()` is expected to enforce. */
 const MAX_CONCURRENT_READS = 10;
@@ -149,5 +149,35 @@ describe('isSameOrInside', () => {
     expect(isSameOrInside(path.join(parent, 'c', 'd'), parent)).toBe(true);
     expect(isSameOrInside(path.join('/a', 'bc'), parent)).toBe(false);
     expect(isSameOrInside(path.join('/a'), parent)).toBe(false);
+  });
+});
+
+describe('isInsideDirectory', () => {
+  const dir = path.resolve('/collection');
+
+  it('should accept files inside the directory, also those that do not exist yet', async () => {
+    await fs.mkdir(path.join(dir, 'files'), { recursive: true });
+    await fs.writeFile(path.join(dir, 'files', 'body.json'), '{}');
+
+    await expect(isInsideDirectory(path.join(dir, 'files', 'body.json'), dir)).resolves.toBe(true);
+    await expect(isInsideDirectory(path.join(dir, 'new', 'file.txt'), dir)).resolves.toBe(true);
+  });
+
+  it('should reject the directory itself and files outside of it', async () => {
+    await fs.mkdir(dir, { recursive: true });
+
+    await expect(isInsideDirectory(dir, dir)).resolves.toBe(false);
+    await expect(isInsideDirectory(path.resolve('/collection-other/file'), dir)).resolves.toBe(
+      false
+    );
+    await expect(isInsideDirectory(path.join(dir, '..', 'secret'), dir)).resolves.toBe(false);
+  });
+
+  it('should follow symbolic links that point outside the directory', async () => {
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.resolve('/secret'), 'key');
+    await fs.symlink(path.resolve('/secret'), path.join(dir, 'link'));
+
+    await expect(isInsideDirectory(path.join(dir, 'link'), dir)).resolves.toBe(false);
   });
 });

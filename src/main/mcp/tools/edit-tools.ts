@@ -11,7 +11,6 @@ import {
   getExistingRequest,
   newFolder,
   newRequest,
-  type RequestChanges,
 } from 'shim/collection-model';
 import { AuthorizationInformation } from 'shim/objects/auth';
 import { TrufosHeader } from 'shim/objects/headers';
@@ -20,8 +19,8 @@ import { FileBody, FormDataBody, NoBody, RequestBodyType, TextBody } from 'shim/
 import { RequestMethod } from 'shim/objects/request-method';
 import { parseUrl } from 'shim/objects/url';
 import { ScriptType } from 'shim/scripting';
-import { hasMaskedCredential, MASK } from '../redaction';
-import { AbsolutePath, jsonResult, RequestIdInput } from './shared';
+import { MASK, restoreMaskedChanges } from '../redaction';
+import { AbsolutePath, jsonResult, readScript, RequestIdInput } from './shared';
 
 /*
  * The commands validate themselves when they are applied, e.g. that a request or a parent exists,
@@ -46,7 +45,15 @@ const IndexInput = z
   .optional()
   .describe('The position among the children of the parent. Defaults to the end.');
 
-/** A request body as a client sets it. A text body's text is set with `edit_request_body`. */
+/**
+ * A request body as a client sets it. A text body's text is set with `edit_request_body`.
+ *
+ * A file body may point at any file, like one the user chose. Restricting it to the collection
+ * would add no protection: a client that may edit requests can also edit their scripts, which can
+ * read any file once the request is sent. Sending files from outside of a collection the user does
+ * not trust is refused when the request is sent, see `HttpService`. Should scripts get a sandbox,
+ * file bodies of clients have to be restricted here, too.
+ */
 const BodyInput = z.discriminatedUnion('type', [
   NoBody,
   TextBody.omit({ text: true }),
@@ -63,16 +70,6 @@ const BodyInput = z.discriminatedUnion('type', [
  */
 function apply(plan: CommandPlan): Promise<CollectionModel> {
   return collectionState.applyTo(collectionState.model.collection.id, plan);
-}
-
-/** Rejects an authorization that contains a credential masked by `get_request`. */
-function assertNoMaskedCredentials(auth: AuthorizationInformation | null | undefined) {
-  if (auth != null && hasMaskedCredential(auth)) {
-    throw new Error(
-      `The authorization contains the masked value ${MASK}. Pass the real value or a ` +
-        '`{{variable}}` instead.'
-    );
-  }
 }
 
 /**
@@ -134,7 +131,8 @@ export function registerEditTools(server: McpServer): void {
         'Changes the URL, method, headers, body type or authorization of a request. Omitted ' +
         'fields stay as they are. The text of a text body is set with `edit_request_body`; a ' +
         'large body can be sent from a file with a body of type `file`. Values can use ' +
-        `\`{{variables}}\`. ${DRAFT_NOTE}`,
+        `\`{{variables}}\`. A value \`${MASK}\` that \`get_request\` returned keeps the stored ` +
+        `value. ${DRAFT_NOTE}`,
       inputSchema: z.object({
         requestId: RequestIdInput,
         url: z.string().optional().describe('The URL including the query string.'),
@@ -154,9 +152,14 @@ export function registerEditTools(server: McpServer): void {
       annotations: EDIT,
     },
     async ({ requestId, url, ...rest }) => {
-      assertNoMaskedCredentials(rest.auth);
-      const changes: RequestChanges = { ...rest, url: url != null ? parseUrl(url) : undefined };
-      await apply(() => ({ type: CommandType.EDIT_REQUEST, id: requestId, changes }));
+      await apply((model) => ({
+        type: CommandType.EDIT_REQUEST,
+        id: requestId,
+        changes: restoreMaskedChanges(
+          { ...rest, url: url != null ? parseUrl(url) : undefined },
+          getExistingRequest(model, requestId)
+        ),
+      }));
       return jsonResult({ updated: requestId });
     }
   );
@@ -201,6 +204,18 @@ export function registerEditTools(server: McpServer): void {
       annotations: EDIT,
     },
     async ({ requestId, scriptType, text }) => {
+      // `get_request_script` masks the secrets in the script, which cannot be restored by position.
+      // Reading and writing are two tasks of the collection state, so another edit may come in
+      // between; the script is then replaced, like by any other edit.
+      if (text.includes(MASK)) {
+        const current = await readScript(requestId, scriptType);
+        if (current.masked !== current.text) {
+          throw new Error(
+            `The script contains the masked value ${MASK}, and the stored script contains secrets ` +
+              'that were masked. Pass the real values or read them from variables instead.'
+          );
+        }
+      }
       await apply(() => ({ type: CommandType.SET_SCRIPT, id: requestId, scriptType, text }));
       return jsonResult({ updated: requestId });
     }

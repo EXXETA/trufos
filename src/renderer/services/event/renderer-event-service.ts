@@ -75,6 +75,8 @@ export class RendererEventService implements IEventService {
   openCollection = createEventMethod('openCollection');
   createCollection = createEventMethod('createCollection');
   closeCollection = createEventMethod('closeCollection');
+  isCollectionTrusted = createEventMethod('isCollectionTrusted');
+  trustCollection = createEventMethod('trustCollection');
   flushCollection = createEventMethod('flushCollection');
   reloadCollection = createEventMethod('reloadCollection');
   reloadCollectionIfChanged = createEventMethod('reloadCollectionIfChanged');

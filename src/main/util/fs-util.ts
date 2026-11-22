@@ -99,3 +99,42 @@ export async function openFile(
 export function isSameOrInside(dirPath: string, parentDirPath: string): boolean {
   return dirPath === parentDirPath || dirPath.startsWith(parentDirPath + path.sep);
 }
+
+/**
+ * Resolves the symbolic links of a path. A path that does not exist (yet) is resolved through its
+ * closest existing ancestor, so a file that is about to be created is judged by where it will be.
+ * @param filePath an absolute path
+ * @returns the real path
+ */
+async function realPathOfExisting(filePath: string): Promise<string> {
+  try {
+    return await fs.realpath(filePath);
+  } catch (error) {
+    if (!isErrnoException(error) || error.code !== 'ENOENT') throw error;
+    const parent = path.dirname(filePath);
+    if (parent === filePath) return filePath; // the root does not exist, e.g. an unknown drive
+    return path.join(await realPathOfExisting(parent), path.basename(filePath));
+  }
+}
+
+/**
+ * Checks if a file is inside a directory, after following symbolic links. Unlike
+ * {@link isSameOrInside}, this cannot be fooled by `..` segments or by a link inside the directory
+ * that points outside of it.
+ * @param filePath the path of the file
+ * @param dirPath the path of the directory
+ * @returns true if the file is inside the directory or one of its subdirectories
+ */
+export async function isInsideDirectory(filePath: string, dirPath: string): Promise<boolean> {
+  const [realFilePath, realDirPath] = await Promise.all([
+    realPathOfExisting(path.resolve(filePath)),
+    realPathOfExisting(path.resolve(dirPath)),
+  ]);
+  const relative = path.relative(realDirPath, realFilePath);
+  return (
+    relative !== '' &&
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+}

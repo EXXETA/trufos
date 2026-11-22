@@ -89,3 +89,21 @@ export const TrufosRequest = z.object({
   auth: AuthorizationInformation.optional(),
 });
 export type TrufosRequest = z.infer<typeof TrufosRequest>;
+
+/**
+ * @param body a request body
+ * @returns the paths of the files the body sends: the file of a file body and the files of the
+ * form data fields
+ */
+export function getBodyFilePaths(body: RequestBody): string[] {
+  switch (body.type) {
+    case RequestBodyType.FILE:
+      return body.filePath != null ? [body.filePath] : [];
+    case RequestBodyType.FORM_DATA:
+      return body.fields.flatMap(({ value }) =>
+        value.type === RequestBodyType.FILE && value.filePath != null ? [value.filePath] : []
+      );
+    default:
+      return [];
+  }
+}

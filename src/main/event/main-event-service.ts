@@ -200,6 +200,15 @@ export class MainEventService implements IEventService {
     await collectionState.closeCollection(dirPath);
   }
 
+  async isCollectionTrusted(dirPath: string): Promise<boolean> {
+    return StateService.instance.isTrusted(dirPath);
+  }
+
+  async trustCollection(dirPath: string): Promise<void> {
+    logger.info('Trusting collection at', dirPath);
+    await StateService.instance.trust(dirPath);
+  }
+
   async flushCollection(): Promise<void> {
     await collectionState.flush();
   }

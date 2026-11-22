@@ -11,7 +11,8 @@ import type { TrufosHeader } from 'shim/objects/headers';
 import type { TrufosQueryParam } from 'shim/objects/query-param';
 import { type RequestBody, RequestBodyType, type TrufosRequest } from 'shim/objects/request';
 import { buildUrl } from 'shim/objects/url';
-import { maskAuthorization } from './redaction';
+import { collectSecrets } from 'main/collection-state/secrets';
+import { redactRequest, redactTrufosUrl } from './redaction';
 
 /*
  * What the MCP tools return about the open collection. These are plain data, so the tools return
@@ -29,18 +30,21 @@ export type TreeEntry =
  * @returns the folders and requests below the parent, in order
  */
 export function describeTree(model: CollectionModel, parentId = model.collection.id): TreeEntry[] {
-  return getChildren(model, parentId).map((node) =>
-    node.type === 'folder'
-      ? { type: 'folder', id: node.id, title: node.title, children: describeTree(model, node.id) }
-      : {
-          type: 'request',
-          id: node.id,
-          title: node.title,
-          method: node.method,
-          url: buildUrl(node.url),
-          draft: node.draft === true,
-        }
-  );
+  const secrets = collectSecrets(model);
+  const describe = (id: string): TreeEntry[] =>
+    getChildren(model, id).map((node) =>
+      node.type === 'folder'
+        ? { type: 'folder', id: node.id, title: node.title, children: describe(node.id) }
+        : {
+            type: 'request',
+            id: node.id,
+            title: node.title,
+            method: node.method,
+            url: buildUrl(redactTrufosUrl(node.url, secrets)),
+            draft: node.draft === true,
+          }
+    );
+  return describe(parentId);
 }
 
 /**
@@ -69,7 +73,7 @@ export interface RequestDescription {
   disabledHeaders: string[];
   /** A text body without its text, which is read with a tool of its own. */
   body: RequestBody;
-  /** The authorization with its credentials masked. */
+  /** The authorization with its credentials masked, see {@link redactRequest}. */
   auth?: AuthorizationInformation;
   draft: boolean;
   /** Whether the request was never saved. Discarding its draft deletes it. */
@@ -77,15 +81,13 @@ export interface RequestDescription {
 }
 
 /**
- * Describes a request with its masked authorization. The text body and the scripts are not part of
- * it, as they may be large; they are read with tools of their own.
+ * Describes a request with its secrets masked, see {@link redactRequest}. The text body and the
+ * scripts are not part of it, as they may be large; they are read with tools of their own.
  * @param model the open collection
- * @param request the request
+ * @param stored the request
  */
-export function describeRequest(
-  model: CollectionModel,
-  request: TrufosRequest
-): RequestDescription {
+export function describeRequest(model: CollectionModel, stored: TrufosRequest): RequestDescription {
+  const request = redactRequest(stored, collectSecrets(model));
   const { body } = request;
   return {
     id: request.id,
@@ -98,7 +100,7 @@ export function describeRequest(
     headers: request.headers,
     disabledHeaders: request.disabledHeaders ?? [],
     body: body.type === RequestBodyType.TEXT ? { type: body.type, mimeType: body.mimeType } : body,
-    auth: request.auth != null ? maskAuthorization(request.auth) : undefined,
+    auth: request.auth,
     draft: request.draft === true,
     neverSaved: request.draft === true && !model.savedRequests.has(request.id),
   };
@@ -116,7 +118,8 @@ export interface SearchResult {
 
 /**
  * Finds the requests and folders whose title, URL or method contain every term of the query,
- * ignoring case. The URL is the stored template, not the resolved URL.
+ * ignoring case. The URL is the stored template, not the resolved URL, with its secrets masked, so
+ * a search cannot tell whether a URL contains a secret.
  * @param model the open collection
  * @param query the terms, separated by whitespace
  * @param limit the maximum number of results
@@ -129,18 +132,19 @@ export function searchCollection(
 ): SearchResult[] {
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const results: SearchResult[] = [];
+  const secrets = collectSecrets(model);
   walkTree(model, model.collection.id, (id) => {
     const node = getNode(model, id);
     if (node == null || results.length >= limit) return false;
-    const fields =
-      node.type === 'folder' ? [node.title] : [node.title, buildUrl(node.url), node.method];
+    const url = node.type === 'request' ? buildUrl(redactTrufosUrl(node.url, secrets)) : undefined;
+    const fields = node.type === 'folder' ? [node.title] : [node.title, url, node.method];
     const haystack = fields.join('\n').toLowerCase();
     if (!terms.every((term) => haystack.includes(term))) return;
     results.push({
       type: node.type,
       id: node.id,
       title: node.title,
-      ...(node.type === 'request' ? { method: node.method, url: buildUrl(node.url) } : {}),
+      ...(node.type === 'request' ? { method: node.method, url } : {}),
       folderPath: getFolderPath(model, node.id),
     });
   });

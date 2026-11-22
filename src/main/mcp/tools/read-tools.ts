@@ -1,25 +1,41 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import { Readable } from 'node:stream';
-import { text } from 'node:stream/consumers';
 import { z } from 'zod';
 import { CollectionStateService } from 'main/collection-state/collection-state-service';
+import { collectSecrets } from 'main/collection-state/secrets';
 import { getSystemVariables } from 'main/environment/service/system-variable';
-import { HistoryService } from 'main/history/history-service';
+import { HistoryService, type RecordedEntry } from 'main/history/history-service';
 import { PersistenceService } from 'main/persistence/service/persistence-service';
 import { getExistingRequest } from 'shim/collection-model';
-import { MAX_HISTORY_ENTRIES } from 'shim/history';
+import { MAX_HISTORY_ENTRIES, summarizeHistoryEntry } from 'shim/history';
 import { RequestBodyType } from 'shim/objects/request';
 import { ScriptType } from 'shim/scripting';
 import { PageInput, readPage } from '../body-pages';
 import { describeRequest, describeTree, searchCollection } from '../collection-views';
-import { collectSecrets, maskVariables, redactHistoryEntry, redactUrl } from '../redaction';
-import { jsonResult, type McpUiNotifier, readResponseBodyPage, RequestIdInput } from './shared';
+import { MASK, maskVariables, redactHistoryEntry, redactUrl } from '../redaction';
+import {
+  jsonResult,
+  type McpUiNotifier,
+  readResponseBodyPage,
+  readScript,
+  RequestIdInput,
+} from './shared';
 
 const collectionState = CollectionStateService.instance;
 const historyService = HistoryService.instance;
 const persistenceService = PersistenceService.instance;
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
+
+/**
+ * @param secrets the secrets of the open collection, see {@link collectSecrets}
+ * @param recorded an entry of the history
+ * @returns the secrets to mask in the entry: those of the collection now and those its request
+ * was sent with, which may have been changed or removed since
+ */
+function withSentSecrets(secrets: ReadonlySet<string>, recorded: RecordedEntry): Set<string> {
+  return new Set([...secrets, ...recorded.secrets]);
+}
 
 /**
  * Registers the tools of the `read` permission: finding and reading the open collection, its
@@ -82,7 +98,8 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
     {
       description:
         'Returns a request of the open collection: method, URL, headers, body type and ' +
-        'authorization, with credentials masked. Unsaved changes (drafts) are included. The text ' +
+        `authorization, with credentials and secrets masked as \`${MASK}\`. Unsaved changes ` +
+        '(drafts) are included. The text ' +
         'body and scripts are read with `get_request_body` and `get_request_script`.',
       inputSchema: z.object({ requestId: RequestIdInput }),
       annotations: READ_ONLY,
@@ -126,16 +143,13 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
     {
       description:
         'Reads the pre-request or post-response script of a request. It is empty if the request ' +
-        'has no such script.',
+        `has no such script. Secrets in it are masked as \`${MASK}\`.`,
       inputSchema: z.object({ requestId: RequestIdInput, scriptType: z.enum(ScriptType) }),
       annotations: READ_ONLY,
     },
     async ({ requestId, scriptType }) => {
-      const script = await collectionState.readExistingRequest(requestId, async (request) => {
-        const stream = await persistenceService.loadScript(request, scriptType);
-        return stream == null ? '' : await text(stream);
-      });
-      return jsonResult({ requestId, scriptType, script });
+      const { masked } = await readScript(requestId, scriptType);
+      return jsonResult({ requestId, scriptType, script: masked });
     }
   );
 
@@ -208,9 +222,15 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
         await collectionState.read((model) => {
           const secrets = collectSecrets(model);
           return historyService
-            .list(model.collection.dirPath)
+            .listRecorded(model.collection.dirPath)
             .slice(0, limit)
-            .map((summary) => ({ ...summary, url: redactUrl(summary.url, secrets) }));
+            .map((recorded) => {
+              const summary = summarizeHistoryEntry(recorded.entry);
+              return {
+                ...summary,
+                url: redactUrl(summary.url, withSentSecrets(secrets, recorded)),
+              };
+            });
         })
       )
   );
@@ -228,14 +248,17 @@ export function registerReadTools(server: McpServer, notifier: McpUiNotifier): v
     async ({ entryId }) =>
       jsonResult(
         await collectionState.read((model) => {
-          const entry = historyService.get(entryId, model.collection.dirPath);
-          if (entry == null) {
+          const recorded = historyService.getRecorded(entryId, model.collection.dirPath);
+          if (recorded == null) {
             throw new Error(
               `The history of the open collection has no entry with the ID ${entryId}.`
             );
           }
 
-          const { request, ...redacted } = redactHistoryEntry(entry, collectSecrets(model));
+          const { request, ...redacted } = redactHistoryEntry(
+            recorded.entry,
+            withSentSecrets(collectSecrets(model), recorded)
+          );
           return {
             ...redacted,
             // the body of the sent request is not offered, only its size

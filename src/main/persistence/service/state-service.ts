@@ -35,8 +35,15 @@ const AppState = z
 
     /** The directory of the current collection. */
     currentCollection: z.string().default(DEFAULT_COLLECTION_DIR),
+
+    /**
+     * The directories of the collections the user trusts, see {@link StateService.isTrusted}. They
+     * stay trusted when they are closed. A state from before collections could be trusted has
+     * none: the collections open then were used with their scripts already, so they are trusted.
+     */
+    trustedCollections: z.array(z.string()).optional(),
   })
-  .transform(({ collections, currentCollection }) => {
+  .transform(({ collections, currentCollection, trustedCollections }) => {
     // the default collection is always open
     if (!collections.some(({ dirPath }) => dirPath === DEFAULT_COLLECTION_DIR)) {
       collections = [{ dirPath: DEFAULT_COLLECTION_DIR }, ...collections];
@@ -45,7 +52,12 @@ const AppState = z
     if (!collections.some(({ dirPath }) => dirPath === currentCollection)) {
       currentCollection = DEFAULT_COLLECTION_DIR;
     }
-    return { collections, currentCollection };
+    trustedCollections ??= collections.map(({ dirPath }) => dirPath);
+    // the default collection is always trusted, the app created it
+    if (!trustedCollections.includes(DEFAULT_COLLECTION_DIR)) {
+      trustedCollections = [DEFAULT_COLLECTION_DIR, ...trustedCollections];
+    }
+    return { collections, currentCollection, trustedCollections };
   });
 type AppState = z.infer<typeof AppState>;
 
@@ -97,6 +109,23 @@ export class StateService implements Initializable {
   public close(dirPath: string): Promise<void> {
     return this.file.update((state) => {
       state.collections = state.collections.filter((collection) => collection.dirPath !== dirPath);
+    });
+  }
+
+  /**
+   * Whether the user trusts the collection in the given directory. A collection the user did not
+   * create in the app, e.g. one cloned from a repository, may come from anyone. Until the user
+   * trusts it, its scripts do not run and its requests only send files inside the collection, as
+   * both could read any file on this computer. The default collection is always trusted.
+   */
+  public isTrusted(dirPath: string): boolean {
+    return this.file.value.trustedCollections.includes(dirPath);
+  }
+
+  /** Trusts the collection in the given directory from now on, see {@link isTrusted}. */
+  public trust(dirPath: string): Promise<void> {
+    return this.file.update((state) => {
+      if (!state.trustedCollections.includes(dirPath)) state.trustedCollections.push(dirPath);
     });
   }
 
