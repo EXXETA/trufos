@@ -34,6 +34,7 @@ vi.mock('@/services/event/renderer-event-service', () => ({
       flushCollection: vi.fn().mockResolvedValue(undefined),
       reloadCollection: vi.fn().mockResolvedValue(undefined),
       reloadCollectionIfChanged: vi.fn().mockResolvedValue(undefined),
+      getRequestAsCurl: vi.fn().mockResolvedValue("curl -X GET 'http://localhost'"),
     },
   },
 }));
@@ -331,6 +332,54 @@ describe('creating and changing items', () => {
     expect(flushModelEdits).toHaveBeenCalledWith();
     expect(commandsWhenFlushed).toBe(0);
     expect(ctx.commands().map(({ type }) => type)).toEqual([CommandType.COPY]);
+  });
+
+  describe('copyRequestAsCurl', () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>();
+
+    beforeEach(() => {
+      writeText.mockResolvedValue(undefined);
+      vi.stubGlobal('navigator', { clipboard: { writeText } });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('writes the command of the request to the clipboard', async () => {
+      expect(await ctx.store.getState().copyRequestAsCurl('r1')).toBe(true);
+
+      expect(eventService.getRequestAsCurl).toHaveBeenCalledWith('r1', undefined);
+      expect(writeText).toHaveBeenCalledWith("curl -X GET 'http://localhost'");
+    });
+
+    it('passes on whether the secrets are included', async () => {
+      await ctx.store.getState().copyRequestAsCurl('r1', { includeSecrets: true });
+
+      expect(eventService.getRequestAsCurl).toHaveBeenCalledWith('r1', { includeSecrets: true });
+    });
+
+    it('flushes the editor changes of the request first', async () => {
+      let calledWhenFlushed = true;
+      vi.mocked(flushModelEdits).mockImplementationOnce(async () => {
+        calledWhenFlushed = eventService.getRequestAsCurl.mock.calls.length > 0;
+      });
+
+      await ctx.store.getState().copyRequestAsCurl('r1');
+
+      expect(flushModelEdits).toHaveBeenCalledWith('r1');
+      expect(calledWhenFlushed).toBe(false);
+    });
+
+    it('shows an error if the command cannot be built', async () => {
+      const error = new Error('too large');
+      eventService.getRequestAsCurl.mockRejectedValueOnce(error);
+
+      expect(await ctx.store.getState().copyRequestAsCurl('r1')).toBe(false);
+
+      expect(showError).toHaveBeenCalledWith('Could not copy the request as cURL', error);
+      expect(writeText).not.toHaveBeenCalled();
+    });
   });
 
   it('moveItems moves an item into another folder and opens it', async () => {

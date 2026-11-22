@@ -637,6 +637,11 @@ describe('HttpService', () => {
             isActive: true,
             value: { type: RequestBodyType.TEXT, text: 'john@example.com', mimeType: 'text/plain' },
           },
+          {
+            key: 'inactive',
+            isActive: false,
+            value: { type: RequestBodyType.TEXT, text: 'not sent', mimeType: 'text/plain' },
+          },
         ],
       },
     };
@@ -651,6 +656,7 @@ describe('HttpService', () => {
     const body: FormData = lastCall.body as unknown as FormData;
     expect(body).toBeInstanceOf(FormData);
     expect(body.get('name')).toEqual('John');
+    expect(body.has('inactive')).toBe(false);
   });
 
   it('fetchAsync() should send form data with file fields', async () => {
