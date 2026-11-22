@@ -149,14 +149,15 @@ describe('CollectionStoreProvider', () => {
     const SortAlphabetically = () => {
       const { setSortMode } = useCollectionActions();
       useEffect(() => setSortMode(SortMode.AZ_ASC), [setSortMode]);
-      return <Title />;
+      return <span>{useCollectionStore((state) => state.sortMode)}</span>;
     };
     render(
       <CollectionStoreProvider>
         <SortAlphabetically />
       </CollectionStoreProvider>
     );
-    await screen.findByText('Test');
+    // the title being rendered does not mean the effect setting the sort mode has run
+    await screen.findByText(SortMode.AZ_ASC);
 
     await act(async () => {
       await listeners.get(MainProcessEvent.BeforeClose)?.({});
