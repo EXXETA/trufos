@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 import { useDefaultLayout } from 'react-resizable-panels';
 import { ChevronDown, ChevronRight, Loader2, Play, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -66,7 +66,6 @@ function isFailure(result?: RunnerResult) {
 }
 
 interface CollectionRunnerProps {
-  open: boolean;
   onClose: () => void;
 }
 
@@ -194,7 +193,8 @@ function ResultPill({ result }: { result?: RunnerResult }) {
   );
 }
 
-export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
+/** The collection runner. Closing it unmounts it, which aborts a run in progress. */
+export function CollectionRunner({ onClose }: CollectionRunnerProps): ReactElement {
   const collection = useCollectionStore((state) => state.collection);
   const tree = useCollectionTree();
   const { requests } = tree;
@@ -223,25 +223,17 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
   const requestsRef = useRef(requests);
   requestsRef.current = requests;
 
-  useEffect(() => () => runControllerRef.current?.abort(), []);
-
   // Abort an in-flight run when the runner view is closed.
-  useEffect(() => {
-    if (!open) {
-      runControllerRef.current?.abort();
-      setIsRunning(false);
-    }
-  }, [open]);
+  useEffect(() => () => runControllerRef.current?.abort(), []);
 
   // Close the runner view with Escape, like the previous dialog did.
   useEffect(() => {
-    if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
     runControllerRef.current?.abort();
@@ -405,8 +397,6 @@ export function CollectionRunner({ open, onClose }: CollectionRunnerProps) {
     setTotalDuration(performance.now() - runStartRef.current);
     setIsRunning(false);
   };
-
-  if (!open) return null;
 
   return (
     <ResizablePanelGroup
