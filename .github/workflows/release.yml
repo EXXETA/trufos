@@ -9,12 +9,15 @@ on:
       - release
 
 jobs:
-  build_and_test:
-    name: Build and Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+  linux:
+    name: Linux
+    uses: ./.github/workflows/linux-packages.yml
+    with:
+      publish: true
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -31,10 +34,6 @@ jobs:
 
       - name: Run tests
         run: yarn test
-
-      - name: Install Linux build dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get install -y fakeroot dpkg
 
       - name: Build and publish app
         run: yarn run publish

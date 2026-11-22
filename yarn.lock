@@ -257,7 +257,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@electron-forge/maker-base@npm:8.0.1":
+"@electron-forge/maker-base@npm:8.0.1, @electron-forge/maker-base@npm:^8.0.1":
   version: 8.0.1
   resolution: "@electron-forge/maker-base@npm:8.0.1"
   dependencies:
@@ -7175,6 +7175,7 @@ __metadata:
     "@dnd-kit/sortable": "npm:^10.0.0"
     "@dnd-kit/utilities": "npm:^3.2.2"
     "@electron-forge/cli": "npm:^8.0.1"
+    "@electron-forge/maker-base": "npm:^8.0.1"
     "@electron-forge/maker-deb": "npm:^8.0.1"
     "@electron-forge/maker-dmg": "npm:^8.0.1"
     "@electron-forge/maker-squirrel": "npm:^8.0.1"
