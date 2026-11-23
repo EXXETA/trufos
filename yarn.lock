@@ -5628,16 +5628,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:1.70.0":
-  version: 1.70.0
-  resolution: "lucide-react@npm:1.70.0"
+"lucide-react@npm:1.77.0":
+  version: 1.77.0
+  resolution: "lucide-react@npm:1.77.0"
   peerDependencies:
     "@types/react": "*"
     react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/bce0a8b5f77c78933a4b6c2037d4ce371d1eaff8986849ef7fb28da131be3fa6964e4d2459ff40c9ac719402cddced55311af3d34397b178449817d312dfa4c5
+  checksum: 10c0/602824e6080ae948bfeb875fef90b6ae341edaf9991d434405245460699ef3a7ed8aacb5c604cc2211794f4941179c13b1e43c0a9c0858964705b1b673a16f74
   languageName: node
   linkType: hard
 
@@ -6523,9 +6523,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-resizable-panels@npm:^4.21.0":
-  version: 4.21.0
-  resolution: "react-resizable-panels@npm:4.21.0"
+"react-resizable-panels@npm:^4.24.1":
+  version: 4.24.1
+  resolution: "react-resizable-panels@npm:4.24.1"
   peerDependencies:
     "@types/react": ^18.2.6 || ^19.0.0
     react: ^18.0.0 || ^19.0.0
@@ -6533,7 +6533,7 @@ __metadata:
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/9426eee17902dce07fefabdfd3a83a1b3c31b5b7c2bfa5026ec63798464d6c165bba766e9fdd8be0630cf30bc5ee9f0fcd28c944cc85533d6a9c424328c841b7
+  checksum: 10c0/c00ae2a496d3bed17c59bac2b17de0e2ae98fcf64878fcde1185e81ded175d0c778150b2773415178b38db662523a82e3c586fa5d94f0e67276c23008976b091
   languageName: node
   linkType: hard
 
@@ -7226,7 +7226,7 @@ __metadata:
     globals: "npm:^17.14.0"
     immer: "npm:^11.2.10"
     jsdom: "npm:^31.0.0"
-    lucide-react: "npm:1.70.0"
+    lucide-react: "npm:1.77.0"
     memfs: "npm:^4.80.1"
     mime-types: "npm:^3.0.2"
     monaco-editor: "npm:^0.57.0"
@@ -7235,7 +7235,7 @@ __metadata:
     prettier-plugin-tailwindcss: "npm:^0.8.1"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
-    react-resizable-panels: "npm:^4.21.0"
+    react-resizable-panels: "npm:^4.24.1"
     sonner: "npm:^2.0.8"
     tailwind-merge: "npm:^3.7.0"
     tailwindcss: "npm:^4.3.5"
