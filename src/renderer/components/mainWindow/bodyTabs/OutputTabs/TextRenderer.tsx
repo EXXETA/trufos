@@ -3,7 +3,7 @@ import { TextBodyRenderer } from './body-renderer';
 import MonacoEditor from '@/lib/monaco/MonacoEditor';
 import { useBodyData } from '@/hooks/useBodyData';
 import { RESPONSE_EDITOR_OPTIONS } from '@/components/shared/settings/monaco-settings';
-import { mimeTypeToLanguage } from '@/lib/monaco/language';
+import { mimeTypeToLanguage } from '@/lib/monaco/languages';
 import { formatReadOnlyEditor } from '@/lib/monaco/format';
 import { editor } from 'monaco-editor';
 

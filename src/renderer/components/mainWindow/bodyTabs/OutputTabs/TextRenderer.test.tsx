@@ -10,7 +10,7 @@ const { useBodyDataMock, formatMock, instance } = vi.hoisted(() => ({
 
 vi.mock('@/hooks/useBodyData', () => ({ useBodyData: useBodyDataMock }));
 vi.mock('@/lib/monaco/format', () => ({ formatReadOnlyEditor: formatMock }));
-vi.mock('@/lib/monaco/language', () => ({ mimeTypeToLanguage: () => 'json' }));
+vi.mock('@/lib/monaco/languages', () => ({ mimeTypeToLanguage: () => 'json' }));
 vi.mock('monaco-editor', () => ({ editor: { setModelLanguage: vi.fn() } }));
 vi.mock('@/lib/monaco/MonacoEditor', () => ({
   default: ({ onMount }: { onMount: (instance: unknown) => void }) => {

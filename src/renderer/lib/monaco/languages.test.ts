@@ -3,7 +3,6 @@ import {
   Language,
   isFormattableLanguage,
   languageToMimeType,
-  mimeTypeEssence,
   mimeTypeToLanguage,
 } from './languages';
 
@@ -13,14 +12,6 @@ describe('languageToMimeType', () => {
     expect(languageToMimeType(Language.JSON)).toBe('application/json');
     expect(languageToMimeType(Language.XML)).toBe('application/xml');
     expect(languageToMimeType(Language.TEXT)).toBe('text/plain');
-  });
-});
-
-describe('mimeTypeEssence', () => {
-  it('should drop parameters, trim and lowercase', () => {
-    // Act / Assert
-    expect(mimeTypeEssence('  Application/JSON ; charset=utf-8')).toBe('application/json');
-    expect(mimeTypeEssence('text/plain')).toBe('text/plain');
   });
 });
 
@@ -65,15 +56,13 @@ describe('mimeTypeToLanguage', () => {
   });
 
   it('should map any +xml suffix to XML, including image/svg+xml', () => {
-    // The suffix is what decides, per the maintainer's suggestion: an SVG body is
-    // XML and can be highlighted as such.
+    // The suffix decides, so an SVG body is XML and can be highlighted as such.
     // Act / Assert
     expect(mimeTypeToLanguage('image/svg+xml')).toBe(Language.XML);
   });
 
   it('should map by suffix, not by the base name alone', () => {
-    // `text/x+plain` is not `text/plain`; only known types and the two
-    // structured suffixes are recognised.
+    // `text/x+plain` is not `text/plain`; only known types and the structured suffixes are recognised.
     // Act / Assert
     expect(mimeTypeToLanguage('text/x+plain')).toBeUndefined();
   });
@@ -100,12 +89,10 @@ describe('mimeTypeToLanguage', () => {
 });
 
 describe('isFormattableLanguage', () => {
-  it('should accept JSON and XML, by enum value or string', () => {
+  it('should accept JSON and XML', () => {
     // Act / Assert
     expect(isFormattableLanguage(Language.JSON)).toBe(true);
     expect(isFormattableLanguage(Language.XML)).toBe(true);
-    expect(isFormattableLanguage('json')).toBe(true);
-    expect(isFormattableLanguage('xml')).toBe(true);
   });
 
   it('should reject plain text and undefined', () => {

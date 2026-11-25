@@ -2,9 +2,10 @@
  * Language identifiers and the pure helpers that map between a language and a
  * MIME type. This module has no import side effects, so it can be imported by
  * tests and components without pulling in Monaco. The providers that register
- * languages with the editor live in `./language`, which re-exports everything
- * below.
+ * languages with the editor live in `./register-languages`.
  */
+
+import { mimeTypeEssence } from '@/lib/body';
 
 export enum Language {
   JSON = 'json',
@@ -12,15 +13,16 @@ export enum Language {
   TEXT = 'plaintext',
 }
 
-const LANGUAGE_TO_MIME_TYPE = new Map<Language, string>([
-  [Language.JSON, 'application/json'],
-  [Language.XML, 'application/xml'],
-  [Language.TEXT, 'text/plain'],
-]);
+// A Record keeps the compiler honest: every language needs a MIME type here.
+const LANGUAGE_TO_MIME_TYPE: Record<Language, string> = {
+  [Language.JSON]: 'application/json',
+  [Language.XML]: 'application/xml',
+  [Language.TEXT]: 'text/plain',
+};
 
-// A single literal map is easier to read than an inverted map plus aliases, and a
-// `Map` avoids the inherited-property trap a plain object has: with an object,
-// `mimeTypeToLanguage('constructor')` would return `Object`.
+// A `Map` avoids the inherited-property trap a plain object has: with an object,
+// `mimeTypeToLanguage('constructor')` would return `Object`, and the content
+// type comes from the server.
 const MIME_TYPE_TO_LANGUAGE = new Map<string, Language>([
   ['application/json', Language.JSON],
   ['text/json', Language.JSON],
@@ -29,24 +31,14 @@ const MIME_TYPE_TO_LANGUAGE = new Map<string, Language>([
   ['text/plain', Language.TEXT],
 ]);
 
-// Subtypes with a structured syntax suffix (RFC 6839), e.g. `application/problem+json`.
-// The suffix maps straight to a language rather than being rewritten into a base
-// MIME type, which would only work when the result happens to be a known type.
-const STRUCTURED_SUFFIXES: [RegExp, Language][] = [
-  [/^[^\s/]+\/[^\s/]+\+json$/, Language.JSON],
-  [/^[^\s/]+\/[^\s/]+\+xml$/, Language.XML],
-];
+/** The structured syntax suffix (RFC 6839) turned into a language, e.g. `json` in `application/problem+json`. */
+const SUFFIX_TO_LANGUAGE = new Map<string, Language>([
+  ['json', Language.JSON],
+  ['xml', Language.XML],
+]);
 
-/**
- * The media type without its parameters, lowercased, e.g.
- * `"application/json; charset=utf-8"` becomes `"application/json"`.
- *
- * @param mimeType The MIME type string to reduce.
- * @return The lowercased media type, without parameters.
- */
-export function mimeTypeEssence(mimeType: string): string {
-  return mimeType.split(';', 1)[0].trim().toLowerCase();
-}
+/** Captures the structured syntax suffix (RFC 6839), e.g. `json` in `application/problem+json`. */
+const STRUCTURED_SUFFIX = /^[^\s/]+\/[^\s/]+\+([^\s/+]+)$/;
 
 /**
  * Converts a language value to its canonical MIME type.
@@ -55,7 +47,7 @@ export function mimeTypeEssence(mimeType: string): string {
  * @return The corresponding MIME type.
  */
 export function languageToMimeType(language: Language): string {
-  return LANGUAGE_TO_MIME_TYPE.get(language) ?? 'text/plain';
+  return LANGUAGE_TO_MIME_TYPE[language];
 }
 
 /**
@@ -69,26 +61,18 @@ export function languageToMimeType(language: Language): string {
  */
 export function mimeTypeToLanguage(mimeType: string): Language | undefined {
   const essence = mimeTypeEssence(mimeType);
-  const direct = MIME_TYPE_TO_LANGUAGE.get(essence);
-  if (direct !== undefined) {
-    return direct;
-  }
-  for (const [pattern, language] of STRUCTURED_SUFFIXES) {
-    if (pattern.test(essence)) {
-      return language;
-    }
-  }
-  return undefined;
+  const suffix = STRUCTURED_SUFFIX.exec(essence)?.[1];
+  return (
+    MIME_TYPE_TO_LANGUAGE.get(essence) ??
+    (suffix != null ? SUFFIX_TO_LANGUAGE.get(suffix) : undefined)
+  );
 }
-
-const formattableLanguages = new Set([Language.JSON, Language.XML]);
 
 /**
  * Determines whether the specified language supports code formatting.
  *
- * @param language The language to check, as a string or enum value.
+ * @param language The language to check, as an enum value or `undefined`.
  * @returns `true` if the language supports formatting; otherwise, `false`.
  */
-export const isFormattableLanguage = (language?: string | Language): boolean => {
-  return formattableLanguages.has(language as Language);
-};
+export const isFormattableLanguage = (language: Language | undefined): boolean =>
+  language === Language.JSON || language === Language.XML;

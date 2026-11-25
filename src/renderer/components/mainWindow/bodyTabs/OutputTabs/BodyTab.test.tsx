@@ -12,7 +12,7 @@ vi.mock('@/lib/ipc-stream', () => ({
   IpcPushStream: { open: vi.fn() },
 }));
 
-vi.mock('@/lib/monaco/language', () => ({
+vi.mock('@/lib/monaco/languages', () => ({
   isFormattableLanguage: vi.fn(() => true),
   mimeTypeToLanguage: vi.fn(() => 'json'),
 }));

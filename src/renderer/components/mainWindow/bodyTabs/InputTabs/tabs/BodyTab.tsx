@@ -7,7 +7,7 @@ import {
   Language,
   languageToMimeType,
   mimeTypeToLanguage,
-} from '@/lib/monaco/language';
+} from '@/lib/monaco/languages';
 import { selectRequest, useCollectionActions, useCollectionStore } from '@/state/collectionStore';
 import BodyTabFileInput from './BodyTabFileInput';
 import BodyTabTextInput from './BodyTabTextInput';

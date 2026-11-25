@@ -8,16 +8,6 @@ import trufosDeclaration from '@/assets/trufos-scripting-api.d.ts?raw';
 
 typescript.javascriptDefaults.addExtraLib(trufosDeclaration);
 
-// Re-export the pure helpers so existing imports keep working; they live in
-// `./languages`, which has no side effects and can be imported by tests.
-export {
-  Language,
-  languageToMimeType,
-  mimeTypeEssence,
-  mimeTypeToLanguage,
-  isFormattableLanguage,
-} from './languages';
-
 const supportedLanguages = [Language.JSON, Language.XML, Language.TEXT];
 
 // plaintext using fast syntax highlighting

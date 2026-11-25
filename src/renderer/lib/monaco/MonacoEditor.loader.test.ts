@@ -6,7 +6,7 @@ import './MonacoEditor';
 // the real monaco core cannot run under jsdom, so the bundled monaco is replaced by a stand-in
 vi.mock('monaco-editor', () => ({ editor: {} }));
 // they register languages and themes, which needs the real monaco core
-vi.mock('./language', () => ({}));
+vi.mock('./register-languages', () => ({}));
 vi.mock('./theme', () => ({}));
 
 describe('MonacoEditor', () => {
