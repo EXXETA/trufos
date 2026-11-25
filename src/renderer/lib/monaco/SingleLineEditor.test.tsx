@@ -55,7 +55,7 @@ vi.mock('@/lib/monaco/MonacoEditor', () => ({
   },
 }));
 
-vi.mock('@/lib/monaco/language', () => ({ Language: { TEXT: 'plaintext' } }));
+vi.mock('@/lib/monaco/languages', () => ({ Language: { TEXT: 'plaintext' } }));
 
 vi.mock('@/components/shared/settings/monaco-settings', () => ({
   SINGLE_LINE_EDITOR_HEIGHT: 20,

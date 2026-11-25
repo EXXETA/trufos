@@ -15,7 +15,7 @@ vi.mock('@/state/collectionStore', () => ({
   selectRequest: () => ({ body: mockBody }),
 }));
 
-vi.mock('@/lib/monaco/language', () => ({
+vi.mock('@/lib/monaco/languages', () => ({
   Language: { JSON: 'json', XML: 'xml', TEXT: 'plaintext' },
   isFormattableLanguage: () => true,
   languageToMimeType: () => 'text/plain',

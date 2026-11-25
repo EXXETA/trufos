@@ -1,4 +1,4 @@
-import './language';
+import './register-languages';
 import './theme';
 import { loader } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';

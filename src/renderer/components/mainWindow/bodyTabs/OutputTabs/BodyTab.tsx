@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { editor } from 'monaco-editor';
 import { Divider } from '@/components/shared/Divider';
-import { isFormattableLanguage, mimeTypeToLanguage } from '@/lib/monaco/language';
+import { isFormattableLanguage, mimeTypeToLanguage } from '@/lib/monaco/languages';
 import { SimpleSelect } from '@/components/mainWindow/bodyTabs/InputTabs/SimpleSelect';
 import { BODY_SIZE_LIMIT, getMimeTypeFromHeaders } from '@/lib/body';
 import { ImagePrettyRenderer } from './ImagePrettyRenderer';
