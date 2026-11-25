@@ -1,26 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
-
-// `language.ts` registers Monaco providers as a side effect of being imported.
-// Mock Monaco and the providers so the pure MIME-type helpers can be tested
-// without a real editor environment.
-vi.mock('monaco-editor', () => ({
-  languages: {
-    setMonarchTokensProvider: vi.fn(),
-    registerDocumentSemanticTokensProvider: vi.fn(),
-    registerCompletionItemProvider: vi.fn(),
-    registerHoverProvider: vi.fn(),
-    registerDocumentFormattingEditProvider: vi.fn(),
-  },
-  typescript: {
-    javascriptDefaults: { addExtraLib: vi.fn() },
-  },
-}));
-vi.mock('xml-formatter', () => ({ default: vi.fn((text: string) => text) }));
-vi.mock('@/assets/trufos-scripting-api.d.ts?raw', () => ({
-  default: 'declare const trufos: unknown;',
-}));
-
-import { Language, languageToMimeType, mimeTypeToLanguage } from './language';
+import { describe, it, expect } from 'vitest';
+import {
+  Language,
+  isFormattableLanguage,
+  languageToMimeType,
+  mimeTypeEssence,
+  mimeTypeToLanguage,
+} from './languages';
 
 describe('languageToMimeType', () => {
   it('should map each language to its canonical MIME type', () => {
@@ -28,6 +13,14 @@ describe('languageToMimeType', () => {
     expect(languageToMimeType(Language.JSON)).toBe('application/json');
     expect(languageToMimeType(Language.XML)).toBe('application/xml');
     expect(languageToMimeType(Language.TEXT)).toBe('text/plain');
+  });
+});
+
+describe('mimeTypeEssence', () => {
+  it('should drop parameters, trim and lowercase', () => {
+    // Act / Assert
+    expect(mimeTypeEssence('  Application/JSON ; charset=utf-8')).toBe('application/json');
+    expect(mimeTypeEssence('text/plain')).toBe('text/plain');
   });
 });
 
@@ -45,14 +38,10 @@ describe('mimeTypeToLanguage', () => {
     expect(mimeTypeToLanguage('application/xml;charset=UTF-8')).toBe(Language.XML);
   });
 
-  it('should ignore casing', () => {
+  it('should ignore casing and surrounding whitespace', () => {
     // Act / Assert
     expect(mimeTypeToLanguage('Application/JSON')).toBe(Language.JSON);
     expect(mimeTypeToLanguage('APPLICATION/XML')).toBe(Language.XML);
-  });
-
-  it('should trim surrounding whitespace', () => {
-    // Act / Assert
     expect(mimeTypeToLanguage('  application/json  ')).toBe(Language.JSON);
   });
 
@@ -75,9 +64,26 @@ describe('mimeTypeToLanguage', () => {
     expect(mimeTypeToLanguage('application/vnd.api+json')).toBe(Language.JSON);
   });
 
-  it('should combine suffixes with parameters and casing', () => {
+  it('should map any +xml suffix to XML, including image/svg+xml', () => {
+    // The suffix is what decides, per the maintainer's suggestion: an SVG body is
+    // XML and can be highlighted as such.
     // Act / Assert
-    expect(mimeTypeToLanguage('Application/Problem+JSON; charset=utf-8')).toBe(Language.JSON);
+    expect(mimeTypeToLanguage('image/svg+xml')).toBe(Language.XML);
+  });
+
+  it('should map by suffix, not by the base name alone', () => {
+    // `text/x+plain` is not `text/plain`; only known types and the two
+    // structured suffixes are recognised.
+    // Act / Assert
+    expect(mimeTypeToLanguage('text/x+plain')).toBeUndefined();
+  });
+
+  it('should not treat inherited object properties as a language', () => {
+    // A plain-object lookup would return Object for these.
+    // Act / Assert
+    expect(mimeTypeToLanguage('constructor')).toBeUndefined();
+    expect(mimeTypeToLanguage('__proto__')).toBeUndefined();
+    expect(mimeTypeToLanguage('toString')).toBeUndefined();
   });
 
   it('should return undefined for an unknown media type', () => {
@@ -90,5 +96,21 @@ describe('mimeTypeToLanguage', () => {
     // Act / Assert
     expect(mimeTypeToLanguage('')).toBeUndefined();
     expect(mimeTypeToLanguage('   ')).toBeUndefined();
+  });
+});
+
+describe('isFormattableLanguage', () => {
+  it('should accept JSON and XML, by enum value or string', () => {
+    // Act / Assert
+    expect(isFormattableLanguage(Language.JSON)).toBe(true);
+    expect(isFormattableLanguage(Language.XML)).toBe(true);
+    expect(isFormattableLanguage('json')).toBe(true);
+    expect(isFormattableLanguage('xml')).toBe(true);
+  });
+
+  it('should reject plain text and undefined', () => {
+    // Act / Assert
+    expect(isFormattableLanguage(Language.TEXT)).toBe(false);
+    expect(isFormattableLanguage(undefined)).toBe(false);
   });
 });
